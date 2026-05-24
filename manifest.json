@@ -1,0 +1,28 @@
+{
+  "name": "NEXUS — AI Study Companion",
+  "short_name": "NEXUS",
+  "description": "AI-powered study companion for high school students. Math, Science, English, Social Studies, GPA tracking, flashcards, Pomodoro timer, and more.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0B0E1A",
+  "theme_color": "#6C5CE7",
+  "orientation": "any",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230B0E1A'/><circle cx='96' cy='96' r='48' fill='none' stroke='%236C5CE7' stroke-width='6'/><circle cx='96' cy='96' r='30' fill='none' stroke='%2300CEC9' stroke-width='4'/><circle cx='96' cy='96' r='10' fill='%2300CEC9'/><line x1='96' y1='48' x2='96' y2='30' stroke='%236C5CE7' stroke-width='4' stroke-linecap='round'/><line x1='96' y1='144' x2='96' y2='162' stroke='%236C5CE7' stroke-width='4' stroke-linecap='round'/><line x1='48' y1='96' x2='30' y2='96' stroke='%236C5CE7' stroke-width='4' stroke-linecap='round'/><line x1='144' y1='96' x2='162' y2='96' stroke='%236C5CE7' stroke-width='4' stroke-linecap='round'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230B0E1A'/><circle cx='256' cy='256' r='128' fill='none' stroke='%236C5CE7' stroke-width='14'/><circle cx='256' cy='256' r='80' fill='none' stroke='%2300CEC9' stroke-width='10'/><circle cx='256' cy='256' r='26' fill='%2300CEC9'/><line x1='256' y1='128' x2='256' y2='80' stroke='%236C5CE7' stroke-width='10' stroke-linecap='round'/><line x1='256' y1='384' x2='256' y2='432' stroke='%236C5CE7' stroke-width='10' stroke-linecap='round'/><line x1='128' y1='256' x2='80' y2='256' stroke='%236C5CE7' stroke-width='10' stroke-linecap='round'/><line x1='384' y1='256' x2='432' y2='256' stroke='%236C5CE7' stroke-width='10' stroke-linecap='round'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
