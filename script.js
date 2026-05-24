@@ -9104,29 +9104,34 @@ function applyWallpaper(type) {
         })();
     } else if (type === 'spirited-away') {
         // ══════════════════════════════════════════════════════════════════
-        // SEN'S STATION — v12.8 Public Release Quality
-        // Twilight sea platform. Pre-seeded star field, aurora sky shimmer,
-        // rolling mist layers, Totoro breathing + blinking, Howl shimmer trail,
-        // Ponyo wake splashes, fireflies, moonlit water columns, spirit wisps.
+        // SEN'S STATION — v12.9 Cinematic Quality
+        // Deep twilight sea. 3-band aurora, shooting stars, distant town glow,
+        // ghostly translucent spirit train, gentle rain, thinner platform,
+        // larger Totoro, wider moon corona, boosted mist + fireflies.
         // ══════════════════════════════════════════════════════════════════
         let t = 0, frame = 0;
         const W = canvas.width, H = canvas.height;
-        const platY = H * 0.55, platH = H * 0.18;
+        const platY = H * 0.55, platH = H * 0.09;
 
         // ── Pre-seeded star field (stable, no flicker) ──
-        const STARS = Array.from({ length: 110 }, (_, i) => {
+        const STARS = Array.from({ length: 140 }, (_, i) => {
             const rand = (n) => ((Math.sin(i * 127.1 + n * 311.7) * 43758.5) % 1 + 1) % 1;
             return { x: rand(0) * W, y: rand(1) * platY * 0.92,
-                     r: 0.4 + rand(2) * 1.2, phase: rand(3) * Math.PI * 2,
-                     speed: 0.008 + rand(4) * 0.018, bright: rand(5) };
+                     r: 0.3 + rand(2) * 1.6, phase: rand(3) * Math.PI * 2,
+                     speed: 0.006 + rand(4) * 0.022, bright: rand(5),
+                     big: rand(6) > 0.90 };
         });
+
+        // ── Shooting star ──
+        let shootX = -100, shootY = H * 0.1, shootActive = false, shootTimer = 0;
+        const SHOOT_INTERVAL = 580 + Math.floor(Math.random() * 340);
 
         // ── Mist layers (slow horizontal drift) ──
         const MIST = [
-            { x: 0, y: platY - 60, w: W * 1.4, h: 55, speed: 0.18, alpha: 0.09 },
-            { x: -W * 0.5, y: platY - 38, w: W * 1.6, h: 40, speed: 0.11, alpha: 0.12 },
-            { x: W * 0.2, y: platY - 20, w: W * 1.2, h: 28, speed: 0.22, alpha: 0.10 },
-            { x: -W * 0.3, y: platY + 4, w: W * 1.5, h: 22, speed: 0.14, alpha: 0.13 }
+            { x: 0,       y: platY - 68, w: W * 1.5, h: 60, speed: 0.18, alpha: 0.15 },
+            { x: -W*0.5,  y: platY - 44, w: W * 1.7, h: 44, speed: 0.11, alpha: 0.20 },
+            { x:  W*0.2,  y: platY - 22, w: W * 1.3, h: 32, speed: 0.22, alpha: 0.17 },
+            { x: -W*0.3,  y: platY +  3, w: W * 1.6, h: 24, speed: 0.14, alpha: 0.22 }
         ];
 
         // ── Water ripples ──
@@ -9155,6 +9160,13 @@ function applyWallpaper(type) {
             ox: (Math.random() - 0.5) * 80, oy: (Math.random() - 0.5) * 40
         }));
 
+        // ── Gentle rain ──
+        const RAIN = Array.from({ length: 110 }, () => ({
+            x: Math.random() * W, y: Math.random() * H,
+            len: 8 + Math.random() * 14, speed: 5.5 + Math.random() * 4,
+            alpha: 0.08 + Math.random() * 0.16
+        }));
+
         // ── Smoke puffs from train (persist after emission) ──
         const smokePuffs = [];
 
@@ -9177,50 +9189,85 @@ function applyWallpaper(type) {
             t += 0.008; frame++;
             const cx = W / 2;
 
-            // ══ SKY ══
+            // ══ SKY — deep cinematic twilight ══
             const sky = ctx.createLinearGradient(0, 0, 0, platY);
-            sky.addColorStop(0,    '#080618');
-            sky.addColorStop(0.28, '#130c30');
-            sky.addColorStop(0.58, '#2d1858');
-            sky.addColorStop(0.82, '#4a2868');
-            sky.addColorStop(1,    '#5c3070');
+            sky.addColorStop(0,    '#010208');
+            sky.addColorStop(0.18, '#04071a');
+            sky.addColorStop(0.42, '#0d0826');
+            sky.addColorStop(0.68, '#1c0e3e');
+            sky.addColorStop(0.86, '#2a1554');
+            sky.addColorStop(1,    '#361a60');
             ctx.fillStyle = sky; ctx.fillRect(0, 0, W, platY);
 
-            // Aurora shimmer (two slow drifting bands)
-            for (let ab = 0; ab < 2; ab++) {
-                const ax = W * (0.25 + ab * 0.5) + Math.sin(t * 0.09 + ab * 2.3) * W * 0.14;
-                const ay = platY * (0.38 + ab * 0.18) + Math.cos(t * 0.07 + ab) * platY * 0.06;
-                const ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, W * 0.28);
-                ag.addColorStop(0, ab === 0 ? 'rgba(60,200,180,0.07)' : 'rgba(140,80,220,0.06)');
-                ag.addColorStop(1, 'transparent');
+            // ── Distant town amber glow at horizon ──
+            const townGlow = ctx.createLinearGradient(0, platY * 0.68, 0, platY);
+            townGlow.addColorStop(0, 'transparent');
+            townGlow.addColorStop(0.55, 'rgba(170,80,25,0.055)');
+            townGlow.addColorStop(1,   'rgba(210,120,35,0.13)');
+            ctx.fillStyle = townGlow; ctx.fillRect(0, platY * 0.68, W, platY * 0.32);
+            // Tiny amber window dots on horizon
+            for (let tc = 0; tc < 22; tc++) {
+                const sr = (n) => ((Math.sin(tc*91.3+n*217.8)*33701.5)%1+1)%1;
+                ctx.fillStyle = `rgba(255,175,55,${0.12+sr(4)*0.18})`;
+                ctx.fillRect(sr(0)*W, platY - 10 - sr(1)*30, 1.5+sr(2)*3, 1+sr(3)*2.5);
+            }
+
+            // Aurora shimmer (3 bands — teal, purple, blue)
+            for (let ab = 0; ab < 3; ab++) {
+                const ax = W*(0.16+ab*0.34) + Math.sin(t*0.08+ab*2.1)*W*0.16;
+                const ay = platY*(0.28+ab*0.13) + Math.cos(t*0.06+ab*0.9)*platY*0.07;
+                const ar = W*(0.30+ab*0.05);
+                const aA = 0.09 + Math.sin(t*0.12+ab)*0.04;
+                const aColors = [`rgba(28,200,155,${aA})`,`rgba(115,55,235,${aA*0.9})`,`rgba(0,135,215,${aA*0.85})`];
+                const ag = ctx.createRadialGradient(ax, ay, 0, ax, ay, ar);
+                ag.addColorStop(0, aColors[ab]); ag.addColorStop(1, 'transparent');
                 ctx.fillStyle = ag; ctx.fillRect(0, 0, W, platY);
             }
 
-            // ── Pre-seeded stars (smooth twinkling) ──
+            // ── Stars (smooth twinkling, cross-sparkle on bright ones) ──
             STARS.forEach(s => {
                 s.phase += s.speed;
-                const alpha = 0.18 + s.bright * 0.55 + Math.sin(s.phase) * 0.22;
-                const sz = s.r + Math.sin(s.phase * 0.7) * 0.3;
+                const alpha = 0.22 + s.bright * 0.62 + Math.sin(s.phase) * 0.22;
+                const sz = s.r + Math.sin(s.phase * 0.7) * 0.4;
                 ctx.fillStyle = `rgba(255,252,240,${Math.max(0,alpha)})`;
                 ctx.beginPath(); ctx.arc(s.x, s.y, sz, 0, Math.PI * 2); ctx.fill();
+                if (s.big) {
+                    const sp = Math.abs(Math.sin(s.phase)) * 6;
+                    ctx.strokeStyle = `rgba(255,245,215,${alpha*0.5})`;
+                    ctx.lineWidth = 0.6;
+                    ctx.beginPath(); ctx.moveTo(s.x-sp,s.y); ctx.lineTo(s.x+sp,s.y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(s.x,s.y-sp); ctx.lineTo(s.x,s.y+sp); ctx.stroke();
+                }
             });
 
-            // ── Moon + corona ──
-            const moonX = W * 0.74, moonY = H * 0.10;
-            const moonPulse = 1 + Math.sin(t * 0.22) * 0.04;
-            // Corona glow (3 layers)
-            [90, 55, 30].forEach((r, i) => {
+            // ── Shooting star ──
+            shootTimer++;
+            if (!shootActive && shootTimer > SHOOT_INTERVAL) {
+                shootActive = true; shootTimer = 0;
+                shootX = Math.random() * W * 0.45;
+                shootY = Math.random() * platY * 0.28;
+            }
+            if (shootActive) {
+                shootX += 9; shootY += 4;
+                const sA = Math.min(1, (W*0.9 - shootX) / 180) * 0.88;
+                ctx.strokeStyle = `rgba(255,252,225,${sA})`; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(shootX,shootY); ctx.lineTo(shootX-58,shootY-25); ctx.stroke();
+                if (shootX > W * 0.82) { shootActive = false; }
+            }
+
+            // ── Moon + wide corona ──
+            const moonX = W * 0.76, moonY = H * 0.09;
+            const moonPulse = 1 + Math.sin(t * 0.22) * 0.035;
+            [120, 75, 44].forEach((r, i) => {
                 const cg = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, r * moonPulse);
-                cg.addColorStop(0, `rgba(255,240,200,${[0.08,0.14,0.3][i]})`);
+                cg.addColorStop(0, `rgba(255,240,195,${[0.05,0.11,0.30][i]})`);
                 cg.addColorStop(1, 'transparent');
-                ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(moonX, moonY, r * moonPulse, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(moonX, moonY, r*moonPulse, 0, Math.PI*2); ctx.fill();
             });
-            // Moon disc
-            ctx.fillStyle = 'rgba(255,248,222,0.95)';
-            ctx.beginPath(); ctx.arc(moonX, moonY, 20 * moonPulse, 0, Math.PI * 2); ctx.fill();
-            // Crescent shadow
-            ctx.fillStyle = '#130c30';
-            ctx.beginPath(); ctx.arc(moonX + 7, moonY - 3, 16 * moonPulse, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,248,220,0.97)';
+            ctx.beginPath(); ctx.arc(moonX, moonY, 23 * moonPulse, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#0e0826';
+            ctx.beginPath(); ctx.arc(moonX + 8, moonY - 4, 18 * moonPulse, 0, Math.PI * 2); ctx.fill();
 
             // ── Distant mountain silhouettes at horizon ──
             ctx.fillStyle = 'rgba(12,8,28,0.72)';
@@ -9237,24 +9284,33 @@ function applyWallpaper(type) {
             hg.addColorStop(1, 'transparent');
             ctx.fillStyle = hg; ctx.fillRect(0, platY - 70, W, 90);
 
-            // ══ WATER ══
+            // ══ WATER — deep indigo sea ══
             const wg = ctx.createLinearGradient(0, platY, 0, H);
-            wg.addColorStop(0,   '#18092e');
-            wg.addColorStop(0.3, '#120825');
-            wg.addColorStop(0.7, '#0d0620');
-            wg.addColorStop(1,   '#080418');
+            wg.addColorStop(0,   '#0b051e');
+            wg.addColorStop(0.25,'#080418');
+            wg.addColorStop(0.65,'#060312');
+            wg.addColorStop(1,   '#03010a');
             ctx.fillStyle = wg; ctx.fillRect(0, platY, W, H - platY);
 
-            // Moonlight reflection (3 shimmering columns)
-            for (let col = 0; col < 3; col++) {
-                const cx3 = moonX + (col - 1) * 18 + Math.sin(t * 0.35 + col) * 8;
-                const wd = (col === 1) ? 28 : 14;
-                const rg2 = ctx.createLinearGradient(0, platY, 0, H);
-                rg2.addColorStop(0, `rgba(255,240,200,${col===1?0.18:0.07})`);
-                rg2.addColorStop(0.5, `rgba(255,235,190,${col===1?0.09:0.03})`);
+            // Moonlight reflection (5 columns, wide shimmer)
+            for (let col = 0; col < 5; col++) {
+                const offset = (col-2)*15 + Math.sin(t*0.36+col*0.9)*7;
+                const cx3 = moonX + offset;
+                const wd = col===2 ? 24 : col===1||col===3 ? 10 : 5;
+                const intensity = col===2 ? 0.22 : col===1||col===3 ? 0.09 : 0.04;
+                const rg2 = ctx.createLinearGradient(0, platY, 0, H*0.82);
+                rg2.addColorStop(0, `rgba(255,242,200,${intensity})`);
+                rg2.addColorStop(0.55, `rgba(255,232,185,${intensity*0.4})`);
                 rg2.addColorStop(1, 'transparent');
                 ctx.fillStyle = rg2;
-                ctx.fillRect(cx3 - wd/2, platY, wd, H - platY);
+                ctx.fillRect(cx3-wd/2, platY, wd, H*0.82-platY);
+            }
+            // Lamp reflections in water
+            for (const lsxR of [cx-130, cx+130]) {
+                const bulbXR = lsxR + (lsxR < cx ? 18 : -18);
+                const refG = ctx.createLinearGradient(0, platY, 0, platY+90);
+                refG.addColorStop(0,'rgba(255,210,80,0.13)'); refG.addColorStop(1,'transparent');
+                ctx.fillStyle=refG; ctx.fillRect(bulbXR-16,platY,32,90);
             }
 
             // Water ripples
@@ -9361,14 +9417,19 @@ function applyWallpaper(type) {
             ctx.fillStyle = `rgb(${sigColor})`;
             ctx.beginPath(); ctx.arc(cx, platY-54, 7, 0, Math.PI*2); ctx.fill();
 
-            // ══ TOTORO ══
+            // ══ TOTORO (scale up 1.15×) ══
             const tx = cx - 158, ty = platY - 4;
-            const breathe = Math.sin(t * 0.85) * 2;   // gentle breathing
-            const blink = (frame % 440) < 7;           // blink every ~7s
+            const breathe = Math.sin(t * 0.85) * 2;
+            const blink = (frame % 440) < 7;
+
+            ctx.save();
+            ctx.translate(tx, platY);
+            ctx.scale(1.15, 1.15);
+            ctx.translate(-tx, -platY);
 
             // Drop shadow on platform
-            ctx.fillStyle = 'rgba(0,0,0,0.18)';
-            ctx.beginPath(); ctx.ellipse(tx, platY - 1, 46, 9, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.20)';
+            ctx.beginPath(); ctx.ellipse(tx, platY - 1, 50, 9, 0, 0, Math.PI*2); ctx.fill();
 
             // Body
             ctx.fillStyle = '#787868';
@@ -9453,12 +9514,14 @@ function applyWallpaper(type) {
                 ctx.beginPath(); ctx.moveTo(utx,uty); ctx.lineTo(utx + v*9, uty+38); ctx.stroke();
             }
             // Rain drips hanging off leaf edge
-            ctx.fillStyle = 'rgba(180,210,250,0.55)';
+            ctx.fillStyle = 'rgba(180,215,255,0.62)';
             for (let rd = -2; rd <= 2; rd++) {
                 const rdx = utx + rd*10, rdy = uty + 28 + Math.abs(rd)*4;
                 const drip = Math.sin(t*1.1 + rd) * 0.5 + 0.5;
                 ctx.beginPath(); ctx.ellipse(rdx, rdy + drip*5, 2, 4+drip*3, 0, 0, Math.PI*2); ctx.fill();
             }
+
+            ctx.restore(); // end Totoro scale
 
             // ══ BENCH ══
             const bex = cx + 42, bey = platY - 10;
@@ -9666,54 +9729,63 @@ function applyWallpaper(type) {
                     ctx.beginPath(); ctx.moveTo(ti,trainY+20); ctx.lineTo(ti,trainY+30); ctx.stroke();
                 }
 
-                // Passenger cars
+                // ── Ethereal aura surrounding entire train ──
+                const auraG = ctx.createLinearGradient(trainX-80, 0, trainX+750, 0);
+                auraG.addColorStop(0, 'transparent');
+                auraG.addColorStop(0.06, 'rgba(80,155,255,0.08)');
+                auraG.addColorStop(0.94, 'rgba(80,155,255,0.08)');
+                auraG.addColorStop(1, 'transparent');
+                ctx.fillStyle = auraG; ctx.fillRect(trainX-80, trainY-22, 880, 52);
+
+                // Passenger cars (ghostly — translucent dark blue)
                 const numCars = 5;
                 for (let c = numCars - 1; c >= 0; c--) {
                     const carX = trainX + c * 100 + 4;
                     if (carX + 96 < -10 || carX > W + 10) continue;
-                    // Car body
-                    ctx.fillStyle = 'rgba(12,20,48,0.88)';
+                    // Car body (semi-transparent)
+                    ctx.fillStyle = 'rgba(7,14,46,0.68)';
                     rr(carX, trainY, 92, 20, 4); ctx.fill();
-                    ctx.strokeStyle = 'rgba(160,185,255,0.22)'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.strokeStyle = 'rgba(130,185,255,0.32)'; ctx.lineWidth = 1; ctx.stroke();
+                    // Subtle blue inner shimmer
+                    const carShimmer = ctx.createLinearGradient(carX, trainY, carX, trainY+20);
+                    carShimmer.addColorStop(0, 'rgba(90,150,255,0.10)');
+                    carShimmer.addColorStop(1, 'transparent');
+                    ctx.fillStyle = carShimmer; rr(carX, trainY, 92, 20, 4); ctx.fill();
                     // Windows with warm glow
                     for (let w = 0; w < 4; w++) {
                         const wx = carX + 9 + w * 21;
                         const wg = ctx.createRadialGradient(wx+6,trainY+9,0, wx+6,trainY+9,10);
-                        wg.addColorStop(0,'rgba(255,228,145,0.85)');
-                        wg.addColorStop(0.7,'rgba(255,185,55,0.40)');
-                        wg.addColorStop(1,'rgba(255,150,30,0.08)');
+                        wg.addColorStop(0,'rgba(255,228,145,0.88)');
+                        wg.addColorStop(0.65,'rgba(255,185,55,0.42)');
+                        wg.addColorStop(1,'rgba(255,140,20,0.06)');
                         ctx.fillStyle=wg; ctx.fillRect(wx,trainY+4,13,10);
-                        // Window pane line
-                        ctx.strokeStyle='rgba(80,60,20,0.4)'; ctx.lineWidth=0.5;
+                        ctx.strokeStyle='rgba(80,60,20,0.35)'; ctx.lineWidth=0.5;
                         ctx.beginPath(); ctx.moveTo(wx+7,trainY+4); ctx.lineTo(wx+7,trainY+14); ctx.stroke();
                     }
-                    // Silhouetted passengers
-                    ctx.fillStyle = 'rgba(8,12,38,0.72)';
+                    // Ghost silhouettes (pale blue)
+                    ctx.fillStyle = 'rgba(190,215,255,0.28)';
                     for (let w = 0; w < 4; w++) {
-                        ctx.beginPath(); ctx.arc(carX+14+w*21,trainY+7,3.2,0,Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(carX+14+w*21,trainY+7,3,0,Math.PI*2); ctx.fill();
                     }
-                    // Car connector
-                    if (c > 0) {
-                        ctx.fillStyle = 'rgba(30,30,60,0.8)';
-                        ctx.fillRect(carX+92, trainY+7, 8, 6);
-                    }
+                    if (c > 0) { ctx.fillStyle='rgba(18,25,60,0.72)'; ctx.fillRect(carX+92,trainY+7,8,6); }
                 }
 
-                // Engine (front, bigger + glowing)
-                ctx.fillStyle = 'rgba(8,16,44,0.94)';
+                // Engine (ghostly dark blue with blue-white glow)
+                ctx.fillStyle = 'rgba(5,12,42,0.78)';
                 rr(trainX, trainY-7, 98, 27, 6); ctx.fill();
-                ctx.strokeStyle = 'rgba(100,155,255,0.45)'; ctx.lineWidth = 1.8; ctx.stroke();
-                // Engine windows
+                ctx.strokeStyle = 'rgba(110,170,255,0.60)'; ctx.lineWidth = 2.2; ctx.stroke();
+                const engG = ctx.createLinearGradient(trainX, trainY-7, trainX, trainY+20);
+                engG.addColorStop(0, 'rgba(100,165,255,0.14)'); engG.addColorStop(1, 'transparent');
+                ctx.fillStyle = engG; rr(trainX, trainY-7, 98, 27, 6); ctx.fill();
                 for (let ew = 0; ew < 2; ew++) {
                     const ewx = trainX + 50 + ew * 24;
-                    const ewg = ctx.createRadialGradient(ewx+7,trainY+5,0, ewx+7,trainY+5,10);
-                    ewg.addColorStop(0,'rgba(255,228,145,0.9)'); ewg.addColorStop(1,'rgba(255,150,30,0.08)');
+                    const ewg = ctx.createRadialGradient(ewx+7,trainY+5,0, ewx+7,trainY+5,11);
+                    ewg.addColorStop(0,'rgba(255,228,145,0.95)'); ewg.addColorStop(1,'rgba(255,150,30,0.05)');
                     ctx.fillStyle=ewg; ctx.fillRect(ewx,trainY-1,14,12);
                 }
-                // Headlight (bright cone)
-                const hlg = ctx.createRadialGradient(trainX+95,trainY+10,0, trainX+95,trainY+10,55);
-                hlg.addColorStop(0,'rgba(255,255,200,0.65)'); hlg.addColorStop(1,'transparent');
-                ctx.fillStyle=hlg; ctx.beginPath(); ctx.arc(trainX+95,trainY+10,55,0,Math.PI*2); ctx.fill();
+                const hlg = ctx.createRadialGradient(trainX+95,trainY+10,0, trainX+95,trainY+10,70);
+                hlg.addColorStop(0,'rgba(255,255,210,0.72)'); hlg.addColorStop(1,'transparent');
+                ctx.fillStyle=hlg; ctx.beginPath(); ctx.arc(trainX+95,trainY+10,70,0,Math.PI*2); ctx.fill();
 
                 // Smoke puffs (emit every 12 frames while visible)
                 if (frame % 12 === 0 && trainX > -200 && trainX < W) {
@@ -9732,6 +9804,15 @@ function applyWallpaper(type) {
 
                 if (trainX > W + 650) trainVisible = false;
             }
+
+            // ══ RAIN (gentle diagonal) ══
+            RAIN.forEach(r => {
+                r.y += r.speed; r.x -= r.speed * 0.28;
+                if (r.y > H) { r.y = -r.len; r.x = Math.random() * W; }
+                ctx.strokeStyle = `rgba(180,215,255,${r.alpha})`;
+                ctx.lineWidth = 0.8;
+                ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - r.speed*0.28, r.y + r.len); ctx.stroke();
+            });
 
             // ══ SPIRIT WISPS ══
             wisps.forEach(w => {
@@ -9757,14 +9838,14 @@ function applyWallpaper(type) {
                 f.phase += f.speed;
                 const fx = f.x + Math.sin(f.phase*0.7) * f.ox * 0.018 * 60;
                 const fy = f.y + Math.cos(f.phase*0.5) * f.oy * 0.015 * 60;
-                const alpha = 0.4 + Math.sin(f.phase*2.2) * 0.45;
+                const alpha = 0.45 + Math.sin(f.phase*2.2) * 0.50;
                 if (alpha < 0.05) return;
-                const fg = ctx.createRadialGradient(fx,fy,0, fx,fy,8);
-                fg.addColorStop(0,`rgba(200,255,120,${alpha})`);
+                const fg = ctx.createRadialGradient(fx,fy,0, fx,fy,12);
+                fg.addColorStop(0,`rgba(195,255,110,${alpha})`);
                 fg.addColorStop(1,'transparent');
-                ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(fx,fy,8,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle=`rgba(240,255,180,${alpha})`;
-                ctx.beginPath(); ctx.arc(fx,fy,2,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(fx,fy,12,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle=`rgba(245,255,180,${alpha})`;
+                ctx.beginPath(); ctx.arc(fx,fy,2.5,0,Math.PI*2); ctx.fill();
             });
 
             wallpaperAnimFrame = requestAnimationFrame(animateSpiritedAway);
