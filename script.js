@@ -9587,75 +9587,87 @@ function applyWallpaper(type) {
             const ponyoX = W * 0.19;
             const ponyoSurface = platY + 32 + ponyoBob;
 
-            // Underwater body (faint distorted shape below surface)
-            ctx.fillStyle = 'rgba(195,68,68,0.22)';
-            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface + 20, 13, 18, 0, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = 'rgba(245,220,195,0.14)';
-            ctx.beginPath(); ctx.ellipse(ponyoX - 8, ponyoSurface + 34, 5, 9, -0.3, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(ponyoX + 8, ponyoSurface + 36, 5, 9,  0.3, 0, Math.PI*2); ctx.fill();
+            // Faint underwater body below surface
+            ctx.fillStyle = 'rgba(185,55,55,0.20)';
+            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface + 22, 12, 16, 0, 0, Math.PI*2); ctx.fill();
 
-            // Water surface rings around her
+            // Water surface rings
             ctx.strokeStyle = 'rgba(145,195,235,0.50)'; ctx.lineWidth = 1.4;
-            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface, 20, 5, 0, 0, Math.PI*2); ctx.stroke();
-            ctx.strokeStyle = 'rgba(145,195,235,0.25)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface, 32, 7, 0, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface, 22, 5, 0, 0, Math.PI*2); ctx.stroke();
+            ctx.strokeStyle = 'rgba(145,195,235,0.22)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface, 34, 7, 0, 0, Math.PI*2); ctx.stroke();
 
             ctx.save(); ctx.translate(ponyoX, ponyoSurface);
 
-            // Shoulder/dress at waterline
-            ctx.fillStyle = '#d04050';
-            ctx.beginPath(); ctx.ellipse(0, 0, 15, 7, 0, 0, Math.PI*2); ctx.fill();
-            // White collar
-            ctx.fillStyle = 'rgba(255,255,255,0.82)';
-            ctx.beginPath(); ctx.moveTo(-7, -1); ctx.lineTo(0, 4); ctx.lineTo(7, -1); ctx.closePath(); ctx.fill();
+            // Red dress shoulder at waterline
+            ctx.fillStyle = '#cc3344';
+            ctx.beginPath(); ctx.ellipse(0, 0, 14, 6, 0, 0, Math.PI*2); ctx.fill();
+            // White collar V
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.beginPath(); ctx.moveTo(-6, -1); ctx.lineTo(0, 4); ctx.lineTo(6, -1); ctx.closePath(); ctx.fill();
 
-            // Head
+            // ── Head ──
             ctx.fillStyle = '#f5dfc0';
             ctx.beginPath(); ctx.arc(0, -18, 13, 0, Math.PI*2); ctx.fill();
 
-            // Big round eyes (anime-style)
-            ctx.fillStyle = '#1a0e10';
-            ctx.beginPath(); ctx.arc(-5, -20, 3.8, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 5, -20, 3.8, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#5c2020';
-            ctx.beginPath(); ctx.arc(-5, -20, 2.2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 5, -20, 2.2, 0, Math.PI*2); ctx.fill();
+            // ── Hair — single freeform path wrapping AROUND head (not above it) ──
+            ctx.fillStyle = '#d42c2c';
+            ctx.beginPath();
+            // Start bottom-left of hair at ear level
+            ctx.moveTo(-13, -14);
+            // Left side — curves up and around
+            ctx.bezierCurveTo(-18, -18, -18, -26, -14, -30);
+            // Top-left tuft sticking out
+            ctx.bezierCurveTo(-16, -34, -10, -36, -6, -32);
+            // Top bump going right
+            ctx.bezierCurveTo(-4, -36,  4, -36,  6, -32);
+            // Top-right tuft
+            ctx.bezierCurveTo(10, -36,  16, -34, 14, -30);
+            // Right side curves back down
+            ctx.bezierCurveTo(18, -26, 18, -18, 13, -14);
+            // Bottom of hair (behind head, just above ear level)
+            ctx.bezierCurveTo(8, -12, -8, -12, -13, -14);
+            ctx.closePath(); ctx.fill();
+            // Hair highlight (lighter streak)
+            ctx.fillStyle = 'rgba(255,120,120,0.30)';
+            ctx.beginPath();
+            ctx.moveTo(-8, -30);
+            ctx.bezierCurveTo(-6, -34, 2, -35, 4, -31);
+            ctx.bezierCurveTo(2, -28, -6, -28, -8, -30);
+            ctx.closePath(); ctx.fill();
+
+            // ── Face features (drawn OVER hair) ──
+            // Big eyes
+            ctx.fillStyle = '#1a0a0a';
+            ctx.beginPath(); ctx.arc(-5, -19, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 5, -19, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#6b2020';
+            ctx.beginPath(); ctx.arc(-5, -19, 2.4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 5, -19, 2.4, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.arc(-3.5, -21.5, 1.4, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 6.5, -21.5, 1.4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-3.5, -20.5, 1.4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 6.5, -20.5, 1.4, 0, Math.PI*2); ctx.fill();
 
-            // Nose
-            ctx.fillStyle = 'rgba(195,120,95,0.55)';
-            ctx.beginPath(); ctx.ellipse(0, -16, 2.2, 1.6, 0, 0, Math.PI*2); ctx.fill();
+            // Tiny nose
+            ctx.fillStyle = 'rgba(190,110,85,0.50)';
+            ctx.beginPath(); ctx.ellipse(0, -15, 2, 1.4, 0, 0, Math.PI*2); ctx.fill();
 
-            // Big wide smile
-            ctx.strokeStyle = 'rgba(175,75,75,0.72)'; ctx.lineWidth = 1.6;
-            ctx.beginPath(); ctx.arc(0, -13, 5.5, 0.1, Math.PI-0.1); ctx.stroke();
+            // Big smile
+            ctx.strokeStyle = 'rgba(170,65,65,0.75)'; ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.arc(0, -12, 5, 0.15, Math.PI-0.15); ctx.stroke();
 
-            // Blush circles
-            ctx.fillStyle = 'rgba(230,95,95,0.28)';
-            ctx.beginPath(); ctx.ellipse(-9, -15, 5, 3.2, 0, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse( 9, -15, 5, 3.2, 0, 0, Math.PI*2); ctx.fill();
+            // Chubby cheek blush
+            ctx.fillStyle = 'rgba(225,85,85,0.26)';
+            ctx.beginPath(); ctx.ellipse(-9, -14, 4.5, 3, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( 9, -14, 4.5, 3, 0, 0, Math.PI*2); ctx.fill();
 
-            // Fluffy wild red-pink hair (Ponyo's signature tufts)
-            ctx.fillStyle = '#e03838';
-            ctx.beginPath(); ctx.arc(0, -28, 13, Math.PI, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(-11, -30, 8, Math.PI, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 11, -30, 8, Math.PI, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(  0, -35, 9, Math.PI, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( -5, -38, 6, Math.PI, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(  5, -38, 6, Math.PI, Math.PI*2); ctx.fill();
-            // Hair highlight
-            ctx.fillStyle = 'rgba(255,140,140,0.35)';
-            ctx.beginPath(); ctx.arc(-2, -34, 5, Math.PI, Math.PI*2); ctx.fill();
-
-            // Little arms splashing above water
+            // Little arms out of water
             ctx.strokeStyle = '#f5dfc0'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-            ctx.beginPath(); ctx.moveTo(-11, -5); ctx.lineTo(-20, -14); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo( 11, -5); ctx.lineTo( 20, -12); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-19, -13); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo( 10, -4); ctx.lineTo( 19, -11); ctx.stroke();
             ctx.fillStyle = '#f5dfc0';
-            ctx.beginPath(); ctx.arc(-20, -15, 4.5, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 20, -13, 4.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-20, -14, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 20, -12, 4, 0, Math.PI*2); ctx.fill();
 
             ctx.restore();
 
