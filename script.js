@@ -9474,7 +9474,7 @@ function applyWallpaper(type) {
             for (let gi=0; gi<4; gi++) { ctx.beginPath(); ctx.moveTo(bex-40+gi*20,bey-14); ctx.lineTo(bex-40+gi*20,bey-5); ctx.stroke(); }
 
             // ══ CHIHIRO ══
-            const chx = bex - 16, chy = bey - 12;
+            const chx = bex - 16, chy = bey - 14; // raised so dress hem sits ON the bench seat
             // Drop shadow
             ctx.fillStyle = 'rgba(0,0,0,0.15)';
             ctx.beginPath(); ctx.ellipse(chx, bey-2, 16, 5, 0, 0, Math.PI*2); ctx.fill();
@@ -9528,30 +9528,30 @@ function applyWallpaper(type) {
             cloakFade.addColorStop(1,    'rgba(4,3,12,0.0)');
             ctx.fillStyle = cloakFade;
             ctx.beginPath();
-            ctx.moveTo(-26, 0);
-            ctx.bezierCurveTo(-32, -18, -30, -50, -18, -72);
-            ctx.bezierCurveTo(-12, -82, -8, -88, 0, -88);
-            ctx.bezierCurveTo( 8, -88, 12, -82, 18, -72);
-            ctx.bezierCurveTo(30, -50, 32, -18, 26, 0);
+            ctx.moveTo(-17, 0);
+            ctx.bezierCurveTo(-21, -18, -19, -50, -13, -72);
+            ctx.bezierCurveTo(-8,  -82, -6, -88,  0, -88);
+            ctx.bezierCurveTo( 6,  -88,  8, -82, 13, -72);
+            ctx.bezierCurveTo(19,  -50, 21, -18, 17,   0);
             ctx.closePath(); ctx.fill();
 
             // Purple shimmer on edges
             ctx.strokeStyle = 'rgba(115,70,210,0.40)'; ctx.lineWidth = 1.8;
             ctx.beginPath();
-            ctx.moveTo(-26, 0);
-            ctx.bezierCurveTo(-32, -18, -30, -50, -18, -72);
-            ctx.bezierCurveTo(-12, -82, -8, -88, 0, -88);
+            ctx.moveTo(-17, 0);
+            ctx.bezierCurveTo(-21, -18, -19, -50, -13, -72);
+            ctx.bezierCurveTo(-8,  -82, -6, -88,   0, -88);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(26, 0);
-            ctx.bezierCurveTo(32, -18, 30, -50, 18, -72);
-            ctx.bezierCurveTo(12, -82, 8, -88, 0, -88);
+            ctx.moveTo(17, 0);
+            ctx.bezierCurveTo(21, -18, 19, -50, 13, -72);
+            ctx.bezierCurveTo( 8, -82,  6, -88,  0, -88);
             ctx.stroke();
 
             // Cloak fold lines
             ctx.strokeStyle = 'rgba(20,12,38,0.55)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(-12, 0); ctx.bezierCurveTo(-16, -22, -12, -52, -7, -72); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo( 12, 0); ctx.bezierCurveTo( 16, -22,  12, -52,  7, -72); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-7, 0); ctx.bezierCurveTo(-10, -22, -8, -52, -4, -72); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo( 7, 0); ctx.bezierCurveTo( 10, -22,  8, -52,  4, -72); ctx.stroke();
 
             // Mask — sits inside upper part of cloak (cloak wraps around it)
             const maskY = -64;
@@ -9583,73 +9583,87 @@ function applyWallpaper(type) {
 
             ctx.restore();
 
-            // ══ PONYO (little girl peeking out of water, bobbing) ══
-            const ponyoBob = Math.sin(t * 0.95) * 6;
-            const ponyoX = W * 0.19;
-            const ponyoSurface = platY + 32 + ponyoBob;
+            // ══ PONYO — swimming underwater (pink curly hair, white skin) ══
+            const ponyoT = t * 0.038;
+            const ponyoSwing = (ponyoT % 2 < 1) ? ponyoT % 1 : 1 - ponyoT % 1;
+            const ponyoSwimX = W * 0.06 + ponyoSwing * W * 0.52;
+            const ponyoFaceR = (ponyoT % 2) < 1;
+            const ponyoSwimY = platY + (H - platY) * 0.38 + Math.sin(t * 0.28) * 10;
+            const ponyoKick = Math.sin(t * 3.2) * 10;
 
-            // Faint underwater body
-            ctx.fillStyle = 'rgba(185,55,55,0.18)';
-            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface + 22, 11, 15, 0, 0, Math.PI*2); ctx.fill();
+            ctx.save();
+            ctx.translate(ponyoSwimX, ponyoSwimY);
+            if (!ponyoFaceR) ctx.scale(-1, 1);
 
-            // Water surface rings
-            ctx.strokeStyle = 'rgba(145,195,235,0.50)'; ctx.lineWidth = 1.4;
-            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface, 22, 5, 0, 0, Math.PI*2); ctx.stroke();
-            ctx.strokeStyle = 'rgba(145,195,235,0.20)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.ellipse(ponyoX, ponyoSurface, 34, 7, 0, 0, Math.PI*2); ctx.stroke();
+            // Bubble trail behind her
+            for (let b = 1; b <= 4; b++) {
+                const bx = -16 - b * 11 + Math.sin(t * 0.6 + b) * 3;
+                const by = -3 + Math.cos(t * 0.5 + b) * 4;
+                const br = Math.max(0.5, 2.8 - b * 0.4);
+                ctx.strokeStyle = `rgba(190,225,255,${0.50 - b*0.08})`; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.stroke();
+            }
 
-            ctx.save(); ctx.translate(ponyoX, ponyoSurface);
+            // Body — lavender/white dress
+            ctx.fillStyle = '#e8d4ee';
+            ctx.beginPath(); ctx.ellipse(-2, 3, 13, 7, 0, 0, Math.PI*2); ctx.fill();
 
-            // Dress at waterline
-            ctx.fillStyle = '#cc3344';
-            ctx.beginPath(); ctx.ellipse(0, 0, 14, 6, 0, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.82)';
-            ctx.beginPath(); ctx.moveTo(-5,-1); ctx.lineTo(0,4); ctx.lineTo(5,-1); ctx.closePath(); ctx.fill();
+            // Legs kicking behind her
+            ctx.strokeStyle = '#f8f2f2'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(-10, 4); ctx.lineTo(-24, 4 + ponyoKick); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-10, 6); ctx.lineTo(-24, 6 - ponyoKick); ctx.stroke();
+            ctx.fillStyle = '#f8f2f2';
+            ctx.beginPath(); ctx.arc(-24, 4 + ponyoKick, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-24, 6 - ponyoKick, 4, 0, Math.PI*2); ctx.fill();
 
-            // HAIR — single red circle drawn BEFORE the face, peeks out as a ring
-            ctx.fillStyle = '#d42c2c';
-            ctx.beginPath(); ctx.arc(0, -20, 16, 0, Math.PI*2); ctx.fill();
-            // One tuft at the very top
-            ctx.beginPath(); ctx.arc(0, -35, 6, 0, Math.PI*2); ctx.fill();
-            // Hair highlight
-            ctx.fillStyle = 'rgba(255,125,125,0.28)';
-            ctx.beginPath(); ctx.arc(-4, -24, 7, 0, Math.PI*2); ctx.fill();
+            // Arms reaching forward
+            ctx.strokeStyle = '#f8f2f2'; ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(8, -1); ctx.lineTo(24, -6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(8,  4); ctx.lineTo(24,  7); ctx.stroke();
+            ctx.fillStyle = '#f8f2f2';
+            ctx.beginPath(); ctx.arc(24, -6, 4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(24,  7, 4, 0, Math.PI*2); ctx.fill();
 
-            // FACE — drawn on top of hair circle, skin color
-            ctx.fillStyle = '#f5e0c0';
-            ctx.beginPath(); ctx.arc(0, -19, 11, 0, Math.PI*2); ctx.fill();
+            // HAIR — pink curly puffs, drawn BEHIND the head
+            ctx.fillStyle = '#ff7eb3';
+            ctx.beginPath(); ctx.arc(10, -10, 11, 0, Math.PI*2); ctx.fill(); // main mass
+            ctx.beginPath(); ctx.arc( 4, -12,  7, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(16, -11,  6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 9, -19,  6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-1,  -9,  6, 0, Math.PI*2); ctx.fill(); // streaming back
+            ctx.beginPath(); ctx.arc(-8,  -7,  5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-14, -5,  4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,190,220,0.45)'; // highlight
+            ctx.beginPath(); ctx.arc( 8, -15,  5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(15, -13,  4, 0, Math.PI*2); ctx.fill();
+
+            // HEAD — drawn over hair
+            ctx.fillStyle = '#f8f2f2';
+            ctx.beginPath(); ctx.arc(12, -1, 11, 0, Math.PI*2); ctx.fill();
 
             // Eyes
-            ctx.fillStyle = '#180a0a';
-            ctx.beginPath(); ctx.arc(-4, -21, 3.5, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 4, -21, 3.5, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#5c1818';
-            ctx.beginPath(); ctx.arc(-4, -21, 2.0, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 4, -21, 2.0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#180808';
+            ctx.beginPath(); ctx.arc(15, -3, 3.2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 9, -3, 3.2, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#5a1010';
+            ctx.beginPath(); ctx.arc(15, -3, 1.8, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( 9, -3, 1.8, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#fff';
-            ctx.beginPath(); ctx.arc(-2.8, -22.4, 1.2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 5.2, -22.4, 1.2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(16, -4.5, 1.1, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(10, -4.5, 1.1, 0, Math.PI*2); ctx.fill();
 
-            // Tiny nose
-            ctx.fillStyle = 'rgba(185,105,80,0.48)';
-            ctx.beginPath(); ctx.ellipse(0, -16, 1.8, 1.3, 0, 0, Math.PI*2); ctx.fill();
+            // Nose
+            ctx.fillStyle = 'rgba(200,140,130,0.45)';
+            ctx.beginPath(); ctx.ellipse(12, 1, 1.8, 1.3, 0, 0, Math.PI*2); ctx.fill();
 
-            // Smile
-            ctx.strokeStyle = 'rgba(165,60,60,0.72)'; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(0, -13, 4.5, 0.15, Math.PI-0.15); ctx.stroke();
+            // Big smile
+            ctx.strokeStyle = 'rgba(190,90,110,0.75)'; ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.arc(12, 4, 5, 0.1, Math.PI-0.1); ctx.stroke();
 
-            // Blush
-            ctx.fillStyle = 'rgba(220,80,80,0.24)';
-            ctx.beginPath(); ctx.ellipse(-7.5, -15, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse( 7.5, -15, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
-
-            // Arms
-            ctx.strokeStyle = '#f5e0c0'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-            ctx.beginPath(); ctx.moveTo(-10,-4); ctx.lineTo(-18,-12); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo( 10,-4); ctx.lineTo( 18,-10); ctx.stroke();
-            ctx.fillStyle = '#f5e0c0';
-            ctx.beginPath(); ctx.arc(-19,-13, 4, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc( 19,-11, 4, 0, Math.PI*2); ctx.fill();
+            // Rosy blush
+            ctx.fillStyle = 'rgba(255,160,180,0.30)';
+            ctx.beginPath(); ctx.ellipse(18, 1, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse( 6, 1, 4, 2.5, 0, 0, Math.PI*2); ctx.fill();
 
             ctx.restore();
 
