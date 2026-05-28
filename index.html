@@ -1016,6 +1016,19 @@
                     <i class="ph ph-package"></i>
                     <span>Inventory</span>
                 </li>
+                <!-- v13.0 — New study tools -->
+                <li onclick="switchTab('homework')">
+                    <i class="ph ph-clipboard-text"></i>
+                    <span>Homework</span>
+                </li>
+                <li onclick="switchTab('grades')">
+                    <i class="ph ph-chart-bar"></i>
+                    <span>Grade Calc</span>
+                </li>
+                <li onclick="switchTab('tools')">
+                    <i class="ph ph-wrench"></i>
+                    <span>Study Tools</span>
+                </li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--glass-border);">
@@ -1124,7 +1137,7 @@
                         <div>
                             <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                                 <div style="font-size:2rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900;letter-spacing:3px;line-height:1;">NEXUS</div>
-                                <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:0.5px;">v12.8</span>
+                                <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:0.5px;">v13.0</span>
                             </div>
                             <h1 style="font-size:2rem;margin:0 0 6px;color:#fff;font-weight:700;line-height:1.15;">
                                 Welcome back, <span id="home-username" style="color:#00ECE6;text-shadow:0 0 16px rgba(0,236,230,0.35);">Scholar</span>
@@ -1211,22 +1224,22 @@
                                 </div>
                             </div>
 
-                            <!-- v12.8 — Daily Tip card -->
-                            <div id="home-daily-tip" style="padding:14px 16px;background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.07));border:1px solid rgba(0,206,201,0.28);border-radius:12px;margin-bottom:12px;">
+                            <!-- v13.0 — Daily Challenge quick card -->
+                            <div id="home-daily-challenge-card" onclick="switchTab('homework')" style="padding:14px 16px;background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(108,92,231,0.5)'" onmouseout="this.style.borderColor='rgba(108,92,231,0.3)'">
                                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-                                    <span style="font-size:1rem;">💡</span>
-                                    <span style="font-size:0.72rem;color:#00cec9;font-weight:700;letter-spacing:0.5px;">TIP OF THE DAY</span>
+                                    <span style="font-size:1rem;">🎯</span>
+                                    <span style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:0.5px;">DAILY CHALLENGE</span>
                                 </div>
-                                <div id="home-tip-text" style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Loading tip…</div>
+                                <div id="home-tip-text" style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Loading today's challenge…</div>
                             </div>
 
-                            <!-- Update banner — v12.8 -->
+                            <!-- Update banner — v13.0 -->
                             <div style="padding:14px 16px;background:linear-gradient(135deg,rgba(253,121,168,0.12),rgba(108,92,231,0.08));border:1px solid rgba(253,121,168,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;" onclick="switchTab('updates')">
                                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                                     <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.64rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">NEW</span>
-                                    <div style="font-size:0.78rem;color:#fd79a8;font-weight:700;letter-spacing:0.5px;">v12.8 — QUALITY &amp; POLISH</div>
+                                    <div style="font-size:0.78rem;color:#fd79a8;font-weight:700;letter-spacing:0.5px;">v13.0 — MEGA UPDATE</div>
                                 </div>
-                                <div style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Achievements overhaul, custom wallpaper upload, new themes, planning board, lucky spin legendaries &amp; 15+ fixes.</div>
+                                <div style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Homework Tracker, Grade Calculator, Quiz Gen, Citations, SRS Flashcards, Daily Challenges, CSV Import &amp; more!</div>
                                 <button onclick="event.stopPropagation();switchTab('updates')" style="margin-top:8px;background:transparent;border:none;color:#fd79a8;font-size:0.78rem;font-weight:600;padding:0;cursor:pointer;"><i class="ph ph-arrow-right"></i> See full changelog</button>
                             </div>
 
@@ -1290,10 +1303,16 @@
                                     <button class="btn-primary" onclick="switchTab('math')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00CEC9,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
                                         <i class="ph ph-function"></i> Math Solver
                                     </button>
-                                    <button class="btn-primary" onclick="switchTab('english')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#ed64a6,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-books"></i> English &amp; Library
+                                    <button class="btn-primary" onclick="switchTab('homework')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#fd79a8,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
+                                        <i class="ph ph-clipboard-text"></i> Homework
                                     </button>
-                                    <button class="btn-primary" onclick="switchTab('achievements')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#a855f7,#00CEC9);display:flex;align-items:center;justify-content:center;gap:6px;">
+                                    <button class="btn-primary" onclick="switchTab('grades')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00b894,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
+                                        <i class="ph ph-chart-bar"></i> Grades
+                                    </button>
+                                    <button class="btn-primary" onclick="switchTab('tools')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#a855f7,#00CEC9);display:flex;align-items:center;justify-content:center;gap:6px;">
+                                        <i class="ph ph-wrench"></i> Study Tools
+                                    </button>
+                                    <button class="btn-primary" onclick="switchTab('achievements')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#fdcb6e,#e17055);display:flex;align-items:center;justify-content:center;gap:6px;">
                                         <i class="ph ph-medal-military"></i> Achievements
                                     </button>
                                 </div>
@@ -3041,6 +3060,113 @@
                 <div id="suggestions-page-list" style="display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 280px);overflow-y:auto;padding-right:4px;"></div>
             </div>
 
+
+            <!-- ══ v13.0: Homework Tracker ══════════════════════════════════ -->
+            <div id="view-homework" class="view">
+                <header style="background:linear-gradient(135deg,rgba(253,121,168,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(253,121,168,0.3);">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="font-size:2.5rem;">📋</div>
+                        <div>
+                            <h1 style="margin:0;background:linear-gradient(135deg,#fd79a8,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Homework Tracker</h1>
+                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track assignments, due dates, and priorities</p>
+                        </div>
+                    </div>
+                </header>
+                <!-- Daily challenge banner -->
+                <div id="daily-challenge-panel" style="margin-bottom:20px;"></div>
+                <!-- Homework list injected by JS -->
+                <div id="hw-main"></div>
+            </div>
+
+            <!-- ══ v13.0: Grade Calculator ══════════════════════════════════ -->
+            <div id="view-grades" class="view">
+                <header style="background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(0,206,201,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">📊</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#00CEC9,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Grade Calculator</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track grades, weighted averages, and GPA</p>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-secondary" onclick="exportGradesPDF()" style="font-size:0.85rem;"><i class="ph ph-printer"></i> Export</button>
+                            <button class="btn-primary" onclick="openAddCourseModal()"><i class="ph ph-plus"></i> Add Course</button>
+                        </div>
+                    </div>
+                </header>
+                <!-- Seasonal shop banner -->
+                <div id="seasonal-shop-banner" style="display:none;"></div>
+                <!-- Grade cards injected by JS -->
+                <div id="grade-calc-panel"></div>
+            </div>
+
+            <!-- ══ v13.0: Study Tools Hub ══════════════════════════════════ -->
+            <div id="view-tools" class="view">
+                <header style="background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(0,206,201,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(168,85,247,0.3);">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="font-size:2.5rem;">🧰</div>
+                        <div>
+                            <h1 style="margin:0;background:linear-gradient(135deg,#a855f7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Study Tools</h1>
+                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Quiz generator, citations, flashcard review & more</p>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Tools tab bar -->
+                <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;">
+                    <button class="tab-btn tools-tab-btn active" data-tab="quizgen"  onclick="switchToolsTab('quizgen')"><i class="ph ph-magic-wand"></i> Quiz Gen</button>
+                    <button class="tab-btn tools-tab-btn"        data-tab="citation" onclick="switchToolsTab('citation')"><i class="ph ph-quotes"></i> Citations</button>
+                    <button class="tab-btn tools-tab-btn"        data-tab="srs"      onclick="switchToolsTab('srs')"><i class="ph ph-cards"></i> Flashcards</button>
+                    <button class="tab-btn tools-tab-btn"        data-tab="csv"      onclick="switchToolsTab('csv')"><i class="ph ph-upload-simple"></i> CSV Import</button>
+                    <button class="tab-btn tools-tab-btn"        data-tab="history"  onclick="switchToolsTab('history')"><i class="ph ph-chart-bar"></i> Study History</button>
+                </div>
+
+                <!-- Quiz Generator pane -->
+                <div class="tools-pane" data-pane="quizgen">
+                    <div class="glass-panel" style="padding:20px;">
+                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-magic-wand"></i> AI Quiz Generator</h3>
+                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Paste any notes or text and get an instant multiple-choice quiz.</p>
+                        <div id="quizgen-panel"></div>
+                    </div>
+                </div>
+
+                <!-- Citation Generator pane -->
+                <div class="tools-pane" data-pane="citation" style="display:none;">
+                    <div class="glass-panel" style="padding:20px;">
+                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-quotes"></i> Citation Generator</h3>
+                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Generate MLA, APA, and Chicago citations instantly.</p>
+                        <div id="citation-panel"></div>
+                    </div>
+                </div>
+
+                <!-- SRS Flashcards pane -->
+                <div class="tools-pane" data-pane="srs" style="display:none;">
+                    <div class="glass-panel" style="padding:20px;">
+                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-cards"></i> Spaced Repetition Review</h3>
+                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">SM-2 algorithm schedules your flashcard reviews for maximum retention.</p>
+                        <div id="srs-home-panel"></div>
+                    </div>
+                </div>
+
+                <!-- CSV Import pane -->
+                <div class="tools-pane" data-pane="csv" style="display:none;">
+                    <div class="glass-panel" style="padding:20px;">
+                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-upload-simple"></i> Quizlet / CSV Import</h3>
+                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Import your Quizlet sets or any CSV file as a flashcard deck.</p>
+                        <div id="csv-panel"></div>
+                    </div>
+                </div>
+
+                <!-- Study History pane -->
+                <div class="tools-pane" data-pane="history" style="display:none;">
+                    <div class="glass-panel" style="padding:20px;">
+                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-chart-bar"></i> Study Session History</h3>
+                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Your study time over the last 7 days, broken down by day.</p>
+                        <canvas id="study-history-canvas" style="width:100%;height:180px;display:block;border-radius:8px;"></canvas>
+                    </div>
+                </div>
+            </div>
 
             <!-- REMOVED CODING LAB TO FREE UP TOKENS -->
             <div style="display:none;">

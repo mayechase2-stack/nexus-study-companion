@@ -423,7 +423,7 @@ const ACCESS_PRICE = 4.50;
 const PRO_PRICE = 6.00;
 
 function tabLabel(tabId) {
-    const labels = { dashboard: 'Command Center', history: 'History', achievements: 'Achievements', leaderboard: 'Leaderboard', shop: 'Shop', inventory: 'Inventory' };
+    const labels = { dashboard: 'Command Center', history: 'History', achievements: 'Achievements', leaderboard: 'Leaderboard', shop: 'Shop', inventory: 'Inventory', homework: 'Homework', grades: 'Grade Calculator', tools: 'Study Tools', profile: 'Profile' };
     return labels[tabId] || tabId;
 }
 
@@ -21324,3 +21324,951 @@ document.addEventListener('keydown', function _fcKeyNav(e) {
 // SFX fixed, home page improved, VFX/CSS polish, version bump.
 // ════════════════════════════════════════════════════════════════════
 
+
+// ════════════════════════════════════════════════════════════════════
+// v13.0 — MEGA UPDATE
+// Features: Homework Tracker, Grade Calculator, SRS Flashcards,
+//   Quiz Generator, Citation Generator, Daily Challenges,
+//   Seasonal Shop Events, Study Session History, Quizlet CSV Import,
+//   PDF Export, Better Profile Page
+// ════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────
+// HOMEWORK TRACKER
+// ─────────────────────────────────────────
+function getHomework() {
+    try { return JSON.parse(localStorage.getItem('hw_items') || '[]'); } catch { return []; }
+}
+function saveHomework(items) {
+    localStorage.setItem('hw_items', JSON.stringify(items));
+}
+function renderHomework() {
+    const container = document.getElementById('view-homework');
+    if (!container) return;
+    const items = getHomework();
+    const filter = document.getElementById('hw-filter') ? document.getElementById('hw-filter').value : 'all';
+    const sort   = document.getElementById('hw-sort')   ? document.getElementById('hw-sort').value   : 'due';
+    const PRIORITIES = { high:'#ff6b6b', medium:'#fdcb6e', low:'#00b894' };
+
+    let filtered = items.slice();
+    if (filter === 'pending')   filtered = filtered.filter(i => !i.completed);
+    if (filter === 'completed') filtered = filtered.filter(i =>  i.completed);
+    if (sort === 'due')         filtered.sort((a,b) => (a.dueDate||'9999') < (b.dueDate||'9999') ? -1 : 1);
+    if (sort === 'priority') {
+        const P = { high:0, medium:1, low:2 };
+        filtered.sort((a,b) => (P[a.priority]||1) - (P[b.priority]||1));
+    }
+    if (sort === 'subject')     filtered.sort((a,b) => (a.subject||'').localeCompare(b.subject||''));
+
+    const today = new Date().toISOString().slice(0,10);
+    const pending   = items.filter(i => !i.completed).length;
+    const overdue   = items.filter(i => !i.completed && i.dueDate && i.dueDate < today).length;
+    const doneToday = items.filter(i =>  i.completed && i.completedAt && i.completedAt.slice(0,10) === today).length;
+
+    const mainPanel = container.querySelector('#hw-main');
+    if (!mainPanel) return;
+    mainPanel.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+        <div class="glass-panel" style="padding:14px;text-align:center;">
+            <div style="font-size:1.8rem;font-weight:700;color:#fd79a8;">${pending}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">Pending</div>
+        </div>
+        <div class="glass-panel" style="padding:14px;text-align:center;">
+            <div style="font-size:1.8rem;font-weight:700;color:#ff6b6b;">${overdue}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">Overdue</div>
+        </div>
+        <div class="glass-panel" style="padding:14px;text-align:center;">
+            <div style="font-size:1.8rem;font-weight:700;color:#00b894;">${doneToday}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">Done Today</div>
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="hw-filter" class="input-field" style="flex:1;min-width:110px;padding:8px 10px;font-size:0.85rem;" onchange="renderHomework()">
+            <option value="all"       ${filter==='all'       ?'selected':''}>All</option>
+            <option value="pending"   ${filter==='pending'   ?'selected':''}>Pending</option>
+            <option value="completed" ${filter==='completed' ?'selected':''}>Completed</option>
+        </select>
+        <select id="hw-sort" class="input-field" style="flex:1;min-width:110px;padding:8px 10px;font-size:0.85rem;" onchange="renderHomework()">
+            <option value="due"      ${sort==='due'     ?'selected':''}>Sort: Due Date</option>
+            <option value="priority" ${sort==='priority'?'selected':''}>Sort: Priority</option>
+            <option value="subject"  ${sort==='subject' ?'selected':''}>Sort: Subject</option>
+        </select>
+        <button class="btn-primary" style="padding:8px 14px;font-size:0.85rem;" onclick="openAddHwModal()">
+            <i class="ph ph-plus"></i> Add
+        </button>
+        <button class="btn-secondary" style="padding:8px 12px;font-size:0.85rem;" onclick="exportHomeworkPDF()" title="Print">
+            <i class="ph ph-printer"></i>
+        </button>
+    </div>
+    ` + (filtered.length === 0 ? `
+        <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
+            <i class="ph ph-clipboard-text" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.4;"></i>
+            <div style="font-size:1rem;">${filter==='completed'?'No completed assignments yet.'
+                :filter==='pending'?'All caught up! 🎉':'No assignments yet. Click Add to get started.'}</div>
+        </div>
+    ` : filtered.map(item => {
+        const isOverdue = !item.completed && item.dueDate && item.dueDate < today;
+        const dueLabel = item.dueDate
+            ? (item.dueDate === today ? '<span style="color:#fdcb6e;font-weight:600;">Due today</span>'
+               : isOverdue ? '<span style="color:#ff6b6b;font-weight:600;">Overdue ('+item.dueDate+')</span>'
+               : '<span style="color:var(--text-muted);">Due '+item.dueDate+'</span>')
+            : '<span style="color:var(--text-muted);">No due date</span>';
+        const pColor = PRIORITIES[item.priority] || '#00b894';
+        return `
+        <div class="glass-panel" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;${item.completed?'opacity:0.55;':''}border-left:3px solid ${pColor};">
+            <div style="flex-shrink:0;">
+                <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${item.completed?'#00b894':'rgba(255,255,255,0.3)'};background:${item.completed?'#00b894':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;"
+                     onclick="toggleHwComplete(${item.id})">
+                    ${item.completed ? '<i class="ph ph-check" style="color:white;font-size:0.75rem;"></i>' : ''}
+                </div>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;color:white;${item.completed?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.title}</div>
+                <div style="font-size:0.8rem;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <span style="color:var(--accent);">${item.subject||'General'}</span>
+                    ${dueLabel}
+                </div>
+                ${item.notes ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.notes+'</div>' : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button onclick="editHwItem(${item.id})" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;" title="Edit"><i class="ph ph-pencil-simple"></i></button>
+                <button onclick="deleteHwItem(${item.id})" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;padding:4px;" title="Delete"><i class="ph ph-trash"></i></button>
+            </div>
+        </div>`;
+    }).join(''));
+}
+
+function openAddHwModal(editId) {
+    const items = getHomework();
+    const editing = editId ? items.find(i => i.id === editId) : null;
+    const SUBJECTS = ['Math','Science','English','Social Studies','History','Art','PE','Other'];
+    const today = new Date().toISOString().slice(0,10);
+    const modal = document.createElement('div');
+    modal.id = 'hw-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+    <div class="glass-panel" style="max-width:440px;width:100%;padding:28px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="margin:0;color:white;">${editing ? 'Edit Assignment' : 'Add Assignment'}</h3>
+            <button class="btn-icon" onclick="document.getElementById('hw-modal-overlay').remove()"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Title *</label>
+                <input id="hw-input-title" class="input-field" style="width:100%;padding:10px;" placeholder="e.g. Chapter 5 Worksheet" value="${editing ? editing.title : ''}">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Subject</label>
+                    <select id="hw-input-subject" class="input-field" style="width:100%;padding:10px;">
+                        ${SUBJECTS.map(s => '<option '+(editing&&editing.subject===s?'selected':'')+'>'+s+'</option>').join('')}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Priority</label>
+                    <select id="hw-input-priority" class="input-field" style="width:100%;padding:10px;">
+                        <option value="high"   ${editing&&editing.priority==='high'  ?'selected':''}>High</option>
+                        <option value="medium" ${!editing||editing.priority==='medium'?'selected':''}>Medium</option>
+                        <option value="low"    ${editing&&editing.priority==='low'   ?'selected':''}>Low</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Due Date</label>
+                <input id="hw-input-due" type="date" class="input-field" style="width:100%;padding:10px;" value="${editing ? editing.dueDate : today}">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Notes (optional)</label>
+                <textarea id="hw-input-notes" class="input-field" style="width:100%;padding:10px;resize:vertical;min-height:60px;" placeholder="Any extra details...">${editing ? (editing.notes||'') : ''}</textarea>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+            <button class="btn-secondary" onclick="document.getElementById('hw-modal-overlay').remove()">Cancel</button>
+            <button class="btn-primary" onclick="saveHwItem(${editing ? editing.id : 'null'})">${editing ? 'Save Changes' : 'Add Assignment'}</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    setTimeout(function(){ var el = document.getElementById('hw-input-title'); if(el) el.focus(); }, 100);
+}
+
+function saveHwItem(editId) {
+    const title = document.getElementById('hw-input-title').value.trim();
+    if (!title) { showToast('Title is required.', 'error'); return; }
+    const items = getHomework();
+    if (editId) {
+        const idx = items.findIndex(i => i.id === editId);
+        if (idx >= 0) {
+            items[idx].title    = title;
+            items[idx].subject  = document.getElementById('hw-input-subject').value;
+            items[idx].priority = document.getElementById('hw-input-priority').value;
+            items[idx].dueDate  = document.getElementById('hw-input-due').value || '';
+            items[idx].notes    = document.getElementById('hw-input-notes').value.trim();
+        }
+    } else {
+        items.unshift({
+            id: Date.now(), title,
+            subject:  document.getElementById('hw-input-subject').value,
+            priority: document.getElementById('hw-input-priority').value,
+            dueDate:  document.getElementById('hw-input-due').value || '',
+            notes:    document.getElementById('hw-input-notes').value.trim(),
+            completed: false, createdAt: new Date().toISOString()
+        });
+    }
+    saveHomework(items);
+    document.getElementById('hw-modal-overlay').remove();
+    renderHomework();
+    showToast(editId ? 'Assignment updated!' : 'Assignment added!', 'success', 2000);
+}
+function editHwItem(id) { openAddHwModal(id); }
+function toggleHwComplete(id) {
+    const items = getHomework();
+    const idx = items.findIndex(i => i.id === id);
+    if (idx < 0) return;
+    items[idx].completed  = !items[idx].completed;
+    items[idx].completedAt = items[idx].completed ? new Date().toISOString() : null;
+    saveHomework(items);
+    renderHomework();
+    if (items[idx].completed) {
+        showToast('Done! +10 XP', 'success', 2000);
+        if (typeof awardXP === 'function') awardXP(10);
+    }
+}
+function deleteHwItem(id) {
+    if (!confirm('Delete this assignment?')) return;
+    saveHomework(getHomework().filter(i => i.id !== id));
+    renderHomework();
+    showToast('Deleted.', 'info', 1500);
+}
+function exportHomeworkPDF() {
+    const items = getHomework();
+    const pending = items.filter(i => !i.completed);
+    const done    = items.filter(i =>  i.completed);
+    const w = window.open('', '_blank');
+    if (!w) { showToast('Allow pop-ups to export.', 'error'); return; }
+    const rows = function(arr) { return arr.map(function(i){ return '<tr><td>'+i.title+'</td><td>'+(i.subject||'')+'</td><td>'+(i.dueDate||'—')+'</td><td>'+(i.priority||'')+'</td><td>'+(i.notes||'')+'</td></tr>'; }).join(''); };
+    w.document.write('<!DOCTYPE html><html><head><title>Homework — NEXUS</title><style>body{font-family:sans-serif;padding:24px;color:#111;}h2{color:#6C5CE7;}table{width:100%;border-collapse:collapse;margin-bottom:24px;}th,td{border:1px solid #ccc;padding:8px 10px;font-size:0.9rem;text-align:left;}th{background:#f0f0f0;}</style></head><body><h2>NEXUS Homework</h2><p>'+new Date().toLocaleDateString()+'</p><h3>Pending ('+pending.length+')</h3><table><tr><th>Title</th><th>Subject</th><th>Due</th><th>Priority</th><th>Notes</th></tr>'+rows(pending)+'</table><h3>Completed ('+done.length+')</h3><table><tr><th>Title</th><th>Subject</th><th>Due</th><th>Priority</th><th>Notes</th></tr>'+rows(done)+'</table></body></html>');
+    w.document.close(); w.print();
+}
+
+// ─────────────────────────────────────────
+// GRADE CALCULATOR
+// ─────────────────────────────────────────
+function getGradeCourses() {
+    try { return JSON.parse(localStorage.getItem('grade_courses') || '[]'); } catch { return []; }
+}
+function saveGradeCourses(c) { localStorage.setItem('grade_courses', JSON.stringify(c)); }
+function calcCourseAvg(course) {
+    if (!course.grades || course.grades.length === 0) return null;
+    const hasWeights = course.grades.some(function(g){ return g.weight > 0; });
+    if (hasWeights) {
+        var totalW = course.grades.reduce(function(s,g){ return s + (parseFloat(g.weight)||0); }, 0);
+        if (totalW === 0) return null;
+        var ws = course.grades.reduce(function(s,g){ return s + (parseFloat(g.score)||0)*(parseFloat(g.weight)||0); }, 0);
+        return ws / totalW;
+    }
+    return course.grades.reduce(function(s,g){ return s+(parseFloat(g.score)||0); },0) / course.grades.length;
+}
+function letterGrade(avg) {
+    if (avg === null) return '—';
+    if (avg >= 90) return 'A'; if (avg >= 80) return 'B';
+    if (avg >= 70) return 'C'; if (avg >= 60) return 'D'; return 'F';
+}
+function gradeColor(avg) {
+    if (avg === null) return 'var(--text-muted)';
+    if (avg >= 90) return '#00b894'; if (avg >= 80) return '#00CEC9';
+    if (avg >= 70) return '#fdcb6e'; if (avg >= 60) return '#e17055'; return '#ff6b6b';
+}
+
+function renderGradeCalc() {
+    var panel = document.getElementById('grade-calc-panel');
+    if (!panel) return;
+    var courses = getGradeCourses();
+    if (courses.length === 0) {
+        panel.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted);"><i class="ph ph-chart-bar" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.4;"></i><div>No courses yet. Click <strong style="color:white;">Add Course</strong> to get started.</div></div>';
+        return;
+    }
+    var avgs = courses.map(calcCourseAvg).filter(function(a){ return a!==null; });
+    var overallGPA = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length).toFixed(1) : '—';
+    var gpa4 = avgs.length ? Math.max(0, Math.min(4, ((avgs.reduce(function(s,a){return s+a;},0)/avgs.length)-60)/10)).toFixed(2) : '—';
+
+    var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.8rem;font-weight:700;color:var(--accent);">'+overallGPA+'%</div><div style="font-size:0.78rem;color:var(--text-muted);">Overall Avg</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.8rem;font-weight:700;color:#a855f7;">'+gpa4+'</div><div style="font-size:0.78rem;color:var(--text-muted);">GPA (4.0)</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.8rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div><div style="font-size:0.78rem;color:var(--text-muted);">Courses</div></div>'
+        +'</div>';
+
+    courses.forEach(function(course) {
+        var avg = calcCourseAvg(course);
+        var letter = letterGrade(avg);
+        var color  = gradeColor(avg);
+        var pct    = avg !== null ? avg.toFixed(1) : '—';
+        var targetNote = '';
+        if (avg !== null && course.targetGrade) {
+            if (avg >= course.targetGrade) targetNote = '<div style="font-size:0.8rem;color:#00b894;padding:6px 10px;background:rgba(0,184,148,0.1);border-radius:6px;margin-bottom:10px;">On track for your '+course.targetGrade+'% target</div>';
+            else targetNote = '<div style="font-size:0.8rem;color:#fdcb6e;padding:6px 10px;background:rgba(253,203,110,0.1);border-radius:6px;margin-bottom:10px;">Need '+(course.targetGrade-avg).toFixed(1)+'% more for '+course.targetGrade+'% target</div>';
+        }
+        var gradesHtml = (course.grades||[]).map(function(g,gi){
+            return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><div style="flex:1;font-size:0.85rem;color:white;">'+(g.name||'Grade '+(gi+1))+'</div><div style="font-size:0.85rem;font-weight:600;color:'+gradeColor(parseFloat(g.score))+';">'+g.score+'%</div>'+(g.weight&&g.weight!==1?'<div style="font-size:0.75rem;color:var(--text-muted);">x'+g.weight+'w</div>':'')+'<button onclick="deleteGrade('+course.id+','+gi+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.85rem;padding:2px 4px;"><i class="ph ph-x"></i></button></div>';
+        }).join('');
+        html += '<div class="glass-panel" style="padding:16px;margin-bottom:12px;">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+            +'<div><div style="font-weight:700;color:white;font-size:1.05rem;">'+course.name+'</div><div style="font-size:0.8rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered</div></div>'
+            +'<div style="text-align:right;"><div style="font-size:2rem;font-weight:700;color:'+color+';">'+letter+'</div><div style="font-size:0.85rem;color:'+color+';">'+pct+'%</div></div></div>'
+            +targetNote
+            +'<div style="margin-bottom:10px;">'+gradesHtml+'</div>'
+            +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+            +'<button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;" onclick="openAddGradeModal('+course.id+')"><i class="ph ph-plus"></i> Add Grade</button>'
+            +'<button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;" onclick="openTargetModal('+course.id+')"><i class="ph ph-target"></i> Set Target</button>'
+            +'<button style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:6px 10px;" onclick="deleteCourse('+course.id+')"><i class="ph ph-trash"></i> Remove</button>'
+            +'</div></div>';
+    });
+    panel.innerHTML = html;
+}
+
+function openAddCourseModal() {
+    var modal = document.createElement('div');
+    modal.id = 'grade-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:380px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;">Add Course</h3><button class="btn-icon" onclick="document.getElementById(\'grade-modal-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Course Name *</label><input id="grade-course-name" class="input-field" style="width:100%;padding:10px;margin-bottom:14px;" placeholder="e.g. Algebra 1"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Target Grade (%)</label><input id="grade-course-target" class="input-field" type="number" min="0" max="100" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. 85"><div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'grade-modal-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="addCourse()">Add Course</button></div></div>';
+    document.body.appendChild(modal);
+    setTimeout(function(){ var el=document.getElementById('grade-course-name'); if(el) el.focus(); }, 100);
+}
+function addCourse() {
+    var name = document.getElementById('grade-course-name').value.trim();
+    if (!name) { showToast('Course name required.', 'error'); return; }
+    var target = parseFloat(document.getElementById('grade-course-target').value) || 0;
+    var courses = getGradeCourses();
+    courses.push({ id: Date.now(), name: name, targetGrade: target||null, grades: [] });
+    saveGradeCourses(courses);
+    document.getElementById('grade-modal-overlay').remove();
+    renderGradeCalc();
+    showToast('Course "'+name+'" added!', 'success', 2000);
+}
+function openAddGradeModal(courseId) {
+    var modal = document.createElement('div');
+    modal.id = 'grade-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:380px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;">Add Grade</h3><button class="btn-icon" onclick="document.getElementById(\'grade-modal-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Assignment Name</label><input id="grade-name" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. Unit 3 Test"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Score (%)</label><input id="grade-score" class="input-field" type="number" min="0" max="100" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. 87"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Weight (optional)</label><input id="grade-weight" class="input-field" type="number" min="0" max="10" step="0.5" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="1"><div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'grade-modal-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="addGrade('+courseId+')">Add Grade</button></div></div>';
+    document.body.appendChild(modal);
+    setTimeout(function(){ var el=document.getElementById('grade-score'); if(el) el.focus(); }, 100);
+}
+function addGrade(courseId) {
+    var score = parseFloat(document.getElementById('grade-score').value);
+    if (isNaN(score)||score<0||score>100) { showToast('Enter a valid score (0-100).', 'error'); return; }
+    var name   = (document.getElementById('grade-name').value||'').trim() || 'Grade';
+    var weight = parseFloat(document.getElementById('grade-weight').value)||1;
+    var courses = getGradeCourses();
+    var idx = courses.findIndex(function(c){ return c.id===courseId; });
+    if (idx<0) return;
+    courses[idx].grades.push({ name: name, score: score, weight: weight });
+    saveGradeCourses(courses);
+    document.getElementById('grade-modal-overlay').remove();
+    renderGradeCalc();
+    showToast('Grade added!', 'success', 2000);
+}
+function openTargetModal(courseId) {
+    var courses = getGradeCourses();
+    var course = courses.find(function(c){ return c.id===courseId; });
+    if (!course) return;
+    var t = prompt('Set target grade (%) for "'+course.name+'":', course.targetGrade||'');
+    if (t === null) return;
+    var val = parseFloat(t);
+    course.targetGrade = isNaN(val) ? null : Math.max(0,Math.min(100,val));
+    saveGradeCourses(courses);
+    renderGradeCalc();
+    showToast('Target updated!', 'success', 1800);
+}
+function deleteGrade(courseId, gradeIdx) {
+    var courses = getGradeCourses();
+    var idx = courses.findIndex(function(c){ return c.id===courseId; });
+    if (idx<0) return;
+    courses[idx].grades.splice(gradeIdx, 1);
+    saveGradeCourses(courses);
+    renderGradeCalc();
+}
+function deleteCourse(courseId) {
+    if (!confirm('Remove this course and all its grades?')) return;
+    saveGradeCourses(getGradeCourses().filter(function(c){ return c.id!==courseId; }));
+    renderGradeCalc();
+    showToast('Course removed.', 'info', 1500);
+}
+function exportGradesPDF() {
+    var courses = getGradeCourses();
+    var w = window.open('', '_blank');
+    if (!w) { showToast('Allow pop-ups to export.', 'error'); return; }
+    var avgs = courses.map(calcCourseAvg).filter(function(a){ return a!==null; });
+    var overall = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length).toFixed(1) : '—';
+    var rows = courses.map(function(c){ var avg=calcCourseAvg(c); return '<tr><td>'+c.name+'</td><td>'+c.grades.length+'</td><td>'+(avg!==null?avg.toFixed(1)+'%':'—')+'</td><td>'+letterGrade(avg)+'</td><td>'+(c.targetGrade?c.targetGrade+'%':'—')+'</td></tr>'; }).join('');
+    w.document.write('<!DOCTYPE html><html><head><title>Grades — NEXUS</title><style>body{font-family:sans-serif;padding:24px;}h2{color:#6C5CE7;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}th{background:#f0f0f0;}</style></head><body><h2>NEXUS Grade Report</h2><p>'+new Date().toLocaleDateString()+' | Overall: '+overall+'%</p><table><tr><th>Course</th><th>Grades</th><th>Average</th><th>Letter</th><th>Target</th></tr>'+rows+'</table></body></html>');
+    w.document.close(); w.print();
+}
+
+// ─────────────────────────────────────────
+// CITATION GENERATOR
+// ─────────────────────────────────────────
+function getSavedCitations() {
+    try { return JSON.parse(localStorage.getItem('saved_citations') || '[]'); } catch { return []; }
+}
+function saveCitations(c) { localStorage.setItem('saved_citations', JSON.stringify(c)); }
+var _citStyle = 'mla', _citType = 'book', _citationResult = '';
+
+function renderCitationTab() {
+    var panel = document.getElementById('citation-panel');
+    if (!panel) return;
+    var saved = getSavedCitations();
+    var styleOpts = ['mla','apa','chicago'].map(function(v){
+        return '<option value="'+v+'"'+(_citStyle===v?' selected':'')+'>'+{'mla':'MLA 9th','apa':'APA 7th','chicago':'Chicago'}[v]+'</option>';
+    }).join('');
+    var typeOpts = ['book','website','journal','newspaper','video'].map(function(v){
+        return '<option value="'+v+'"'+(_citType===v?' selected':'')+'>'+{'book':'Book','website':'Website','journal':'Journal Article','newspaper':'Newspaper','video':'Online Video'}[v]+'</option>';
+    }).join('');
+    var savedHtml = saved.length > 0 ? '<div style="margin-top:24px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Saved Citations ('+saved.length+')</h4><div style="display:flex;gap:8px;"><button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;" onclick="exportCitationsPDF()"><i class="ph ph-printer"></i> Export</button><button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;color:#ff6b6b;" onclick="clearAllCitations()"><i class="ph ph-trash"></i> Clear</button></div></div>'
+        +saved.map(function(c,i){ return '<div class="glass-panel" style="padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;"><div style="flex:1;font-size:0.85rem;color:white;font-family:serif;">'+c.text+'</div><div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="copyCitation('+i+')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;" title="Copy"><i class="ph ph-copy"></i></button><button onclick="deleteSavedCitation('+i+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;" title="Delete"><i class="ph ph-trash"></i></button></div></div>'; }).join('')
+        +'</div>' : '';
+    panel.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Format</label><select id="cit-style" class="input-field" style="width:100%;padding:10px;" onchange="_citStyle=this.value;renderCitationForm()">'+styleOpts+'</select></div><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Source Type</label><select id="cit-type" class="input-field" style="width:100%;padding:10px;" onchange="_citType=this.value;renderCitationForm()">'+typeOpts+'</select></div></div><div id="cit-form-area"></div><div id="cit-result-area" style="margin-top:16px;"></div>'+savedHtml;
+    renderCitationForm();
+}
+function copyCitation(idx) {
+    var saved = getSavedCitations();
+    if (saved[idx]) {
+        navigator.clipboard.writeText(saved[idx].text).then(function(){ showToast('Copied!', 'success', 1800); }).catch(function(){
+            var ta = document.createElement('textarea'); ta.value = saved[idx].text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Copied!', 'success', 1800);
+        });
+    }
+}
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(function(){ showToast('Copied!', 'success', 1800); }).catch(function(){
+        var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Copied!', 'success', 1800);
+    });
+}
+var CIT_FIELDS = {
+    book:      [{id:'author',label:'Author(s)',ph:'Last, First',req:1},{id:'title',label:'Title',ph:'Full title',req:1},{id:'publisher',label:'Publisher',ph:'Publisher'},{id:'year',label:'Year',ph:'2024'},{id:'city',label:'City',ph:'New York'},{id:'pages',label:'Pages',ph:'12-34'}],
+    website:   [{id:'author',label:'Author / Site Name',ph:'Last, First or Site'},{id:'title',label:'Page Title',ph:'Full title',req:1},{id:'site',label:'Website Name',ph:'Example.com',req:1},{id:'url',label:'URL',ph:'https://...',req:1},{id:'published',label:'Published Date',ph:'12 Jan 2024'},{id:'accessed',label:'Accessed Date',ph:'15 May 2024'}],
+    journal:   [{id:'author',label:'Author(s)',ph:'Last, First',req:1},{id:'title',label:'Article Title',ph:'Full title',req:1},{id:'journal',label:'Journal Name',ph:'Journal of...',req:1},{id:'volume',label:'Volume',ph:'12'},{id:'issue',label:'Issue',ph:'3'},{id:'year',label:'Year',ph:'2024'},{id:'pages',label:'Pages',ph:'45-67'},{id:'doi',label:'DOI / URL',ph:'10.1000/...'}],
+    newspaper: [{id:'author',label:'Author(s)',ph:'Last, First',req:1},{id:'title',label:'Article Title',ph:'Full title',req:1},{id:'paper',label:'Newspaper Name',ph:'The New York Times',req:1},{id:'date',label:'Date',ph:'15 Jan 2024',req:1},{id:'pages',label:'Page(s)',ph:'A1'},{id:'url',label:'URL (online)',ph:'https://...'}],
+    video:     [{id:'author',label:'Channel / Creator',ph:'Channel Name',req:1},{id:'title',label:'Video Title',ph:'Full title',req:1},{id:'site',label:'Platform',ph:'YouTube',req:1},{id:'date',label:'Upload Date',ph:'15 Jan 2024'},{id:'url',label:'URL',ph:'https://...',req:1}]
+};
+function renderCitationForm() {
+    var area = document.getElementById('cit-form-area');
+    if (!area) return;
+    var fields = CIT_FIELDS[_citType] || CIT_FIELDS.book;
+    area.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px;">'
+        + fields.map(function(f){ return '<div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:3px;">'+f.label+(f.req?'<span style="color:#ff6b6b;"> *</span>':'')+'</label><input id="cit-field-'+f.id+'" class="input-field" style="width:100%;padding:10px;" placeholder="'+(f.ph||'')+'"></div>'; }).join('')
+        + '</div><button class="btn-primary" style="margin-top:14px;width:100%;" onclick="generateCitation()"><i class="ph ph-quotes"></i> Generate Citation</button>';
+}
+function getField(id) { var el=document.getElementById('cit-field-'+id); return el?el.value.trim():''; }
+function generateCitation() {
+    var s=_citStyle, t=_citType;
+    var a=getField('author'), ti=getField('title'), year=getField('year'), pub=getField('publisher'), city=getField('city');
+    var site=getField('site'), url=getField('url'), acc=getField('accessed'), pub2=getField('published');
+    var journal=getField('journal'), vol=getField('volume'), iss=getField('issue'), pages=getField('pages'), doi=getField('doi');
+    var paper=getField('paper'), date=getField('date'), edition=getField('edition');
+    var cit = '';
+    if (s==='mla') {
+        if (t==='book')      cit=(a?a+'. ':'')+'’'+ti+'’.'+(edition?' '+edition+',':'')+' '+(pub?pub+',':'')+' '+(year||'')+'.';
+        else if (t==='website') cit=(a?a+'. ':'')+'"'+ti+'." ’'+site+'’,'+(pub2?' '+pub2+',':'')+' '+url+'.'+(acc?' Accessed '+acc+'.':'');
+        else if (t==='journal') cit=a+'. "'+ti+'." ’'+journal+'’, vol. '+(vol||'?')+', no. '+(iss||'?')+', '+(year||'n.d.')+', pp. '+(pages||'n.p.')+'.'+(doi?' doi:'+doi:'');
+        else if (t==='newspaper') cit=a+'. "'+ti+'." ’'+paper+'’, '+date+(pages?', p. '+pages:'')+'.'+(url?' '+url+'.':'');
+        else if (t==='video') cit=a+'. "'+ti+'." ’'+site+'’,'+(date?' '+date+',':'')+' '+url+'.';
+    } else if (s==='apa') {
+        if (t==='book')      cit=(a||'Author')+' ('+(year||'n.d.')+').'+(ti?' *'+ti+'*'+(edition?' ('+edition+')':'')+'.':(':'+''))+' '+(pub||'Publisher')+'.';
+        else if (t==='website') cit=(a||site)+' ('+(pub2||'n.d.')+').'+' '+ti+'. *'+site+'*. '+url;
+        else if (t==='journal') cit=a+' ('+(year||'n.d.')+').'+' '+ti+'. *'+journal+'*, *'+(vol||'?')+'*('+(iss||'?')+'), '+(pages||'n.p.')+'.'+(doi?' https://doi.org/'+doi:'');
+        else if (t==='newspaper') cit=a+' ('+date+').'+' '+ti+'. *'+paper+'*'+(pages?', '+pages:'')+'.'+(url?' '+url:'');
+        else if (t==='video') cit=a+' ['+site+']. ('+(date||'n.d.')+').'+' *'+ti+'* [Video]. '+site+'. '+url;
+    } else if (s==='chicago') {
+        if (t==='book')      cit=a+'. *'+ti+'*. '+(city?city+': ':'')+''+(pub||'Publisher')+', '+(year||'n.d.')+'.';
+        else if (t==='website') cit=(a||site)+'. "'+ti+'." '+site+'.'+(pub2?' '+pub2+'.':'')+' '+url+'.';
+        else if (t==='journal') cit=a+'. "'+ti+'." *'+journal+'* '+(vol||'?')+', no. '+(iss||'?')+' ('+(year||'n.d.')+'): '+(pages||'n.p.')+'.'+(doi?' https://doi.org/'+doi+'.':'');
+        else if (t==='newspaper') cit=a+'. "'+ti+'." *'+paper+'*, '+date+(pages?', '+pages:'')+'.';
+        else if (t==='video') cit=a+'. "'+ti+'." '+site+' video, '+(date||'n.d.')+'. '+url+'.';
+    }
+    cit = (cit||'').replace(/\s+/g,' ').trim();
+    if (!cit||cit.replace(/[.*\s]/g,'').length<5) { showToast('Fill in the required fields.', 'error'); return; }
+    _citationResult = cit;
+    var area = document.getElementById('cit-result-area');
+    if (area) area.innerHTML = '<div class="glass-panel" style="padding:14px;border:1px solid rgba(0,206,201,0.3);"><div style="font-size:0.75rem;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:8px;">'+s.toUpperCase()+' — '+t.charAt(0).toUpperCase()+t.slice(1)+'</div><div id="cit-output-text" style="font-size:0.92rem;color:white;font-family:serif;line-height:1.6;">'+cit+'</div><div style="display:flex;gap:8px;margin-top:12px;"><button class="btn-primary" style="font-size:0.82rem;padding:6px 12px;" onclick="copyText(\''+cit.replace(/'/g,"\\'")+'\')" ><i class="ph ph-copy"></i> Copy</button><button class="btn-secondary" style="font-size:0.82rem;padding:6px 12px;" onclick="saveCitation()"><i class="ph ph-bookmark-simple"></i> Save</button></div></div>';
+}
+function saveCitation() {
+    if (!_citationResult) return;
+    var saved = getSavedCitations();
+    saved.unshift({ text: _citationResult, style: _citStyle, type: _citType, date: Date.now() });
+    if (saved.length > 50) saved.splice(50);
+    saveCitations(saved);
+    renderCitationTab();
+    showToast('Citation saved!', 'success', 2000);
+}
+function deleteSavedCitation(idx) {
+    var saved = getSavedCitations(); saved.splice(idx,1); saveCitations(saved); renderCitationTab();
+}
+function clearAllCitations() {
+    if (!confirm('Clear all saved citations?')) return; saveCitations([]); renderCitationTab(); showToast('Cleared.','info',1500);
+}
+function exportCitationsPDF() {
+    var saved = getSavedCitations();
+    var w = window.open('','_blank');
+    if (!w) { showToast('Allow pop-ups.','error'); return; }
+    w.document.write('<!DOCTYPE html><html><head><title>Citations</title><style>body{font-family:Georgia,serif;padding:24px;color:#111;}h2{font-family:sans-serif;color:#6C5CE7;}p{margin:0 0 12px;padding:8px 0;border-bottom:1px solid #eee;}</style></head><body><h2>NEXUS Citations</h2><p style="font-family:sans-serif;color:#666;border:none;">'+new Date().toLocaleDateString()+'</p>'+saved.map(function(c,i){ return '<p>'+(i+1)+'. '+c.text+'</p>'; }).join('')+'</body></html>');
+    w.document.close(); w.print();
+}
+
+// ─────────────────────────────────────────
+// QUIZ GENERATOR (AI)
+// ─────────────────────────────────────────
+var _quizGenQuestions=[], _quizGenActive=false, _quizGenCurrent=0, _quizGenScore=0, _quizGenAnswers=[];
+function renderQuizGen() {
+    var panel = document.getElementById('quizgen-panel');
+    if (!panel) return;
+    if (_quizGenActive) { renderQuizGenQuestion(panel); return; }
+    panel.innerHTML = '<div style="margin-bottom:16px;"><label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:6px;">Paste your notes, textbook excerpt, or any text. The AI generates a multiple-choice quiz from it.</label><textarea id="quizgen-input" class="input-field" style="width:100%;min-height:160px;padding:12px;resize:vertical;font-size:0.9rem;line-height:1.5;" placeholder="Paste notes here..."></textarea></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Questions</label><select id="quizgen-count" class="input-field" style="width:100%;padding:10px;"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Difficulty</label><select id="quizgen-diff" class="input-field" style="width:100%;padding:10px;"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div></div><button id="quizgen-btn" class="btn-primary" style="width:100%;padding:12px;" onclick="generateNotesQuiz()"><i class="ph ph-magic-wand"></i> Generate Quiz from Notes</button><div id="quizgen-status" style="margin-top:12px;color:var(--text-muted);font-size:0.85rem;text-align:center;"></div>';
+}
+async function generateNotesQuiz() {
+    var text = (document.getElementById('quizgen-input') ? document.getElementById('quizgen-input').value : '').trim();
+    if (text.length < 50) { showToast('Paste at least 50 characters of notes.', 'error'); return; }
+    var apiKey = localStorage.getItem('openai_api_key');
+    if (!apiKey) { showToast('Add your OpenAI API key in Settings > AI.', 'error'); return; }
+    var count = parseInt((document.getElementById('quizgen-count')||{}).value||'10');
+    var diff  = (document.getElementById('quizgen-diff')||{}).value||'medium';
+    var btn = document.getElementById('quizgen-btn');
+    var status = document.getElementById('quizgen-status');
+    if (btn) { btn.disabled=true; btn.innerHTML='<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite"></i> Generating...'; }
+    if (status) status.textContent='Analyzing your notes and building questions...';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+            body: JSON.stringify({
+                model:'gpt-4o-mini',
+                response_format:{type:'json_object'},
+                messages:[
+                    {role:'system',content:'You are a quiz maker. Create exactly '+count+' multiple-choice questions at '+diff+' difficulty from the provided text. Each question has exactly 4 options labeled A, B, C, D. Return STRICT JSON: {"questions":[{"q":"question","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A"}]}'},
+                    {role:'user',content:'Text:\n'+text.slice(0,8000)}
+                ]
+            })
+        });
+        var data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        var parsed = JSON.parse(data.choices[0].message.content);
+        if (!parsed.questions||parsed.questions.length===0) throw new Error('No questions returned.');
+        _quizGenQuestions=parsed.questions; _quizGenActive=true; _quizGenCurrent=0; _quizGenScore=0; _quizGenAnswers=[];
+        var panel=document.getElementById('quizgen-panel'); if(panel) renderQuizGenQuestion(panel);
+    } catch(err) {
+        showToast('Quiz error: '+err.message,'error',4000);
+        if (btn) { btn.disabled=false; btn.innerHTML='<i class="ph ph-magic-wand"></i> Generate Quiz from Notes'; }
+        if (status) status.textContent='';
+    }
+}
+function renderQuizGenQuestion(panel) {
+    if (_quizGenCurrent>=_quizGenQuestions.length) { renderQuizGenResults(panel); return; }
+    var q=_quizGenQuestions[_quizGenCurrent], total=_quizGenQuestions.length;
+    panel.innerHTML='<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:0.8rem;color:var(--text-muted);">Question '+(_quizGenCurrent+1)+' of '+total+'</div><div style="font-size:0.8rem;color:var(--accent);">Score: '+_quizGenScore+'/'+_quizGenCurrent+'</div></div><div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:18px;"><div style="width:'+((_quizGenCurrent/total)*100)+'%;height:100%;background:var(--accent);border-radius:2px;"></div></div><div style="font-size:1.05rem;font-weight:600;color:white;line-height:1.5;margin-bottom:20px;">'+q.q+'</div><div style="display:flex;flex-direction:column;gap:10px;">'
+        +q.options.map(function(opt,i){ var L=String.fromCharCode(65+i); return '<button class="quiz-gen-opt" data-letter="'+L+'" onclick="selectQuizGenAnswer(\''+L+'\')" style="width:100%;text-align:left;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:white;cursor:pointer;font-size:0.92rem;transition:all 0.15s;line-height:1.4;" onmouseenter="this.style.background=\'rgba(0,206,201,0.12)\';this.style.borderColor=\'rgba(0,206,201,0.4)\'" onmouseleave="this.style.background=\'rgba(255,255,255,0.04)\';this.style.borderColor=\'rgba(255,255,255,0.15)\'">'+opt+'</button>'; }).join('')
+        +'</div></div>';
+}
+function selectQuizGenAnswer(letter) {
+    var q=_quizGenQuestions[_quizGenCurrent], ok=(letter===q.answer);
+    _quizGenAnswers.push({q:q.q,selected:letter,correct:q.answer,ok:ok});
+    if(ok) _quizGenScore++;
+    document.querySelectorAll('.quiz-gen-opt').forEach(function(btn){
+        btn.style.pointerEvents='none';
+        var l=btn.dataset.letter;
+        if(l===q.answer){btn.style.background='rgba(0,184,148,0.25)';btn.style.borderColor='#00b894';btn.style.color='#00b894';}
+        else if(l===letter&&!ok){btn.style.background='rgba(255,107,107,0.2)';btn.style.borderColor='#ff6b6b';btn.style.color='#ff6b6b';}
+    });
+    setTimeout(function(){
+        _quizGenCurrent++;
+        var panel=document.getElementById('quizgen-panel'); if(panel) renderQuizGenQuestion(panel);
+    },900);
+}
+function renderQuizGenResults(panel) {
+    _quizGenActive=false;
+    var total=_quizGenQuestions.length, pct=Math.round((_quizGenScore/total)*100), xpE=Math.round(pct*0.5);
+    if(typeof awardXP==='function') awardXP(xpE);
+    if(typeof addCredits==='function') addCredits(Math.round(xpE*0.3));
+    panel.innerHTML='<div style="text-align:center;margin-bottom:24px;"><div style="font-size:3.5rem;margin-bottom:8px;">'+(pct>=80?'🎉':pct>=60?'👍':'📚')+'</div><div style="font-size:2.2rem;font-weight:700;color:'+(pct>=80?'#00b894':pct>=60?'#fdcb6e':'#ff6b6b')+';">'+pct+'%</div><div style="color:var(--text-muted);margin-top:4px;">'+_quizGenScore+' / '+total+' correct</div><div style="font-size:0.85rem;color:var(--accent);margin-top:8px;">+'+xpE+' XP earned</div></div>'
+        +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">'
+        +_quizGenAnswers.map(function(a,i){ return '<div class="glass-panel" style="padding:12px;border-left:3px solid '+(a.ok?'#00b894':'#ff6b6b')+';"><div style="font-size:0.85rem;color:white;margin-bottom:4px;">'+(i+1)+'. '+a.q+'</div><div style="font-size:0.8rem;">'+(a.ok?'<span style="color:#00b894;"><i class="ph ph-check-circle"></i> Correct ('+a.correct+')</span>':'<span style="color:#ff6b6b;"><i class="ph ph-x-circle"></i> You chose '+a.selected+' — Correct: '+a.correct+'</span>')+'</div></div>'; }).join('')
+        +'</div><div style="display:flex;gap:10px;"><button class="btn-secondary" style="flex:1;" onclick="renderQuizGen()">New Quiz</button><button class="btn-primary" style="flex:1;" onclick="_quizGenCurrent=0;_quizGenScore=0;_quizGenAnswers=[];_quizGenActive=true;var p=document.getElementById(\'quizgen-panel\');if(p)renderQuizGenQuestion(p);">Retry</button></div>';
+}
+
+// ─────────────────────────────────────────
+// SRS (SPACED REPETITION) — SM-2 Algorithm
+// ─────────────────────────────────────────
+function srsNextReview(card, rating) {
+    var interval=card.interval||0, easeFactor=card.easeFactor||2.5, repetitions=card.repetitions||0;
+    if (rating < 3) { repetitions=0; interval=1; }
+    else {
+        if (repetitions===0) interval=1;
+        else if (repetitions===1) interval=6;
+        else interval=Math.round(interval*easeFactor);
+        repetitions++;
+    }
+    easeFactor = Math.max(1.3, easeFactor+0.1-(5-rating)*(0.08+(5-rating)*0.02));
+    var next=new Date(); next.setDate(next.getDate()+interval);
+    return { interval:interval, easeFactor:easeFactor, repetitions:repetitions, nextReview:next.toISOString().slice(0,10) };
+}
+function getDueFlashcards() {
+    var decks=getFlashcardDecks(), today=new Date().toISOString().slice(0,10), due=[];
+    decks.forEach(function(deck){
+        (deck.cards||[]).forEach(function(card,ci){
+            var nr=card.nextReview||'0000-00-00';
+            if(nr<=today) due.push({deckId:deck.id,deckTitle:deck.title,cardIdx:ci,card:card});
+        });
+    });
+    return due;
+}
+function getSrsDueCount() { return getDueFlashcards().length; }
+
+var _srsCards=[], _srsCurrent=0, _srsFlipped=false, _srsSession={reviewed:0,correct:0}, _srsActive=false;
+function startSrsReview() {
+    _srsCards=getDueFlashcards();
+    if (_srsCards.length===0) { showToast('No cards due today!','success',3000); return; }
+    for(var i=_srsCards.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=_srsCards[i];_srsCards[i]=_srsCards[j];_srsCards[j]=tmp;}
+    _srsCurrent=0; _srsFlipped=false; _srsSession={reviewed:0,correct:0}; _srsActive=true;
+    renderSrsCard();
+}
+function startSrsDeckReview(deckId) {
+    _srsCards=getDueFlashcards().filter(function(c){return c.deckId===deckId;});
+    if(_srsCards.length===0){showToast('No cards due in this deck!','info');return;}
+    for(var i=_srsCards.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=_srsCards[i];_srsCards[i]=_srsCards[j];_srsCards[j]=tmp;}
+    _srsCurrent=0; _srsFlipped=false; _srsSession={reviewed:0,correct:0}; _srsActive=true;
+    var panel=document.getElementById('srs-panel');
+    if(panel){panel.scrollIntoView({behavior:'smooth'});renderSrsCard();}
+}
+function renderSrsCard() {
+    var panel=document.getElementById('srs-panel');
+    if(!panel) return;
+    if(_srsCurrent>=_srsCards.length){renderSrsResults(panel);return;}
+    var item=_srsCards[_srsCurrent], card=item.card, total=_srsCards.length;
+    panel.innerHTML='<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:0.8rem;color:var(--text-muted);">Card '+(_srsCurrent+1)+' / '+total+'</div><div style="font-size:0.8rem;color:var(--accent);">'+item.deckTitle+'</div></div><div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:20px;"><div style="width:'+((_srsCurrent/total)*100)+'%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>'
+        +'<div id="srs-card-flip" onclick="flipSrsCard()" style="cursor:pointer;min-height:160px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:all 0.2s;user-select:none;" onmouseenter="this.style.borderColor=\'rgba(0,206,201,0.4)\'" onmouseleave="this.style.borderColor=\'rgba(255,255,255,0.12)\'"><div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">'+(_srsFlipped?'ANSWER':'QUESTION — tap to reveal')+'</div><div style="font-size:1.05rem;color:white;line-height:1.6;">'+(_srsFlipped?card.back:card.front)+'</div></div>'
+        +(_srsFlipped?'<div style="margin-top:18px;"><div style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-bottom:10px;">How well did you remember?</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"><button onclick="rateSrsCard(0)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(255,107,107,0.2);color:#ff6b6b;cursor:pointer;font-size:0.8rem;font-weight:600;">Again</button><button onclick="rateSrsCard(1)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(253,203,110,0.2);color:#fdcb6e;cursor:pointer;font-size:0.8rem;font-weight:600;">Hard</button><button onclick="rateSrsCard(3)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(0,206,201,0.2);color:#00CEC9;cursor:pointer;font-size:0.8rem;font-weight:600;">Good</button><button onclick="rateSrsCard(5)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(0,184,148,0.2);color:#00b894;cursor:pointer;font-size:0.8rem;font-weight:600;">Easy</button></div></div>'
+            :'<div style="text-align:center;margin-top:18px;"><button class="btn-secondary" onclick="flipSrsCard()" style="padding:10px 24px;"><i class="ph ph-eye"></i> Reveal Answer</button></div>');
+}
+function flipSrsCard() { _srsFlipped=!_srsFlipped; renderSrsCard(); }
+function rateSrsCard(rating) {
+    var item=_srsCards[_srsCurrent], decks=getFlashcardDecks();
+    var dIdx=decks.findIndex(function(d){return d.id===item.deckId;});
+    if(dIdx>=0){ var srs=srsNextReview(item.card,rating); Object.assign(decks[dIdx].cards[item.cardIdx],srs); saveFlashcardDecks(decks); }
+    if(rating>=3) _srsSession.correct++;
+    _srsSession.reviewed++; _srsCurrent++; _srsFlipped=false; renderSrsCard();
+}
+function renderSrsResults(panel) {
+    _srsActive=false;
+    var pct=_srsSession.reviewed>0?Math.round((_srsSession.correct/_srsSession.reviewed)*100):0;
+    var xp=_srsSession.reviewed*5+_srsSession.correct*3;
+    if(typeof awardXP==='function') awardXP(xp);
+    panel.innerHTML='<div style="text-align:center;padding:32px 16px;"><div style="font-size:3rem;margin-bottom:10px;">🎓</div><h3 style="color:white;margin:0 0 6px;">Review Complete!</h3><div style="color:var(--text-muted);margin-bottom:20px;">Reviewed '+_srsSession.reviewed+' cards — '+pct+'% recalled</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;"><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+_srsSession.correct+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Remembered</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(_srsSession.reviewed-_srsSession.correct)+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Need Practice</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">+'+xp+'</div><div style="font-size:0.75rem;color:var(--text-muted);">XP Earned</div></div></div><button class="btn-primary" onclick="renderSrsHomePanel()"><i class="ph ph-cards"></i> Back to Decks</button></div>';
+}
+
+function renderSrsHomePanel() {
+    var p=document.getElementById('srs-home-panel'); if(!p) return;
+    var due=getDueFlashcards().length, decks=getFlashcardDecks();
+    p.innerHTML='<div class="glass-panel" style="padding:20px;margin-bottom:16px;text-align:center;"><div style="font-size:3rem;margin-bottom:8px;">'+(due>0?'🃏':'✅')+'</div><div style="font-size:1.8rem;font-weight:700;color:'+(due>0?'var(--accent)':'#00b894')+';">'+due+'</div><div style="color:var(--text-muted);margin-bottom:16px;">card'+(due!==1?'s':'')+' due for review today</div>'
+        +(due>0?'<button class="btn-primary" style="padding:12px 28px;" onclick="startSrsReview()"><i class="ph ph-play"></i> Start Review ('+due+' cards)</button>':'<div style="color:#00b894;">All caught up! Come back tomorrow.</div>')
+        +'</div><div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Decks ('+decks.length+')</h4><button class="btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV</button></div>'
+        +(decks.length===0?'<div style="text-align:center;padding:24px;color:var(--text-muted);">No decks yet.</div>'
+            :decks.map(function(d){ var di=getDueFlashcards().filter(function(c){return c.deckId===d.id;}).length; return '<div class="glass-panel" style="padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;"><div style="flex:1;"><div style="font-weight:600;color:white;">'+d.title+'</div><div style="font-size:0.78rem;color:var(--text-muted);">'+(d.cards||[]).length+' cards &bull; '+(di>0?'<span style="color:var(--accent);">'+di+' due</span>':'<span style="color:#00b894;">All caught up</span>')+'</div></div>'+(di>0?'<button class="btn-primary" style="font-size:0.8rem;padding:6px 12px;" onclick="startSrsDeckReview('+d.id+')"><i class="ph ph-play"></i> Review</button>':'')+'</div>'; }).join(''))
+        +'</div><div id="srs-panel" style="margin-top:16px;"></div>';
+}
+
+// ─────────────────────────────────────────
+// QUIZLET CSV IMPORT
+// ─────────────────────────────────────────
+function openCsvImportModal() {
+    var modal=document.createElement('div');
+    modal.id='csv-import-overlay';
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick=function(e){if(e.target===modal) modal.remove();};
+    modal.innerHTML='<div class="glass-panel" style="max-width:500px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;"><i class="ph ph-upload-simple"></i> Import from CSV / Quizlet</h3><button class="btn-icon" onclick="document.getElementById(\'csv-import-overlay\').remove()"><i class="ph ph-x"></i></button></div><div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Paste CSV where each line is: <code style="color:var(--accent);">term,definition</code><br>Supports Quizlet exports (tab-separated) and comma-separated.</div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Deck Name *</label><input id="csv-deck-name" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. Bio Chapter 5"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Paste CSV / TSV data *</label><textarea id="csv-data" class="input-field" style="width:100%;min-height:140px;padding:10px;resize:vertical;font-family:monospace;font-size:0.82rem;" placeholder="Mitochondria,The powerhouse of the cell&#10;Photosynthesis,Converting light to glucose"></textarea><div id="csv-preview" style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;"></div><div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'csv-import-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="importCsvDeck()"><i class="ph ph-check"></i> Import Deck</button></div></div>';
+    document.body.appendChild(modal);
+    document.getElementById('csv-data').addEventListener('input',function(){
+        var lines=parseCsvLines(this.value);
+        var p=document.getElementById('csv-preview');
+        if(p) p.textContent=lines.length>0?lines.length+' card'+(lines.length!==1?'s':'')+' detected':'';
+    });
+}
+function parseCsvLines(raw) {
+    var lines=raw.split('\n').map(function(l){return l.trim();}).filter(Boolean), cards=[];
+    for(var i=0;i<lines.length;i++){
+        var line=lines[i], sep=line.indexOf('\t')>=0?'\t':',';
+        var idx=line.indexOf(sep); if(idx<1) continue;
+        var front=line.slice(0,idx).trim().replace(/^["']|["']$/g,'');
+        var back=line.slice(idx+1).trim().replace(/^["']|["']$/g,'');
+        if(front&&back) cards.push({front:front,back:back});
+    }
+    return cards;
+}
+function importCsvDeck() {
+    var name=(document.getElementById('csv-deck-name')||{}).value||''; name=name.trim();
+    if(!name){showToast('Enter a deck name.','error');return;}
+    var raw=(document.getElementById('csv-data')||{}).value||'';
+    var cards=parseCsvLines(raw);
+    if(cards.length===0){showToast('No valid cards found.','error');return;}
+    var decks=getFlashcardDecks();
+    decks.unshift({id:Date.now(),title:name,subject:'Imported',createdAt:Date.now(),cards:cards});
+    saveFlashcardDecks(decks);
+    document.getElementById('csv-import-overlay').remove();
+    renderSrsHomePanel();
+    showToast('Imported '+cards.length+' cards into "'+name+'"!','success',3000);
+    if(typeof awardXP==='function') awardXP(15);
+}
+
+// ─────────────────────────────────────────
+// STUDY SESSION HISTORY + BAR CHART
+// ─────────────────────────────────────────
+var _studySessionStart=null, _studySessionSubject='General';
+function startStudySession(subject){ _studySessionStart=Date.now(); _studySessionSubject=subject||'General'; }
+function endStudySession() {
+    if(!_studySessionStart) return;
+    var duration=Math.round((Date.now()-_studySessionStart)/60000);
+    if(duration<1){_studySessionStart=null;return;}
+    var sessions=getStudySessions();
+    sessions.push({date:new Date().toISOString().slice(0,10),duration:duration,subject:_studySessionSubject});
+    if(sessions.length>200) sessions.splice(0,sessions.length-200);
+    localStorage.setItem('study_sessions_v2',JSON.stringify(sessions));
+    _studySessionStart=null;
+}
+function getStudySessions(){ try{return JSON.parse(localStorage.getItem('study_sessions_v2')||'[]');}catch{return[];} }
+function trackStudySession(subject,duration){ if(duration<1)duration=1; var s=getStudySessions(); s.push({date:new Date().toISOString().slice(0,10),duration:duration,subject:subject||'General'}); if(s.length>200)s.splice(0,s.length-200); localStorage.setItem('study_sessions_v2',JSON.stringify(s)); }
+
+function renderStudyHistoryChart(canvasId) {
+    var canvas=document.getElementById(canvasId||'study-history-canvas');
+    if(!canvas) return;
+    var ctx=canvas.getContext('2d'); if(!ctx) return;
+    var W=canvas.width=canvas.offsetWidth||600, H=canvas.height=180;
+    var days=[];
+    for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
+    var sessions=getStudySessions();
+    var totals=days.map(function(d){return sessions.filter(function(s){return s.date===d;}).reduce(function(sum,s){return sum+(s.duration||0);},0);});
+    var maxVal=Math.max.apply(null,totals.concat([10]));
+    var pad=30, gapX=Math.floor((W-pad*2)/7), barW=gapX-8;
+    ctx.clearRect(0,0,W,H);
+    for(var gi=0;gi<=4;gi++){var y=pad+((H-pad*2)/4)*gi;ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();}
+    var COLORS=['#6C5CE7','#00CEC9','#fd79a8','#fdcb6e','#55efc4','#a29bfe','#fab1a0'];
+    days.forEach(function(d,i){
+        var x=pad+gapX*i+(gapX-barW)/2, val=totals[i];
+        var barH=val>0?Math.max(4,((val/maxVal)*(H-pad*2-10))):0, y=H-pad-barH;
+        ctx.fillStyle=COLORS[i%COLORS.length]; ctx.globalAlpha=0.85;
+        var r=4; ctx.beginPath();
+        ctx.moveTo(x+r,y);ctx.lineTo(x+barW-r,y);ctx.quadraticCurveTo(x+barW,y,x+barW,y+r);
+        ctx.lineTo(x+barW,y+barH);ctx.lineTo(x,y+barH);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+        ctx.closePath();ctx.fill();ctx.globalAlpha=1;
+        if(val>0){ctx.fillStyle='white';ctx.font='600 10px Inter,sans-serif';ctx.textAlign='center';ctx.fillText(val+'m',x+barW/2,y-4);}
+        ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+        var lbl=new Date(d+'T12:00:00').toLocaleDateString('en',{weekday:'short'});
+        ctx.fillText(lbl,x+barW/2,H-10);
+    });
+    var wk=totals.reduce(function(s,v){return s+v;},0);
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='11px Inter,sans-serif';ctx.textAlign='right';ctx.fillText('This week: '+wk+' min',W-pad,16);
+}
+
+// Patch switchTab to track sessions and render new tabs
+(function(){
+    var _orig = typeof switchTab==='function' ? switchTab : null;
+    if (!_orig) return;
+    window.switchTab = function(tabId) {
+        var STUDY=['math','science','english','social','dashboard','notebook'];
+        if(STUDY.indexOf(tabId)>=0){ endStudySession(); startStudySession(tabId.charAt(0).toUpperCase()+tabId.slice(1)); }
+        else endStudySession();
+        _orig(tabId);
+        if(tabId==='homework') setTimeout(renderHomework,80);
+        if(tabId==='grades')   setTimeout(renderGradeCalc,80);
+        if(tabId==='tools')    setTimeout(function(){switchToolsTab(_activeToolsTab||'quizgen');},80);
+        if(tabId==='profile')  setTimeout(renderBetterProfile,80);
+    };
+})();
+
+// ─────────────────────────────────────────
+// DAILY CHALLENGES
+// ─────────────────────────────────────────
+var DAILY_CHALLENGES=[
+    {subject:'Math',question:'Solve: 3x + 7 = 22',answer:'x = 5',hint:'Subtract 7 from both sides, then divide by 3.'},
+    {subject:'Math',question:'What is 15% of 240?',answer:'36',hint:'Multiply 240 × 0.15.'},
+    {subject:'Math',question:'Simplify: (x²)(x³)',answer:'x⁵',hint:'Add the exponents when multiplying same base.'},
+    {subject:'Math',question:'Find the area of a triangle with base 8 and height 5.',answer:'20 sq units',hint:'Area = ½ × base × height.'},
+    {subject:'Math',question:'What is √144?',answer:'12',hint:'Think: 12 × 12 = 144.'},
+    {subject:'Math',question:'What is 7² − 3²?',answer:'40',hint:'49 − 9 = 40.'},
+    {subject:'Math',question:'Convert 0.75 to a fraction in simplest form.',answer:'3/4',hint:'75/100 simplified.'},
+    {subject:'Science',question:'What is the chemical formula for water?',answer:'H₂O',hint:'Two hydrogen, one oxygen.'},
+    {subject:'Science',question:'What organelle is the powerhouse of the cell?',answer:'Mitochondria',hint:'It produces ATP through cellular respiration.'},
+    {subject:'Science',question:"What is Newton's Second Law?",answer:'F = ma (Force = mass × acceleration)',hint:'Think: force equals mass times acceleration.'},
+    {subject:'Science',question:'What planet is closest to the Sun?',answer:'Mercury',hint:'First of the eight planets.'},
+    {subject:'Science',question:'What is the atomic number of Carbon?',answer:'6',hint:'Count the protons on the periodic table.'},
+    {subject:'Science',question:'What gas do plants absorb for photosynthesis?',answer:'Carbon dioxide (CO₂)',hint:'The gas we exhale.'},
+    {subject:'English',question:'What is a simile?',answer:'A comparison using "like" or "as"',hint:'Example: "as brave as a lion."'},
+    {subject:'English',question:'What is the plural of "criterion"?',answer:'Criteria',hint:'Greek origin — like "data" from "datum."'},
+    {subject:'English',question:'Identify the verb: "The dog quickly ran home."',answer:'"ran" is the verb',hint:'What action is being performed?'},
+    {subject:'English',question:'What is an oxymoron?',answer:'Two contradictory words together (e.g., "deafening silence")',hint:'Think "bittersweet."'},
+    {subject:'English',question:'What is the difference between a metaphor and a simile?',answer:'A metaphor directly states a comparison; a simile uses "like" or "as"',hint:'Metaphor: "Life is a journey." Simile: "Life is like a journey."'},
+    {subject:'Social',question:'What year did World War II end?',answer:'1945',hint:'V-E Day was May 8, V-J Day was September 2.'},
+    {subject:'Social',question:'Who wrote the Declaration of Independence?',answer:'Thomas Jefferson (primary author)',hint:'He became the 3rd US President.'}
+];
+function getTodayChallenge(){var today=new Date().toISOString().slice(0,10),seed=today.replace(/-/g,''),idx=parseInt(seed)%DAILY_CHALLENGES.length;return Object.assign({},DAILY_CHALLENGES[idx],{index:idx});}
+function getDailyChallengeState(){try{return JSON.parse(localStorage.getItem('daily_challenge_state')||'{}');}catch{return{};}}
+function saveDailyChallengeState(s){localStorage.setItem('daily_challenge_state',JSON.stringify(s));}
+
+function renderDailyChallenge() {
+    var panel=document.getElementById('daily-challenge-panel'); if(!panel) return;
+    var today=new Date().toISOString().slice(0,10), state=getDailyChallengeState(), ch=getTodayChallenge();
+    var completed=state.date===today&&state.completed, revealed=state.date===today&&state.revealed;
+    panel.innerHTML='<div style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:14px;padding:20px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><div><div style="font-size:0.7rem;color:var(--accent);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Daily Challenge</div><div style="font-size:0.8rem;color:var(--text-muted);">'+today+' &bull; '+ch.subject+'</div></div><div style="font-size:1.6rem;">🎯</div></div><div style="font-size:1.05rem;font-weight:600;color:white;margin-bottom:16px;line-height:1.5;">'+ch.question+'</div>'
+        +(completed?'<div style="background:rgba(0,184,148,0.15);border:1px solid rgba(0,184,148,0.3);border-radius:10px;padding:12px;margin-bottom:12px;"><div style="color:#00b894;font-weight:600;margin-bottom:4px;"><i class="ph ph-check-circle"></i> Answer: '+ch.answer+'</div><div style="font-size:0.82rem;color:var(--text-muted);">Completed today! +25 XP & +15 credits earned</div></div><div style="font-size:0.8rem;color:var(--text-muted);">Come back tomorrow for a new challenge.</div>'
+            :revealed?'<div style="background:rgba(0,206,201,0.1);border:1px solid rgba(0,206,201,0.25);border-radius:10px;padding:12px;margin-bottom:14px;"><div style="font-size:0.75rem;color:var(--accent);font-weight:700;margin-bottom:4px;">ANSWER</div><div style="color:white;font-weight:600;">'+ch.answer+'</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Hint: '+ch.hint+'</div></div><div style="display:flex;gap:8px;"><button class="btn-secondary" onclick="markDailyChallengeResult(false)" style="flex:1;">I didn\'t get it</button><button class="btn-primary" onclick="markDailyChallengeResult(true)" style="flex:1;"><i class="ph ph-check"></i> I got it! (+25 XP)</button></div>'
+            :'<div style="display:flex;gap:8px;"><button class="btn-secondary" onclick="revealDailyHint()" style="flex:1;"><i class="ph ph-lightbulb"></i> Hint</button><button class="btn-primary" onclick="revealDailyAnswer()" style="flex:1;"><i class="ph ph-eye"></i> Reveal Answer</button></div><div id="dc-hint-area" style="margin-top:10px;"></div>')
+        +'</div>';
+}
+function revealDailyHint(){var ch=getTodayChallenge();var a=document.getElementById('dc-hint-area');if(a)a.innerHTML='<div style="font-size:0.85rem;color:#fdcb6e;padding:10px;background:rgba(253,203,110,0.08);border-radius:8px;border:1px solid rgba(253,203,110,0.2);"><i class="ph ph-lightbulb"></i> '+ch.hint+'</div>';}
+function revealDailyAnswer(){var today=new Date().toISOString().slice(0,10),state=getDailyChallengeState();saveDailyChallengeState(Object.assign({},state,{date:today,revealed:true,completed:false}));renderDailyChallenge();}
+function markDailyChallengeResult(correct){
+    var today=new Date().toISOString().slice(0,10);
+    saveDailyChallengeState({date:today,revealed:true,completed:true,correct:correct});
+    if(correct){if(typeof awardXP==='function')awardXP(25);if(typeof addCredits==='function')addCredits(15);showToast('Challenge complete! +25 XP & +15 credits!','success',3500);}
+    else showToast('Keep practicing — try again tomorrow!','info',2500);
+    renderDailyChallenge();
+}
+
+// ─────────────────────────────────────────
+// SEASONAL SHOP EVENTS
+// ─────────────────────────────────────────
+function getSeasonalItems(){
+    var month=new Date().getMonth()+1, items=[];
+    if(month===10){items.push({id:'halloween-theme',name:'Haunted Night',price:180,desc:'Halloween orange & black theme',accent:'#ff6600',grad:'#1a0a00',rarity:'epic',seasonal:'halloween'},{id:'ghost-badge',name:'Ghost Badge',price:120,desc:'Spooky Halloween badge',rarity:'rare',seasonal:'halloween'});}
+    if(month===11||month===12){items.push({id:'winter-theme',name:'Winter Frost',price:180,desc:'Icy blue and silver winter aesthetic',accent:'#74b9ff',grad:'#0984e3',rarity:'epic',seasonal:'winter'},{id:'snowflake-badge',name:'Snowflake Badge',price:100,desc:'Festive snowflake badge',rarity:'rare',seasonal:'winter'});}
+    if(month===2){items.push({id:'valentine-theme',name:'Valentine',price:160,desc:'Pink and red hearts aesthetic',accent:'#ff6b9d',grad:'#c44569',rarity:'epic',seasonal:'valentine'},{id:'heart-badge',name:'Heart Badge',price:100,desc:'Valentine heart badge',rarity:'rare',seasonal:'valentine'});}
+    if(month===8||month===9){items.push({id:'school-theme',name:'Back to School',price:140,desc:'Classic notebook & pencil vibes',accent:'#fdcb6e',grad:'#e17055',rarity:'rare',seasonal:'bts'},{id:'pencil-badge',name:'Pencil Badge',price:80,desc:'Back-to-school pencil',rarity:'common',seasonal:'bts'});}
+    return items;
+}
+function renderSeasonalShopBanner(){
+    var items=getSeasonalItems(); if(items.length===0) return;
+    var panel=document.getElementById('seasonal-shop-banner'); if(!panel) return;
+    var month=new Date().getMonth()+1;
+    var events={10:'Halloween Event',11:'Winter Sale',12:'Holiday Event',2:"Valentine's Special",8:'Back to School',9:'Back to School'};
+    var label=events[month]||'Seasonal Event';
+    panel.style.display='block';
+    panel.innerHTML='<div style="background:linear-gradient(135deg,rgba(253,203,110,0.12),rgba(108,92,231,0.08));border:1px solid rgba(253,203,110,0.3);border-radius:12px;padding:14px 16px;margin-bottom:16px;"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div><div style="font-size:0.75rem;color:#fdcb6e;font-weight:700;letter-spacing:1px;">'+label+' — LIMITED TIME</div><div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px;">'+items.length+' exclusive items available this month</div></div><button class="btn-secondary" style="font-size:0.8rem;padding:7px 14px;" onclick="switchTab(\'shop\')"><i class="ph ph-sparkle"></i> View Shop</button></div></div>';
+}
+
+// ─────────────────────────────────────────
+// BETTER PROFILE PAGE
+// ─────────────────────────────────────────
+function renderBetterProfile() {
+    var container=document.getElementById('profile-section'); if(!container) return;
+    var username=localStorage.getItem('auth_user')||'Scholar';
+    var pic=localStorage.getItem('user_profile_pic')||'👤';
+    var grade=localStorage.getItem('profile_grade')||'';
+    var bio=localStorage.getItem('profile_bio')||'';
+    var stats=getStudyStats();
+    var xp=parseInt(localStorage.getItem('total_xp')||'0');
+    var completed=JSON.parse(localStorage.getItem('achievements_completed')||'[]');
+    var sessions=getStudySessions();
+    var totalMins=sessions.reduce(function(s,v){return s+(v.duration||0);},0);
+    var hw=getHomework(), hwDone=hw.filter(function(i){return i.completed;}).length;
+    var courses=getGradeCourses(), avgs=courses.map(calcCourseAvg).filter(function(a){return a!==null;});
+    var gpaStr=avgs.length?(avgs.reduce(function(s,a){return s+a;},0)/avgs.length).toFixed(1)+'%':'—';
+    var level=Math.floor(xp/500)+1, xpForNext=level*500, xpPct=Math.min(100,Math.round(((xp%500)/500)*100));
+    var dueCards=getSrsDueCount();
+
+    container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
+        +'<div style="text-align:center;"><div style="font-size:4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
+        +'<div style="flex:1;min-width:200px;">'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.75rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
+        +(bio?'<div style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"'+bio+'"</div>':'')
+        +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div></div>'
+        +'<div style="display:flex;gap:8px;margin-top:12px;"><button class="btn-secondary" style="font-size:0.78rem;padding:6px 12px;" onclick="openEditProfile()"><i class="ph ph-pencil-simple"></i> Edit Profile</button></div>'
+        +'</div></div>'
+        +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">'+(stats.problemsSolved||0)+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Problems</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(stats.currentStreak||0)+'🔥</div><div style="font-size:0.75rem;color:var(--text-muted);">Streak</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#a855f7;">'+completed.length+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Achievements</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#fdcb6e;">'+totalMins+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Mins Studied</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+hwDone+'</div><div style="font-size:0.75rem;color:var(--text-muted);">HW Done</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00CEC9;">'+gpaStr+'</div><div style="font-size:0.75rem;color:var(--text-muted);">GPA Avg</div></div>'
+        +'</div>'
+        +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'tools\')" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.8rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
+        +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
+
+    setTimeout(function(){
+        var cv=document.getElementById('profile-study-canvas');
+        if(cv) renderStudyHistoryChart('profile-study-canvas');
+    },80);
+}
+
+function openEditProfile() {
+    var grade=localStorage.getItem('profile_grade')||'', bio=localStorage.getItem('profile_bio')||'';
+    var modal=document.createElement('div');
+    modal.id='edit-profile-overlay';
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick=function(e){if(e.target===modal)modal.remove();};
+    var gradeOpts='<option value="">Not set</option>';
+    for(var g=1;g<=12;g++) gradeOpts+='<option value="'+g+'"'+(grade==g?' selected':'')+'>'+g+'</option>';
+    gradeOpts+='<option value="College"'+(grade==='College'?' selected':'')+'>College</option>';
+    modal.innerHTML='<div class="glass-panel" style="max-width:420px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;">Edit Profile</h3><button class="btn-icon" onclick="document.getElementById(\'edit-profile-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Grade Level</label><select id="ep-grade" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;">'+gradeOpts+'</select><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Short Bio</label><input id="ep-bio" class="input-field" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. Aspiring engineer, loves math" maxlength="80" value="'+bio+'"><div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'edit-profile-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="saveEditProfile()">Save</button></div></div>';
+    document.body.appendChild(modal);
+}
+function saveEditProfile(){
+    var grade=(document.getElementById('ep-grade')||{}).value||'';
+    var bio=((document.getElementById('ep-bio')||{}).value||'').trim();
+    if(grade) localStorage.setItem('profile_grade',grade); else localStorage.removeItem('profile_grade');
+    if(bio) localStorage.setItem('profile_bio',bio); else localStorage.removeItem('profile_bio');
+    document.getElementById('edit-profile-overlay').remove();
+    renderBetterProfile(); showToast('Profile updated!','success',2000);
+}
+
+// Override renderProfileSection with the new better version
+function renderProfileSection() { renderBetterProfile(); }
+
+// ─────────────────────────────────────────
+// TOOLS TAB — sub-tab switcher
+// ─────────────────────────────────────────
+var _activeToolsTab = 'quizgen';
+function switchToolsTab(t) {
+    _activeToolsTab = t;
+    document.querySelectorAll('.tools-tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===t); });
+    document.querySelectorAll('.tools-pane').forEach(function(p){ p.style.display=p.dataset.pane===t?'block':'none'; });
+    if(t==='quizgen')  renderQuizGen();
+    if(t==='citation') renderCitationTab();
+    if(t==='srs')      renderSrsHomePanel();
+    if(t==='csv')      renderCsvPanel();
+    if(t==='history')  setTimeout(function(){ renderStudyHistoryChart('study-history-canvas'); },60);
+}
+function renderCsvPanel(){
+    var p=document.getElementById('csv-panel'); if(!p) return;
+    p.innerHTML='<div style="text-align:center;padding:32px 20px;"><div style="font-size:3rem;margin-bottom:12px;">📋</div><h3 style="color:white;margin:0 0 8px;">Import from Quizlet or CSV</h3><p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 20px;max-width:380px;margin-inline:auto;">Paste any term,definition CSV or Quizlet export to instantly create a new flashcard deck.</p><button class="btn-primary" style="padding:12px 28px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV / Quizlet</button></div>';
+}
+
+// ─────────────────────────────────────────
+// DOM READY INIT
+// ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function(){
+        renderDailyChallenge();
+        renderSeasonalShopBanner();
+        if(document.getElementById('profile-section')) renderBetterProfile();
+        var tools=document.getElementById('view-tools');
+        if(tools) { var first=tools.querySelector('.tools-tab-btn'); if(first) switchToolsTab(first.dataset.tab||'quizgen'); }
+    }, 300);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// v13.0 — SHIPPED. 11 features complete.
+// ════════════════════════════════════════════════════════════════════
+
+// ─── Home page daily challenge preview ────────────────────────────
+function updateHomeDailyChallenge() {
+    var card = document.getElementById('home-tip-text');
+    if (!card) return;
+    var ch = getTodayChallenge();
+    var state = getDailyChallengeState();
+    var today = new Date().toISOString().slice(0,10);
+    var done = state.date === today && state.completed;
+    card.innerHTML = done
+        ? '<span style="color:#00b894;">&#10003; Completed! Come back tomorrow for a new challenge.</span>'
+        : '<strong style="color:white;">' + ch.subject + ':</strong> ' + ch.question + ' <span style="color:var(--accent);font-size:0.78rem;">&#8594; Open Homework</span>';
+}
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(updateHomeDailyChallenge, 400);
+});
