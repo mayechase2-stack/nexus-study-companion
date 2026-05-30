@@ -15421,6 +15421,24 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v14.0',
+        date: 'May 29, 2026',
+        tag: 'UPDATE 14.0 — UNIVERSAL TUTOR',
+        tagColor: '#a29bfe',
+        changes: [
+            'UNIVERSAL TUTOR — A fully conversational AI tutor is now built into every subject view. Ask multi-turn follow-up questions and the tutor remembers the full conversation context. Each subject has its own color-coded tutor (Math teal, Science green, English purple, Social Studies pink, etc.).',
+            'ASK TUTOR BUTTONS EVERYWHERE — One-tap "Ask Tutor" button added to Math Lab, Science Lab, English Suite, Social Studies, Homework Tracker, Grade Calculator, and Study Tools headers. Launch a subject-aware tutoring session in one click from any view.',
+            'QUICK STUDY BARS — Math, Science, English, and Social Studies now each have a Quick Study action bar below the header with three subject-colored buttons: Quiz Yourself (AI-generated quiz), Flashcards (AI deck), and Study History (jump to history log).',
+            'AI QUIZ GENERATION — "Quiz Yourself" in any Quick Study bar generates a fresh 5-question multiple-choice quiz via GPT-4o, branded to the subject, and loads it directly into the Study Tools quiz runner. No setup required.',
+            'HOST API KEY — NEXUS now runs on a shared host API key. Everyone gets 35 free AI requests without needing their own OpenAI key. Once the free limit is reached, a prompt guides you to add your own key in ⚙️ Settings to keep going.',
+            'GRADE CALCULATOR OVERHAUL — Grade Calculator header restructured with Export and Add Course buttons inline. Ask Tutor access added to get AI help understanding your grades.',
+            'HOMEWORK AI HELP — "Ask Tutor" button in Homework Tracker lets you get subject-specific AI help directly from your homework list without switching tabs.',
+            'DAILY CHALLENGE IMPROVEMENTS — Challenge system refined for better question variety and more reliable answer detection.',
+            'SYNONYM CHALLENGE FIX — Word synonym challenges now correctly validate answers regardless of capitalization and whitespace.',
+            'LIVE VISION LOADING ANIMATION — Live Vision (Command Center) now shows an animated pulsing indicator while it processes your screen — no more blank wait with no feedback.'
+        ]
+    },
+    {
         version: 'v12.8',
         date: 'May 24, 2026',
         tag: 'UPDATE 12.8 — MODELS & QUALITY',
