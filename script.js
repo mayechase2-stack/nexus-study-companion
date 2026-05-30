@@ -1,4 +1,40 @@
-﻿// v12.0 — TIER GATING RESTRUCTURE
+﻿// ════════════════════════════════════════════════════════════════════
+// NEXUS CONFIG — paste your OpenAI key below.
+// Every user gets 35 free AI requests on the host key.
+// After 35 uses they're prompted to add their own key in Settings.
+// Users who set their own key in Settings bypass the limit entirely.
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_API_KEY   = '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'; // host key
+const NEXUS_KEY_LIMIT = 35;                      // free uses per device
+
+function getApiKey() {
+    // Personal key set → use it, no limit applies
+    const personal = localStorage.getItem('openai_api_key');
+    if (personal && personal.startsWith('sk-')) return personal;
+
+    // No host key configured → nothing to offer
+    if (!NEXUS_API_KEY || NEXUS_API_KEY === 'YOUR_OPENAI_KEY_HERE') return '';
+
+    // Check usage against limit
+    const used = parseInt(localStorage.getItem('nexus_host_uses') || '0');
+    if (used >= NEXUS_KEY_LIMIT) {
+        const lastWarn = parseInt(localStorage.getItem('nexus_limit_warn') || '0');
+        if (Date.now() - lastWarn > 60000) {
+            localStorage.setItem('nexus_limit_warn', Date.now());
+            showToast(
+                '✨ You\'ve used your 35 free AI requests. Add your own API key in ⚙️ Settings to keep going.',
+                'info', 6000
+            );
+        }
+        return '';
+    }
+
+    // Increment counter and return the host key
+    localStorage.setItem('nexus_host_uses', used + 1);
+    return NEXUS_API_KEY;
+}
+
+// v12.0 — TIER GATING RESTRUCTURE
 // Access tier ($4.50/mo): ONLY the 4 subjects + essential pages.
 //   Allowed: home, math, science, social, english, updates, settings
 // Pro tier ($6.00/mo): everything Access has, plus:
@@ -109,7 +145,8 @@ function switchTab(tabId) {
     const navItems = document.querySelectorAll('.nav-links li');
     navItems.forEach(item => {
         const onclick = item.getAttribute('onclick');
-        if (onclick && onclick.includes(tabId)) {
+        // Use quoted match to avoid 'home' matching 'homework', etc.
+        if (onclick && (onclick.includes(`'${tabId}'`) || onclick.includes(`"${tabId}"`))) {
             item.classList.add('active');
         }
     });
@@ -299,6 +336,24 @@ function stopLiveVision() {
             setLinkedSession(null);
         }
     }
+}
+
+// ============================================================
+// LAZY LOADER — Tesseract OCR (only fetched when photo-scan is triggered)
+// ============================================================
+let _tesseractLoading = null;
+async function ensureTesseract() {
+    if (typeof Tesseract !== 'undefined') return;
+    if (_tesseractLoading) return _tesseractLoading;
+    _tesseractLoading = new Promise((resolve, reject) => {
+        showToast('Loading OCR library…', 'info', 3000);
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Tesseract failed to load'));
+        document.head.appendChild(s);
+    });
+    return _tesseractLoading;
 }
 
 // ============================================================
@@ -1034,6 +1089,7 @@ async function completeSignUpFlow() {
         document.body.classList.remove('payment-required-lock');
         if (typeof updateTierUI === 'function') updateTierUI();
         if (typeof applyFreeTierOverlays === 'function') applyFreeTierOverlays();
+        if (typeof updateHomeStats === 'function') updateHomeStats(); // refresh credits/items after gold grant
         const goldMsg = granted > 0 ? ` +${granted} starter gold added!` : '';
         showToast(`Welcome to ${planLabel}!${goldMsg}`, 'success', 5000);
         if (!localStorage.getItem('onboarding_completed')) {
@@ -1145,7 +1201,16 @@ const PER_USER_KEYS = [
     'streak_count', 'last_study_date', 'total_xp',
     'equipped_theme', 'equipped_cursor', 'equipped_font',
     'equipped_wallpaper', 'equipped_badge', 'equipped_effect', 'equipped_companion',
-    'auth_email' // signup-time email
+    'auth_email', // signup-time email
+    // v13.0 — missing per-user keys that caused cross-account bleed
+    'achievements_completed', // was missing: new accounts inherited completed achievements
+    'nexus_secret_claimed',   // was missing: NEXUS secret carried over between accounts
+    'update_log_opened',      // was missing: lore-keeper achievement fired for every new account
+    'hw_items', 'grade_courses', 'user_notes', 'notebook_canvas',
+    'study_stats', 'study_sessions_v2', 'recent_activities',
+    'quest_state', 'daily_claims_total', 'last_daily_claim',
+    'last_app_open_day', 'difficulty_mode', 'notebook_notes',
+    'starter_gold_granted'    // prefix key — cleared by username suffix at signup
 ];
 
 function snapshotAccountState(username) {
@@ -1164,6 +1229,13 @@ function snapshotAccountState(username) {
 
 function clearCurrentAccountState() {
     PER_USER_KEYS.forEach(k => localStorage.removeItem(k));
+    // Also clear any username-prefixed per-user keys for the current user
+    const user = localStorage.getItem('auth_user');
+    if (user) {
+        ['starter_gold_granted_', 'auth_email_', 'auth_active_ts_', 'auth_active_ip_'].forEach(prefix => {
+            localStorage.removeItem(prefix + user);
+        });
+    }
 }
 
 function restoreAccountState(username) {
@@ -1483,8 +1555,8 @@ function switchSettingsTab(tab) {
 
 function toggleSettings() {
     const modal = document.getElementById('settings-modal');
-    if (localStorage.getItem('openai_api_key')) {
-        document.getElementById('api-key-input').value = localStorage.getItem('openai_api_key');
+    if (getApiKey()) {
+        document.getElementById('api-key-input').value = getApiKey();
     }
     // Prefill username field with current display name
     const usernameInput = document.getElementById('settings-username-input');
@@ -2010,7 +2082,7 @@ async function triggerDeepDive() {
     const explainEl = document.getElementById('ai-explanation-text');
     if (!target) return;
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add your API key in Settings to use Deep Dive.', 'error'); return; }
 
     const answer = (answerEl && answerEl.innerText) || '';
@@ -2249,6 +2321,163 @@ function showConfirm(title, message, onConfirm) {
     cancelBtn.onclick = cleanup;
 }
 
+// ─────────────────────────────────────────────────────────────
+// v13.1 — UNIVERSAL TUTOR MODAL
+// A lightweight "Ask Tutor" overlay that can be triggered from
+// ANY part of the app. Pass context (subject, topic, existing
+// content) and a pre-filled question to give the AI full context.
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * openUniversalTutor(options)
+ *   options.subject  — e.g. "Math", "Science", "English", "Homework"
+ *   options.topic    — e.g. "Quadratic equations", "Photosynthesis"
+ *   options.context  — optional background info (assignment text, etc.)
+ *   options.question — pre-filled question in the input
+ */
+function openUniversalTutor(options) {
+    options = options || {};
+    const subject  = options.subject  || 'General';
+    const topic    = options.topic    || '';
+    const context  = options.context  || '';
+    const preQ     = options.question || '';
+
+    const existing = document.getElementById('nexus-univ-tutor-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'nexus-univ-tutor-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = e => { if (e.target === modal) modal.remove(); };
+
+    const subjectColors = {
+        'Math':'#6c5ce7', 'Science':'#00b894', 'English':'#a29bfe',
+        'Social Studies':'#fd79a8', 'Social':'#fdcb6e',
+        'Homework Help':'#fd79a8', 'Homework':'#fd79a8',
+        'Grades & GPA':'#00CEC9', 'Grade':'#00CEC9',
+        'Study Help':'#a855f7', 'General':'var(--accent)'
+    };
+    const color = subjectColors[subject] || 'var(--accent)';
+
+    modal.innerHTML = `
+    <div class="glass-panel" style="max-width:580px;width:100%;padding:0;border:1px solid ${color}55;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+        <!-- Header -->
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,${color}22,rgba(0,0,0,0.2));display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:${color}22;border:1px solid ${color}44;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">🎓</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.72rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">NEXUS Tutor</div>
+                <div style="color:white;font-size:0.92rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${subject}${topic ? ' — ' + topic : ''}</div>
+            </div>
+            <button class="btn-icon" onclick="document.getElementById('nexus-univ-tutor-modal').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
+        </div>
+        <!-- Chat area -->
+        <div id="univ-tutor-chat" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:360px;">
+            <div style="background:${color}18;border:1px solid ${color}33;border-radius:10px;padding:10px 14px;font-size:0.85rem;color:#dde0ee;line-height:1.55;">
+                👋 I'm your NEXUS tutor. Ask me anything about <strong style="color:white;">${subject}${topic ? ': ' + topic : ''}</strong>. I'll guide you through it step by step.
+            </div>
+        </div>
+        <!-- Input area -->
+        <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex;gap:10px;align-items:flex-end;">
+                <textarea id="univ-tutor-input" class="input-field" style="flex:1;height:60px;resize:none;padding:10px 12px;font-size:0.9rem;" placeholder="Ask a question…">${escapeHtmlSafe(preQ)}</textarea>
+                <button class="btn-primary" onclick="sendUniversalTutorMessage('${escapeHtmlSafe(subject)}','${escapeHtmlSafe(topic)}','${escapeHtmlSafe(context)}')" style="padding:10px 16px;flex-shrink:0;height:60px;">
+                    <i class="ph ph-paper-plane-tilt"></i>
+                </button>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">Enter to send &bull; Shift+Enter for new line</div>
+        </div>
+    </div>`;
+
+    document.body.appendChild(modal);
+    window._tutorHistory = [];  // reset conversation history
+    window._tutorMeta = { subject, topic, context };
+    const input = document.getElementById('univ-tutor-input');
+    if (input) {
+        input.focus();
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendUniversalTutorMessage(subject, topic, context);
+            }
+        });
+    }
+}
+
+async function sendUniversalTutorMessage(subject, topic, context) {
+    const input = document.getElementById('univ-tutor-input');
+    const chat  = document.getElementById('univ-tutor-chat');
+    if (!input || !chat) return;
+
+    const question = input.value.trim();
+    if (!question) return;
+
+    const apiKey = getApiKey();
+    if (!apiKey) { showToast('Add API key in Settings to use AI tutoring.', 'error', 3000); return; }
+
+    // Add user bubble
+    const userBubble = document.createElement('div');
+    userBubble.style.cssText = 'background:linear-gradient(135deg,rgba(108,92,231,0.25),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.3);border-radius:10px;padding:10px 14px;font-size:0.88rem;color:white;line-height:1.5;align-self:flex-end;max-width:85%;word-break:break-word;';
+    userBubble.textContent = question;
+    chat.appendChild(userBubble);
+    input.value = '';
+    chat.scrollTop = chat.scrollHeight;
+
+    // Loading bubble
+    const loadBubble = document.createElement('div');
+    loadBubble.style.cssText = 'background:rgba(10,12,22,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:0.85rem;color:var(--accent);display:flex;align-items:center;gap:8px;';
+    loadBubble.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Thinking…';
+    chat.appendChild(loadBubble);
+    chat.scrollTop = chat.scrollHeight;
+
+    // Use stored meta in case called from inline onclick with stale arg strings
+    const _meta = window._tutorMeta || {};
+    const resolvedSubject = _meta.subject || subject;
+    const resolvedTopic   = _meta.topic   || topic;
+    const resolvedContext = _meta.context || context;
+
+    const tutorMode = localStorage.getItem('tutor_mode') === 'tutor';
+    const systemPrompt = `You are NEXUS — an encouraging, patient AI tutor.
+Subject: ${resolvedSubject}${resolvedTopic ? '\nTopic: ' + resolvedTopic : ''}${resolvedContext ? '\nContext: ' + resolvedContext : ''}
+
+${tutorMode ? 'TUTOR MODE: Guide the student with Socratic hints. Do NOT give the final answer. Ask one guiding question at the end.' : 'HELPER MODE: Explain clearly and completely. Use examples.'}
+
+Format: clean HTML only (<strong>, <ul><li>, <br>, etc.). No markdown asterisks. Keep it concise and encouraging.`;
+
+    // Build full conversation thread
+    const history = window._tutorHistory || [];
+    history.push({ role: 'user', content: question });
+
+    try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    ...history
+                ],
+                temperature: 0.5, max_tokens: 600
+            })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        const answer = data.choices[0].message.content || '';
+        const cleaned = typeof convertMarkdownLeaks === 'function' ? convertMarkdownLeaks(answer) : answer;
+
+        // Append assistant reply to history
+        history.push({ role: 'assistant', content: answer });
+        window._tutorHistory = history;
+
+        loadBubble.innerHTML = cleaned;
+        loadBubble.style.color = '#dde0ee';
+        chat.scrollTop = chat.scrollHeight;
+        logStudyEvent('study', `Tutor: ${resolvedSubject}${resolvedTopic ? ' — ' + resolvedTopic : ''}: ${question.substring(0,60)}`);
+    } catch (err) {
+        loadBubble.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`;
+    }
+}
+
 // ============================================================
 // SECURITY - HTML Sanitization
 // ============================================================
@@ -2344,6 +2573,7 @@ function switchEngTab(tab) {
     const panel = document.getElementById(`eng-panel-${tab}`);
     if (panel) panel.classList.add('active');
     if (tab === 'wpm') checkWpmCooldown();
+    if (tab === 'citation') renderCitationTab();
     // v12.7: init library tabs when library panel opens
     if (tab === 'library') {
         setTimeout(() => switchLibTab('search'), 50);
@@ -2402,7 +2632,7 @@ async function englishAction(type) {
     const attachedImg = window._englishInputImage || null;
     if (!text && !attachedImg) { showToast('Paste some text or paste an image (Ctrl+V).', 'warning'); return; }
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Please add your OpenAI API key in Settings.', 'error'); return; }
 
     const limit = document.getElementById('english-word-limit') ? document.getElementById('english-word-limit').value : 100;
@@ -2673,7 +2903,7 @@ async function summarizeBook(mode) {
     // any reasonably known book.
     if (!openBookData) { showToast('Open a book first.', 'warning'); return; }
     const output = document.getElementById('book-summary-output');
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     output.classList.remove('hidden');
@@ -2716,7 +2946,7 @@ async function summarizePassage() { summarizeBookPassage(); }
 
 async function _analyzeBookPassage(passage) {
     const output = document.getElementById('book-summary-output');
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     output.classList.remove('hidden');
@@ -2753,7 +2983,7 @@ const LIB_ANALYSIS_PROMPTS = {
 
 async function analyzeBook(mode) {
     if (!openBookData) { showToast('Open a book first.', 'warning'); return; }
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
     const output = document.getElementById('book-summary-output');
     output.classList.remove('hidden');
@@ -3213,7 +3443,7 @@ async function _lookupWordFreeApi(word) {
 }
 
 async function _lookupWordOpenAI(word) {
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return null; }
     try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -3253,22 +3483,40 @@ Return 2-4 definitions for common words, 1-2 for niche words. Include examples w
     }
 }
 
+// v13.1 — Synonym challenge with contextually plausible distractors.
+// We pick 3 decoy words from the OTHER synonyms pool (so they're real words
+// related to the same vocabulary space) rather than random common words.
+// If the synonyms list is too short we pad from a POS-stratified fallback pool
+// that actually looks plausible (words ≥ 5 letters, mix of adjectives / verbs /
+// nouns so the quiz isn't trivially easy).
 function setupSynonymChallenge(synonyms) {
-    const correct = synonyms[Math.floor(Math.random() * synonyms.length)];
-    // Add fake options
-    const fakes = ["apple", "run", "quickly", "blue", "happiness", "jump", "sad", "car"];
-    const options = [correct];
-    while (options.length < 4) {
-        const f = fakes[Math.floor(Math.random() * fakes.length)];
-        if (!options.includes(f)) options.push(f);
+    // Pick a random correct answer
+    const shuffled = synonyms.slice().sort(() => Math.random() - 0.5);
+    const correct = shuffled[0];
+    // Decoys: use other synonyms first (they look similar enough to be tricky)
+    const pool = shuffled.slice(1).filter(s => s !== correct);
+    // Backup decoy pool — real English words that aren't obviously "wrong"
+    const backupDecoys = [
+        'amplify','diminish','resolve','obscure','invoke','subtle','dormant',
+        'vibrant','tranquil','rigid','volatile','acute','benign','abstract',
+        'coherent','divert','suppress','elevate','comply','refine','derive',
+        'concede','manifest','disperse','transmit','sustain','alleviate','converge'
+    ];
+    while (pool.length < 3) {
+        const d = backupDecoys[Math.floor(Math.random() * backupDecoys.length)];
+        if (!pool.includes(d) && d !== correct) pool.push(d);
     }
-    // Shuffle
-    options.sort(() => Math.random() - 0.5);
+    const options = [correct, ...pool.slice(0, 3)].sort(() => Math.random() - 0.5);
 
-    document.getElementById('synonym-question').textContent = "Which of these is a synonym?";
+    document.getElementById('synonym-question').textContent =
+        `Which word is a synonym of "${document.getElementById('dict-word-heading').textContent}"?`;
     const optsDiv = document.getElementById('synonym-options');
     optsDiv.innerHTML = '';
+    // Reset any previous result message
+    const resultEl = document.getElementById('synonym-result');
+    if (resultEl) resultEl.remove();
 
+    optsDiv._correctWord = correct; // store for post-answer highlight
     options.forEach(opt => {
         const btn = document.createElement('button');
         btn.className = 'synonym-option';
@@ -3279,17 +3527,35 @@ function setupSynonymChallenge(synonyms) {
 }
 
 function checkDictSynonym(btn, isCorrect, container) {
-    // Disable all
-    container.querySelectorAll('.synonym-option').forEach(b => b.disabled = true);
+    // Disable all buttons
+    container.querySelectorAll('.synonym-option').forEach(b => {
+        b.disabled = true;
+        b.style.cursor = 'default';
+    });
     if (isCorrect) {
         btn.classList.add('correct');
         updateCredits(5);
-        showToast('+5 Credits!', 'success');
+        if (typeof awardXP === 'function') awardXP(5);
+        showToast('✓ Correct! +5 Credits', 'success');
     } else {
         btn.classList.add('wrong');
-        showToast('Incorrect.', 'error');
+        // Highlight the correct button green so the user learns
+        container.querySelectorAll('.synonym-option').forEach(b => {
+            if (b.textContent === container._correctWord) b.classList.add('correct');
+        });
+        showToast('Incorrect — the correct synonym is highlighted.', 'error', 3000);
+    }
+    // Show a "Try another word" nudge below the challenge
+    const synBox = document.getElementById('synonym-challenge');
+    if (synBox && !document.getElementById('synonym-result')) {
+        const msg = document.createElement('div');
+        msg.id = 'synonym-result';
+        msg.style.cssText = 'margin-top:10px;font-size:0.8rem;color:var(--text-muted);text-align:center;';
+        msg.textContent = isCorrect ? '🎉 Well done! Look up another word to keep practicing.' : '📖 Look up more words to build vocabulary and earn credits.';
+        synBox.appendChild(msg);
     }
 }
+
 
 // ============================================================
 // VOCABULARY BUILDER
@@ -3584,7 +3850,7 @@ async function generateQuiz() {
     const diff = document.getElementById('quiz-difficulty').value;
     const content = document.getElementById('quiz-content');
     const setup = document.getElementById('quiz-setup');
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
 
     if (!apiKey) { showToast('Please add API key in Settings.', 'error'); return; }
 
@@ -5842,7 +6108,7 @@ function localNsfwCheck(text) {
 }
 
 async function openaiModerationCheck(text) {
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) return { ok: true, skipped: true };
     try {
         const res = await fetch('https://api.openai.com/v1/moderations', {
@@ -9886,20 +10152,42 @@ function enforceHistoryLimit() {
 }
 
 const TYPE_ICONS = {
-    code: 'ph-code',
-    math: 'ph-function',
-    science: 'ph-flask',
-    english: 'ph-pencil-line',
-    vision: 'ph-eye'
+    code:          'ph-code',
+    math:          'ph-function',
+    science:       'ph-flask',
+    english:       'ph-pencil-line',
+    vision:        'ph-eye',
+    social:        'ph-globe-hemisphere-west',
+    study:         'ph-book-open',
+    homework:      'ph-clipboard-text',
+    grade:         'ph-chart-bar',
+    challenge:     'ph-trophy',
+    achievement:   'ph-medal',
+    vocabulary:    'ph-text-aa',
+    flashcard:     'ph-cards',
 };
 
 const TYPE_LABELS = {
-    code: 'Code Lab',
-    math: 'Math Lab',
-    science: 'Science',
-    english: 'English',
-    vision: 'Live Vision'
+    code:          'Code Lab',
+    math:          'Math Lab',
+    science:       'Science',
+    english:       'English',
+    vision:        'Live Vision',
+    social:        'Social Studies',
+    study:         'Study',
+    homework:      'Homework',
+    grade:         'Grade Tracker',
+    challenge:     'Daily Challenge',
+    achievement:   'Achievement',
+    vocabulary:    'Vocabulary',
+    flashcard:     'Flashcards',
 };
+
+// v13.1 — Bridge: also add study-activity events (logActivity calls) into
+// userHistory so the History tab shows real study events alongside AI answers.
+function logStudyEvent(type, question) {
+    addToHistory(type, question, '', null);
+}
 
 function renderHistoryList() {
     const list = document.getElementById('history-list');
@@ -9921,16 +10209,21 @@ function renderHistoryList() {
     list.innerHTML = filtered.map(entry => {
         const icon = TYPE_ICONS[entry.type] || 'ph-brain';
         const label = TYPE_LABELS[entry.type] || 'AI';
-        const accentColor = ({ math: '#6c5ce7', english: '#ed64a6', science: '#00b894', social: '#fdcb6e', 'prompt-engine': '#00fff5', code: '#fdcb6e' })[entry.type] || 'var(--accent)';
+        const accentColor = ({
+            math: '#6c5ce7', english: '#ed64a6', science: '#00b894', social: '#fdcb6e',
+            code: '#74b9ff', vision: '#00CEC9', study: '#a855f7', homework: '#fd79a8',
+            grade: '#00CEC9', challenge: '#fdcb6e', achievement: '#FFD700',
+            vocabulary: '#00b894', flashcard: '#a29bfe'
+        })[entry.type] || 'var(--accent)';
         return `
-            <div class="glass-panel" style="margin-bottom: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.2s, transform 0.15s; border-left:3px solid ${accentColor};" onclick="showHistoryDetail(${entry.id})" onmouseover="this.style.borderLeftWidth='5px';this.style.transform='translateX(2px)'" onmouseout="this.style.borderLeftWidth='3px';this.style.transform=''">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <span style="color:${accentColor}; font-size:0.78rem; font-weight:700; display:flex; align-items:center; gap:6px; letter-spacing:0.5px;">
+            <div class="glass-panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;transition:border-color 0.2s,transform 0.15s;border-left:3px solid ${accentColor};" onclick="showHistoryDetail(${entry.id})" onmouseover="this.style.borderLeftWidth='5px';this.style.transform='translateX(2px)'" onmouseout="this.style.borderLeftWidth='3px';this.style.transform=''">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+                    <span style="color:${accentColor};font-size:0.78rem;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">
                         <i class="ph ${icon}"></i> ${label.toUpperCase()}
                     </span>
-                    <span style="color:var(--text-muted); font-size:0.72rem;">${entry.timestamp}</span>
+                    <span style="color:var(--text-muted);font-size:0.72rem;">${entry.timestamp}</span>
                 </div>
-                <p style="color:#ddd; font-size:0.9rem; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${entry.question}</p>
+                <p style="color:#ddd;font-size:0.9rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${entry.question}</p>
             </div>
         `;
     }).join('');
@@ -9968,7 +10261,12 @@ function showHistoryDetail(id) {
     const modal = document.getElementById('history-modal');
     const content = document.getElementById('history-detail-content');
     const label = TYPE_LABELS[entry.type] || 'AI';
-    const accentColor = ({ math: '#6c5ce7', english: '#ed64a6', science: '#00b894', social: '#fdcb6e', 'prompt-engine': '#00fff5', code: '#fdcb6e' })[entry.type] || 'var(--accent)';
+    const accentColor = ({
+        math: '#6c5ce7', english: '#ed64a6', science: '#00b894', social: '#fdcb6e',
+        code: '#74b9ff', vision: '#00CEC9', study: '#a855f7', homework: '#fd79a8',
+        grade: '#00CEC9', challenge: '#fdcb6e', achievement: '#FFD700',
+        vocabulary: '#00b894', flashcard: '#a29bfe'
+    })[entry.type] || 'var(--accent)';
     const icon = TYPE_ICONS[entry.type] || 'ph-brain';
 
     const imageBlock = entry.image
@@ -10038,7 +10336,7 @@ function saveFlashcardDecks(decks) {
 async function makeFlashcardsFromHistory(id) {
     const entry = userHistory.find(e => e.id === id);
     if (!entry) return;
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
     showToast('Generating flashcards…', 'info', 2500);
     try {
@@ -10188,7 +10486,7 @@ async function openFlashcardAIGenerate() {
 }
 
 async function runFlashcardAIGenerate() {
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add your OpenAI API key in Settings.', 'error'); return; }
     const limit = Math.max(3, Math.min(50, parseInt(document.getElementById('fc-ai-limit')?.value || '10', 10)));
     const statusEl = document.getElementById('fc-ai-status');
@@ -10625,7 +10923,7 @@ async function typingAssistHandler(e) {
         // Skip if text is too short or hasn't changed significantly
         if (!text || text.length < 15 || text === lastCorrectedText) return;
 
-        const apiKey = localStorage.getItem('openai_api_key');
+        const apiKey = getApiKey();
         if (!apiKey) return;
 
         try {
@@ -10708,7 +11006,7 @@ async function solveScience() {
     const output = document.getElementById('science-output');
     output.classList.remove('hidden');
     output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i><p>Analyzing...</p></div>';
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
     // v12.1 — fresh conversation
     _scienceTutorTurns = [];
@@ -10954,7 +11252,7 @@ async function searchSocial(type) {
     outElem.classList.remove('hidden');
     outElem.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Researching history...';
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); outElem.innerHTML = 'API Key required.'; return; }
 
     try {
@@ -11152,7 +11450,7 @@ async function analyzeScreenshotPuzzle() {
         return;
     }
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
         return;
@@ -11497,7 +11795,7 @@ async function captureAndAnalyzeBlockPuzzle() {
         return;
     }
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
         return;
@@ -11757,7 +12055,7 @@ async function solveCode(lang) {
         general: 'Senior Software Engineer who explains programming concepts clearly across all languages'
     };
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
         outputContent.innerHTML = '<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-key" style="font-size:2rem;"></i><p style="margin-top:10px;">API Key required. Please add it in Settings.</p></div>';
@@ -11790,7 +12088,7 @@ async function solveCode(lang) {
 
 
 async function genericAiCall(role, query, outputEl) {
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -11843,18 +12141,28 @@ async function helpMeLiveVision() {
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
     let ocrText = '';
     try {
+        await ensureTesseract();
         const ocr = await Tesseract.recognize(canvas, 'eng');
         ocrText = (ocr && ocr.data && ocr.data.text) ? ocr.data.text.trim() : '';
     } catch (_) {}
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     if (solutionPanel) {
         solutionPanel.classList.remove('hidden');
-        document.getElementById('ai-answer-text').innerHTML = '<i class="ph ph-spinner ph-spin"></i> Reading the problem on your screen…';
-        document.getElementById('ai-explanation-text').innerHTML = '';
         document.getElementById('ai-topic-tag').textContent = 'TUTOR MODE';
+        // v13.1 — animated fetch status for tutor mode
+        const _hmPhrases = ['Reading your screen…','Finding the concept…','Building your guidance…','Preparing the strategy…','Almost there…'];
+        let _hmIdx = 0;
+        document.getElementById('ai-answer-text').innerHTML =
+            `<span id="hm-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:8px;"><i class="ph ph-spinner ph-spin"></i>${_hmPhrases[0]}</span>`;
+        document.getElementById('ai-explanation-text').innerHTML = '';
+        window._hmPhaseTimer = setInterval(() => {
+            _hmIdx = (_hmIdx + 1) % _hmPhrases.length;
+            const s = document.getElementById('hm-fetch-status');
+            if (s) s.innerHTML = `<i class="ph ph-spinner ph-spin"></i>${_hmPhrases[_hmIdx]}`;
+        }, 1400);
     }
 
     // Save problem context for companion-link
@@ -11910,6 +12218,7 @@ ABSOLUTE RULES:
                 temperature: 0.5
             })
         });
+        if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
         const guidance = data.choices[0].message.content || '';
@@ -11930,6 +12239,7 @@ ABSOLUTE RULES:
         updateStudyStats('problem_solved');
         showToast('✓ Tutor card ready. Ask the companion follow-ups via "Link" → Live Vision.', 'success', 4500);
     } catch (err) {
+        if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         showToast('AI Error: ' + err.message, 'error');
         if (solutionPanel) solutionPanel.innerHTML = `<p style="padding:14px;color:#ff6b6b;">Error: ${err.message}</p>`;
     }
@@ -11955,6 +12265,7 @@ async function analyzeText() {
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
         let ocrText = '';
         try {
+            await ensureTesseract();
             const ocr = await Tesseract.recognize(canvas, 'eng');
             ocrText = (ocr && ocr.data && ocr.data.text) ? ocr.data.text.trim() : '';
         } catch (_) { ocrText = ''; }
@@ -11965,13 +12276,33 @@ async function analyzeText() {
             resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;">OCR found no readable text — sending the image directly to vision AI...</p>';
         }
 
-        const apiKey = localStorage.getItem('openai_api_key');
+        const apiKey = getApiKey();
         if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
-        // Show analyzing state
-        document.getElementById('ai-answer-text').innerText = 'Analyzing...';
-        document.getElementById('ai-explanation-text').innerText = 'Reading the screen and reasoning through the problem...';
+        // v13.1 — Animated "fetching answers" state that rotates status words
+        // like Claude does, so the user knows the AI is actively working.
         solutionPanel.classList.remove('hidden');
+        const answerEl = document.getElementById('ai-answer-text');
+        const explainEl = document.getElementById('ai-explanation-text');
+        answerEl.innerHTML = '';
+        explainEl.innerHTML = '';
+
+        const statusPhrases = [
+            'Reading your screen…',
+            'Identifying the question…',
+            'Detecting subject & topic…',
+            'Pulling relevant knowledge…',
+            'Cross-checking the answer…',
+            'Formatting the response…',
+        ];
+        let phaseIdx = 0;
+        answerEl.innerHTML = `<span id="lv-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:8px;"><i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>${statusPhrases[0]}</span>`;
+        const phaseTimer = setInterval(() => {
+            phaseIdx = (phaseIdx + 1) % statusPhrases.length;
+            const s = document.getElementById('lv-fetch-status');
+            if (s) s.innerHTML = `<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>${statusPhrases[phaseIdx]}`;
+        }, 1200);
+        explainEl.innerHTML = '<span style="color:var(--text-muted);font-size:0.82rem;">Live Vision is analyzing your screen — answer incoming…</span>';
 
         // v12.8 — Enhanced AI prompt with fill-in-the-blank + question-type-specific rules
         const systemPrompt = `You are NEXUS Live Vision — an ultra-precise AI tutor reading a student's screen. Detect the academic level from vocabulary and notation. Answer with zero filler, maximum precision.
@@ -12061,23 +12392,34 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         });
 
         const data = await res.json();
+        clearInterval(phaseTimer); // stop the rotating-status animation
         if (data.error) throw new Error(data.error.message);
 
         const ai = JSON.parse(data.choices[0].message.content);
 
-        // v12.8 — enhanced output with question type badge + fill-in-the-blank display
+        // v13.1 — enhanced output with question type badge + fill-in-the-blank display
         const cleanedAnswer = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(ai.answer || '') : (ai.answer || '');
         const cleanedExplain = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(ai.explanation || '') : (ai.explanation || '');
         const qType = ai.questionType || 'other';
 
-        // Special display for fill-in-the-blank: big box with the answer word highlighted
-        const answerEl = document.getElementById('ai-answer-text');
-        if (qType === 'fill-in-the-blank') {
-            answerEl.innerHTML = `<div style="font-size:0.7rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`;
-        } else {
-            answerEl.innerHTML = cleanedAnswer;
+        // Typewriter-style reveal helper — streams plain text char-by-char into a container
+        function _typewriterHTML(el, html, doneCallback) {
+            // For HTML content, set it instantly but animate opacity
+            el.innerHTML = html;
+            el.style.opacity = '0';
+            el.style.transition = 'opacity 0.35s ease';
+            requestAnimationFrame(() => { el.style.opacity = '1'; });
+            if (doneCallback) setTimeout(doneCallback, 360);
         }
-        document.getElementById('ai-explanation-text').innerHTML = cleanedExplain || 'No additional context needed.';
+
+        // Special display for fill-in-the-blank: big box with the answer word highlighted
+        const answerElFinal = document.getElementById('ai-answer-text');
+        if (qType === 'fill-in-the-blank') {
+            _typewriterHTML(answerElFinal, `<div style="font-size:0.7rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`);
+        } else {
+            _typewriterHTML(answerElFinal, cleanedAnswer);
+        }
+        _typewriterHTML(document.getElementById('ai-explanation-text'), cleanedExplain || 'No additional context needed.');
 
         // Show question type badge next to topic
         const qTypeLabels = { 'fill-in-the-blank':'Fill-in-Blank', 'multiple-choice':'Multiple Choice', 'true-false':'True/False', 'matching':'Matching', 'short-answer':'Short Answer', 'computation':'Computation', 'definition':'Definition', 'multi-select':'Multi-Select', 'drag-and-drop':'Drag & Drop', 'other':'General' };
@@ -12096,6 +12438,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         showToast('✓ Problem analyzed successfully!', 'success');
 
     } catch (err) {
+        if (typeof phaseTimer !== 'undefined') clearInterval(phaseTimer);
         showToast('AI Error: ' + err.message, 'error');
         resultDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
     }
@@ -12208,7 +12551,7 @@ async function processMathInput() {
     _mathTutorTurns = [];
     output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i><p>Analyzing Math Concept...</p></div>';
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     try {
@@ -12409,7 +12752,7 @@ function appendTutorAnswerBox(outputEl, subject) {
 async function submitTutorAnswer(subject, answer, outputEl, inputWrap) {
     const text = (answer || '').trim();
     if (!text) { showToast('Type your answer first.', 'warning', 2500); return; }
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     // Pick the right conversation buffer for this subject
@@ -12668,7 +13011,7 @@ async function processEnglishPrompt() {
     output.classList.remove('hidden');
     output.innerHTML = '<div style="text-align:center;padding:15px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;"></i> Processing...</div>';
     
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
         output.innerHTML = 'API Key required.';
@@ -12907,7 +13250,7 @@ async function processPromptEngine() {
     output.classList.remove('hidden');
     output.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#00fff5;"></i><div style="margin-top:8px;font-size:0.82rem;">Generating…</div></div>`;
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
         output.innerHTML = '<span style="color:#ff6b6b;">API key required (Settings → Account & API).</span>';
@@ -12997,7 +13340,7 @@ async function generateEnglishGenPrompt() {
     const output = document.getElementById('eng-gen-prompt-output');
     if (!text || !text.trim()) { showToast('Type what you want a prompt for.', 'warning'); return; }
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     output.classList.remove('hidden');
@@ -13711,7 +14054,7 @@ async function searchHistoryYear() {
     if (Number.isNaN(yearNum)) { showToast('Year must be a number (e.g., 1776 or -44 for BC).', 'warning'); return; }
     const yearLabel = yearNum < 0 ? `${Math.abs(yearNum)} BC` : `${yearNum} AD`;
     display.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.6rem;color:#fd79a8;"></i><div style="margin-top:10px;font-size:0.85rem;letter-spacing:1px;">SEARCHING ${yearLabel}…</div></div>`;
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { display.innerHTML = '<p style="color:#ff6b6b;">API key required (Settings).</p>'; return; }
     try {
         const sys = `You are NEXUS History — an expert historian. Given a year, list the most significant events that happened during that year across politics, science, war, culture, and society globally (not just one region).
@@ -16050,24 +16393,32 @@ function getUserAchievements() {
     }));
 }
 
+let _checkAchievementsRunning = false;
 function checkAchievements() {
-    const completed = JSON.parse(localStorage.getItem('achievements_completed') || '[]');
-    let newlyCompleted = [];
+    // Guard against re-entrant calls (rapid successive calls before LS is persisted)
+    if (_checkAchievementsRunning) return;
+    _checkAchievementsRunning = true;
+    try {
+        const completed = JSON.parse(localStorage.getItem('achievements_completed') || '[]');
+        let newlyCompleted = [];
 
-    ACHIEVEMENTS.forEach(a => {
-        if (!completed.includes(a.id) && a.check()) {
-            completed.push(a.id);
-            newlyCompleted.push(a);
-        }
-    });
-
-    if (newlyCompleted.length > 0) {
-        localStorage.setItem('achievements_completed', JSON.stringify(completed));
-        newlyCompleted.forEach(a => {
-            updateCredits(a.reward);
-            showToast(`🏆 Achievement: ${a.name}! +${a.reward} credits`, 'success', 5000);
-            logActivity('achievement', `Unlocked "${a.name}" - ${a.desc}`);
+        ACHIEVEMENTS.forEach(a => {
+            if (!completed.includes(a.id) && a.check()) {
+                completed.push(a.id);
+                newlyCompleted.push(a);
+            }
         });
+
+        if (newlyCompleted.length > 0) {
+            localStorage.setItem('achievements_completed', JSON.stringify(completed));
+            newlyCompleted.forEach(a => {
+                updateCredits(a.reward);
+                showToast(`🏆 Achievement: ${a.name}! +${a.reward} credits`, 'success', 5000);
+                logActivity('achievement', `Unlocked "${a.name}" - ${a.desc}`);
+            });
+        }
+    } finally {
+        _checkAchievementsRunning = false;
     }
 }
 
@@ -16738,11 +17089,16 @@ function spawnLightningFlash() {
 setTimeout(scheduleThorCloud, 60000); // first cloud no sooner than 1 min after load
 
 // Wire Enkidu long-press onto the companion sprite whenever it spawns.
-// Hook into a periodic check so it survives sprite re-creation.
-setInterval(() => {
-    const sprite = document.getElementById('companion-sprite');
-    if (sprite && !sprite._enkiduWired) attachEnkiduLongPress(sprite);
-}, 2500);
+// Use MutationObserver instead of polling so there's zero CPU cost when idle.
+(function() {
+    function tryWireEnkidu() {
+        const sprite = document.getElementById('companion-sprite');
+        if (sprite && !sprite._enkiduWired) attachEnkiduLongPress(sprite);
+    }
+    tryWireEnkidu(); // try immediately
+    const observer = new MutationObserver(tryWireEnkidu);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
 
 // ============================================
 // CUSTOMIZABLE USER PROFILES
@@ -16823,35 +17179,7 @@ function selectProfilePic(pic) {
 // ============================================
 // SCROLL WHEEL TAB NAVIGATION
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    const sidebar = document.querySelector('.sidebar');
-    if (!sidebar) return;
-
-    const navLinks = sidebar.querySelector('.nav-links');
-    if (!navLinks) return;
-
-    // Scroll through tabs with mouse wheel on sidebar
-    sidebar.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const tabs = Array.from(navLinks.querySelectorAll('li'));
-        const activeTab = tabs.findIndex(t => t.classList.contains('active'));
-        let nextIdx;
-
-        if (e.deltaY > 0) {
-            nextIdx = Math.min(activeTab + 1, tabs.length - 1);
-        } else {
-            nextIdx = Math.max(activeTab - 1, 0);
-        }
-
-        if (nextIdx !== activeTab) {
-            const onclick = tabs[nextIdx].getAttribute('onclick');
-            if (onclick) {
-                const tabId = onclick.match(/'(\w+)'/)?.[1];
-                if (tabId) window.switchTab(tabId);
-            }
-        }
-    }, { passive: false });
-});
+// (sidebar wheel listener removed v14.0 — consolidated into nav-links listener below)
 
 // ============================================
 // CUSTOM CLICK VFX (replaces default marker)
@@ -18990,7 +19318,7 @@ async function sendCompanionMessage() {
     input.style.height = ''; // reset textarea height
     clearCompanionChatImage();
 
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) {
         addCompanionMessage('ai', "I need an OpenAI API key first — pop into Settings and add one, then come back.");
         return;
@@ -19318,10 +19646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     reader.onload = async (ev) => {
                         showToast('Image pasted — running OCR…', 'info', 2500);
                         try {
-                            if (typeof Tesseract === 'undefined') {
-                                showToast('OCR library not loaded — paste text instead.', 'error');
-                                return;
-                            }
+                            await ensureTesseract();
                             const { data: { text } } = await Tesseract.recognize(ev.target.result, 'eng');
                             if (text && text.trim()) {
                                 const trimmed = text.trim();
@@ -19368,7 +19693,7 @@ async function finishReadingSprint() {
     if (_sprintTimerInt) { clearInterval(_sprintTimerInt); _sprintTimerInt = null; }
     const passage = (document.getElementById('sprint-passage').value || '').trim();
     const difficulty = document.getElementById('sprint-difficulty').value;
-    const apiKey = localStorage.getItem('openai_api_key');
+    const apiKey = getApiKey();
     if (!apiKey) { showToast('Add an API key in Settings first.', 'error'); return; }
 
     document.getElementById('sprint-reading').classList.add('hidden');
@@ -19981,24 +20306,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show Pomodoro bar if timer was running (companion-chat is closed on load, so it'll show in float widget instead)
     // (handled by the separate DOMContentLoaded at line ~9410)
 
-    // ── v12.4: scroll wheel cycles through sidebar nav tabs ──────────
+    // ── v14.0: scroll wheel cycles sidebar nav — 1 tab per scroll notch ──
     const navLinks = document.querySelector('.nav-links');
     if (navLinks) {
         let _wheelLock = false;
-        navLinks.addEventListener('wheel', (e) => {
+        document.querySelector('.sidebar').addEventListener('wheel', (e) => {
             e.preventDefault();
             if (_wheelLock) return;
             _wheelLock = true;
-            setTimeout(() => { _wheelLock = false; }, 220);
+            setTimeout(() => { _wheelLock = false; }, 380); // 380ms = clean 1-tab-per-notch
 
-            // Collect only switchTab() items (skip modal-openers like Music)
-            const items = [...navLinks.querySelectorAll('li')].filter(li => {
-                const oc = li.getAttribute('onclick') || '';
-                return oc.includes("switchTab('");
-            });
+            // Only navigate switchTab() items (skip modal-openers)
+            const items = [...navLinks.querySelectorAll('li')].filter(li =>
+                (li.getAttribute('onclick') || '').includes("switchTab('")
+            );
             const activeIdx = items.findIndex(li => li.classList.contains('active'));
             const dir = e.deltaY > 0 ? 1 : -1;
-            const nextIdx = Math.max(0, Math.min(items.length - 1, (activeIdx === -1 ? 0 : activeIdx) + dir));
+            const nextIdx = Math.max(0, Math.min(items.length - 1, (activeIdx < 0 ? 0 : activeIdx) + dir));
             const next = items[nextIdx];
             if (next) {
                 const tabId = (next.getAttribute('onclick') || '').match(/switchTab\('([^']+)'\)/)?.[1];
@@ -20328,182 +20652,77 @@ function toggleThemeQuick() {
 function applyAccentColor(hex) { /* removed v12.7 */ }
 
 // ════════════════════════════════════════════════════════════════════
-// v12.5 — CITATION GENERATOR
+// v12.5 — CITATION GENERATOR (modal version removed v14.0 — now lives
+//          in English Aid tab; renderCitationTab() is the entry point)
 // ════════════════════════════════════════════════════════════════════
 function openCitationGenerator() {
-    const existing = document.getElementById('citation-modal');
-    if (existing) { existing.classList.remove('hidden'); return; }
-    const modal = document.createElement('div');
-    modal.id = 'citation-modal';
-    modal.className = 'modal';
-    modal.style.cssText = 'display:flex;';
-    modal.innerHTML = `
-    <div class="modal-content glass-panel" style="max-width:640px;width:95%;max-height:90vh;overflow-y:auto;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <div>
-                <h2 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="ph ph-quotes" style="color:#fdcb6e;"></i> Citation Generator</h2>
-                <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text-muted);">MLA · APA · Chicago</p>
-            </div>
-            <button onclick="document.getElementById('citation-modal').classList.add('hidden')" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:8px;padding:8px 12px;cursor:pointer;color:white;">✕</button>
-        </div>
-
-        <!-- Source type -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-            ${['Website','Book','Journal','Video','Article'].map((t,i) => `<button class="cit-type-btn tab-btn${i===0?' active':''}" onclick="setCitType(this,'${t.toLowerCase()}')" data-type="${t.toLowerCase()}">${t}</button>`).join('')}
-        </div>
-
-        <!-- Fields -->
-        <div id="cit-fields" style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;"></div>
-
-        <button onclick="generateCitations()" class="btn-primary" style="width:100%;background:linear-gradient(135deg,#fdcb6e,#fab1a0);color:#1a1000;font-weight:700;padding:13px;">
-            <i class="ph ph-magic-wand"></i> Generate All Formats
-        </button>
-
-        <!-- Output -->
-        <div id="cit-output" style="display:none;margin-top:20px;">
-            ${['MLA','APA','Chicago'].map(f => `
-            <div class="glass-panel" style="padding:14px;margin-bottom:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span style="font-size:0.78rem;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;">${f}</span>
-                    <button onclick="copyCitation('cit-${f.toLowerCase()}')" style="font-size:0.78rem;background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:6px;padding:4px 10px;cursor:pointer;color:white;"><i class="ph ph-copy"></i> Copy</button>
-                </div>
-                <p id="cit-${f.toLowerCase()}" style="margin:0;font-size:0.88rem;line-height:1.6;color:var(--text-main);font-family:Georgia,serif;"></p>
-            </div>`).join('')}
-        </div>
-    </div>`;
-    document.body.appendChild(modal);
-    setCitType(modal.querySelector('.cit-type-btn.active'), 'website');
+    // Dead stub — route to English Aid > Citations
+    switchTab('english'); switchEngTab('citation');
 }
 
-const CIT_FIELDS = {
-    website: [
-        { id:'cit-author', label:'Author(s)', placeholder:'Last, First (leave blank if none)', required:false },
-        { id:'cit-title', label:'Page Title', placeholder:'Title of the web page', required:true },
-        { id:'cit-site', label:'Site Name', placeholder:'Wikipedia, BBC, etc.', required:false },
-        { id:'cit-url', label:'URL', placeholder:'https://...', required:true },
-        { id:'cit-year', label:'Year Published / Last Updated', placeholder:'2024', required:false },
-        { id:'cit-accessed', label:'Date Accessed', placeholder:'22 May 2026', required:false }
-    ],
-    book: [
-        { id:'cit-author', label:'Author(s)', placeholder:'Last, First', required:true },
-        { id:'cit-title', label:'Book Title', placeholder:'Full title of the book', required:true },
-        { id:'cit-publisher', label:'Publisher', placeholder:'Penguin Books', required:false },
-        { id:'cit-year', label:'Year Published', placeholder:'2024', required:true },
-        { id:'cit-city', label:'City of Publication', placeholder:'New York', required:false },
-        { id:'cit-edition', label:'Edition', placeholder:'3rd ed. (leave blank if 1st)', required:false }
-    ],
-    journal: [
-        { id:'cit-author', label:'Author(s)', placeholder:'Last, First', required:true },
-        { id:'cit-title', label:'Article Title', placeholder:'Title of the journal article', required:true },
-        { id:'cit-journal', label:'Journal Name', placeholder:'Nature, Science, JSTOR, etc.', required:true },
-        { id:'cit-volume', label:'Volume & Issue', placeholder:'Vol. 12, No. 4', required:false },
-        { id:'cit-year', label:'Year Published', placeholder:'2024', required:true },
-        { id:'cit-pages', label:'Pages', placeholder:'pp. 14–28', required:false },
-        { id:'cit-doi', label:'DOI / URL', placeholder:'https://doi.org/...', required:false }
-    ],
-    video: [
-        { id:'cit-author', label:'Creator / Channel', placeholder:'Last, First OR Channel Name', required:true },
-        { id:'cit-title', label:'Video Title', placeholder:'Title of the video', required:true },
-        { id:'cit-site', label:'Platform', placeholder:'YouTube, TED, etc.', required:false },
-        { id:'cit-url', label:'URL', placeholder:'https://...', required:true },
-        { id:'cit-year', label:'Year Uploaded', placeholder:'2024', required:false },
-        { id:'cit-accessed', label:'Date Accessed', placeholder:'22 May 2026', required:false }
-    ],
-    article: [
-        { id:'cit-author', label:'Author(s)', placeholder:'Last, First', required:true },
-        { id:'cit-title', label:'Article Title', placeholder:'Title of the article', required:true },
-        { id:'cit-journal', label:'Publication Name', placeholder:'New York Times, The Atlantic…', required:true },
-        { id:'cit-year', label:'Year Published', placeholder:'2024', required:false },
-        { id:'cit-url', label:'URL (if online)', placeholder:'https://...', required:false },
-        { id:'cit-accessed', label:'Date Accessed', placeholder:'22 May 2026', required:false }
-    ]
+// ════════════════════════════════════════════════════════════════════
+// v15.0 — AMBIENT SOUNDS (YouTube IFrame API)
+// ════════════════════════════════════════════════════════════════════
+let _ambientCtx = null;          // kept for legacy Web Audio refs
+const _ambientNodes = {};        // legacy Web Audio node cleanup
+const _ambientGains = {};        // playing-state tracker (holds YT player or null)
+
+// YouTube video IDs — 10-hour loops, no music, pure ambient
+const _YT_VIDEOS = {
+    rain:       '56Xx9_PkTAk',   // Rain Sounds on Glass Window Roof | 10 Hours
+    thunder:    'nDq6TstdEi8',   // EPIC THUNDER & RAIN | 10 Hours
+    cafe:       'h2zkV-l_TbY',   // RESTAURANT AMBIENCE • 10H Busy Coffee Shop
+    whitenoise: 'nMfPqeZjc2c',   // White Noise Black Screen | 10 Hours
+    fire:       'EiwLa7pGy5Q',   // 10 Hours 4K Fireplace Cozy Crackling
+    forest:     'xuu1pBvCkz0',   // 10 Hours of Nature Forest Sounds — Birds, Insects
 };
+const _ytPlayers  = {};          // id → YT.Player instance
+let   _ytApiReady = false;
+const _ytQueue    = [];          // { id, vol } pairs waiting for API / player ready
 
-function setCitType(btn, type) {
-    document.querySelectorAll('.cit-type-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const fields = CIT_FIELDS[type] || CIT_FIELDS.website;
-    const container = document.getElementById('cit-fields');
-    if (!container) return;
-    container.innerHTML = fields.map(f => `
-        <div>
-            <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:5px;">${f.label}${f.required?' <span style="color:#ff6b6b;">*</span>':''}</label>
-            <input id="${f.id}" type="text" placeholder="${f.placeholder}" style="width:100%;padding:10px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.92rem;outline:none;box-sizing:border-box;">
-        </div>`).join('');
-    document.getElementById('cit-output').style.display = 'none';
-    btn.dataset.type = type;
+function _ensureYouTubeAPI() {
+    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) return;
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
 }
 
-function _citVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
-
-function generateCitations() {
-    const typeBtn = document.querySelector('.cit-type-btn.active');
-    const type = typeBtn ? typeBtn.dataset.type : 'website';
-    const author = _citVal('cit-author');
-    const title = _citVal('cit-title');
-    const year = _citVal('cit-year');
-    const url = _citVal('cit-url');
-    const site = _citVal('cit-site');
-    const publisher = _citVal('cit-publisher');
-    const journal = _citVal('cit-journal');
-    const pages = _citVal('cit-pages');
-    const doi = _citVal('cit-doi');
-    const accessed = _citVal('cit-accessed') || 'n.d.';
-    const city = _citVal('cit-city');
-    const volume = _citVal('cit-volume');
-    const edition = _citVal('cit-edition');
-    const authorShort = author ? author.split(',')[0].trim() : 'Author';
-
-    let mla = '', apa = '', chicago = '';
-    const yr = year || 'n.d.';
-    const titleQ = `"${title}"`;
-    const titleI = `<em>${title}</em>`;
-
-    if (type === 'website') {
-        mla = `${author ? author + '. ' : ''}${titleQ}. ${site ? '<em>' + site + '</em>, ' : ''}${yr}. ${url ? url + '. ' : ''}${accessed !== 'n.d.' ? 'Accessed ' + accessed + '.' : ''}`;
-        apa = `${author ? author + '. ' : '(n.a.). '}(${yr}). ${title}. ${site || 'Website'}. ${url}`;
-        chicago = `${author ? author + '. ' : ''}${titleQ}. ${site || 'Website'}. ${yr}. ${url}.`;
-    } else if (type === 'book') {
-        const pub = `${city ? city + ': ' : ''}${publisher || 'Publisher'}`;
-        mla = `${author}. ${titleI}. ${edition ? edition + '. ' : ''}${pub}, ${yr}.`;
-        apa = `${author}. (${yr}). ${titleI}. ${pub}.`;
-        chicago = `${author}. ${titleI}. ${pub}, ${yr}.`;
-    } else if (type === 'journal' || type === 'article') {
-        const pub = journal || 'Journal Name';
-        mla = `${author}. ${titleQ}. ${`<em>${pub}</em>`}${volume ? ', ' + volume : ''}, ${yr}${pages ? ', ' + pages : ''}. ${doi || url ? doi || url + '.' : ''}`;
-        apa = `${author}. (${yr}). ${title}. <em>${pub}</em>${volume ? ', ' + volume : ''}${pages ? ', ' + pages : ''}. ${doi || url || ''}`;
-        chicago = `${author}. ${titleQ}. <em>${pub}</em>${volume ? ' ' + volume : ''} (${yr})${pages ? ': ' + pages : ''}. ${doi || url || ''}.`;
-    } else if (type === 'video') {
-        const platform = site || 'Video Platform';
-        mla = `${author}. ${titleQ}. ${`<em>${platform}</em>`}, ${yr}, ${url}.`;
-        apa = `${author}. (${yr}). ${titleI} [Video]. ${platform}. ${url}`;
-        chicago = `${author}. ${titleQ}. ${platform} video, ${yr}. ${url}.`;
+window.onYouTubeIframeAPIReady = function() {
+    _ytApiReady = true;
+    // Build a hidden container for the 6 iframes (1×1px, off-screen)
+    if (!document.getElementById('yt-ambient-wrap')) {
+        const wrap = document.createElement('div');
+        wrap.id = 'yt-ambient-wrap';
+        wrap.style.cssText = 'position:fixed;top:-2px;left:-2px;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:-9999;';
+        Object.keys(_YT_VIDEOS).forEach(function(id) {
+            const d = document.createElement('div'); d.id = 'yt-p-' + id;
+            wrap.appendChild(d);
+        });
+        document.body.appendChild(wrap);
     }
-
-    document.getElementById('cit-mla').innerHTML = mla || 'Fill in the required fields above.';
-    document.getElementById('cit-apa').innerHTML = apa || 'Fill in the required fields above.';
-    document.getElementById('cit-chicago').innerHTML = chicago || 'Fill in the required fields above.';
-    document.getElementById('cit-output').style.display = 'block';
-    document.getElementById('cit-output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function copyCitation(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const text = el.innerText || el.textContent;
-    navigator.clipboard.writeText(text).then(() => showToast('Citation copied!', 'success')).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); ta.remove(); showToast('Copied!', 'success');
+    // Create each player
+    Object.entries(_YT_VIDEOS).forEach(function([id, videoId]) {
+        _ytPlayers[id] = new YT.Player('yt-p-' + id, {
+            videoId: videoId,
+            playerVars: {
+                autoplay: 0, controls: 0, loop: 1, playlist: videoId,
+                modestbranding: 1, rel: 0, iv_load_policy: 3, disablekb: 1,
+            },
+            events: {
+                onReady: function(e) {
+                    e.target.setVolume(0);
+                    // Drain any queued plays for this sound
+                    for (let i = _ytQueue.length - 1; i >= 0; i--) {
+                        if (_ytQueue[i].id === id) {
+                            const q = _ytQueue.splice(i, 1)[0];
+                            _startAmbientSound(q.id, q.vol);
+                        }
+                    }
+                }
+            }
+        });
     });
-}
-
-// ════════════════════════════════════════════════════════════════════
-// v12.5 — AMBIENT SOUNDS (Web Audio API — no Spotify needed)
-// ════════════════════════════════════════════════════════════════════
-let _ambientCtx = null;
-const _ambientNodes = {};
-const _ambientGains = {};
+};
 
 const AMBIENT_SOUNDS = [
     { id: 'rain',       label: 'Rain',         icon: 'ph-cloud-rain',   color: '#74b9ff',
@@ -20551,132 +20770,555 @@ function _makeNoise(ctx, type = 'white') {
     return src;
 }
 
+// ── Pre-rendered ambient buffers ─────────────────────────────────────────────
+// Simulate discrete physical events (drops, crackles, pops) into a looping
+// buffer at startup.  Far more realistic than continuous filtered noise.
+
+function _makeRainBuffer(ctx, dropsPerSec) {
+    // Each drop = sharp white-noise impact (2 ms) + decaying glass ring (sine)
+    const dur = 9, sr = ctx.sampleRate;
+    const len = Math.ceil(sr * dur);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    let t = 0.05;
+    while (t < dur) {
+        t += -Math.log(1 - Math.random()) / dropsPerSec; // Poisson inter-arrival
+        if (t >= dur) break;
+        const si0    = Math.floor(t * sr);
+        const vol    = 0.22 + Math.random() * 0.55;
+        const freq   = 1400 + Math.random() * 1900;  // 1.4–3.3 kHz glass ring
+        const decay  = 16   + Math.random() * 22;    // ring decay rate (higher = shorter)
+        const impLen = Math.ceil(sr * 0.0022);        // ~2 ms noise tap
+        const rngLen = Math.ceil(sr * 0.10);          // up to 100 ms ring
+        // Impact transient
+        for (let i = 0; i < impLen; i++) {
+            const si = si0 + i; if (si >= len) break;
+            data[si] += (Math.random() * 2 - 1) * vol * Math.pow(1 - i / impLen, 2.5);
+        }
+        // Glass resonance ring
+        for (let i = 0; i < rngLen; i++) {
+            const si = si0 + impLen + i; if (si >= len) break;
+            const env = Math.exp(-decay * i / sr); if (env < 0.001) break;
+            data[si] += Math.sin(2 * Math.PI * freq * i / sr) * vol * 0.42 * env;
+        }
+    }
+    // Normalize so we don't clip
+    let peak = 0;
+    for (let i = 0; i < len; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
+    if (peak > 0.88) { const s = 0.88 / peak; for (let i = 0; i < len; i++) data[i] *= s; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    return src;
+}
+
+function _makeFireBuffer(ctx) {
+    // Each crackle = short high-freq noise burst; density varies to simulate wood
+    const dur = 9, sr = ctx.sampleRate;
+    const len = Math.ceil(sr * dur);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    // Layer 1: frequent small snaps (~10/sec)
+    let t = 0.1;
+    while (t < dur) {
+        t += -Math.log(1 - Math.random()) / 10;
+        if (t >= dur) break;
+        const si0 = Math.floor(t * sr);
+        const vol = 0.3 + Math.random() * 0.55;
+        const cLen = Math.ceil(sr * (0.003 + Math.random() * 0.010));
+        for (let i = 0; i < cLen; i++) {
+            const si = si0 + i; if (si >= len) break;
+            data[si] += (Math.random() * 2 - 1) * vol * Math.exp(-i / (cLen * 0.35));
+        }
+    }
+    // Layer 2: bigger pops (~2/sec)
+    t = 0.5;
+    while (t < dur) {
+        t += -Math.log(1 - Math.random()) / 2.2;
+        if (t >= dur) break;
+        const si0 = Math.floor(t * sr);
+        const vol = 0.55 + Math.random() * 0.45;
+        const cLen = Math.ceil(sr * (0.008 + Math.random() * 0.018));
+        for (let i = 0; i < cLen; i++) {
+            const si = si0 + i; if (si >= len) break;
+            data[si] += (Math.random() * 2 - 1) * vol * Math.exp(-i / (cLen * 0.28));
+        }
+        // Occasional second pop 40–90 ms later
+        if (Math.random() < 0.25) {
+            const si2 = si0 + Math.ceil(sr * (0.04 + Math.random() * 0.05));
+            const cl2 = Math.ceil(sr * 0.006);
+            for (let i = 0; i < cl2; i++) {
+                const si = si2 + i; if (si >= len) break;
+                data[si] += (Math.random() * 2 - 1) * vol * 0.5 * Math.exp(-i / (cl2 * 0.35));
+            }
+        }
+    }
+    // Normalize
+    let peak = 0;
+    for (let i = 0; i < len; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
+    if (peak > 0.90) { const s = 0.90 / peak; for (let i = 0; i < len; i++) data[i] *= s; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    return src;
+}
+
+function _makeCafeChatterBuffer(ctx) {
+    // Voice-frequency noise bursts at random timings — crowd murmur texture
+    const dur = 10, sr = ctx.sampleRate;
+    const len = Math.ceil(sr * dur);
+    const buf = ctx.createBuffer(1, len, sr);
+    const data = buf.getChannelData(0);
+    // Simulate overlapping "word" bursts: 200–500 ms each, voice frequencies
+    const voiceFreqs = [260, 330, 420, 550, 720, 950, 1200, 1600];
+    for (let v = 0; v < 12; v++) {  // ~12 simultaneous talkers
+        let t = Math.random() * 2;  // stagger start
+        while (t < dur) {
+            t += 0.08 + Math.random() * 0.55;  // syllable / word gaps
+            if (t >= dur) break;
+            const burstDur  = 0.12 + Math.random() * 0.38;  // 120–500 ms syllable
+            const si0       = Math.floor(t * sr);
+            const burstLen  = Math.ceil(sr * burstDur);
+            const f         = voiceFreqs[Math.floor(Math.random() * voiceFreqs.length)];
+            const bw        = 80 + Math.random() * 200;  // bandpass width
+            const vol       = 0.04 + Math.random() * 0.08;
+            // Pink-ish noise band-limited to voice freq (simple sin modulation trick)
+            for (let i = 0; i < burstLen; i++) {
+                const si = si0 + i; if (si >= len) break;
+                const trel = i / burstLen;
+                // Smooth onset / offset envelope
+                const env = Math.sin(Math.PI * trel);
+                // Noise sample (white noise × sine carrier gives rough bandpass)
+                const noise = (Math.random() * 2 - 1);
+                const carrier = Math.sin(2 * Math.PI * f * i / sr);
+                const upper   = Math.sin(2 * Math.PI * (f + bw) * i / sr);
+                data[si] += (noise * 0.4 + carrier * 0.35 + upper * 0.25) * vol * env;
+            }
+        }
+    }
+    // Normalize
+    let peak = 0;
+    for (let i = 0; i < len; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
+    if (peak > 0.85) { const s = 0.85 / peak; for (let i = 0; i < len; i++) data[i] *= s; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    return src;
+}
+
 function _startAmbientSound(id, vol = 0.5) {
+    // ── v15.0: YouTube-backed ambient sounds ──
+    _ensureYouTubeAPI();
+
+    const player = _ytPlayers[id];
+    if (!player || typeof player.playVideo !== 'function') {
+        // API or player not ready yet — queue for when onReady fires
+        if (!_ytQueue.find(function(q) { return q.id === id; })) {
+            _ytQueue.push({ id: id, vol: vol });
+        }
+        return;
+    }
+
+    // Stop any existing playback cleanly first
+    if (_ambientGains[id]) {
+        const old = _ambientGains[id];
+        if (old && typeof old.pauseVideo === 'function') {
+            try { old.setVolume(0); old.pauseVideo(); } catch(e) {}
+        }
+        delete _ambientGains[id];
+    }
+    const legacyNodes = _ambientNodes[id];
+    if (legacyNodes) {
+        legacyNodes.forEach(function(n) { try { n.stop(); } catch(e) {} });
+        delete _ambientNodes[id];
+    }
+
+    // Begin playback with fade-in
+    _ambientGains[id] = player;
+    try {
+        player.setVolume(0);
+        player.unMute();
+        player.playVideo();
+    } catch(e) {}
+
+    const target = Math.round(vol * 100);
+    let cur = 0;
+    const fade = setInterval(function() {
+        cur = Math.min(cur + 4, target);
+        try { player.setVolume(cur); } catch(e) {}
+        if (cur >= target) clearInterval(fade);
+    }, 60); // 60 ms × 25 steps ≈ 1.5 s fade-in
+}
+
+// ── LEGACY SYNTHESIS (kept for reference, no longer called) ──────────────
+function _startAmbientSoundSynth(id, vol = 0.5) {
     stopAmbientSound(id);
     const ctx = _getAmbientCtx();
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 1.2);
+    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 1.5);
     gain.connect(ctx.destination);
     _ambientGains[id] = gain;
 
     if (id === 'rain') {
-        const noise = _makeNoise(ctx, 'pink');
-        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200;
-        noise.connect(lp); lp.connect(gain); noise.start();
-        // Add subtle splash LFO
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.8;
-        const lfoG = ctx.createGain(); lfoG.gain.value = 0.08;
-        lfo.connect(lfoG); lfoG.connect(gain.gain);
-        lfo.start(); _ambientNodes[id] = [noise, lfo];
+        // ── RAIN ON GLASS: pre-rendered drop simulation ──
+        // Individual drop events (impact tap + glass ring) beat any filter approach
+        const drops = _makeRainBuffer(ctx, 75);  // 75 drops/sec = steady rain
+        const dropsG = ctx.createGain(); dropsG.gain.value = 0.82;
+        drops.connect(dropsG); dropsG.connect(gain); drops.start();
+
+        // Very light continuous hiss underneath (rain between drops)
+        const hiss   = _makeNoise(ctx, 'white');
+        const hissHp = ctx.createBiquadFilter(); hissHp.type = 'highpass'; hissHp.frequency.value = 1800;
+        const hissLp = ctx.createBiquadFilter(); hissLp.type = 'lowpass';  hissLp.frequency.value = 5000;
+        const hissG  = ctx.createGain(); hissG.gain.value = 0.12;
+        hiss.connect(hissHp); hissHp.connect(hissLp); hissLp.connect(hissG); hissG.connect(gain); hiss.start();
+
+        _ambientNodes[id] = [drops, hiss];
+
     } else if (id === 'thunder') {
-        const noise = _makeNoise(ctx, 'brown');
-        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 800;
-        noise.connect(lp); lp.connect(gain); noise.start();
-        // Occasional rumble via gain automation
-        function scheduleRumble() {
-            const delay = 8 + Math.random() * 20;
+        // ── STORM: dense rain (pre-rendered) + wind + thunder scheduler ──
+        const stormDrops = _makeRainBuffer(ctx, 130);  // 130/sec = heavy downpour
+        const stormDropsG = ctx.createGain(); stormDropsG.gain.value = 0.75;
+        stormDrops.connect(stormDropsG); stormDropsG.connect(gain); stormDrops.start();
+
+        // Storm wind
+        const wind   = _makeNoise(ctx, 'pink');
+        const windBp = ctx.createBiquadFilter(); windBp.type = 'bandpass'; windBp.frequency.value = 350; windBp.Q.value = 0.55;
+        const windG  = ctx.createGain(); windG.gain.value = 0.14;
+        wind.connect(windBp); windBp.connect(windG); windG.connect(gain); wind.start();
+
+        // Thunder: sub-bass + mid-body, scheduler-driven (unpredictable timing)
+        const thdSub   = _makeNoise(ctx, 'brown');
+        const thdSubLp = ctx.createBiquadFilter(); thdSubLp.type = 'lowpass'; thdSubLp.frequency.value = 130;
+        const thdSubG  = ctx.createGain(); thdSubG.gain.value = 0;
+        thdSub.connect(thdSubLp); thdSubLp.connect(thdSubG); thdSubG.connect(gain); thdSub.start();
+
+        const thdMid   = _makeNoise(ctx, 'brown');
+        const thdMidLp = ctx.createBiquadFilter(); thdMidLp.type = 'lowpass';  thdMidLp.frequency.value = 420;
+        const thdMidHp = ctx.createBiquadFilter(); thdMidHp.type = 'highpass'; thdMidHp.frequency.value = 65;
+        const thdMidG  = ctx.createGain(); thdMidG.gain.value = 0;
+        thdMid.connect(thdMidHp); thdMidHp.connect(thdMidLp); thdMidLp.connect(thdMidG); thdMidG.connect(gain); thdMid.start();
+
+        function scheduleThunder() {
+            if (!_ambientNodes[id]) return;
             setTimeout(() => {
                 if (!_ambientNodes[id]) return;
-                const now = ctx.currentTime;
-                gain.gain.setValueAtTime(gain.gain.value, now);
-                gain.gain.linearRampToValueAtTime(vol * 2.5, now + 0.3);
-                gain.gain.linearRampToValueAtTime(vol, now + 2.5);
-                scheduleRumble();
-            }, delay * 1000);
+                const now     = ctx.currentTime;
+                const boomAmp = 1.1 + Math.random() * 0.8;
+                const decay   = 3.5 + Math.random() * 2.5;
+                thdSubG.gain.cancelScheduledValues(now);
+                thdSubG.gain.setValueAtTime(0, now);
+                thdSubG.gain.linearRampToValueAtTime(boomAmp, now + 0.07);
+                thdSubG.gain.exponentialRampToValueAtTime(0.001, now + decay);
+                thdMidG.gain.cancelScheduledValues(now + 0.02);
+                thdMidG.gain.setValueAtTime(0, now + 0.02);
+                thdMidG.gain.linearRampToValueAtTime(boomAmp * 0.60, now + 0.12);
+                thdMidG.gain.exponentialRampToValueAtTime(0.001, now + decay * 0.65);
+                scheduleThunder();
+            }, (8 + Math.random() * 19) * 1000);
         }
-        scheduleRumble();
-        _ambientNodes[id] = [noise];
-    } else if (id === 'cafe') {
-        // Layered pink noise at different freqs to simulate chatter
-        const layers = [];
-        for (let i = 0; i < 3; i++) {
-            const n = _makeNoise(ctx, 'pink');
-            const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
-            bp.frequency.value = 400 + i * 500; bp.Q.value = 0.8;
-            const g = ctx.createGain(); g.gain.value = 0.3 + i * 0.08;
-            n.connect(bp); bp.connect(g); g.connect(gain); n.start();
-            layers.push(n);
-        }
-        _ambientNodes[id] = layers;
+        scheduleThunder();
+        _ambientNodes[id] = [stormDrops, wind, thdSub, thdMid];
+
     } else if (id === 'whitenoise') {
+        // ── WHITE NOISE: attenuated internally so it's not blasting ──
         const noise = _makeNoise(ctx, 'white');
-        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5000;
-        noise.connect(lp); lp.connect(gain); noise.start();
+        const lp    = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 9000;
+        const hp    = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 30;
+        const atten = ctx.createGain(); atten.gain.value = 0.32;
+        noise.connect(hp); hp.connect(lp); lp.connect(atten); atten.connect(gain);
+        noise.start();
         _ambientNodes[id] = [noise];
+
+    } else if (id === 'cafe') {
+        // ── CAFÉ: pre-rendered crowd chatter + HVAC hum + cup clinks ──
+        const cafeBus = ctx.createGain(); cafeBus.gain.value = 0.90; cafeBus.connect(gain);
+
+        // Crowd murmur: pre-rendered voice-frequency bursts — sounds like a crowd
+        const chatter  = _makeCafeChatterBuffer(ctx);
+        const chatterG = ctx.createGain(); chatterG.gain.value = 0.72;
+        chatter.connect(chatterG); chatterG.connect(cafeBus); chatter.start();
+
+        // HVAC / low room tone
+        const room   = _makeNoise(ctx, 'brown');
+        const roomLp = ctx.createBiquadFilter(); roomLp.type = 'lowpass'; roomLp.frequency.value = 150;
+        const roomG  = ctx.createGain(); roomG.gain.value = 0.08;
+        room.connect(roomLp); roomLp.connect(roomG); roomG.connect(cafeBus); room.start();
+
+        // Cup clinks / cutlery: pitched sine, random 750–1300 Hz, every 4–12 s
+        const clinkOsc = ctx.createOscillator(); clinkOsc.type = 'sine'; clinkOsc.frequency.value = 950;
+        const clinkG   = ctx.createGain(); clinkG.gain.value = 0;
+        clinkOsc.connect(clinkG); clinkG.connect(cafeBus); clinkOsc.start();
+        function scheduleClink() {
+            if (!_ambientNodes[id]) return;
+            setTimeout(() => {
+                if (!_ambientNodes[id]) return;
+                const now  = ctx.currentTime;
+                const freq = 750 + Math.random() * 550;
+                clinkOsc.frequency.setValueAtTime(freq, now);
+                clinkG.gain.cancelScheduledValues(now);
+                clinkG.gain.setValueAtTime(0, now);
+                clinkG.gain.linearRampToValueAtTime(0.22 + Math.random() * 0.14, now + 0.006);
+                clinkG.gain.exponentialRampToValueAtTime(0.001, now + 0.22 + Math.random() * 0.16);
+                // Occasional second clink (glass touching glass)
+                if (Math.random() < 0.3) {
+                    const t2 = now + 0.08 + Math.random() * 0.12;
+                    clinkOsc.frequency.setValueAtTime(freq * (0.85 + Math.random() * 0.3), t2);
+                    clinkG.gain.setValueAtTime(0, t2);
+                    clinkG.gain.linearRampToValueAtTime(0.12 + Math.random() * 0.10, t2 + 0.005);
+                    clinkG.gain.exponentialRampToValueAtTime(0.001, t2 + 0.18);
+                }
+                scheduleClink();
+            }, (4 + Math.random() * 8) * 1000);
+        }
+        scheduleClink();
+        _ambientNodes[id] = [chatter, room, clinkOsc];
+
     } else if (id === 'fire') {
-        const noise = _makeNoise(ctx, 'brown');
-        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600;
-        noise.connect(lp); lp.connect(gain); noise.start();
-        // Crackle: random sharp bursts
-        const crackleG = ctx.createGain(); crackleG.gain.value = 0;
-        crackleG.connect(gain);
-        const crackleNoise = _makeNoise(ctx, 'white');
-        const crackleHp = ctx.createBiquadFilter(); crackleHp.type = 'highpass'; crackleHp.frequency.value = 3000;
-        crackleNoise.connect(crackleHp); crackleHp.connect(crackleG); crackleNoise.start();
-        function scheduleCrackle() {
-            if (!_ambientNodes[id]) return;
-            const delay = 0.2 + Math.random() * 1.8;
-            setTimeout(() => {
-                const now = ctx.currentTime;
-                crackleG.gain.setValueAtTime(0, now);
-                crackleG.gain.linearRampToValueAtTime(0.4, now + 0.01);
-                crackleG.gain.linearRampToValueAtTime(0, now + 0.06);
-                scheduleCrackle();
-            }, delay * 1000);
-        }
-        scheduleCrackle();
-        _ambientNodes[id] = [noise, crackleNoise];
+        // ── FIREPLACE: pre-rendered crackle events + continuous warm roar ──
+        const fireBus = ctx.createGain(); fireBus.gain.value = 0.92; fireBus.connect(gain);
+
+        // Pre-rendered crackle buffer: discrete impulsive events at realistic density
+        const crackle  = _makeFireBuffer(ctx);
+        const crackleG = ctx.createGain(); crackleG.gain.value = 0.70;
+        crackle.connect(crackleG); crackleG.connect(fireBus); crackle.start();
+
+        // Continuous warm roar: brown noise through LP (the bed of the fire)
+        const base   = _makeNoise(ctx, 'brown');
+        const baseLp = ctx.createBiquadFilter(); baseLp.type = 'lowpass'; baseLp.frequency.value = 360;
+        const baseG  = ctx.createGain(); baseG.gain.value = 0.42;
+        base.connect(baseLp); baseLp.connect(baseG); baseG.connect(fireBus); base.start();
+
+        // Sizzle: mid-freq pink noise (hiss of burning wood)
+        const sizzle   = _makeNoise(ctx, 'pink');
+        const sizzleBp = ctx.createBiquadFilter(); sizzleBp.type = 'bandpass'; sizzleBp.frequency.value = 1000; sizzleBp.Q.value = 0.75;
+        const sizzleG  = ctx.createGain(); sizzleG.gain.value = 0.18;
+        sizzle.connect(sizzleBp); sizzleBp.connect(sizzleG); sizzleG.connect(fireBus); sizzle.start();
+
+        // Slow breathing flutter on the roar (flames growing & dimming)
+        const flutter  = ctx.createOscillator(); flutter.frequency.value = 0.07;
+        const flutterG = ctx.createGain(); flutterG.gain.value = 0.14;
+        flutter.connect(flutterG); flutterG.connect(baseG.gain); flutter.start();
+
+        _ambientNodes[id] = [crackle, base, sizzle, flutter];
+
     } else if (id === 'forest') {
-        // High-freq filtered noise for wind + oscillating for birds
-        const wind = _makeNoise(ctx, 'pink');
-        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 1.2;
-        wind.connect(bp); bp.connect(gain); wind.start();
-        // Bird chirp oscillators
-        const chirpNodes = [];
-        for (let i = 0; i < 3; i++) {
-            const osc = ctx.createOscillator(); osc.type = 'sine';
-            osc.frequency.value = 2400 + i * 800;
-            const chirpG = ctx.createGain(); chirpG.gain.value = 0;
-            osc.connect(chirpG); chirpG.connect(gain); osc.start();
-            chirpNodes.push({ osc, g: chirpG });
-        }
-        function scheduleChirp() {
-            if (!_ambientNodes[id]) return;
-            const delay = 1.5 + Math.random() * 5;
-            const which = Math.floor(Math.random() * chirpNodes.length);
-            setTimeout(() => {
-                const { osc, g } = chirpNodes[which];
-                const now = ctx.currentTime;
-                osc.frequency.setValueAtTime(2400 + which * 800, now);
-                osc.frequency.linearRampToValueAtTime(osc.frequency.value + 400, now + 0.08);
-                g.gain.setValueAtTime(0, now);
-                g.gain.linearRampToValueAtTime(0.06, now + 0.04);
-                g.gain.linearRampToValueAtTime(0, now + 0.18);
-                scheduleChirp();
-            }, delay * 1000);
-        }
-        scheduleChirp();
-        _ambientNodes[id] = [wind, ...chirpNodes.map(c => c.osc)];
+        // ── FOREST: gentle wind + insects + 4 bird species ──
+        const forestBus = ctx.createGain(); forestBus.gain.value = 0.92; forestBus.connect(gain);
+
+        // Gentle wind — very low so birds dominate
+        const wind   = _makeNoise(ctx, 'pink');
+        const windLp = ctx.createBiquadFilter(); windLp.type = 'lowpass'; windLp.frequency.value = 520;
+        const windG  = ctx.createGain(); windG.gain.value = 0.16;
+        wind.connect(windLp); windLp.connect(windG); windG.connect(forestBus); wind.start();
+        const gustLfo  = ctx.createOscillator(); gustLfo.frequency.value = 0.055;
+        const gustLfoG = ctx.createGain(); gustLfoG.gain.value = 0.055;
+        gustLfo.connect(gustLfoG); gustLfoG.connect(windG.gain); gustLfo.start();
+
+        // Insects/cicadas: narrow band ~4.3 kHz
+        const insects  = _makeNoise(ctx, 'white');
+        const insectBp = ctx.createBiquadFilter(); insectBp.type = 'bandpass'; insectBp.frequency.value = 4300; insectBp.Q.value = 3.5;
+        const insectG  = ctx.createGain(); insectG.gain.value = 0.044;
+        insects.connect(insectBp); insectBp.connect(insectG); insectG.connect(forestBus); insects.start();
+        const insectLfo  = ctx.createOscillator(); insectLfo.frequency.value = 0.38;
+        const insectLfoG = ctx.createGain(); insectLfoG.gain.value = 0.024;
+        insectLfo.connect(insectLfoG); insectLfoG.connect(insectG.gain); insectLfo.start();
+
+        // 4 bird species — each with own timing, frequency glide, amplitude envelope
+        const birdDefs = [
+            { fA: 2500, fB: 3300, fC: 2800, dur: 0.17, amp: 0.044, minInt: 1.5, maxInt: 5.5 },
+            { fA: 1700, fB: 1700, fC: 2300, dur: 0.13, amp: 0.035, minInt: 2.5, maxInt: 8.0 },
+            { fA: 3900, fB: 4700, fC: 3900, dur: 0.09, amp: 0.040, minInt: 1.0, maxInt: 4.5 },
+            { fA: 2100, fB: 2100, fC: 2700, dur: 0.20, amp: 0.030, minInt: 3.5, maxInt: 10.0 },
+        ];
+        const birdOscs = [];
+        birdDefs.forEach(function(def, bi) {
+            const osc  = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = def.fA;
+            const envG = ctx.createGain(); envG.gain.value = 0;
+            osc.connect(envG); envG.connect(forestBus); osc.start();
+            birdOscs.push(osc);
+            const atk = def.dur * 0.22, rel = def.dur * 0.38;
+            function scheduleChirp() {
+                if (!_ambientNodes[id]) return;
+                setTimeout(function() {
+                    if (!_ambientNodes[id]) return;
+                    const now = ctx.currentTime;
+                    osc.frequency.cancelScheduledValues(now);
+                    osc.frequency.setValueAtTime(def.fA, now);
+                    osc.frequency.linearRampToValueAtTime(def.fB, now + atk);
+                    osc.frequency.linearRampToValueAtTime(def.fC, now + def.dur);
+                    envG.gain.cancelScheduledValues(now);
+                    envG.gain.setValueAtTime(0, now);
+                    envG.gain.linearRampToValueAtTime(def.amp, now + atk);
+                    envG.gain.setValueAtTime(def.amp, now + def.dur - rel);
+                    envG.gain.linearRampToValueAtTime(0, now + def.dur);
+                    if (Math.random() < 0.25) {
+                        const t2 = now + def.dur + 0.04 + Math.random() * 0.07;
+                        osc.frequency.setValueAtTime(def.fA, t2);
+                        osc.frequency.linearRampToValueAtTime(def.fB, t2 + atk);
+                        osc.frequency.linearRampToValueAtTime(def.fC, t2 + def.dur);
+                        envG.gain.setValueAtTime(0, t2);
+                        envG.gain.linearRampToValueAtTime(def.amp * 0.75, t2 + atk);
+                        envG.gain.setValueAtTime(def.amp * 0.75, t2 + def.dur - rel);
+                        envG.gain.linearRampToValueAtTime(0, t2 + def.dur);
+                    }
+                    scheduleChirp();
+                }, (def.minInt + Math.random() * (def.maxInt - def.minInt)) * 1000);
+            }
+            setTimeout(scheduleChirp, bi * 900 + Math.random() * 1200);
+        });
+        _ambientNodes[id] = [wind, gustLfo, insects, insectLfo, ...birdOscs];
     }
 }
 
 function stopAmbientSound(id) {
+    // ── YouTube player fade-out ──
+    const player = _ambientGains[id];
+    if (player && typeof player.getVolume === 'function') {
+        let vol = 50;
+        try { vol = player.getVolume(); } catch(e) {}
+        const fade = setInterval(function() {
+            vol = Math.max(0, vol - 7);
+            try { player.setVolume(vol); } catch(e) {}
+            if (vol <= 0) {
+                clearInterval(fade);
+                try { player.pauseVideo(); } catch(e) {}
+            }
+        }, 50); // ~7 steps × 50 ms ≈ 500 ms fade-out
+    }
+    delete _ambientGains[id];
+    // Legacy Web Audio cleanup
     const nodes = _ambientNodes[id];
     if (nodes) {
-        nodes.forEach(n => { try { n.stop(); } catch(_) {} });
+        nodes.forEach(function(n) { try { n.stop(); } catch(e) {} });
         delete _ambientNodes[id];
-    }
-    const gain = _ambientGains[id];
-    if (gain) {
-        try { gain.gain.linearRampToValueAtTime(0, (_ambientCtx?.currentTime || 0) + 0.8); } catch(_) {}
-        delete _ambientGains[id];
     }
 }
 
 function setAmbientVolume(id, vol) {
-    const gain = _ambientGains[id];
-    if (gain && _ambientCtx) gain.gain.linearRampToValueAtTime(vol, _ambientCtx.currentTime + 0.3);
+    const player = _ambientGains[id];
+    if (player && typeof player.setVolume === 'function') {
+        try { player.setVolume(Math.round(vol * 100)); } catch(e) {}
+    }
+}
+
+// Pre-load YouTube API as soon as the script runs so players are ready on first click
+_ensureYouTubeAPI();
+
+// ── v15.0 — Command Center ambient: mixer state ──────────────────────────────
+const _ccAmbientVols = { rain: 50, thunder: 50, cafe: 50, whitenoise: 50, fire: 50, forest: 50 };
+let   _ccMixerOpen   = false;
+
+// Sync a mixer row's active styling to whether the sound is playing
+function _ccSyncMixerRow(id, active) {
+    var row = document.getElementById('cc-mix-' + id);
+    if (row) row.classList.toggle('active', active);
+}
+
+// Sync the toggle button's lit-up state
+function _ccSyncBtn(id, active, sound) {
+    var btn = document.getElementById('cc-amb-btn-' + id);
+    if (!btn) return;
+    if (active) {
+        btn.style.borderColor = sound.color + 'bb';
+        btn.style.background  = sound.color + '28';
+        btn.style.boxShadow   = '0 0 18px ' + sound.color + '55';
+        btn.querySelector('i').style.opacity = '1';
+    } else {
+        btn.style.borderColor = 'rgba(255,255,255,0.15)';
+        btn.style.background  = 'rgba(255,255,255,0.04)';
+        btn.style.boxShadow   = '';
+        btn.querySelector('i').style.opacity = '0.45';
+    }
+}
+
+// Toggle a single sound on/off
+function toggleCCAmbient(id) {
+    var sound = AMBIENT_SOUNDS.find(function(s) { return s.id === id; });
+    if (!sound) return;
+    if (_ambientGains[id]) {
+        stopAmbientSound(id);
+        _ccSyncBtn(id, false, sound);
+        _ccSyncMixerRow(id, false);
+    } else {
+        _startAmbientSound(id, (_ccAmbientVols[id] || 50) / 100);
+        _ccSyncBtn(id, true, sound);
+        _ccSyncMixerRow(id, true);
+    }
+    // Any manual toggle = custom preset
+    var sel = document.getElementById('cc-preset-select');
+    if (sel && sel.value !== 'custom') sel.value = 'custom';
+}
+
+// Open/close the mixer panel
+function toggleCCMixer() {
+    _ccMixerOpen = !_ccMixerOpen;
+    var panel   = document.getElementById('cc-mixer-panel');
+    var chevron = document.getElementById('cc-mixer-chevron');
+    var btn     = document.getElementById('cc-mixer-toggle-btn');
+    if (panel)   panel.style.display          = _ccMixerOpen ? 'block' : 'none';
+    if (chevron) chevron.style.transform       = _ccMixerOpen ? 'rotate(180deg)' : '';
+    if (btn)     btn.classList.toggle('open', _ccMixerOpen);
+}
+
+// Adjust volume of a running sound via slider
+function setCCAmbientVol(id, val) {
+    var v = parseInt(val, 10);
+    _ccAmbientVols[id] = v;
+    var lbl = document.getElementById('cc-vol-lbl-' + id);
+    if (lbl) lbl.textContent = v + '%';
+    // Apply live if playing
+    setAmbientVolume(id, v / 100);
+    // Revert preset to Custom
+    var sel = document.getElementById('cc-preset-select');
+    if (sel && sel.value !== 'custom') sel.value = 'custom';
+}
+
+// Apply a named preset: stop all, then start the right sounds at specified vols
+function applyAmbientPreset(preset) {
+    var PRESETS = {
+        study:  { rain: 55 },
+        sleep:  { whitenoise: 68, rain: 32 },
+        storm:  { thunder: 72 },
+        cozy:   { fire: 62, cafe: 38 },
+        nature: { forest: 65 },
+    };
+    // Stop all playing sounds
+    Object.keys(_YT_VIDEOS).forEach(function(id) {
+        var sound = AMBIENT_SOUNDS.find(function(s) { return s.id === id; });
+        if (_ambientGains[id]) {
+            stopAmbientSound(id);
+            if (sound) _ccSyncBtn(id, false, sound);
+            _ccSyncMixerRow(id, false);
+        }
+    });
+    if (preset === 'custom' || !PRESETS[preset]) return;
+    // Small gap to let fade-outs start before new sounds layer in
+    setTimeout(function() {
+        var mix = PRESETS[preset];
+        Object.entries(mix).forEach(function([id, vol]) {
+            var sound = AMBIENT_SOUNDS.find(function(s) { return s.id === id; });
+            _ccAmbientVols[id] = vol;
+            // Update slider + label
+            var slider = document.getElementById('cc-vol-' + id);
+            var lbl    = document.getElementById('cc-vol-lbl-' + id);
+            if (slider) slider.value   = vol;
+            if (lbl)    lbl.textContent = vol + '%';
+            // Start the sound
+            _startAmbientSound(id, vol / 100);
+            if (sound) _ccSyncBtn(id, true, sound);
+            _ccSyncMixerRow(id, true);
+        });
+    }, 650);
+}
+
+// Stop every active sound and reset UI
+function stopAllAmbient() {
+    Object.keys(_YT_VIDEOS).forEach(function(id) {
+        var sound = AMBIENT_SOUNDS.find(function(s) { return s.id === id; });
+        if (_ambientGains[id]) {
+            stopAmbientSound(id);
+            if (sound) _ccSyncBtn(id, false, sound);
+            _ccSyncMixerRow(id, false);
+        }
+    });
+    var sel = document.getElementById('cc-preset-select');
+    if (sel) sel.value = 'custom';
 }
 
 function openAmbientPlayer() {
@@ -20691,14 +21333,15 @@ function openAmbientPlayer() {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <div>
                 <h2 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="ph ph-cloud-rain" style="color:#74b9ff;"></i> Ambient Sounds</h2>
-                <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">Pure Web Audio — no Spotify needed. Mix multiple sounds together.</p>
+                <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">Real ambient sounds from YouTube. Tap to toggle, mix multiple together.</p>
             </div>
             <button onclick="document.getElementById('ambient-modal').classList.add('hidden')" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:8px;padding:8px 12px;cursor:pointer;color:white;">✕</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;">
         ${AMBIENT_SOUNDS.map(s => `
             <div id="amb-card-${s.id}" class="glass-panel" style="padding:16px;cursor:pointer;border:1px solid rgba(255,255,255,0.06);transition:all 0.2s;"
-                onmouseenter="this.style.borderColor='${s.color}55'" onmouseleave="if(!document.getElementById('amb-toggle-${s.id}').checked)this.style.borderColor='rgba(255,255,255,0.06)'">
+                onmouseenter="this.style.borderColor='${s.color}55'" onmouseleave="if(!document.getElementById('amb-toggle-${s.id}').checked)this.style.borderColor='rgba(255,255,255,0.06)'"
+                onclick="if(!event.target.closest('label')&&event.target.type!=='range')document.getElementById('amb-toggle-${s.id}').click()">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                     <div>
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
@@ -21430,7 +22073,8 @@ function renderHomework() {
                 </div>
                 ${item.notes ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.notes+'</div>' : ''}
             </div>
-            <div style="display:flex;gap:6px;flex-shrink:0;">
+            <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;flex-wrap:nowrap;">
+                <button onclick="hwAiHelp(${item.id})" style="background:linear-gradient(135deg,rgba(108,92,231,0.2),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.3);border-radius:7px;color:var(--accent);cursor:pointer;font-size:0.75rem;padding:5px 9px;font-weight:600;white-space:nowrap;" title="AI Tutoring Help"><i class="ph ph-sparkle"></i> Help</button>
                 <button onclick="editHwItem(${item.id})" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;" title="Edit"><i class="ph ph-pencil-simple"></i></button>
                 <button onclick="deleteHwItem(${item.id})" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;padding:4px;" title="Delete"><i class="ph ph-trash"></i></button>
             </div>
@@ -21532,6 +22176,7 @@ function toggleHwComplete(id) {
     if (items[idx].completed) {
         showToast('Done! +10 XP', 'success', 2000);
         if (typeof awardXP === 'function') awardXP(10);
+        logStudyEvent('homework', `Completed: ${items[idx].title} (${items[idx].subject||'General'})`);
     }
 }
 function deleteHwItem(id) {
@@ -21549,6 +22194,106 @@ function exportHomeworkPDF() {
     const rows = function(arr) { return arr.map(function(i){ return '<tr><td>'+i.title+'</td><td>'+(i.subject||'')+'</td><td>'+(i.dueDate||'—')+'</td><td>'+(i.priority||'')+'</td><td>'+(i.notes||'')+'</td></tr>'; }).join(''); };
     w.document.write('<!DOCTYPE html><html><head><title>Homework — NEXUS</title><style>body{font-family:sans-serif;padding:24px;color:#111;}h2{color:#6C5CE7;}table{width:100%;border-collapse:collapse;margin-bottom:24px;}th,td{border:1px solid #ccc;padding:8px 10px;font-size:0.9rem;text-align:left;}th{background:#f0f0f0;}</style></head><body><h2>NEXUS Homework</h2><p>'+new Date().toLocaleDateString()+'</p><h3>Pending ('+pending.length+')</h3><table><tr><th>Title</th><th>Subject</th><th>Due</th><th>Priority</th><th>Notes</th></tr>'+rows(pending)+'</table><h3>Completed ('+done.length+')</h3><table><tr><th>Title</th><th>Subject</th><th>Due</th><th>Priority</th><th>Notes</th></tr>'+rows(done)+'</table></body></html>');
     w.document.close(); w.print();
+}
+
+// ─────────────────────────────────────────
+// HOMEWORK AI TUTORING
+// ─────────────────────────────────────────
+async function hwAiHelp(itemId) {
+    const items = getHomework();
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        showToast('Add your API key in Settings to use AI tutoring.', 'error', 3500);
+        return;
+    }
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'hw-ai-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+    <div class="glass-panel" style="max-width:560px;width:100%;padding:0;border:1px solid rgba(108,92,231,0.4);overflow:hidden;max-height:85vh;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,rgba(108,92,231,0.15),rgba(0,206,201,0.08));display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px;"><i class="ph ph-graduation-cap"></i> AI Homework Tutor</div>
+                <div style="font-size:0.9rem;color:white;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.title}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);">${item.subject||'General'}</div>
+            </div>
+            <button class="btn-icon" onclick="document.getElementById('hw-ai-modal').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:20px;overflow-y:auto;flex:1;">
+            <div id="hw-ai-question-form">
+                <p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 12px;">Ask for help with this assignment. You can ask for hints, explanations, or how to approach the problem.</p>
+                <textarea id="hw-ai-question" class="input-field" style="height:90px;resize:vertical;width:100%;margin-bottom:12px;" placeholder="e.g. I don't understand how to start chapter 5 worksheet on quadratic equations…"></textarea>
+                <button class="btn-primary" style="width:100%;" onclick="hwAiAsk('${item.subject||'General'}', '${item.title.replace(/'/g,"\\'")}')">
+                    <i class="ph ph-sparkle"></i> Get Tutoring Help
+                </button>
+            </div>
+            <div id="hw-ai-response" style="margin-top:14px;"></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    setTimeout(() => { const el = document.getElementById('hw-ai-question'); if(el) el.focus(); }, 100);
+}
+
+async function hwAiAsk(subject, title) {
+    const question = (document.getElementById('hw-ai-question')||{}).value || '';
+    const responseDiv = document.getElementById('hw-ai-response');
+    const apiKey = getApiKey();
+    if (!apiKey || !responseDiv) return;
+
+    const modeSettings = localStorage.getItem('tutor_mode') === 'tutor';
+    responseDiv.innerHTML = '<div style="color:var(--accent);display:flex;align-items:center;gap:8px;padding:10px 0;"><i class="ph ph-spinner ph-spin"></i> Thinking…</div>';
+
+    const systemPrompt = `You are NEXUS — a patient, encouraging AI tutor helping a student with their homework.
+Subject: ${subject}
+Assignment: ${title}
+
+${modeSettings ? `TUTOR MODE (give hints, not answers):
+- Guide the student to discover the answer themselves
+- Give 1-2 directional hints
+- Ask a guiding question at the end` : `HELPER MODE:
+- Explain the concept clearly
+- Work through the approach step-by-step
+- Provide the answer with full explanation`}
+
+Use clear formatting: headings, short paragraphs, bullet points where helpful.
+Never be condescending. Keep your response focused and concise.
+Use HTML formatting (not markdown): <strong>, <em>, <ul><li>, <br>, etc.`;
+
+    try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: question || `Please help me with: ${title}` }
+                ],
+                temperature: 0.5,
+                max_tokens: 700
+            })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        const answer = data.choices[0].message.content || '';
+        const cleaned = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(answer) : answer;
+        responseDiv.style.opacity = '0';
+        responseDiv.innerHTML = `
+            <div style="background:linear-gradient(135deg,rgba(108,92,231,0.1),rgba(0,206,201,0.06));border:1px solid rgba(108,92,231,0.25);border-radius:10px;padding:14px;line-height:1.6;font-size:0.9rem;color:#dde0ee;">${cleaned}</div>
+            <div style="margin-top:12px;display:flex;gap:8px;">
+                <button class="btn-secondary" style="flex:1;font-size:0.82rem;" onclick="document.getElementById('hw-ai-question').value='';document.getElementById('hw-ai-response').innerHTML='';">Ask another question</button>
+            </div>`;
+        requestAnimationFrame(() => { responseDiv.style.transition='opacity 0.35s'; responseDiv.style.opacity='1'; });
+        logActivity('study', `Homework AI help: ${title}`);
+    } catch (err) {
+        responseDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
+    }
 }
 
 // ─────────────────────────────────────────
@@ -21580,48 +22325,151 @@ function gradeColor(avg) {
     if (avg >= 70) return '#fdcb6e'; if (avg >= 60) return '#e17055'; return '#ff6b6b';
 }
 
+// v13.1 — Category colors for assignment types
+var GRADE_CATEGORY_COLORS = { test:'#ff6b6b', quiz:'#fdcb6e', homework:'#00CEC9', project:'#a855f7', lab:'#00b894', participation:'#74b9ff', other:'var(--text-muted)' };
+
+function letterGradeDetailed(avg) {
+    if (avg === null) return '—';
+    if (avg >= 97) return 'A+'; if (avg >= 93) return 'A'; if (avg >= 90) return 'A−';
+    if (avg >= 87) return 'B+'; if (avg >= 83) return 'B'; if (avg >= 80) return 'B−';
+    if (avg >= 77) return 'C+'; if (avg >= 73) return 'C'; if (avg >= 70) return 'C−';
+    if (avg >= 67) return 'D+'; if (avg >= 60) return 'D';
+    return 'F';
+}
+
+function calcNeededScore(course) {
+    if (!course.targetGrade || course.grades.length === 0) return null;
+    var target = course.targetGrade;
+    var n = course.grades.length;
+    var currentSum = course.grades.reduce(function(s,g){ return s+(parseFloat(g.score)||0); }, 0);
+    // What do I need on the next exam to reach my target given existing grades?
+    // (currentSum + needed) / (n+1) >= target => needed = target*(n+1) - currentSum
+    var needed = target * (n + 1) - currentSum;
+    return Math.min(needed, 100).toFixed(1);
+}
+
 function renderGradeCalc() {
     var panel = document.getElementById('grade-calc-panel');
     if (!panel) return;
     var courses = getGradeCourses();
     if (courses.length === 0) {
-        panel.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted);"><i class="ph ph-chart-bar" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.4;"></i><div>No courses yet. Click <strong style="color:white;">Add Course</strong> to get started.</div></div>';
+        panel.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted);"><i class="ph ph-chart-bar" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.4;"></i><div style="font-size:1rem;">No courses yet.</div><div style="font-size:0.85rem;margin-top:6px;">Click <strong style="color:white;">Add Course</strong> above to get started.</div></div>';
         return;
     }
     var avgs = courses.map(calcCourseAvg).filter(function(a){ return a!==null; });
-    var overallGPA = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length).toFixed(1) : '—';
-    var gpa4 = avgs.length ? Math.max(0, Math.min(4, ((avgs.reduce(function(s,a){return s+a;},0)/avgs.length)-60)/10)).toFixed(2) : '—';
+    var overallPct = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length) : null;
+    var overallGPA = overallPct !== null ? overallPct.toFixed(1) : '—';
+    var overallLetter = letterGradeDetailed(overallPct);
+    // 4.0 scale: simplified conversion
+    var gpa4 = overallPct !== null ? Math.max(0, Math.min(4, (overallPct - 60) / 10)).toFixed(2) : '—';
+    var bestCourse = courses.reduce(function(b,c){ var a=calcCourseAvg(c); return (a!==null&&(b===null||a>b.avg))?{name:c.name,avg:a}:b; }, null);
 
-    var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.8rem;font-weight:700;color:var(--accent);">'+overallGPA+'%</div><div style="font-size:0.78rem;color:var(--text-muted);">Overall Avg</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.8rem;font-weight:700;color:#a855f7;">'+gpa4+'</div><div style="font-size:0.78rem;color:var(--text-muted);">GPA (4.0)</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.8rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div><div style="font-size:0.78rem;color:var(--text-muted);">Courses</div></div>'
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;">'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
+            +'<div style="font-size:1.8rem;font-weight:700;color:'+gradeColor(overallPct)+';">'+overallGPA+'%</div>'
+            +'<div style="font-size:0.78rem;color:var(--text-muted);">Overall Avg</div>'
+        +'</div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
+            +'<div style="font-size:1.8rem;font-weight:700;color:#a855f7;">'+overallLetter+'</div>'
+            +'<div style="font-size:0.78rem;color:var(--text-muted);">Letter Grade</div>'
+        +'</div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
+            +'<div style="font-size:1.8rem;font-weight:700;color:#00CEC9;">'+gpa4+'</div>'
+            +'<div style="font-size:0.78rem;color:var(--text-muted);">GPA (4.0)</div>'
+        +'</div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
+            +'<div style="font-size:1.8rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div>'
+            +'<div style="font-size:0.78rem;color:var(--text-muted);">Courses</div>'
+        +'</div>'
+    +'</div>';
+
+    // Overall grade progress bar
+    if (overallPct !== null) {
+        var barColor = gradeColor(overallPct);
+        html += '<div class="glass-panel" style="padding:14px;margin-bottom:16px;">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+                +'<span style="font-size:0.82rem;font-weight:600;color:white;">Overall Progress</span>'
+                +(bestCourse?'<span style="font-size:0.75rem;color:var(--text-muted);">Best: '+bestCourse.name+' ('+bestCourse.avg.toFixed(1)+'%)</span>':'')
+            +'</div>'
+            +'<div style="height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;">'
+                +'<div style="height:100%;width:'+Math.min(100,overallPct)+'%;background:linear-gradient(90deg,'+barColor+','+barColor+'cc);border-radius:5px;transition:width 0.5s;"></div>'
+            +'</div>'
+            +'<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-muted);margin-top:4px;">'
+                +'<span>0%</span><span>60% (D)</span><span>70% (C)</span><span>80% (B)</span><span>90% (A)</span><span>100%</span>'
+            +'</div>'
         +'</div>';
+    }
 
     courses.forEach(function(course) {
         var avg = calcCourseAvg(course);
-        var letter = letterGrade(avg);
+        var letter = letterGradeDetailed(avg);
         var color  = gradeColor(avg);
         var pct    = avg !== null ? avg.toFixed(1) : '—';
+
+        // Target tracking
         var targetNote = '';
         if (avg !== null && course.targetGrade) {
-            if (avg >= course.targetGrade) targetNote = '<div style="font-size:0.8rem;color:#00b894;padding:6px 10px;background:rgba(0,184,148,0.1);border-radius:6px;margin-bottom:10px;">On track for your '+course.targetGrade+'% target</div>';
-            else targetNote = '<div style="font-size:0.8rem;color:#fdcb6e;padding:6px 10px;background:rgba(253,203,110,0.1);border-radius:6px;margin-bottom:10px;">Need '+(course.targetGrade-avg).toFixed(1)+'% more for '+course.targetGrade+'% target</div>';
+            var needed = calcNeededScore(course);
+            if (avg >= course.targetGrade) {
+                targetNote = '<div style="font-size:0.8rem;color:#00b894;padding:7px 10px;background:rgba(0,184,148,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> On track for your '+course.targetGrade+'% target</div>';
+            } else if (needed !== null) {
+                targetNote = '<div style="font-size:0.8rem;color:#fdcb6e;padding:7px 10px;background:rgba(253,203,110,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="ph ph-warning"></i> Need '+needed+'% on next assessment to reach '+course.targetGrade+'%</div>';
+            }
         }
+
+        // Grade progress bar
+        var barWidth = avg !== null ? Math.min(100, avg).toFixed(0) : 0;
+        var gradeBar = '<div style="height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;margin-bottom:10px;">'
+            +'<div style="height:100%;width:'+barWidth+'%;background:linear-gradient(90deg,'+color+','+color+'aa);border-radius:3px;transition:width 0.5s;"></div>'
+            +'</div>';
+
+        // Category type breakdown
+        var catCounts = {};
+        (course.grades||[]).forEach(function(g){ var c=g.category||'other'; catCounts[c]=(catCounts[c]||0)+1; });
+        var catBreakdown = Object.keys(catCounts).length > 1
+            ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
+                + Object.keys(catCounts).map(function(c){ return '<span style="font-size:0.68rem;padding:2px 8px;border-radius:10px;background:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'22;color:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+';border:1px solid '+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'44;">'+c+': '+catCounts[c]+'</span>'; }).join('')
+              + '</div>'
+            : '';
+
         var gradesHtml = (course.grades||[]).map(function(g,gi){
-            return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><div style="flex:1;font-size:0.85rem;color:white;">'+(g.name||'Grade '+(gi+1))+'</div><div style="font-size:0.85rem;font-weight:600;color:'+gradeColor(parseFloat(g.score))+';">'+g.score+'%</div>'+(g.weight&&g.weight!==1?'<div style="font-size:0.75rem;color:var(--text-muted);">x'+g.weight+'w</div>':'')+'<button onclick="deleteGrade('+course.id+','+gi+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.85rem;padding:2px 4px;"><i class="ph ph-x"></i></button></div>';
+            var catColor = GRADE_CATEGORY_COLORS[g.category||'other'] || 'var(--text-muted)';
+            var catTag = g.category ? '<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:'+catColor+'22;color:'+catColor+';border:1px solid '+catColor+'44;margin-right:4px;">'+g.category+'</span>' : '';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);">'
+                +'<div style="flex:1;font-size:0.85rem;color:white;min-width:0;">'
+                    +'<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+catTag+(g.name||'Grade '+(gi+1))+'</div>'
+                +'</div>'
+                +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+                    +'<div style="font-size:0.85rem;font-weight:600;color:'+gradeColor(parseFloat(g.score))+';">'+g.score+'%</div>'
+                    +(g.weight&&g.weight!==1?'<div style="font-size:0.72rem;color:var(--text-muted);">×'+g.weight+'</div>':'')
+                    +'<button onclick="deleteGrade('+course.id+','+gi+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:2px 4px;" title="Delete"><i class="ph ph-x"></i></button>'
+                +'</div>'
+            +'</div>';
         }).join('');
+
         html += '<div class="glass-panel" style="padding:16px;margin-bottom:12px;">'
-            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
-            +'<div><div style="font-weight:700;color:white;font-size:1.05rem;">'+course.name+'</div><div style="font-size:0.8rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered</div></div>'
-            +'<div style="text-align:right;"><div style="font-size:2rem;font-weight:700;color:'+color+';">'+letter+'</div><div style="font-size:0.85rem;color:'+color+';">'+pct+'%</div></div></div>'
-            +targetNote
-            +'<div style="margin-bottom:10px;">'+gradesHtml+'</div>'
+            // Course header
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">'
+                +'<div style="min-width:0;flex:1;">'
+                    +'<div style="font-weight:700;color:white;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+course.name+'</div>'
+                    +'<div style="font-size:0.78rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered'+(course.targetGrade?' &bull; Target: '+course.targetGrade+'%':'')+'</div>'
+                +'</div>'
+                +'<div style="text-align:right;flex-shrink:0;">'
+                    +'<div style="font-size:2rem;font-weight:700;line-height:1;color:'+color+';">'+letter+'</div>'
+                    +'<div style="font-size:0.82rem;color:'+color+';">'+pct+'%</div>'
+                +'</div>'
+            +'</div>'
+            + gradeBar
+            + targetNote
+            + catBreakdown
+            + (course.grades.length > 0 ? '<div style="margin-bottom:12px;max-height:200px;overflow-y:auto;">'+gradesHtml+'</div>' : '')
             +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-            +'<button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;" onclick="openAddGradeModal('+course.id+')"><i class="ph ph-plus"></i> Add Grade</button>'
-            +'<button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;" onclick="openTargetModal('+course.id+')"><i class="ph ph-target"></i> Set Target</button>'
-            +'<button style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:6px 10px;" onclick="deleteCourse('+course.id+')"><i class="ph ph-trash"></i> Remove</button>'
-            +'</div></div>';
+                +'<button class="btn-primary" style="font-size:0.8rem;padding:7px 12px;" onclick="openAddGradeModal('+course.id+')"><i class="ph ph-plus"></i> Add Grade</button>'
+                +'<button class="btn-secondary" style="font-size:0.8rem;padding:7px 10px;" onclick="openTargetModal('+course.id+')"><i class="ph ph-target"></i> Target</button>'
+                +'<button class="btn-secondary" style="font-size:0.8rem;padding:7px 10px;" onclick="openGradeAiAnalysis('+course.id+')"><i class="ph ph-sparkle"></i> AI Advice</button>'
+                +'<button style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:7px 10px;" onclick="deleteCourse('+course.id+')"><i class="ph ph-trash"></i> Remove</button>'
+            +'</div>'
+        +'</div>';
     });
     panel.innerHTML = html;
 }
@@ -21651,23 +22499,63 @@ function openAddGradeModal(courseId) {
     modal.id = 'grade-modal-overlay';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = '<div class="glass-panel" style="max-width:380px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;">Add Grade</h3><button class="btn-icon" onclick="document.getElementById(\'grade-modal-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Assignment Name</label><input id="grade-name" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. Unit 3 Test"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Score (%)</label><input id="grade-score" class="input-field" type="number" min="0" max="100" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. 87"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Weight (optional)</label><input id="grade-weight" class="input-field" type="number" min="0" max="10" step="0.5" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="1"><div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'grade-modal-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="addGrade('+courseId+')">Add Grade</button></div></div>';
+    modal.innerHTML = `
+    <div class="glass-panel" style="max-width:400px;width:100%;padding:28px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <h3 style="margin:0;color:white;"><i class="ph ph-plus-circle" style="color:var(--accent);"></i> Add Grade</h3>
+            <button class="btn-icon" onclick="document.getElementById('grade-modal-overlay').remove()"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Assignment Name</label>
+                <input id="grade-name" class="input-field" placeholder="e.g. Unit 3 Test">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                    <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Category</label>
+                    <select id="grade-category" class="input-field">
+                        <option value="test">Test / Exam</option>
+                        <option value="quiz">Quiz</option>
+                        <option value="homework" selected>Homework</option>
+                        <option value="project">Project</option>
+                        <option value="lab">Lab</option>
+                        <option value="participation">Participation</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Score (%)*</label>
+                    <input id="grade-score" class="input-field" type="number" min="0" max="100" placeholder="e.g. 87">
+                </div>
+            </div>
+            <div>
+                <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Weight (optional — 1 = normal)</label>
+                <input id="grade-weight" class="input-field" type="number" min="0" max="10" step="0.5" placeholder="1">
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+            <button class="btn-secondary" onclick="document.getElementById('grade-modal-overlay').remove()">Cancel</button>
+            <button class="btn-primary" onclick="addGrade(${courseId})">Add Grade</button>
+        </div>
+    </div>`;
     document.body.appendChild(modal);
-    setTimeout(function(){ var el=document.getElementById('grade-score'); if(el) el.focus(); }, 100);
+    setTimeout(function(){ var el=document.getElementById('grade-name'); if(el) el.focus(); }, 100);
 }
 function addGrade(courseId) {
     var score = parseFloat(document.getElementById('grade-score').value);
     if (isNaN(score)||score<0||score>100) { showToast('Enter a valid score (0-100).', 'error'); return; }
-    var name   = (document.getElementById('grade-name').value||'').trim() || 'Grade';
-    var weight = parseFloat(document.getElementById('grade-weight').value)||1;
+    var name     = (document.getElementById('grade-name').value||'').trim() || 'Grade';
+    var category = (document.getElementById('grade-category')||{}).value || 'other';
+    var weight   = parseFloat(document.getElementById('grade-weight').value)||1;
     var courses = getGradeCourses();
     var idx = courses.findIndex(function(c){ return c.id===courseId; });
     if (idx<0) return;
-    courses[idx].grades.push({ name: name, score: score, weight: weight });
+    courses[idx].grades.push({ name: name, score: score, weight: weight, category: category });
     saveGradeCourses(courses);
     document.getElementById('grade-modal-overlay').remove();
     renderGradeCalc();
     showToast('Grade added!', 'success', 2000);
+    logStudyEvent('grade', `${courses[idx].name}: ${name} — ${score}% (${category})`);
 }
 function openTargetModal(courseId) {
     var courses = getGradeCourses();
@@ -21694,6 +22582,57 @@ function deleteCourse(courseId) {
     saveGradeCourses(getGradeCourses().filter(function(c){ return c.id!==courseId; }));
     renderGradeCalc();
     showToast('Course removed.', 'info', 1500);
+}
+
+// v13.1 — AI academic advice for a specific course
+async function openGradeAiAnalysis(courseId) {
+    var courses = getGradeCourses();
+    var course = courses.find(function(c){ return c.id===courseId; });
+    if (!course) return;
+    var apiKey = getApiKey();
+    if (!apiKey) { showToast('Add your API key in Settings to use AI analysis.','error',3000); return; }
+
+    var avg = calcCourseAvg(course);
+    var letter = letterGradeDetailed(avg);
+    var gradeList = (course.grades||[]).map(function(g){ return g.category+': '+g.name+' = '+g.score+'%'+(g.weight&&g.weight!==1?' (weight: '+g.weight+')':''); }).join(', ');
+
+    var modal = document.createElement('div');
+    modal.id = 'grade-ai-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:500px;width:100%;padding:0;border:1px solid rgba(0,206,201,0.35);overflow:hidden;">'
+        +'<div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.08));display:flex;align-items:center;gap:10px;">'
+            +'<div style="flex:1;"><div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;margin-bottom:2px;">AI ACADEMIC ADVISOR</div><div style="color:white;font-size:0.92rem;font-weight:600;">'+course.name+'</div></div>'
+            +'<button class="btn-icon" onclick="document.getElementById(\'grade-ai-modal\').remove()"><i class="ph ph-x"></i></button>'
+        +'</div>'
+        +'<div style="padding:20px;" id="grade-ai-body"><div style="color:var(--accent);display:flex;align-items:center;gap:8px;"><i class="ph ph-spinner ph-spin"></i> Analyzing your grades…</div></div>'
+    +'</div>';
+    document.body.appendChild(modal);
+
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+            body: JSON.stringify({
+                model:'gpt-4o',
+                messages:[
+                    {role:'system', content:`You are NEXUS academic advisor. Analyze a student's grade data and give actionable, encouraging advice.
+Format your response as clean HTML (no markdown). Use <strong>, <ul><li>, <br>.
+Be specific and practical. Keep it under 250 words.`},
+                    {role:'user', content:`Course: ${course.name}\nCurrent average: ${avg!==null?avg.toFixed(1)+'%':'Not enough grades'} (${letter})\nTarget: ${course.targetGrade?course.targetGrade+'%':'Not set'}\nGrades: ${gradeList||'No grades yet.'}\n\nGive me: 1) What my grade trend shows 2) Specific things to focus on 3) How to reach my target if set.`}
+                ],
+                temperature:0.6,max_tokens:400
+            })
+        });
+        var data = await res.json();
+        if(data.error) throw new Error(data.error.message);
+        var answer = data.choices[0].message.content||'';
+        var cleaned = typeof convertMarkdownLeaks==='function'?convertMarkdownLeaks(answer):answer;
+        var body = document.getElementById('grade-ai-body');
+        if(body){ body.style.opacity='0'; body.innerHTML='<div style="line-height:1.65;font-size:0.88rem;color:#dde0ee;">'+cleaned+'</div>'; requestAnimationFrame(function(){body.style.transition='opacity 0.35s';body.style.opacity='1';}); }
+    } catch(err) {
+        var b=document.getElementById('grade-ai-body'); if(b) b.innerHTML='<p style="color:#ff6b6b;">Error: '+err.message+'</p>';
+    }
 }
 function exportGradesPDF() {
     var courses = getGradeCourses();
@@ -21744,7 +22683,7 @@ function copyText(text) {
         var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Copied!', 'success', 1800);
     });
 }
-var CIT_FIELDS = {
+var _CIT_FIELDS_V13 = {
     book:      [{id:'author',label:'Author(s)',ph:'Last, First',req:1},{id:'title',label:'Title',ph:'Full title',req:1},{id:'publisher',label:'Publisher',ph:'Publisher'},{id:'year',label:'Year',ph:'2024'},{id:'city',label:'City',ph:'New York'},{id:'pages',label:'Pages',ph:'12-34'}],
     website:   [{id:'author',label:'Author / Site Name',ph:'Last, First or Site'},{id:'title',label:'Page Title',ph:'Full title',req:1},{id:'site',label:'Website Name',ph:'Example.com',req:1},{id:'url',label:'URL',ph:'https://...',req:1},{id:'published',label:'Published Date',ph:'12 Jan 2024'},{id:'accessed',label:'Accessed Date',ph:'15 May 2024'}],
     journal:   [{id:'author',label:'Author(s)',ph:'Last, First',req:1},{id:'title',label:'Article Title',ph:'Full title',req:1},{id:'journal',label:'Journal Name',ph:'Journal of...',req:1},{id:'volume',label:'Volume',ph:'12'},{id:'issue',label:'Issue',ph:'3'},{id:'year',label:'Year',ph:'2024'},{id:'pages',label:'Pages',ph:'45-67'},{id:'doi',label:'DOI / URL',ph:'10.1000/...'}],
@@ -21754,7 +22693,7 @@ var CIT_FIELDS = {
 function renderCitationForm() {
     var area = document.getElementById('cit-form-area');
     if (!area) return;
-    var fields = CIT_FIELDS[_citType] || CIT_FIELDS.book;
+    var fields = _CIT_FIELDS_V13[_citType] || _CIT_FIELDS_V13.book;
     area.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px;">'
         + fields.map(function(f){ return '<div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:3px;">'+f.label+(f.req?'<span style="color:#ff6b6b;"> *</span>':'')+'</label><input id="cit-field-'+f.id+'" class="input-field" style="width:100%;padding:10px;" placeholder="'+(f.ph||'')+'"></div>'; }).join('')
         + '</div><button class="btn-primary" style="margin-top:14px;width:100%;" onclick="generateCitation()"><i class="ph ph-quotes"></i> Generate Citation</button>';
@@ -21816,6 +22755,125 @@ function exportCitationsPDF() {
 }
 
 // ─────────────────────────────────────────
+// QUICK STUDY QUIZ — Subject-specific entry point
+// ─────────────────────────────────────────
+function openQuickStudyQuiz(subject) {
+    const subjectColors = {
+        'Math':'#6c5ce7','Science':'#00b894','English':'#a29bfe','Social Studies':'#fd79a8'
+    };
+    const color = subjectColors[subject] || 'var(--accent)';
+    const existing = document.getElementById('quick-quiz-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'quick-quiz-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = e => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+    <div class="glass-panel" style="max-width:540px;width:100%;padding:0;border:1px solid ${color}55;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;">
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,${color}22,rgba(0,0,0,0.2));display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.72rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">Quiz Yourself</div>
+                <div style="color:white;font-size:0.92rem;font-weight:600;">${subject} — AI Quiz Generator</div>
+            </div>
+            <button class="btn-icon" onclick="document.getElementById('quick-quiz-modal').remove()"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:20px;overflow-y:auto;flex:1;" id="quick-quiz-body">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 14px;">Paste notes, a textbook excerpt, or describe a topic and the AI will generate a quiz for you.</p>
+            <textarea id="quick-quiz-input" class="input-field" style="width:100%;min-height:130px;resize:vertical;font-size:0.88rem;" placeholder="Paste your ${subject} notes here, or just type a topic like 'photosynthesis' or 'quadratic equations'…"></textarea>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;">
+                <div>
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Questions</label>
+                    <select id="quick-quiz-count" class="input-field" style="width:100%;padding:10px;">
+                        <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Difficulty</label>
+                    <select id="quick-quiz-diff" class="input-field" style="width:100%;padding:10px;">
+                        <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
+                    </select>
+                </div>
+            </div>
+            <button id="quick-quiz-btn" class="btn-primary" style="width:100%;padding:12px;" onclick="runQuickStudyQuiz('${subject}')">
+                <i class="ph ph-magic-wand"></i> Generate Quiz
+            </button>
+            <div id="quick-quiz-status" style="margin-top:10px;color:var(--text-muted);font-size:0.85rem;text-align:center;"></div>
+            <div id="quick-quiz-result" style="margin-top:14px;"></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    setTimeout(() => { const el = document.getElementById('quick-quiz-input'); if (el) el.focus(); }, 100);
+}
+
+async function runQuickStudyQuiz(subject) {
+    const text    = (document.getElementById('quick-quiz-input')||{}).value || '';
+    const count   = parseInt((document.getElementById('quick-quiz-count')||{}).value || '10');
+    const diff    = (document.getElementById('quick-quiz-diff')||{}).value || 'medium';
+    const btn     = document.getElementById('quick-quiz-btn');
+    const status  = document.getElementById('quick-quiz-status');
+    const result  = document.getElementById('quick-quiz-result');
+
+    if (text.trim().length < 10) { showToast('Add some notes or a topic first.','error'); return; }
+
+    const apiKey = getApiKey();
+    if (!apiKey) { showToast('Add API key in Settings to use quiz generation.','error',3500); return; }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Generating…'; }
+    if (status) status.textContent = 'Asking AI to create your quiz…';
+    if (result) result.innerHTML = '';
+
+    const systemPrompt = `You are a quiz generator. Create exactly ${count} multiple-choice ${diff} ${subject} questions from the given text/topic. Return ONLY valid JSON in this format:
+[{"q":"Question text","options":["A","B","C","D"],"correct":0}]
+where "correct" is the 0-based index of the right answer. No commentary, just JSON.`;
+
+    try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: text.length > 3000 ? text.substring(0, 3000) : text }
+                ],
+                temperature: 0.6, max_tokens: 2000
+            })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        let raw = data.choices[0].message.content || '';
+        const jsonStart = raw.indexOf('[');
+        const jsonEnd   = raw.lastIndexOf(']') + 1;
+        if (jsonStart < 0) throw new Error('No quiz data returned');
+        raw = raw.substring(jsonStart, jsonEnd);
+        const questions = JSON.parse(raw);
+
+        // Load into main quiz gen and launch
+        _quizGenQuestions = questions;
+        _quizGenActive    = true;
+        _quizGenCurrent   = 0;
+        _quizGenScore     = 0;
+        _quizGenAnswers   = [];
+
+        // Close the quick modal and open study tools with the quiz
+        const modal = document.getElementById('quick-quiz-modal');
+        if (modal) modal.remove();
+        switchTab('tools');
+        setTimeout(() => {
+            switchToolsTab('quizgen');
+            const panel = document.getElementById('quizgen-panel');
+            if (panel) renderQuizGenQuestion(panel);
+            logStudyEvent('study', `${subject} quiz — ${count} questions`);
+        }, 250);
+    } catch (err) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-magic-wand"></i> Generate Quiz'; }
+        if (status) status.textContent = 'Error: ' + err.message;
+    }
+}
+
+// ─────────────────────────────────────────
 // QUIZ GENERATOR (AI)
 // ─────────────────────────────────────────
 var _quizGenQuestions=[], _quizGenActive=false, _quizGenCurrent=0, _quizGenScore=0, _quizGenAnswers=[];
@@ -21828,7 +22886,7 @@ function renderQuizGen() {
 async function generateNotesQuiz() {
     var text = (document.getElementById('quizgen-input') ? document.getElementById('quizgen-input').value : '').trim();
     if (text.length < 50) { showToast('Paste at least 50 characters of notes.', 'error'); return; }
-    var apiKey = localStorage.getItem('openai_api_key');
+    var apiKey = getApiKey();
     if (!apiKey) { showToast('Add your OpenAI API key in Settings > AI.', 'error'); return; }
     var count = parseInt((document.getElementById('quizgen-count')||{}).value||'10');
     var diff  = (document.getElementById('quizgen-diff')||{}).value||'medium';
@@ -22085,27 +23143,72 @@ function renderStudyHistoryChart(canvasId) {
 // ─────────────────────────────────────────
 // DAILY CHALLENGES
 // ─────────────────────────────────────────
+// v13.1 — Expanded challenge bank: 60+ challenges across 5 subjects + difficulty levels
 var DAILY_CHALLENGES=[
-    {subject:'Math',question:'Solve: 3x + 7 = 22',answer:'x = 5',hint:'Subtract 7 from both sides, then divide by 3.'},
-    {subject:'Math',question:'What is 15% of 240?',answer:'36',hint:'Multiply 240 × 0.15.'},
-    {subject:'Math',question:'Simplify: (x²)(x³)',answer:'x⁵',hint:'Add the exponents when multiplying same base.'},
-    {subject:'Math',question:'Find the area of a triangle with base 8 and height 5.',answer:'20 sq units',hint:'Area = ½ × base × height.'},
-    {subject:'Math',question:'What is √144?',answer:'12',hint:'Think: 12 × 12 = 144.'},
-    {subject:'Math',question:'What is 7² − 3²?',answer:'40',hint:'49 − 9 = 40.'},
-    {subject:'Math',question:'Convert 0.75 to a fraction in simplest form.',answer:'3/4',hint:'75/100 simplified.'},
-    {subject:'Science',question:'What is the chemical formula for water?',answer:'H₂O',hint:'Two hydrogen, one oxygen.'},
-    {subject:'Science',question:'What organelle is the powerhouse of the cell?',answer:'Mitochondria',hint:'It produces ATP through cellular respiration.'},
-    {subject:'Science',question:"What is Newton's Second Law?",answer:'F = ma (Force = mass × acceleration)',hint:'Think: force equals mass times acceleration.'},
-    {subject:'Science',question:'What planet is closest to the Sun?',answer:'Mercury',hint:'First of the eight planets.'},
-    {subject:'Science',question:'What is the atomic number of Carbon?',answer:'6',hint:'Count the protons on the periodic table.'},
-    {subject:'Science',question:'What gas do plants absorb for photosynthesis?',answer:'Carbon dioxide (CO₂)',hint:'The gas we exhale.'},
-    {subject:'English',question:'What is a simile?',answer:'A comparison using "like" or "as"',hint:'Example: "as brave as a lion."'},
-    {subject:'English',question:'What is the plural of "criterion"?',answer:'Criteria',hint:'Greek origin — like "data" from "datum."'},
-    {subject:'English',question:'Identify the verb: "The dog quickly ran home."',answer:'"ran" is the verb',hint:'What action is being performed?'},
-    {subject:'English',question:'What is an oxymoron?',answer:'Two contradictory words together (e.g., "deafening silence")',hint:'Think "bittersweet."'},
-    {subject:'English',question:'What is the difference between a metaphor and a simile?',answer:'A metaphor directly states a comparison; a simile uses "like" or "as"',hint:'Metaphor: "Life is a journey." Simile: "Life is like a journey."'},
-    {subject:'Social',question:'What year did World War II end?',answer:'1945',hint:'V-E Day was May 8, V-J Day was September 2.'},
-    {subject:'Social',question:'Who wrote the Declaration of Independence?',answer:'Thomas Jefferson (primary author)',hint:'He became the 3rd US President.'}
+    // ── MATH ──────────────────────────────────────────────────────
+    {subject:'Math',difficulty:'easy',  question:'Solve: 3x + 7 = 22',answer:'x = 5',hint:'Subtract 7 from both sides, then divide by 3.'},
+    {subject:'Math',difficulty:'easy',  question:'What is 15% of 240?',answer:'36',hint:'Multiply 240 × 0.15.'},
+    {subject:'Math',difficulty:'easy',  question:'Simplify: (x²)(x³)',answer:'x⁵',hint:'Add the exponents when multiplying the same base.'},
+    {subject:'Math',difficulty:'easy',  question:'Find the area of a triangle with base 8 cm and height 5 cm.',answer:'20 cm²',hint:'Area = ½ × base × height.'},
+    {subject:'Math',difficulty:'easy',  question:'What is √144?',answer:'12',hint:'Think: 12 × 12 = 144.'},
+    {subject:'Math',difficulty:'easy',  question:'What is 7² − 3²?',answer:'40',hint:'49 − 9 = 40.'},
+    {subject:'Math',difficulty:'easy',  question:'Convert 0.75 to a fraction in simplest form.',answer:'3/4',hint:'75/100 — divide both by 25.'},
+    {subject:'Math',difficulty:'easy',  question:'What is the slope of a line through (0,0) and (4,8)?',answer:'2',hint:'slope = rise ÷ run = 8 ÷ 4.'},
+    {subject:'Math',difficulty:'medium',question:'Factor completely: x² − 9',answer:'(x + 3)(x − 3)',hint:'This is a difference of squares: a² − b² = (a+b)(a−b).'},
+    {subject:'Math',difficulty:'medium',question:'Solve: x² − 5x + 6 = 0',answer:'x = 2 or x = 3',hint:'Factor: find two numbers that multiply to 6 and add to −5.'},
+    {subject:'Math',difficulty:'medium',question:'What is the distance between (1, 2) and (4, 6)?',answer:'5 units',hint:'Distance = √[(4−1)² + (6−2)²] = √(9+16).'},
+    {subject:'Math',difficulty:'medium',question:'A car travels 300 km in 4 hours. What is its average speed?',answer:'75 km/h',hint:'Speed = distance ÷ time.'},
+    {subject:'Math',difficulty:'medium',question:'Simplify: (3x²y)(4xy³)',answer:'12x³y⁴',hint:'Multiply coefficients, then add exponents for each variable.'},
+    {subject:'Math',difficulty:'medium',question:'What is 40% of 85?',answer:'34',hint:'85 × 0.40 = ?'},
+    {subject:'Math',difficulty:'hard',  question:'If f(x) = 2x² − 3x + 1, what is f(3)?',answer:'10',hint:'Substitute x = 3: 2(9) − 3(3) + 1.'},
+    {subject:'Math',difficulty:'hard',  question:'Solve the system: 2x + y = 7 and x − y = 2',answer:'x = 3, y = 1',hint:'Add the two equations to eliminate y.'},
+    {subject:'Math',difficulty:'hard',  question:'What is the sum of interior angles of a hexagon?',answer:'720°',hint:'Formula: (n − 2) × 180°, where n = 6.'},
+    {subject:'Math',difficulty:'hard',  question:'The probability of flipping heads twice in a row is?',answer:'1/4 (25%)',hint:'Multiply: 1/2 × 1/2.'},
+    // ── SCIENCE ───────────────────────────────────────────────────
+    {subject:'Science',difficulty:'easy',  question:'What is the chemical formula for water?',answer:'H₂O',hint:'Two hydrogen atoms bonded to one oxygen atom.'},
+    {subject:'Science',difficulty:'easy',  question:'What organelle is known as the powerhouse of the cell?',answer:'Mitochondria',hint:'It produces ATP through cellular respiration.'},
+    {subject:'Science',difficulty:'easy',  question:'What is Newton\'s Second Law of Motion?',answer:'F = ma (Force = mass × acceleration)',hint:'A larger force or smaller mass = more acceleration.'},
+    {subject:'Science',difficulty:'easy',  question:'What planet is closest to the Sun?',answer:'Mercury',hint:'It is the smallest planet in our solar system.'},
+    {subject:'Science',difficulty:'easy',  question:'What is the atomic number of Carbon?',answer:'6',hint:'Count the protons on the periodic table.'},
+    {subject:'Science',difficulty:'easy',  question:'What gas do plants absorb during photosynthesis?',answer:'Carbon dioxide (CO₂)',hint:'The same gas humans exhale.'},
+    {subject:'Science',difficulty:'medium',question:'What is the difference between mitosis and meiosis?',answer:'Mitosis produces 2 identical diploid cells; meiosis produces 4 haploid gametes with genetic variation.',hint:'Meiosis involves two division rounds and crossing over.'},
+    {subject:'Science',difficulty:'medium',question:'What is Avogadro\'s number?',answer:'6.022 × 10²³',hint:'It represents the number of particles in one mole of a substance.'},
+    {subject:'Science',difficulty:'medium',question:'What is the pH of a neutral solution at 25°C?',answer:'7',hint:'Acids are below 7, bases are above 7.'},
+    {subject:'Science',difficulty:'medium',question:'What type of bond involves the sharing of electrons?',answer:'Covalent bond',hint:'Ionic bonds involve electron transfer instead.'},
+    {subject:'Science',difficulty:'medium',question:'What law states that energy cannot be created or destroyed?',answer:'The Law of Conservation of Energy (First Law of Thermodynamics)',hint:'Energy only changes form.'},
+    {subject:'Science',difficulty:'hard',  question:'What is the speed of light in a vacuum?',answer:'≈ 3 × 10⁸ m/s (299,792,458 m/s)',hint:'Represented by the letter c.'},
+    {subject:'Science',difficulty:'hard',  question:'What is the process by which plants convert sunlight into glucose?',answer:'Photosynthesis: 6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂',hint:'Occurs in the chloroplasts using chlorophyll.'},
+    {subject:'Science',difficulty:'hard',  question:'What is natural selection?',answer:'The process where organisms with favorable traits survive and reproduce more successfully, passing traits to offspring.',hint:'Darwin described this as the mechanism of evolution.'},
+    // ── ENGLISH ───────────────────────────────────────────────────
+    {subject:'English',difficulty:'easy',  question:'What is a simile?',answer:'A comparison using "like" or "as" (e.g., "as brave as a lion")',hint:'It explicitly compares two things with a linking word.'},
+    {subject:'English',difficulty:'easy',  question:'What is the plural of "criterion"?',answer:'Criteria',hint:'Greek origin — similar to "data" (from "datum").'},
+    {subject:'English',difficulty:'easy',  question:'Identify the verb: "The dog quickly ran home."',answer:'"ran" is the main verb',hint:'Ask: what action is performed?'},
+    {subject:'English',difficulty:'easy',  question:'What is an oxymoron?',answer:'Two contradictory words used together (e.g., "deafening silence")',hint:'Think "bittersweet" or "living death."'},
+    {subject:'English',difficulty:'easy',  question:'What does "protagonist" mean?',answer:'The main character in a story',hint:'They drive the plot forward; from Greek "protos" (first).'},
+    {subject:'English',difficulty:'medium',question:'What is the difference between a metaphor and a simile?',answer:'A metaphor directly states the comparison ("life IS a journey"); a simile uses "like" or "as" ("life is LIKE a journey")',hint:'Similes need a comparison word; metaphors are direct.'},
+    {subject:'English',difficulty:'medium',question:'What is dramatic irony?',answer:'When the audience knows something that a character does not',hint:'Classic example: Romeo not knowing Juliet is alive.'},
+    {subject:'English',difficulty:'medium',question:'What is the difference between "affect" and "effect"?',answer:'"Affect" is usually a verb (to influence); "effect" is usually a noun (the result)',hint:'Try "A for action (verb), E for end-result (noun)."'},
+    {subject:'English',difficulty:'medium',question:'Name the three types of irony.',answer:'Verbal irony, situational irony, and dramatic irony',hint:'Verbal = saying the opposite; situational = unexpected outcome.'},
+    {subject:'English',difficulty:'hard',  question:'What is a Petrarchan sonnet?',answer:'A 14-line poem divided into an octave (8 lines) and sestet (6 lines), typically following an ABBAABBA CDECDE rhyme scheme',hint:'Developed by Francesco Petrarch; contrasts with Shakespearean sonnets.'},
+    {subject:'English',difficulty:'hard',  question:'What literary device involves attributing human qualities to non-human things?',answer:'Personification',hint:'"The wind whispered through the trees" — wind cannot whisper.'},
+    // ── SOCIAL STUDIES ────────────────────────────────────────────
+    {subject:'Social',difficulty:'easy',  question:'What year did World War II end?',answer:'1945',hint:'V-E Day (Europe) was May 8; V-J Day (Japan) was September 2.'},
+    {subject:'Social',difficulty:'easy',  question:'Who was the primary author of the Declaration of Independence?',answer:'Thomas Jefferson',hint:'He later became the 3rd President of the United States.'},
+    {subject:'Social',difficulty:'easy',  question:'What is the capital city of France?',answer:'Paris',hint:'Home of the Eiffel Tower.'},
+    {subject:'Social',difficulty:'easy',  question:'What ocean is the largest in the world?',answer:'The Pacific Ocean',hint:'It covers more than 30% of Earth\'s surface.'},
+    {subject:'Social',difficulty:'easy',  question:'In what year did the American Civil War begin?',answer:'1861',hint:'It ended in 1865.'},
+    {subject:'Social',difficulty:'medium',question:'What was the main cause of the Cold War?',answer:'Ideological conflict between US capitalism/democracy and Soviet communism, plus post-WWII power struggles',hint:'Think: NATO vs. Warsaw Pact, arms race, proxy wars.'},
+    {subject:'Social',difficulty:'medium',question:'What is the purpose of checks and balances in US government?',answer:'To prevent any one branch (legislative, executive, judicial) from gaining too much power',hint:'Each branch has ways to limit the others.'},
+    {subject:'Social',difficulty:'medium',question:'What was the Magna Carta and why was it significant?',answer:'A 1215 English charter that limited royal power and established that the king was subject to the rule of law; an early step toward constitutional government.',hint:'Signed by King John — it influenced democracy worldwide.'},
+    {subject:'Social',difficulty:'medium',question:'What caused World War I?',answer:'Immediate cause: assassination of Archduke Franz Ferdinand; underlying causes: MAIN (Militarism, Alliances, Imperialism, Nationalism)',hint:'Use the MAIN acronym.'},
+    {subject:'Social',difficulty:'hard',  question:'What is the difference between a parliamentary and a presidential system of government?',answer:'In a presidential system, the executive (president) is elected separately from the legislature. In a parliamentary system, the executive (prime minister) is drawn from the legislature and depends on its confidence.',hint:'US = presidential; UK = parliamentary.'},
+    {subject:'Social',difficulty:'hard',  question:'What economic theory did John Maynard Keynes develop?',answer:'Keynesian economics — governments should increase spending and lower taxes during recessions to stimulate demand.',hint:'Contrasts with classical "laissez-faire" economics.'},
+    // ── MIXED / BONUS ─────────────────────────────────────────────
+    {subject:'Mixed',difficulty:'medium',question:'What does DNA stand for, and where is it found?',answer:'Deoxyribonucleic Acid — found in the nucleus (and mitochondria) of cells',hint:'It carries the genetic instructions for all living organisms.'},
+    {subject:'Mixed',difficulty:'medium',question:'Name the three branches of the US federal government.',answer:'Legislative (Congress), Executive (President), Judicial (Supreme Court)',hint:'Established by Articles I, II, and III of the Constitution.'},
+    {subject:'Mixed',difficulty:'easy',  question:'Convert 5 km to meters.',answer:'5,000 meters',hint:'1 km = 1,000 m.'},
+    {subject:'Mixed',difficulty:'easy',  question:'What does "protagonist" mean in a story?',answer:'The main character — typically the hero or central figure',hint:'From Greek "protos" (first) + "agonist" (actor/contestant).'},
+    {subject:'Mixed',difficulty:'hard',  question:'What is the difference between weather and climate?',answer:'Weather is the short-term atmospheric conditions in a place; climate is the average pattern of weather over 30+ years.',hint:'"Climate is what you expect; weather is what you get."'},
 ];
 function getTodayChallenge(){var today=new Date().toISOString().slice(0,10),seed=today.replace(/-/g,''),idx=parseInt(seed)%DAILY_CHALLENGES.length;return Object.assign({},DAILY_CHALLENGES[idx],{index:idx});}
 function getDailyChallengeState(){try{return JSON.parse(localStorage.getItem('daily_challenge_state')||'{}');}catch{return{};}}
@@ -22115,19 +23218,84 @@ function renderDailyChallenge() {
     var panel=document.getElementById('daily-challenge-panel'); if(!panel) return;
     var today=new Date().toISOString().slice(0,10), state=getDailyChallengeState(), ch=getTodayChallenge();
     var completed=state.date===today&&state.completed, revealed=state.date===today&&state.revealed;
-    panel.innerHTML='<div style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:14px;padding:20px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><div><div style="font-size:0.7rem;color:var(--accent);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Daily Challenge</div><div style="font-size:0.8rem;color:var(--text-muted);">'+today+' &bull; '+ch.subject+'</div></div><div style="font-size:1.6rem;">🎯</div></div><div style="font-size:1.05rem;font-weight:600;color:white;margin-bottom:16px;line-height:1.5;">'+ch.question+'</div>'
-        +(completed?'<div style="background:rgba(0,184,148,0.15);border:1px solid rgba(0,184,148,0.3);border-radius:10px;padding:12px;margin-bottom:12px;"><div style="color:#00b894;font-weight:600;margin-bottom:4px;"><i class="ph ph-check-circle"></i> Answer: '+ch.answer+'</div><div style="font-size:0.82rem;color:var(--text-muted);">Completed today! +25 XP & +15 credits earned</div></div><div style="font-size:0.8rem;color:var(--text-muted);">Come back tomorrow for a new challenge.</div>'
-            :revealed?'<div style="background:rgba(0,206,201,0.1);border:1px solid rgba(0,206,201,0.25);border-radius:10px;padding:12px;margin-bottom:14px;"><div style="font-size:0.75rem;color:var(--accent);font-weight:700;margin-bottom:4px;">ANSWER</div><div style="color:white;font-weight:600;">'+ch.answer+'</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Hint: '+ch.hint+'</div></div><div style="display:flex;gap:8px;"><button class="btn-secondary" onclick="markDailyChallengeResult(false)" style="flex:1;">I didn\'t get it</button><button class="btn-primary" onclick="markDailyChallengeResult(true)" style="flex:1;"><i class="ph ph-check"></i> I got it! (+25 XP)</button></div>'
-            :'<div style="display:flex;gap:8px;"><button class="btn-secondary" onclick="revealDailyHint()" style="flex:1;"><i class="ph ph-lightbulb"></i> Hint</button><button class="btn-primary" onclick="revealDailyAnswer()" style="flex:1;"><i class="ph ph-eye"></i> Reveal Answer</button></div><div id="dc-hint-area" style="margin-top:10px;"></div>')
-        +'</div>';
+
+    // Subject icons + difficulty colors
+    var subjectIcons={Math:'📐',Science:'🔬',English:'📚',Social:'🌍',Mixed:'🎓'};
+    var diffColors={easy:'#00b894',medium:'#fdcb6e',hard:'#e17055'};
+    var icon=subjectIcons[ch.subject]||'🎯';
+    var diffColor=diffColors[ch.difficulty||'medium']||'#fdcb6e';
+    var diffLabel=(ch.difficulty||'medium').charAt(0).toUpperCase()+(ch.difficulty||'medium').slice(1);
+
+    // Streak info
+    var streak=parseInt(localStorage.getItem('dc_streak')||'0');
+
+    var inner='<div style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:14px;padding:20px;">'
+        // Header row
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;">'
+            +'<div>'
+                +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+                    +'<span style="font-size:0.7rem;color:var(--accent);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">🎯 Daily Challenge</span>'
+                    +'<span style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:'+diffColor+'22;color:'+diffColor+';border:1px solid '+diffColor+'44;">'+diffLabel+'</span>'
+                +'</div>'
+                +'<div style="font-size:0.8rem;color:var(--text-muted);">'+today+' &bull; '+icon+' '+ch.subject+(streak>1?' &bull; 🔥 '+streak+'-day streak':'')+'</div>'
+            +'</div>'
+            +'<div style="font-size:1.8rem;">'+icon+'</div>'
+        +'</div>'
+        // Question
+        +'<div style="font-size:1.05rem;font-weight:600;color:white;margin-bottom:16px;line-height:1.55;">'+ch.question+'</div>';
+
+    if(completed){
+        inner+='<div style="background:rgba(0,184,148,0.15);border:1px solid rgba(0,184,148,0.3);border-radius:10px;padding:14px;margin-bottom:10px;">'
+            +'<div style="color:#00b894;font-weight:700;margin-bottom:6px;"><i class="ph ph-check-circle"></i> Correct Answer: '+ch.answer+'</div>'
+            +'<div style="font-size:0.82rem;color:var(--text-muted);">Completed today! +25 XP &amp; +15 credits earned 🎉</div>'
+            +'</div>'
+            +'<div style="font-size:0.8rem;color:var(--text-muted);">Come back tomorrow for a new challenge.</div>';
+    } else if(revealed){
+        inner+='<div style="background:rgba(0,206,201,0.1);border:1px solid rgba(0,206,201,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">'
+            +'<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:6px;letter-spacing:1px;">✓ ANSWER</div>'
+            +'<div style="color:white;font-weight:600;font-size:1rem;line-height:1.5;">'+ch.answer+'</div>'
+            +'<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">💡 '+ch.hint+'</div>'
+            +'</div>'
+            +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                +'<button class="btn-secondary" onclick="markDailyChallengeResult(false)" style="flex:1;min-width:120px;"><i class="ph ph-x-circle"></i> Didn\'t get it</button>'
+                +'<button class="btn-primary" onclick="markDailyChallengeResult(true)" style="flex:1;min-width:120px;"><i class="ph ph-check"></i> Got it! (+25 XP)</button>'
+            +'</div>';
+    } else {
+        inner+='<div style="margin-bottom:14px;">'
+            +'<label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:6px;">Your answer (optional — self-check)</label>'
+            +'<input id="dc-user-answer" type="text" placeholder="Type your answer here…" class="input-field" style="width:100%;" onkeydown="if(event.key===\'Enter\')revealDailyAnswer();">'
+            +'</div>'
+            +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                +'<button class="btn-secondary" onclick="revealDailyHint()" style="flex:1;min-width:100px;"><i class="ph ph-lightbulb"></i> Hint</button>'
+                +'<button class="btn-primary" onclick="revealDailyAnswer()" style="flex:1;min-width:130px;"><i class="ph ph-eye"></i> Reveal Answer</button>'
+            +'</div>'
+            +'<div id="dc-hint-area" style="margin-top:10px;"></div>';
+    }
+
+    inner+='</div>';
+    panel.innerHTML=inner;
 }
 function revealDailyHint(){var ch=getTodayChallenge();var a=document.getElementById('dc-hint-area');if(a)a.innerHTML='<div style="font-size:0.85rem;color:#fdcb6e;padding:10px;background:rgba(253,203,110,0.08);border-radius:8px;border:1px solid rgba(253,203,110,0.2);"><i class="ph ph-lightbulb"></i> '+ch.hint+'</div>';}
 function revealDailyAnswer(){var today=new Date().toISOString().slice(0,10),state=getDailyChallengeState();saveDailyChallengeState(Object.assign({},state,{date:today,revealed:true,completed:false}));renderDailyChallenge();}
 function markDailyChallengeResult(correct){
     var today=new Date().toISOString().slice(0,10);
     saveDailyChallengeState({date:today,revealed:true,completed:true,correct:correct});
-    if(correct){if(typeof awardXP==='function')awardXP(25);if(typeof addCredits==='function')addCredits(15);showToast('Challenge complete! +25 XP & +15 credits!','success',3500);}
-    else showToast('Keep practicing — try again tomorrow!','info',2500);
+    if(correct){
+        // Update streak
+        var lastDate=localStorage.getItem('dc_last_correct')||'';
+        var yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);
+        var streak=parseInt(localStorage.getItem('dc_streak')||'0');
+        if(lastDate===yesterday) { streak++; } else if(lastDate===today) { /* same day */ } else { streak=1; }
+        localStorage.setItem('dc_streak',String(streak));
+        localStorage.setItem('dc_last_correct',today);
+        if(typeof awardXP==='function')awardXP(25);
+        if(typeof addCredits==='function')addCredits(15);
+        showToast('Challenge complete! +25 XP & +15 credits!'+(streak>1?' 🔥 '+streak+'-day streak!':''),'success',3500);
+        logActivity('study','Daily Challenge correct');
+        logStudyEvent('challenge', 'Daily Challenge completed: ' + ch.question.substring(0,80));
+    } else {
+        showToast('Keep practicing — try again tomorrow!','info',2500);
+    }
     renderDailyChallenge();
 }
 
@@ -22229,15 +23397,9 @@ function switchToolsTab(t) {
     _activeToolsTab = t;
     document.querySelectorAll('.tools-tab-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.tab===t); });
     document.querySelectorAll('.tools-pane').forEach(function(p){ p.style.display=p.dataset.pane===t?'block':'none'; });
-    if(t==='quizgen')  renderQuizGen();
-    if(t==='citation') renderCitationTab();
-    if(t==='srs')      renderSrsHomePanel();
-    if(t==='csv')      renderCsvPanel();
-    if(t==='history')  setTimeout(function(){ renderStudyHistoryChart('study-history-canvas'); },60);
-}
-function renderCsvPanel(){
-    var p=document.getElementById('csv-panel'); if(!p) return;
-    p.innerHTML='<div style="text-align:center;padding:32px 20px;"><div style="font-size:3rem;margin-bottom:12px;">📋</div><h3 style="color:white;margin:0 0 8px;">Import from Quizlet or CSV</h3><p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 20px;max-width:380px;margin-inline:auto;">Paste any term,definition CSV or Quizlet export to instantly create a new flashcard deck.</p><button class="btn-primary" style="padding:12px 28px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV / Quizlet</button></div>';
+    if(t==='quizgen') renderQuizGen();
+    if(t==='srs')     renderSrsHomePanel();
+    if(t==='history') setTimeout(function(){ renderStudyHistoryChart('study-history-canvas'); },60);
 }
 
 // ─────────────────────────────────────────

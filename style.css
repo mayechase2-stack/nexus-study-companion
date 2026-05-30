@@ -129,11 +129,13 @@ body {
 
 .view {
     display: none;
-    animation: fadeIn 0.4s ease;
+    animation: fadeIn 0.3s ease;
+    will-change: opacity, transform;
 }
 
 .view.active {
     display: block;
+    contain: layout style;
 }
 
 @keyframes fadeIn {
@@ -327,6 +329,42 @@ button {
     box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
 }
 
+/* ── Global input / select / textarea base (dark Nexus palette) ── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+select,
+textarea {
+    background: rgba(10, 12, 22, 0.75);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: var(--text-main);
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+}
+
+/* Explicit .input-field utility class used in JS-rendered modals */
+.input-field {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(10, 12, 22, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 10px !important;
+    color: var(--text-main) !important;
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-field:focus {
+    border-color: rgba(0, 206, 201, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(0, 206, 201, 0.2) !important;
+}
+.input-field option,
+select option {
+    background: #0e1128;
+    color: var(--text-main);
+}
+
 /* Inputs */
 textarea {
     width: 100%;
@@ -492,9 +530,16 @@ input[type="password"] {
 /* Math Lab Layout */
 .math-container {
     display: grid;
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: minmax(280px, 350px) 1fr;
     gap: 20px;
     height: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .math-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 .toolkit-panel,
@@ -502,7 +547,9 @@ input[type="password"] {
     display: flex;
     flex-direction: column;
     height: 80vh;
-    overflow-y: auto; /* Added so calculator fits on small screens */
+    overflow-y: auto;
+    min-width: 0; /* prevent flex/grid overflow */
+    overflow-x: hidden;
 }
 
 .tool-actions {
@@ -1455,6 +1502,7 @@ html { scroll-behavior: smooth; }
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     animation: toastIn 0.3s ease;
     pointer-events: auto;
+    will-change: transform, opacity;
     max-width: 300px;
 }
 
@@ -3268,4 +3316,155 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
 .theme-pick-btn.active-theme {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 2px rgba(0,206,201,0.35);
+}
+
+/* ── Focus Sounds: preset dropdown ─────────────────────────────── */
+#cc-preset-select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    color: white;
+    padding: 5px 28px 5px 10px;
+    font-size: 0.76rem;
+    font-family: var(--font-main);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.4)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+#cc-preset-select:hover  { border-color: rgba(0,206,201,0.5); background-color: rgba(255,255,255,0.09); }
+#cc-preset-select option { background: #12162a; color: white; }
+
+/* ── Focus Sounds: volume mixer ────────────────────────────────── */
+#cc-mixer-toggle-btn {
+    width: 100%;
+    margin-top: 11px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 8px;
+    color: var(--text-muted);
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-family: var(--font-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+#cc-mixer-toggle-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); color: white; }
+#cc-mixer-toggle-btn.open  { border-color: rgba(0,206,201,0.35); color: rgba(0,206,201,0.9); }
+
+#cc-mixer-panel {
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: none;
+}
+
+.cc-mix-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    transition: opacity 0.25s, background 0.25s;
+    opacity: 0.32;
+}
+.cc-mix-row.active {
+    opacity: 1;
+    background: rgba(255,255,255,0.04);
+}
+.cc-mix-icon { font-size: 1rem; width: 18px; text-align: center; flex-shrink: 0; }
+.cc-mix-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    width: 68px;
+    flex-shrink: 0;
+    color: white;
+    letter-spacing: 0.02em;
+}
+.cc-mix-slider {
+    flex: 1;
+    height: 3px;
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.12);
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.cc-mix-row.active .cc-mix-slider { background: rgba(255,255,255,0.18); }
+.cc-mix-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    transition: transform 0.15s;
+}
+.cc-mix-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.cc-mix-slider::-moz-range-thumb {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: white;
+    border: none;
+    cursor: pointer;
+}
+.cc-mix-pct {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Global overflow safety ────────────────────────────────────────
+   Prevents cards/panels from pushing outside their grid/flex cell.
+   min-width:0 is the key fix for grid/flex items that contain text:
+   without it, grid cells grow to fit content and break the layout.
+   word-break stops very long words/URLs from extending the card.
+   We intentionally avoid overflow-x:hidden on glass-panel because
+   absolutely-positioned dropdowns inside them would be clipped.
+   ────────────────────────────────────────────────────────────────── */
+.glass-panel,
+.card,
+.shop-item-card,
+.modal-content {
+    min-width: 0;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Action button rows inside cards wrap on narrow containers */
+.glass-panel > [style*="display:flex"],
+.glass-panel > div > [style*="display:flex"] {
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+/* Ensure the main content area never forces horizontal scroll */
+.main-content {
+    max-width: 100%;
+}
+.view {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Suggestion list items: long body text should wrap, not overflow */
+#sg-list .glass-panel p,
+#sg-list .glass-panel h4 {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }

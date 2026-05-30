@@ -12,18 +12,16 @@
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts for shop font items -->
+    <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
+         (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Press+Start+2P&family=Orbitron:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&family=Dancing+Script:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Quicksand:wght@400;600&family=Oswald:wght@400;700&family=Courier+Prime:wght@400;700&family=UnifrakturMaguntia&family=Caveat:wght@400;700&family=Bangers&display=swap" rel="stylesheet">
-    <!-- Load Tesseract.js from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <!-- v12.0 — EmailJS for welcome emails on signup. Free tier (200 emails/mo)
-         covers a small launch; upgrade later if needed. Setup: at emailjs.com,
-         create a service + a template that uses the variables {{to_name}},
-         {{to_email}}, {{plan_label}}, {{login_url}}; then paste the
-         service_id / template_id / public_key into Settings → Owner. -->
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- Critical UI font only — loads synchronously -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Shop/cosmetic fonts — loaded after page is interactive -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&family=Dancing+Script:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Quicksand:wght@400;600&family=Oswald:wght@400;700&family=Courier+Prime:wght@400;700&family=UnifrakturMaguntia&family=Caveat:wght@400;700&family=Bangers&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <!-- Tesseract.js (OCR) — lazy-loaded on first photo scan, not at startup -->
+    <!-- EmailJS — loaded on demand in Settings if user configures it -->
     <!-- Load Phosphor Icons (icon font). v12.0 (rev2): SWITCHED FROM unpkg → jsdelivr.
          unpkg was intermittently failing to serve the font shards (woff2), which
          produced tofu boxes everywhere. jsdelivr has much higher uptime + better
@@ -964,7 +962,7 @@
                 </li>
                 <li onclick="switchTab('math')">
                     <i class="ph ph-function"></i>
-                    <span>Math Solver</span>
+                    <span>Math Lab</span>
                 </li>
                 <li onclick="switchTab('notebook')">
                     <i class="ph ph-notebook"></i>
@@ -1301,7 +1299,7 @@
                                         <i class="ph ph-squares-four"></i> Command Center
                                     </button>
                                     <button class="btn-primary" onclick="switchTab('math')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00CEC9,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-function"></i> Math Solver
+                                        <i class="ph ph-function"></i> Math Lab
                                     </button>
                                     <button class="btn-primary" onclick="switchTab('homework')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#fd79a8,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
                                         <i class="ph ph-clipboard-text"></i> Homework
@@ -1431,7 +1429,7 @@
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00fff5, #7c4dff);">Forge</button>
                     </div>
                     <!-- Citation Generator - v12.5 -->
-                    <div class="card glass-panel" onclick="openCitationGenerator()" style="background:linear-gradient(135deg,rgba(253,203,110,0.12),rgba(250,177,160,0.08));border:1px solid rgba(253,203,110,0.45);">
+                    <div class="card glass-panel" onclick="switchTab('english');switchEngTab('citation')" style="background:linear-gradient(135deg,rgba(253,203,110,0.12),rgba(250,177,160,0.08));border:1px solid rgba(253,203,110,0.45);">
                         <div class="icon-glow" style="background:radial-gradient(circle,rgba(253,203,110,0.3),transparent);"><i class="ph ph-quotes"></i></div>
                         <h3>Citation Generator</h3>
                         <p>MLA, APA &amp; Chicago in one click</p>
@@ -1439,30 +1437,120 @@
                     </div>
                 </div>
 
-                <!-- ── v12.4/v12.5: Study Tools ─────────────────────────────────── -->
-                <h3 style="margin:28px 0 16px;color:var(--text-muted);font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;"><i class="ph ph-cards" style="margin-right:6px;"></i>Study Tools</h3>
-                <div class="card-grid">
-                    <!-- Build Your Own Flashcards -->
-                    <div class="card glass-panel" onclick="openFlashcards('manual')" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(162,155,254,0.08));border:1px solid rgba(108,92,231,0.45);">
-                        <div class="icon-glow" style="background:radial-gradient(circle,rgba(108,92,231,0.35),transparent);"><i class="ph ph-cards"></i></div>
-                        <h3>Build Flashcards</h3>
-                        <p>Create your own custom card decks</p>
-                        <button class="btn-primary" style="margin-top:8px;">Create Deck</button>
+                <!-- ── v15.0: Focus Sounds (YouTube + mixer) ─────────────────── -->
+                <h3 style="margin:28px 0 16px;color:var(--text-muted);font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;"><i class="ph ph-headphones" style="margin-right:6px;"></i>Focus Sounds</h3>
+                <div class="card glass-panel" style="background:linear-gradient(135deg,rgba(0,184,148,0.1),rgba(0,206,201,0.07));border:1px solid rgba(0,184,148,0.4);">
+
+                    <!-- Header row: info + preset dropdown -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
+                        <p style="margin:0;font-size:0.80rem;color:var(--text-muted);flex:1;min-width:0;">
+                            <i class="ph ph-youtube-logo" style="margin-right:4px;color:#fd79a8;"></i>Real ambient sounds. Tap to toggle, mix layers.
+                        </p>
+                        <select id="cc-preset-select" onchange="applyAmbientPreset(this.value)" title="Load a preset mix">
+                            <option value="custom">🎛 Custom</option>
+                            <option value="study">📚 Study Session</option>
+                            <option value="sleep">😴 Deep Sleep</option>
+                            <option value="storm">⛈ Thunderstorm</option>
+                            <option value="cozy">🔥 Cozy Night</option>
+                            <option value="nature">🌿 Forest Walk</option>
+                        </select>
                     </div>
-                    <!-- AI-Generate Flashcards from History -->
-                    <div class="card glass-panel" onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(0,206,201,0.12),rgba(108,92,231,0.08));border:1px solid rgba(0,206,201,0.45);">
-                        <div class="icon-glow cyan" style="background:radial-gradient(circle,rgba(0,206,201,0.35),transparent);"><i class="ph ph-sparkle"></i></div>
-                        <h3>AI Flashcards</h3>
-                        <p>Auto-generate cards from your study history</p>
-                        <button class="btn-primary" style="margin-top:8px;background:linear-gradient(135deg,#00cec9,#6c5ce7);">Generate</button>
+
+                    <!-- 3×2 toggle buttons -->
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;">
+                        <button id="cc-amb-btn-rain"       onclick="toggleCCAmbient('rain')"       style="padding:14px 6px;text-align:center;cursor:pointer;border:1px solid rgba(116,185,255,0.2);border-radius:10px;background:rgba(116,185,255,0.06);color:white;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                            <i class="ph ph-cloud-rain"       style="font-size:1.5rem;color:#74b9ff;opacity:0.45;transition:opacity 0.2s;"></i><span style="font-size:0.73rem;font-weight:600;">Rain</span>
+                        </button>
+                        <button id="cc-amb-btn-thunder"    onclick="toggleCCAmbient('thunder')"    style="padding:14px 6px;text-align:center;cursor:pointer;border:1px solid rgba(162,155,254,0.2);border-radius:10px;background:rgba(162,155,254,0.06);color:white;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                            <i class="ph ph-cloud-lightning"  style="font-size:1.5rem;color:#a29bfe;opacity:0.45;transition:opacity 0.2s;"></i><span style="font-size:0.73rem;font-weight:600;">Storm</span>
+                        </button>
+                        <button id="cc-amb-btn-cafe"       onclick="toggleCCAmbient('cafe')"       style="padding:14px 6px;text-align:center;cursor:pointer;border:1px solid rgba(250,177,160,0.2);border-radius:10px;background:rgba(250,177,160,0.06);color:white;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                            <i class="ph ph-coffee"           style="font-size:1.5rem;color:#fab1a0;opacity:0.45;transition:opacity 0.2s;"></i><span style="font-size:0.73rem;font-weight:600;">Café</span>
+                        </button>
+                        <button id="cc-amb-btn-whitenoise" onclick="toggleCCAmbient('whitenoise')" style="padding:14px 6px;text-align:center;cursor:pointer;border:1px solid rgba(223,230,233,0.2);border-radius:10px;background:rgba(223,230,233,0.06);color:white;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                            <i class="ph ph-waves"            style="font-size:1.5rem;color:#dfe6e9;opacity:0.45;transition:opacity 0.2s;"></i><span style="font-size:0.73rem;font-weight:600;">White Noise</span>
+                        </button>
+                        <button id="cc-amb-btn-fire"       onclick="toggleCCAmbient('fire')"       style="padding:14px 6px;text-align:center;cursor:pointer;border:1px solid rgba(225,112,85,0.2);border-radius:10px;background:rgba(225,112,85,0.06);color:white;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                            <i class="ph ph-fire"             style="font-size:1.5rem;color:#e17055;opacity:0.45;transition:opacity 0.2s;"></i><span style="font-size:0.73rem;font-weight:600;">Fireplace</span>
+                        </button>
+                        <button id="cc-amb-btn-forest"     onclick="toggleCCAmbient('forest')"     style="padding:14px 6px;text-align:center;cursor:pointer;border:1px solid rgba(0,184,148,0.2);border-radius:10px;background:rgba(0,184,148,0.06);color:white;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                            <i class="ph ph-tree"             style="font-size:1.5rem;color:#00b894;opacity:0.45;transition:opacity 0.2s;"></i><span style="font-size:0.73rem;font-weight:600;">Forest</span>
+                        </button>
                     </div>
-                    <!-- Ambient Sounds - v12.5 -->
-                    <div class="card glass-panel" onclick="openAmbientPlayer()" style="background:linear-gradient(135deg,rgba(0,184,148,0.12),rgba(0,206,201,0.08));border:1px solid rgba(0,184,148,0.45);">
-                        <div class="icon-glow" style="background:radial-gradient(circle,rgba(0,184,148,0.3),transparent);"><i class="ph ph-cloud-rain"></i></div>
-                        <h3>Ambient Sounds</h3>
-                        <p>Rain, cafe &amp; nature — focus without Spotify</p>
-                        <button class="btn-primary" style="margin-top:8px;background:linear-gradient(135deg,#00b894,#00cec9);">Play</button>
+
+                    <!-- Mixer toggle button -->
+                    <button id="cc-mixer-toggle-btn" onclick="toggleCCMixer()">
+                        <i class="ph ph-sliders-horizontal"></i>
+                        <span>Volume Mixer</span>
+                        <i class="ph ph-caret-down" id="cc-mixer-chevron" style="transition:transform 0.22s;margin-left:2px;"></i>
+                    </button>
+
+                    <!-- Collapsible mixer panel -->
+                    <div id="cc-mixer-panel">
+                        <div style="display:flex;flex-direction:column;gap:5px;">
+
+                            <div class="cc-mix-row" id="cc-mix-rain">
+                                <i class="ph ph-cloud-rain cc-mix-icon" style="color:#74b9ff;"></i>
+                                <span class="cc-mix-label">Rain</span>
+                                <input type="range" min="0" max="100" value="50" id="cc-vol-rain"
+                                       class="cc-mix-slider" style="accent-color:#74b9ff;"
+                                       oninput="setCCAmbientVol('rain',this.value)">
+                                <span class="cc-mix-pct" id="cc-vol-lbl-rain">50%</span>
+                            </div>
+
+                            <div class="cc-mix-row" id="cc-mix-thunder">
+                                <i class="ph ph-cloud-lightning cc-mix-icon" style="color:#a29bfe;"></i>
+                                <span class="cc-mix-label">Storm</span>
+                                <input type="range" min="0" max="100" value="50" id="cc-vol-thunder"
+                                       class="cc-mix-slider" style="accent-color:#a29bfe;"
+                                       oninput="setCCAmbientVol('thunder',this.value)">
+                                <span class="cc-mix-pct" id="cc-vol-lbl-thunder">50%</span>
+                            </div>
+
+                            <div class="cc-mix-row" id="cc-mix-cafe">
+                                <i class="ph ph-coffee cc-mix-icon" style="color:#fab1a0;"></i>
+                                <span class="cc-mix-label">Café</span>
+                                <input type="range" min="0" max="100" value="50" id="cc-vol-cafe"
+                                       class="cc-mix-slider" style="accent-color:#fab1a0;"
+                                       oninput="setCCAmbientVol('cafe',this.value)">
+                                <span class="cc-mix-pct" id="cc-vol-lbl-cafe">50%</span>
+                            </div>
+
+                            <div class="cc-mix-row" id="cc-mix-whitenoise">
+                                <i class="ph ph-waves cc-mix-icon" style="color:#dfe6e9;"></i>
+                                <span class="cc-mix-label">White Noise</span>
+                                <input type="range" min="0" max="100" value="50" id="cc-vol-whitenoise"
+                                       class="cc-mix-slider" style="accent-color:#dfe6e9;"
+                                       oninput="setCCAmbientVol('whitenoise',this.value)">
+                                <span class="cc-mix-pct" id="cc-vol-lbl-whitenoise">50%</span>
+                            </div>
+
+                            <div class="cc-mix-row" id="cc-mix-fire">
+                                <i class="ph ph-fire cc-mix-icon" style="color:#e17055;"></i>
+                                <span class="cc-mix-label">Fireplace</span>
+                                <input type="range" min="0" max="100" value="50" id="cc-vol-fire"
+                                       class="cc-mix-slider" style="accent-color:#e17055;"
+                                       oninput="setCCAmbientVol('fire',this.value)">
+                                <span class="cc-mix-pct" id="cc-vol-lbl-fire">50%</span>
+                            </div>
+
+                            <div class="cc-mix-row" id="cc-mix-forest">
+                                <i class="ph ph-tree cc-mix-icon" style="color:#00b894;"></i>
+                                <span class="cc-mix-label">Forest</span>
+                                <input type="range" min="0" max="100" value="50" id="cc-vol-forest"
+                                       class="cc-mix-slider" style="accent-color:#00b894;"
+                                       oninput="setCCAmbientVol('forest',this.value)">
+                                <span class="cc-mix-pct" id="cc-vol-lbl-forest">50%</span>
+                            </div>
+
+                        </div>
+
+                        <!-- All Off button -->
+                        <button onclick="stopAllAmbient()" style="width:100%;margin-top:10px;background:rgba(255,59,48,0.08);border:1px solid rgba(255,59,48,0.25);border-radius:8px;color:rgba(255,100,90,0.9);padding:6px;cursor:pointer;font-size:0.74rem;font-family:var(--font-main);transition:all 0.2s;" onmouseover="this.style.background='rgba(255,59,48,0.16)'" onmouseout="this.style.background='rgba(255,59,48,0.08)'">
+                            <i class="ph ph-stop-circle" style="margin-right:4px;"></i>Stop All Sounds
+                        </button>
                     </div>
+
                 </div>
 
                 <!-- ── v12.4: For College (AP Prep moved from nav) ────────────────── -->
@@ -1774,12 +1862,15 @@
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
                     <input id="hist-search" type="text" placeholder="Search activity…" oninput="renderHistoryList()" style="flex:1;min-width:220px;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:white;font-size:0.92rem;outline:none;">
                     <select id="hist-filter" onchange="renderHistoryList()" style="padding:10px 14px;background:#14142a;color:white;border:1px solid var(--glass-border);border-radius:10px;font-size:0.92rem;outline:none;cursor:pointer;">
-                        <option value="all" style="background:#14142a;color:white;">All subjects</option>
-                        <option value="math" style="background:#14142a;color:white;">📐 Math</option>
-                        <option value="english" style="background:#14142a;color:white;">📚 English</option>
-                        <option value="science" style="background:#14142a;color:white;">🔬 Science</option>
-                        <option value="social" style="background:#14142a;color:white;">🌍 Social Studies</option>
-                        <option value="prompt-engine" style="background:#14142a;color:white;">✨ Prompt Engine</option>
+                        <option value="all"       style="background:#14142a;color:white;">All activity</option>
+                        <option value="math"      style="background:#14142a;color:white;">📐 Math</option>
+                        <option value="english"   style="background:#14142a;color:white;">📚 English</option>
+                        <option value="science"   style="background:#14142a;color:white;">🔬 Science</option>
+                        <option value="social"    style="background:#14142a;color:white;">🌍 Social Studies</option>
+                        <option value="homework"  style="background:#14142a;color:white;">📋 Homework</option>
+                        <option value="grade"     style="background:#14142a;color:white;">📊 Grades</option>
+                        <option value="challenge" style="background:#14142a;color:white;">🎯 Daily Challenge</option>
+                        <option value="study"     style="background:#14142a;color:white;">📖 Study</option>
                     </select>
                 </div>
                 <div id="history-list" class="history-container">
@@ -2018,14 +2109,26 @@
             <!-- Math View -->
             <div id="view-math" class="view math-lab">
                 <header style="background:linear-gradient(135deg, rgba(108,92,231,0.1), rgba(0,206,201,0.1));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(108,92,231,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-                        <div style="font-size:2.5rem;">📐</div>
-                        <div>
-                            <h1 style="margin:0;background:linear-gradient(135deg, #6C5CE7, #00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Math Lab</h1>
-                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Tools & Concept Analysis</p>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">📐</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg, #6C5CE7, #00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Math Lab</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Tools & Concept Analysis</p>
+                            </div>
                         </div>
+                        <button onclick="openUniversalTutor({subject:'Math',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(108,92,231,0.25),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:#a29bfe;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">
+                            🎓 Ask Tutor
+                        </button>
                     </div>
                 </header>
+
+                <!-- Quick Study Tools bar -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+                    <button onclick="openQuickStudyQuiz('Math')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
+                    <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
+                    <button onclick="switchTab('tools');setTimeout(()=>switchToolsTab('history'),200);" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                </div>
 
                 <div class="math-container">
 <!-- Left: Toolkit -->
@@ -2227,10 +2330,25 @@
 
             <!-- English View -->
             <div id="view-english" class="view">
-                <header>
-                    <h1>English Suite</h1>
-                    <p>Writing tools, library, speed typing &amp; dictionary</p>
+                <header style="background:linear-gradient(135deg,rgba(108,92,231,0.1),rgba(162,155,254,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(108,92,231,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">✍️</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#a29bfe,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">English Suite</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Writing tools, library, speed typing &amp; dictionary</p>
+                            </div>
+                        </div>
+                        <button onclick="openUniversalTutor({subject:'English',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(108,92,231,0.25),rgba(162,155,254,0.15));border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:#a29bfe;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
+                    </div>
                 </header>
+
+                <!-- Quick Study Tools bar -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+                    <button onclick="openQuickStudyQuiz('English')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
+                    <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
+                    <button onclick="switchTab('tools');setTimeout(()=>switchToolsTab('history'),200);" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                </div>
 
                 <!-- English Tab Bar -->
                 <div class="english-tabs">
@@ -2245,6 +2363,9 @@
                     </button>
                     <button class="eng-tab-btn" onclick="switchEngTab('dictionary')">
                         <i class="ph ph-text-aa"></i> Dictionary
+                    </button>
+                    <button class="eng-tab-btn" onclick="switchEngTab('citation')">
+                        <i class="ph ph-quotes"></i> Citations
                     </button>
                 </div>
 
@@ -2512,19 +2633,40 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Panel: Citations — moved from Tools tab v14.0 -->
+                <div id="eng-panel-citation" class="eng-panel">
+                    <div class="glass-panel" style="padding:20px;">
+                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-quotes" style="color:#fdcb6e;"></i> Citation Generator</h3>
+                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Generate MLA, APA, and Chicago citations instantly.</p>
+                        <div id="citation-panel"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Science View -->
             <div id="view-science" class="view">
                 <header style="background:linear-gradient(135deg, rgba(0,184,148,0.1), rgba(85,239,196,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(0,184,148,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-                        <div style="font-size:2.5rem;">🧬</div>
-                        <div>
-                            <h1 style="margin:0;background:linear-gradient(135deg, #00b894, #55efc4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Science Lab</h1>
-                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Explore the wonders of Physics, Chemistry, and Biology</p>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">🧬</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg, #00b894, #55efc4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Science Lab</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Explore the wonders of Physics, Chemistry, and Biology</p>
+                            </div>
                         </div>
+                        <button onclick="openUniversalTutor({subject:'Science',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(0,184,148,0.25),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.4);border-radius:10px;color:#00b894;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">
+                            🎓 Ask Tutor
+                        </button>
                     </div>
                 </header>
+
+                <!-- Quick Study Tools bar -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+                    <button onclick="openQuickStudyQuiz('Science')" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
+                    <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
+                    <button onclick="switchTab('tools');setTimeout(()=>switchToolsTab('history'),200);" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
                     <!-- Left Panel: Input & Tools -->
@@ -2602,6 +2744,9 @@
                         </div>
                     </div>
                     <!-- v12.1 — "Did You Know" rotating fact card -->
+                    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+                        <button onclick="openUniversalTutor({subject:'Social Studies',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(253,121,168,0.25),rgba(232,67,147,0.15));border:1px solid rgba(253,121,168,0.4);border-radius:10px;color:#fd79a8;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
+                    </div>
                     <div id="social-didyouknow" style="margin-top:14px;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:0.86rem;color:#e8eef8;line-height:1.5;display:flex;align-items:center;gap:10px;">
                         <i class="ph-fill ph-lightbulb" style="color:#fdcb6e;font-size:1.1rem;flex-shrink:0;"></i>
                         <span id="social-didyouknow-text" style="flex:1;">Loading a fact…</span>
@@ -2617,6 +2762,13 @@
                         <button class="social-era-chip" data-era="contemporary" style="padding:5px 12px;font-size:0.76rem;background:linear-gradient(135deg,rgba(0,255,245,0.15),rgba(124,77,255,0.10));border:1px solid rgba(0,255,245,0.4);border-radius:14px;color:#a8fff8;cursor:pointer;font-weight:600;" onclick="socialEraPreset('contemporary')">📡 Contemporary<br><span style="font-size:0.66rem;opacity:0.75;">1945 – Today</span></button>
                     </div>
                 </header>
+
+                <!-- Quick Study Tools bar -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+                    <button onclick="openQuickStudyQuiz('Social Studies')" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
+                    <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
+                    <button onclick="switchTab('tools');setTimeout(()=>switchToolsTab('history'),200);" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                </div>
 
                 <div class="eng-tabs" style="margin-bottom: 24px;">
                     <button class="eng-tab-btn active" onclick="switchSocialTab('character')">
@@ -3064,12 +3216,15 @@
             <!-- ══ v13.0: Homework Tracker ══════════════════════════════════ -->
             <div id="view-homework" class="view">
                 <header style="background:linear-gradient(135deg,rgba(253,121,168,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(253,121,168,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="font-size:2.5rem;">📋</div>
-                        <div>
-                            <h1 style="margin:0;background:linear-gradient(135deg,#fd79a8,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Homework Tracker</h1>
-                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track assignments, due dates, and priorities</p>
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">📋</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#fd79a8,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Homework Tracker</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track assignments, due dates, and priorities</p>
+                            </div>
                         </div>
+                        <button onclick="openUniversalTutor({subject:'Homework Help',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(253,121,168,0.25),rgba(108,92,231,0.15));border:1px solid rgba(253,121,168,0.4);border-radius:10px;color:#fd79a8;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
                     </div>
                 </header>
                 <!-- Daily challenge banner -->
@@ -3089,7 +3244,8 @@
                                 <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track grades, weighted averages, and GPA</p>
                             </div>
                         </div>
-                        <div style="display:flex;gap:8px;">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button onclick="openUniversalTutor({subject:'Grades & GPA',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(0,206,201,0.25),rgba(108,92,231,0.15));border:1px solid rgba(0,206,201,0.4);border-radius:10px;color:#00CEC9;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
                             <button class="btn-secondary" onclick="exportGradesPDF()" style="font-size:0.85rem;"><i class="ph ph-printer"></i> Export</button>
                             <button class="btn-primary" onclick="openAddCourseModal()"><i class="ph ph-plus"></i> Add Course</button>
                         </div>
@@ -3104,22 +3260,23 @@
             <!-- ══ v13.0: Study Tools Hub ══════════════════════════════════ -->
             <div id="view-tools" class="view">
                 <header style="background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(0,206,201,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(168,85,247,0.3);">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="font-size:2.5rem;">🧰</div>
-                        <div>
-                            <h1 style="margin:0;background:linear-gradient(135deg,#a855f7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Study Tools</h1>
-                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Quiz generator, citations, flashcard review & more</p>
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">🧰</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#a855f7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Study Tools</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Quiz generator, flashcard review &amp; study history</p>
+                            </div>
                         </div>
+                        <button onclick="openUniversalTutor({subject:'Study Help',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(168,85,247,0.25),rgba(0,206,201,0.15));border:1px solid rgba(168,85,247,0.4);border-radius:10px;color:#a855f7;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
                     </div>
                 </header>
 
                 <!-- Tools tab bar -->
                 <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;">
-                    <button class="tab-btn tools-tab-btn active" data-tab="quizgen"  onclick="switchToolsTab('quizgen')"><i class="ph ph-magic-wand"></i> Quiz Gen</button>
-                    <button class="tab-btn tools-tab-btn"        data-tab="citation" onclick="switchToolsTab('citation')"><i class="ph ph-quotes"></i> Citations</button>
-                    <button class="tab-btn tools-tab-btn"        data-tab="srs"      onclick="switchToolsTab('srs')"><i class="ph ph-cards"></i> Flashcards</button>
-                    <button class="tab-btn tools-tab-btn"        data-tab="csv"      onclick="switchToolsTab('csv')"><i class="ph ph-upload-simple"></i> CSV Import</button>
-                    <button class="tab-btn tools-tab-btn"        data-tab="history"  onclick="switchToolsTab('history')"><i class="ph ph-chart-bar"></i> Study History</button>
+                    <button class="tab-btn tools-tab-btn active" data-tab="quizgen" onclick="switchToolsTab('quizgen')"><i class="ph ph-magic-wand"></i> Quiz Gen</button>
+                    <button class="tab-btn tools-tab-btn"        data-tab="srs"     onclick="switchToolsTab('srs')"><i class="ph ph-cards"></i> Flashcards</button>
+                    <button class="tab-btn tools-tab-btn"        data-tab="history" onclick="switchToolsTab('history')"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
                 <!-- Quiz Generator pane -->
@@ -3131,30 +3288,21 @@
                     </div>
                 </div>
 
-                <!-- Citation Generator pane -->
-                <div class="tools-pane" data-pane="citation" style="display:none;">
-                    <div class="glass-panel" style="padding:20px;">
-                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-quotes"></i> Citation Generator</h3>
-                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Generate MLA, APA, and Chicago citations instantly.</p>
-                        <div id="citation-panel"></div>
-                    </div>
-                </div>
-
                 <!-- SRS Flashcards pane -->
                 <div class="tools-pane" data-pane="srs" style="display:none;">
                     <div class="glass-panel" style="padding:20px;">
-                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-cards"></i> Spaced Repetition Review</h3>
-                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">SM-2 algorithm schedules your flashcard reviews for maximum retention.</p>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                            <div>
+                                <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-cards"></i> Flashcards</h3>
+                                <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">Create, import, and review with SM-2 spaced repetition.</p>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+                                <button class="btn-secondary" onclick="openFlashcards('manual')" style="font-size:0.82rem;padding:8px 14px;"><i class="ph ph-plus"></i> New Deck</button>
+                                <button class="btn-secondary" onclick="openFlashcards('ai')" style="font-size:0.82rem;padding:8px 14px;background:linear-gradient(135deg,rgba(0,206,201,0.15),rgba(108,92,231,0.15));"><i class="ph ph-sparkle"></i> AI Generate</button>
+                                <button class="btn-secondary" onclick="openCsvImportModal()" style="font-size:0.82rem;padding:8px 14px;"><i class="ph ph-upload-simple"></i> Import CSV</button>
+                            </div>
+                        </div>
                         <div id="srs-home-panel"></div>
-                    </div>
-                </div>
-
-                <!-- CSV Import pane -->
-                <div class="tools-pane" data-pane="csv" style="display:none;">
-                    <div class="glass-panel" style="padding:20px;">
-                        <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-upload-simple"></i> Quizlet / CSV Import</h3>
-                        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Import your Quizlet sets or any CSV file as a flashcard deck.</p>
-                        <div id="csv-panel"></div>
                     </div>
                 </div>
 
@@ -4722,8 +4870,6 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <!-- html2canvas — used by History screenshot mode (v10.5) -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="script.js"></script>
 </body>
 
