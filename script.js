@@ -236,14 +236,14 @@ function updateHomeStats() {
         const nextUp = pending.slice(0, 2);
         let achHtml = '';
         if (recentDone.length === 0 && nextUp.length === 0) {
-            achHtml = '<div style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:8px 0;">Solve problems to earn your first achievement!</div>';
+            achHtml = '<div style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:8px 0;">Solve problems to earn your first achievement!</div>';
         } else {
             recentDone.forEach(a => {
                 achHtml += `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(0,184,148,0.08);border-radius:8px;border-left:3px solid #00b894;">
                     <span style="font-size:1.3rem;">${a.icon}</span>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:0.83rem;font-weight:600;color:white;">${a.name}</div>
-                        <div style="font-size:0.72rem;color:#00b894;">✓ Completed · +${a.reward} credits</div>
+                        <div style="font-size:0.9rem;color:#00b894;">✓ Completed · +${a.reward} credits</div>
                     </div>
                 </div>`;
             });
@@ -259,10 +259,10 @@ function updateHomeStats() {
                     <span style="font-size:1.3rem;filter:grayscale(1);opacity:0.5;">${a.icon}</span>
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:0.83rem;font-weight:600;color:var(--text-muted);">${a.name}</div>
-                        <div style="font-size:0.72rem;color:var(--text-muted);">${a.desc}</div>
+                        <div style="font-size:0.9rem;color:var(--text-muted);">${a.desc}</div>
                         ${prog}
                     </div>
-                    <div style="font-size:0.78rem;color:#FFD700;font-weight:700;">+${a.reward}</div>
+                    <div style="font-size:0.88rem;color:#FFD700;font-weight:700;">+${a.reward}</div>
                 </div>`;
             });
         }
@@ -1614,7 +1614,7 @@ function toggleSettings() {
             if (!label.querySelector('.pro-lock-icon')) {
                 const lock = document.createElement('span');
                 lock.className = 'pro-lock-icon';
-                lock.style.cssText = 'margin-left:6px;color:#FFD700;font-size:0.75rem;font-weight:700;';
+                lock.style.cssText = 'margin-left:6px;color:#FFD700;font-size:0.85rem;font-weight:700;';
                 lock.innerHTML = '<i class="ph ph-lock-key"></i> PRO';
                 label.querySelector('div')?.appendChild(lock);
             }
@@ -2365,7 +2365,7 @@ function openUniversalTutor(options) {
         <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,${color}22,rgba(0,0,0,0.2));display:flex;align-items:center;gap:10px;">
             <div style="width:36px;height:36px;border-radius:10px;background:${color}22;border:1px solid ${color}44;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">🎓</div>
             <div style="flex:1;min-width:0;">
-                <div style="font-size:0.72rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">NEXUS Tutor</div>
+                <div style="font-size:0.9rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">NEXUS Tutor</div>
                 <div style="color:white;font-size:0.92rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${subject}${topic ? ' — ' + topic : ''}</div>
             </div>
             <button class="btn-icon" onclick="document.getElementById('nexus-univ-tutor-modal').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
@@ -2384,7 +2384,7 @@ function openUniversalTutor(options) {
                     <i class="ph ph-paper-plane-tilt"></i>
                 </button>
             </div>
-            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">Enter to send &bull; Shift+Enter for new line</div>
+            <div style="font-size:0.9rem;color:var(--text-muted);margin-top:6px;">Enter to send &bull; Shift+Enter for new line</div>
         </div>
     </div>`;
 
@@ -2424,7 +2424,7 @@ async function sendUniversalTutorMessage(subject, topic, context) {
 
     // Loading bubble
     const loadBubble = document.createElement('div');
-    loadBubble.style.cssText = 'background:rgba(10,12,22,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:0.85rem;color:var(--accent);display:flex;align-items:center;gap:8px;';
+    loadBubble.style.cssText = 'background:rgba(10,12,22,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:0.85rem;color:var(--accent);display:flex;align-items:center;gap:12px;';
     loadBubble.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Thinking…';
     chat.appendChild(loadBubble);
     chat.scrollTop = chat.scrollHeight;
@@ -2994,7 +2994,7 @@ async function analyzeBook(mode) {
     if (!promptFn) return;
     const sysPrompt = promptFn(openBookData.title, openBookData.author || 'unknown author');
 
-    output.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> Generating ${labels[mode]}...</div>`;
+    output.innerHTML = `<div style="display:flex;align-items:center;gap:12px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> Generating ${labels[mode]}...</div>`;
 
     try {
         await streamChat({
@@ -3105,7 +3105,7 @@ function renderLibShelf() {
             <div class="book-cover">${b.coverId ? `<img src="https://covers.openlibrary.org/b/id/${b.coverId}-M.jpg" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.style.display='none'">` : '📚'}</div>
             <div class="book-title">${escapeHtmlSafe(b.title)}</div>
             <div class="book-author">${escapeHtmlSafe(b.author || 'Unknown')}</div>
-            <button onclick="event.stopPropagation();removeShelfBook('${escapeHtml(b.key)}')" style="margin-top:6px;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.25);border-radius:6px;padding:4px 8px;cursor:pointer;color:#ff6b6b;font-size:0.72rem;"><i class="ph ph-trash"></i> Remove</button>
+            <button onclick="event.stopPropagation();removeShelfBook('${escapeHtml(b.key)}')" style="margin-top:6px;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.25);border-radius:6px;padding:4px 8px;cursor:pointer;color:#ff6b6b;font-size:0.9rem;"><i class="ph ph-trash"></i> Remove</button>
         </div>`).join('') + `</div>`;
 }
 function removeShelfBook(key) {
@@ -3132,8 +3132,8 @@ function renderLibDiscover() {
                 <span style="font-size:1.5rem;">${col.icon}</span>
                 <h4 style="margin:0;color:white;font-size:1rem;font-weight:700;">${col.label}</h4>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                ${col.searches.map(q => `<button onclick="libQuickSearch('${escapeHtml(q)}')" style="padding:6px 12px;background:${col.color}18;border:1px solid ${col.color}44;border-radius:16px;color:white;font-size:0.8rem;cursor:pointer;font-weight:500;">${escapeHtml(q)}</button>`).join('')}
+            <div style="display:flex;flex-wrap:wrap;gap:12px;">
+                ${col.searches.map(q => `<button onclick="libQuickSearch('${escapeHtml(q)}')" style="padding:6px 12px;background:${col.color}18;border:1px solid ${col.color}44;border-radius:16px;color:white;font-size:0.9rem;cursor:pointer;font-weight:500;">${escapeHtml(q)}</button>`).join('')}
             </div>
         </div>`).join('');
 }
@@ -3550,7 +3550,7 @@ function checkDictSynonym(btn, isCorrect, container) {
     if (synBox && !document.getElementById('synonym-result')) {
         const msg = document.createElement('div');
         msg.id = 'synonym-result';
-        msg.style.cssText = 'margin-top:10px;font-size:0.8rem;color:var(--text-muted);text-align:center;';
+        msg.style.cssText = 'margin-top:10px;font-size:0.9rem;color:var(--text-muted);text-align:center;';
         msg.textContent = isCorrect ? '🎉 Well done! Look up another word to keep practicing.' : '📖 Look up more words to build vocabulary and earn credits.';
         synBox.appendChild(msg);
     }
@@ -3651,7 +3651,7 @@ function renderVocabularyList() {
                     </button>
                 </div>
                 ${item.definitions}
-                <p style="margin:12px 0 0;color:var(--text-muted);font-size:0.75rem;">
+                <p style="margin:12px 0 0;color:var(--text-muted);font-size:0.85rem;">
                     <i class="ph ph-calendar"></i> Added ${new Date(item.dateAdded).toLocaleDateString()}
                 </p>
             </div>
@@ -3916,7 +3916,7 @@ CRITICAL RULES:
         quizData.questions.forEach((q, qi) => {
             html += `<div style="margin-bottom:20px;background:rgba(255,255,255,0.05);padding:15px;border-radius:10px;">
                 <p style="margin-bottom:10px;color:white;"><strong>Q${qi + 1}:</strong> ${q.q}</p>
-                <div style="display:flex;flex-direction:column;gap:8px;" data-quiz-q="${qi}">`;
+                <div style="display:flex;flex-direction:column;gap:12px;" data-quiz-q="${qi}">`;
             q.options.forEach((opt, oi) => {
                 html += `<button class="btn-secondary quiz-option" data-q="${qi}" data-o="${oi}" style="text-align:left;padding:10px;" onclick="answerQuiz(${qi}, ${oi})">${opt}</button>`;
             });
@@ -4274,12 +4274,12 @@ function renderInventoryPage() {
             onmouseover="this.style.transform='translateY(-3px)'"
             onmouseout="this.style.transform='translateY(0)'">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <span style="background:${rc};color:#000;font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;">${item.rarity}</span>
-                <span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;">${item.category}</span>
+                <span style="background:${rc};color:#000;font-size:0.88rem;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;">${item.rarity}</span>
+                <span style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;">${item.category}</span>
             </div>
-            ${isEquipped ? '<div style="color:#00b894;font-size:0.75rem;font-weight:600;margin-bottom:6px;">✓ EQUIPPED</div>' : ''}
+            ${isEquipped ? '<div style="color:#00b894;font-size:0.85rem;font-weight:600;margin-bottom:6px;">✓ EQUIPPED</div>' : ''}
             <h4 style="color:${rc};margin:0 0 4px;font-size:1rem;">${item.name}</h4>
-            <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 12px;">${item.desc}</p>
+            <p style="font-size:0.9rem;color:var(--text-muted);margin:0 0 12px;">${item.desc}</p>
             <button class="btn-primary" onclick="equipItem('${item.category}','${item.id}')" ${isEquipped ? 'disabled' : ''}
                 style="width:100%;font-size:0.85rem;padding:8px;${isEquipped ? 'background:#00b894;cursor:default;opacity:0.7;' : ''}">
                 ${isEquipped ? '✓ Equipped' : 'Equip'}
@@ -5383,7 +5383,7 @@ function renderShopContent(tab, targetContainer) {
 
         // Rarity badge (+ STAGING overlay for owner-only items)
         const stagingBadge = item.staging ? `<div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:0.6rem;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px;">⚙ STAGING</div>` : '';
-        const rarityBadge = `${stagingBadge}<div style="position:absolute;top:8px;right:8px;background:${rarityColor};color:#000;font-size:0.65rem;font-weight:700;padding:4px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px;">${item.rarity}</div>`;
+        const rarityBadge = `${stagingBadge}<div style="position:absolute;top:8px;right:8px;background:${rarityColor};color:#000;font-size:0.88rem;font-weight:700;padding:4px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px;">${item.rarity}</div>`;
 
         // Preview section based on type
         let previewSection = '';
@@ -5412,7 +5412,7 @@ function renderShopContent(tab, targetContainer) {
         const accessOnly = !hasPro();
         const proOverlay = accessOnly ? `
             <div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:5px;letter-spacing:0.5px;display:flex;align-items:center;gap:4px;">
-                <i class="ph ph-lock-key" style="font-size:0.7rem;"></i> PRO
+                <i class="ph ph-lock-key" style="font-size:0.9rem;"></i> PRO
             </div>` : '';
         const buttonHtml = accessOnly
             ? `<button class="btn-primary" onclick="event.stopPropagation();openPaymentModal('pro')" style="width:100%;background:linear-gradient(135deg, #6C5CE7, #00CEC9);"><i class="ph ph-star"></i> Upgrade to Pro to Unlock</button>`
@@ -5425,8 +5425,8 @@ function renderShopContent(tab, targetContainer) {
             ${proOverlay}
             ${previewSection}
             <h3 style="color:${rarityColor};margin-bottom:6px;font-size:1rem;font-weight:600;">${item.name}</h3>
-            <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;min-height:32px;">${item.desc}</p>
-            ${equipped ? '<div style="font-size:0.75rem;color:#00b894;font-weight:600;margin-bottom:8px;">✓ EQUIPPED</div>' : ''}
+            <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:12px;min-height:32px;">${item.desc}</p>
+            ${equipped ? '<div style="font-size:0.85rem;color:#00b894;font-weight:600;margin-bottom:8px;">✓ EQUIPPED</div>' : ''}
             ${buttonHtml}
         `;
         gridContainer.appendChild(card);
@@ -5566,7 +5566,7 @@ function renderInventoryTab(container) {
             padding:12px;
             display:flex;
             flex-direction:column;
-            gap:8px;
+            gap:12px;
             transition:all 0.2s ease;
         `;
         card.onmouseenter = () => { card.style.transform = 'translateY(-2px)'; card.style.boxShadow = `0 4px 16px ${rarityColor}40`; };
@@ -5574,12 +5574,12 @@ function renderInventoryTab(container) {
 
         card.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:start;">
-                <div style="background:${rarityColor};color:#000;font-size:0.65rem;font-weight:700;padding:3px 6px;border-radius:4px;text-transform:uppercase;">${item.rarity}</div>
-                ${isEquipped ? '<div style="background:#00b894;color:#000;font-size:0.65rem;font-weight:700;padding:3px 6px;border-radius:4px;">✓ EQUIPPED</div>' : ''}
+                <div style="background:${rarityColor};color:#000;font-size:0.88rem;font-weight:700;padding:3px 6px;border-radius:4px;text-transform:uppercase;">${item.rarity}</div>
+                ${isEquipped ? '<div style="background:#00b894;color:#000;font-size:0.88rem;font-weight:700;padding:3px 6px;border-radius:4px;">✓ EQUIPPED</div>' : ''}
             </div>
             <h4 style="color:${rarityColor};margin:0;font-size:0.95rem;">${item.name}</h4>
-            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;flex:1;">${item.desc}</p>
-            <div style="display:flex;gap:6px;">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;flex:1;">${item.desc}</p>
+            <div style="display:flex;gap:9px;">
                 <button class="btn-secondary" onclick="equipItem('${item.category}', '${item.id}')" ${isEquipped ? 'disabled' : ''} style="flex:1;font-size:0.85rem;padding:6px;">
                     ${isEquipped ? 'Equipped' : 'Equip'}
                 </button>
@@ -5634,7 +5634,7 @@ function renderGambleTab(container) {
                         </div>
                     `).join('')}
                 </div>
-                ${ownedSecrets.length > 0 ? `<p style="font-size:0.8rem;color:#00b894;margin-top:12px;">✓ You own ${ownedSecrets.length}/${secretItems.length} legendary items!</p>` : ''}
+                ${ownedSecrets.length > 0 ? `<p style="font-size:0.9rem;color:#00b894;margin-top:12px;">✓ You own ${ownedSecrets.length}/${secretItems.length} legendary items!</p>` : ''}
             </div>
 
             <!-- Spin Wheel Container -->
@@ -6393,7 +6393,7 @@ function renderUpcomingPlans() {
     try { extra = JSON.parse(localStorage.getItem('upcoming_plans_extra') || '[]'); } catch (_) {}
 
     const addBtn = ownerMode ? `
-        <button onclick="ownerAddPlanItem()" style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.35);border-radius:8px;padding:7px 14px;cursor:pointer;color:#00cec9;font-size:0.82rem;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px;"><i class="ph ph-plus"></i> Add Plan Item</button>` : '';
+        <button onclick="ownerAddPlanItem()" style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.35);border-radius:8px;padding:7px 14px;cursor:pointer;color:#00cec9;font-size:0.9rem;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:9px;"><i class="ph ph-plus"></i> Add Plan Item</button>` : '';
     el.innerHTML = `
         ${addBtn}
         <div style="background:linear-gradient(135deg, rgba(0,206,201,0.1), rgba(108,92,231,0.06));border:1px solid rgba(0,206,201,0.25);border-radius:12px;padding:14px 16px;margin-bottom:16px;">
@@ -6416,22 +6416,22 @@ function renderUpcomingPlans() {
                         <button onclick="ownerSetPlanStatus(${extraIdx}, 'in-progress'); hideAllPlanMenus();" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:#FFD700;padding:8px 12px;cursor:pointer;font-size:0.83rem;border-radius:5px;" onmouseover="this.style.background='rgba(255,215,0,0.1)'" onmouseout="this.style.background='transparent'"><i class="ph ph-hammer"></i> Mark In Progress</button>
                         <button onclick="ownerSetPlanStatus(${extraIdx}, 'shipped'); hideAllPlanMenus();" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:#00b894;padding:8px 12px;cursor:pointer;font-size:0.83rem;border-radius:5px;" onmouseover="this.style.background='rgba(0,184,148,0.12)'" onmouseout="this.style.background='transparent'"><i class="ph ph-check-circle"></i> Mark Shipped</button>
                         <button onclick="ownerEditPlanEta(${extraIdx}); hideAllPlanMenus();" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:#74b9ff;padding:8px 12px;cursor:pointer;font-size:0.83rem;border-radius:5px;" onmouseover="this.style.background='rgba(116,185,255,0.1)'" onmouseout="this.style.background='transparent'"><i class="ph ph-pencil-simple"></i> Edit ETA</button>
-                        ${isExtra ? `<button onclick="ownerDeletePlanItem(${extraIdx}); hideAllPlanMenus();" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:#ff6b6b;padding:8px 12px;cursor:pointer;font-size:0.83rem;border-radius:5px;" onmouseover="this.style.background='rgba(255,107,107,0.12)'" onmouseout="this.style.background='transparent'"><i class="ph ph-trash"></i> Delete Item</button>` : '<button style="display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--text-muted);padding:8px 12px;font-size:0.78rem;border-radius:5px;cursor:default;" disabled><i class="ph ph-lock"></i> Seed item (read-only)</button>'}
+                        ${isExtra ? `<button onclick="ownerDeletePlanItem(${extraIdx}); hideAllPlanMenus();" style="display:block;width:100%;text-align:left;background:transparent;border:none;color:#ff6b6b;padding:8px 12px;cursor:pointer;font-size:0.83rem;border-radius:5px;" onmouseover="this.style.background='rgba(255,107,107,0.12)'" onmouseout="this.style.background='transparent'"><i class="ph ph-trash"></i> Delete Item</button>` : '<button style="display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--text-muted);padding:8px 12px;font-size:0.88rem;border-radius:5px;cursor:default;" disabled><i class="ph ph-lock"></i> Seed item (read-only)</button>'}
                     </div>
                 </div>` : '';
             return `
             <div class="glass-panel" style="padding:16px;margin-bottom:10px;${p.status === 'shipped' ? 'border-left:3px solid #00b894;' : p.status === 'in-progress' ? 'border-left:3px solid #FFD700;' : ''}${p.status === 'cancelled' ? 'opacity:0.7;' : ''}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
                     <h4 style="margin:0;color:white;font-size:1rem;font-weight:700;flex:1;min-width:200px;${p.status === 'cancelled' ? 'text-decoration:line-through;opacity:0.85;' : ''}">${escapeHtml(p.title)}</h4>
-                    <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="display:flex;align-items:center;gap:9px;">
                         <span style="background:${statusColor[p.status]}22;color:${statusColor[p.status]};font-size:0.66rem;font-weight:700;padding:3px 9px;border-radius:8px;letter-spacing:0.6px;">${statusLabel[p.status] || p.status.toUpperCase()}</span>
-                        <span style="color:var(--text-muted);font-size:0.74rem;">ETA: <strong style="color:white;">${escapeHtml(p.eta || '—')}</strong></span>
+                        <span style="color:var(--text-muted);font-size:0.85rem;">ETA: <strong style="color:white;">${escapeHtml(p.eta || '—')}</strong></span>
                         ${ownerMenu}
                     </div>
                 </div>
                 <p style="margin:0 0 8px;color:#d8dce5;font-size:0.86rem;line-height:1.55;">${escapeHtml(p.body)}</p>
-                ${p.deferReason ? `<p style="margin:0 0 8px;color:#fdcb6e;font-size:0.78rem;line-height:1.5;"><i class="ph ph-info"></i> <strong>Why not yet:</strong> ${escapeHtml(p.deferReason)}</p>` : ''}
-                <p style="margin:0;color:var(--text-muted);font-size:0.74rem;font-style:italic;">Suggested by ${escapeHtml(p.from)}</p>
+                ${p.deferReason ? `<p style="margin:0 0 8px;color:#fdcb6e;font-size:0.88rem;line-height:1.5;"><i class="ph ph-info"></i> <strong>Why not yet:</strong> ${escapeHtml(p.deferReason)}</p>` : ''}
+                <p style="margin:0;color:var(--text-muted);font-size:0.85rem;font-style:italic;">Suggested by ${escapeHtml(p.from)}</p>
             </div>`;
         }).join('')}
     `;
@@ -6612,9 +6612,9 @@ function renderSuggestions() {
                 <div style="font-size:1rem;font-weight:700;margin-top:2px;">${s.votes || 0}</div>
             </button>
             <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
                     <span style="background:${catColor}22;color:${catColor};font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
-                    <span style="color:var(--text-muted);font-size:0.72rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
+                    <span style="color:var(--text-muted);font-size:0.9rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
                 </div>
                 <h4 style="margin:0 0 4px;color:white;font-size:0.95rem;font-weight:600;">${escapeHtml(s.title)}</h4>
                 ${s.body ? `<p style="margin:0;color:#d8dce5;font-size:0.84rem;line-height:1.5;">${escapeHtml(s.body)}</p>` : ''}
@@ -6806,18 +6806,18 @@ function renderSuggestionsPage() {
             // v12.7: owner gets a star (approve) + trash (delete) button group
         const daysLeft = s.ownerApproved ? '∞' : Math.max(0, Math.ceil((SUGGESTION_EXPIRY_MS - (Date.now() - (s.createdAt||0))) / 86400000));
         const ownerBtns = ownerMode ? `
-            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+            <div style="display:flex;flex-direction:column;gap:9px;flex-shrink:0;">
                 <button onclick="ownerApproveSuggestion('${s.id}')" title="${s.ownerApproved ? 'Unpin (currently pinned permanently)' : 'Pin permanently (owner approve)'}"
-                    style="background:${s.ownerApproved ? 'linear-gradient(135deg,#fdcb6e,#e17055)' : 'rgba(253,203,110,0.1)'};border:1px solid ${s.ownerApproved ? 'rgba(253,203,110,0.6)' : 'rgba(253,203,110,0.25)'};border-radius:8px;padding:6px 9px;cursor:pointer;color:${s.ownerApproved ? '#fff' : '#fdcb6e'};font-size:0.8rem;white-space:nowrap;">
+                    style="background:${s.ownerApproved ? 'linear-gradient(135deg,#fdcb6e,#e17055)' : 'rgba(253,203,110,0.1)'};border:1px solid ${s.ownerApproved ? 'rgba(253,203,110,0.6)' : 'rgba(253,203,110,0.25)'};border-radius:8px;padding:6px 9px;cursor:pointer;color:${s.ownerApproved ? '#fff' : '#fdcb6e'};font-size:0.9rem;white-space:nowrap;">
                     <i class="ph ph-star${s.ownerApproved ? '-fill' : ''}"></i>
                 </button>
                 <button onclick="ownerDeleteSuggestion('${s.id}');renderSuggestionsPage();" title="Delete (owner)"
-                    style="background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.25);border-radius:8px;padding:6px 9px;cursor:pointer;color:#ff6b6b;font-size:0.8rem;">
+                    style="background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.25);border-radius:8px;padding:6px 9px;cursor:pointer;color:#ff6b6b;font-size:0.9rem;">
                     <i class="ph ph-trash"></i>
                 </button>
             </div>` : '';
         const approvedBadge = s.ownerApproved ? `<span style="background:rgba(253,203,110,0.18);color:#fdcb6e;font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:8px;letter-spacing:0.5px;"><i class="ph ph-star-fill"></i> PINNED</span>` : '';
-        const expiryHint = (!s.ownerApproved && ownerMode && typeof daysLeft === 'number') ? `<span style="color:var(--text-muted);font-size:0.68rem;opacity:0.7;">expires in ${daysLeft}d</span>` : '';
+        const expiryHint = (!s.ownerApproved && ownerMode && typeof daysLeft === 'number') ? `<span style="color:var(--text-muted);font-size:0.88rem;opacity:0.7;">expires in ${daysLeft}d</span>` : '';
         return `
         <div class="glass-panel" style="padding:16px 18px;display:flex;gap:14px;align-items:flex-start;${s.ownerApproved ? 'border-left:3px solid #fdcb6e;' : ''}">
             <button onclick="voteSuggestion('${s.id}');renderSuggestionsPage();"
@@ -6826,10 +6826,10 @@ function renderSuggestionsPage() {
                 <div style="font-size:1rem;font-weight:700;margin-top:2px;">${s.votes || 0}</div>
             </button>
             <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:5px;">
                     <span style="background:${catColor}22;color:${catColor};font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
                     ${approvedBadge}
-                    <span style="color:var(--text-muted);font-size:0.72rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
+                    <span style="color:var(--text-muted);font-size:0.9rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
                     ${expiryHint}
                 </div>
                 <h4 style="margin:0 0 4px;color:white;font-size:0.95rem;font-weight:600;">${escapeHtml(s.title)}</h4>
@@ -10218,10 +10218,10 @@ function renderHistoryList() {
         return `
             <div class="glass-panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;transition:border-color 0.2s,transform 0.15s;border-left:3px solid ${accentColor};" onclick="showHistoryDetail(${entry.id})" onmouseover="this.style.borderLeftWidth='5px';this.style.transform='translateX(2px)'" onmouseout="this.style.borderLeftWidth='3px';this.style.transform=''">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
-                    <span style="color:${accentColor};font-size:0.78rem;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;">
+                    <span style="color:${accentColor};font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:0.5px;">
                         <i class="ph ${icon}"></i> ${label.toUpperCase()}
                     </span>
-                    <span style="color:var(--text-muted);font-size:0.72rem;">${entry.timestamp}</span>
+                    <span style="color:var(--text-muted);font-size:0.9rem;">${entry.timestamp}</span>
                 </div>
                 <p style="color:#ddd;font-size:0.9rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${entry.question}</p>
             </div>
@@ -10271,7 +10271,7 @@ function showHistoryDetail(id) {
 
     const imageBlock = entry.image
         ? `<div style="margin-bottom:14px;background:rgba(0,0,0,0.35);border:1px solid ${accentColor}55;border-radius:10px;padding:10px;text-align:center;">
-              <div style="font-size:0.7rem;color:${accentColor};letter-spacing:1.2px;font-weight:700;margin-bottom:8px;">PROBLEM IMAGE</div>
+              <div style="font-size:0.9rem;color:${accentColor};letter-spacing:1.2px;font-weight:700;margin-bottom:8px;">PROBLEM IMAGE</div>
               <img src="${entry.image}" alt="problem image" style="max-width:100%;max-height:340px;border-radius:6px;display:inline-block;">
            </div>`
         : '';
@@ -10279,7 +10279,7 @@ function showHistoryDetail(id) {
     // Show "Explain the concept" for subject entries that re-runable
     const reExplainable = ['math', 'science'].includes(entry.type) || (entry.type === 'study' && /vision/i.test(entry.question || ''));
     const reExplainBtn = reExplainable
-        ? `<button class="btn-primary" onclick="reExplainHistoryEntry(${entry.id})" style="display:inline-flex;align-items:center;gap:6px;padding:9px 14px;background:linear-gradient(135deg,${accentColor},#00CEC9);border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;font-size:0.86rem;">
+        ? `<button class="btn-primary" onclick="reExplainHistoryEntry(${entry.id})" style="display:inline-flex;align-items:center;gap:9px;padding:9px 14px;background:linear-gradient(135deg,${accentColor},#00CEC9);border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;font-size:0.86rem;">
             <i class="ph ph-graduation-cap"></i> Explain the concept
           </button>`
         : '';
@@ -10287,7 +10287,7 @@ function showHistoryDetail(id) {
     // deck (front/back) of key terms and definitions, saved into the Flashcards tab.
     const flashcardable = ['math', 'science', 'english', 'social'].includes(entry.type);
     const flashcardBtn = flashcardable
-        ? `<button class="btn-secondary" onclick="makeFlashcardsFromHistory(${entry.id})" style="display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.86rem;">
+        ? `<button class="btn-secondary" onclick="makeFlashcardsFromHistory(${entry.id})" style="display:inline-flex;align-items:center;gap:9px;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.86rem;">
             <i class="ph ph-cards"></i> Make flashcards
           </button>`
         : '';
@@ -10296,17 +10296,17 @@ function showHistoryDetail(id) {
         <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg, ${accentColor}22, ${accentColor}11);border-left:4px solid ${accentColor};border-radius:8px;margin-bottom:14px;">
             <i class="ph ${icon}" style="color:${accentColor};font-size:1.2rem;"></i>
             <div style="flex:1;min-width:0;">
-                <div style="color:${accentColor};font-size:0.74rem;font-weight:700;letter-spacing:1px;">${label.toUpperCase()}</div>
-                <div style="color:var(--text-muted);font-size:0.78rem;">${entry.timestamp || ''}</div>
+                <div style="color:${accentColor};font-size:0.85rem;font-weight:700;letter-spacing:1px;">${label.toUpperCase()}</div>
+                <div style="color:var(--text-muted);font-size:0.88rem;">${entry.timestamp || ''}</div>
             </div>
         </div>
         <div style="margin-bottom:12px;">
-            <div style="color:var(--text-muted);font-size:0.72rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;">QUESTION</div>
+            <div style="color:var(--text-muted);font-size:0.9rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;">QUESTION</div>
             <div style="color:white;font-size:0.98rem;line-height:1.45;">${escapeHtmlSafe(entry.question || '')}</div>
         </div>
         ${imageBlock}
         <div style="margin-bottom:14px;">
-            <div style="color:var(--text-muted);font-size:0.72rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;">ANSWER</div>
+            <div style="color:var(--text-muted);font-size:0.9rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;">ANSWER</div>
             <div id="history-detail-body" style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; color:#ddd; font-size:0.9rem; line-height:1.6; max-height:50vh; overflow-y:auto;">${entry.answer || ''}</div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
@@ -10401,9 +10401,9 @@ function openFlashcards(focusDeckId) {
             <div class="glass-panel" style="max-width:720px;width:100%;max-height:88vh;overflow-y:auto;padding:24px;border:1px solid rgba(108,92,231,0.4);">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="margin:0;font-size:1.2rem;color:white;"><i class="ph ph-cards"></i> Flashcards</h2>
-                    <div style="display:flex;gap:8px;">
-                        <button class="btn-secondary" onclick="openFlashcardCreateForm()" style="font-size:0.8rem;padding:7px 12px;"><i class="ph ph-plus"></i> New Deck</button>
-                        <button class="btn-secondary" onclick="openFlashcardAIGenerate()" style="font-size:0.8rem;padding:7px 12px;background:linear-gradient(135deg,rgba(0,206,201,0.15),rgba(108,92,231,0.15));"><i class="ph ph-sparkle"></i> AI Generate</button>
+                    <div style="display:flex;gap:12px;">
+                        <button class="btn-secondary" onclick="openFlashcardCreateForm()" style="font-size:0.9rem;padding:7px 12px;"><i class="ph ph-plus"></i> New Deck</button>
+                        <button class="btn-secondary" onclick="openFlashcardAIGenerate()" style="font-size:0.9rem;padding:7px 12px;background:linear-gradient(135deg,rgba(0,206,201,0.15),rgba(108,92,231,0.15));"><i class="ph ph-sparkle"></i> AI Generate</button>
                         <button class="btn-icon" onclick="document.getElementById('flashcards-modal').remove()"><i class="ph ph-x"></i></button>
                     </div>
                 </div>
@@ -10421,11 +10421,11 @@ function openFlashcardCreateForm() {
     const content = document.getElementById('flashcards-content');
     if (!content) return;
     content.innerHTML = `
-        <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.8rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
+        <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.9rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
         <h3 style="margin:0 0 12px;color:white;font-size:1rem;">Create a New Deck</h3>
         <input type="text" id="fc-new-deck-title" placeholder="Deck title (e.g. Biology Ch. 5)"
             style="width:100%;padding:10px;margin-bottom:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.9rem;outline:none;box-sizing:border-box;">
-        <div id="fc-new-cards-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+        <div id="fc-new-cards-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px;"></div>
         <button class="btn-secondary" onclick="addFlashcardRow()" style="width:100%;margin-bottom:14px;"><i class="ph ph-plus"></i> Add Card</button>
         <button class="btn-primary" onclick="saveManualFlashcardDeck()" style="width:100%;"><i class="ph ph-floppy-disk"></i> Save Deck</button>`;
     addFlashcardRow();
@@ -10436,7 +10436,7 @@ function addFlashcardRow() {
     if (!list) return;
     const idx = list.children.length;
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    row.style.cssText = 'display:flex;gap:12px;align-items:center;';
     row.innerHTML = `
         <input type="text" placeholder="Front (term)" style="flex:1;padding:9px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.84rem;outline:none;" class="fc-card-front">
         <input type="text" placeholder="Back (answer)" style="flex:1;padding:9px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.84rem;outline:none;" class="fc-card-back">
@@ -10467,12 +10467,12 @@ async function openFlashcardAIGenerate() {
     const history = JSON.parse(localStorage.getItem('user_history') || '[]').slice(0, 20);
     if (history.length === 0) {
         content.innerHTML = `
-            <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.8rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
+            <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.9rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
             <p style="color:var(--text-muted);text-align:center;padding:24px;">No history yet. Complete some study sessions first!</p>`;
         return;
     }
     content.innerHTML = `
-        <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.8rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
+        <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.9rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
         <h3 style="margin:0 0 12px;color:white;font-size:1rem;"><i class="ph ph-sparkle" style="color:#00cec9;"></i> AI Generate from History</h3>
         <p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 14px;">Generates flashcards from your ${history.length} most recent study sessions.</p>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
@@ -10539,7 +10539,7 @@ function renderFlashcardsList(focusDeckId) {
         <div class="glass-panel" style="padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
             <div style="flex:1;min-width:0;">
                 <div style="color:white;font-weight:600;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtmlSafe(d.title)}</div>
-                <div style="color:var(--text-muted);font-size:0.78rem;">${d.cards.length} cards · ${(d.subject || '').toUpperCase()}</div>
+                <div style="color:var(--text-muted);font-size:0.88rem;">${d.cards.length} cards · ${(d.subject || '').toUpperCase()}</div>
             </div>
             <button class="btn-secondary" onclick="_flashcardReviewIdx=0;renderFlashcardReview(${d.id})" style="padding:8px 14px;font-size:0.84rem;"><i class="ph ph-play"></i> Review</button>
             <button class="btn-secondary" onclick="deleteFlashcardDeck(${d.id})" style="padding:8px 12px;font-size:0.84rem;color:#ff6b6b;border-color:rgba(255,107,107,0.3);"><i class="ph ph-trash"></i></button>
@@ -10750,12 +10750,12 @@ function renderPomodoroWidget() {
 
     widget.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div style="color:${accent};font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;">${phaseLabel}</div>
+            <div style="color:${accent};font-size:0.9rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;">${phaseLabel}</div>
             <button onclick="closePomodoroWidget()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;"><i class="ph ph-x"></i></button>
         </div>
         <div style="font-family:'Fira Code', monospace;font-size:2.2rem;font-weight:700;color:white;text-align:center;margin-bottom:10px;letter-spacing:2px;">${time}</div>
-        <div style="display:flex;gap:6px;">${buttons}</div>
-        ${s ? `<div style="margin-top:8px;font-size:0.7rem;color:var(--text-muted);text-align:center;">${phase === 'focus' ? 'Companion auto-quieted' : 'Stretch · water · breathe'}</div>` : ''}
+        <div style="display:flex;gap:9px;">${buttons}</div>
+        ${s ? `<div style="margin-top:8px;font-size:0.9rem;color:var(--text-muted);text-align:center;">${phase === 'focus' ? 'Companion auto-quieted' : 'Stretch · water · breathe'}</div>` : ''}
     `;
     // Also sync companion chat bar
     renderCompanionPomodoroBar();
@@ -10792,26 +10792,26 @@ function renderFlashcardReview(deckId) {
             const daysLeft = Math.round((card.sm2.nextReview - Date.now()) / 86400000);
             const label = daysLeft <= 0 ? 'Due now' : `Due in ${daysLeft}d`;
             const col = daysLeft <= 0 ? '#ff6b6b' : '#00cec9';
-            dueBadge = `<span style="font-size:0.72rem;color:${col};background:${col}22;border:1px solid ${col}44;padding:2px 8px;border-radius:10px;margin-left:8px;">${label}</span>`;
+            dueBadge = `<span style="font-size:0.9rem;color:${col};background:${col}22;border:1px solid ${col}44;padding:2px 8px;border-radius:10px;margin-left:8px;">${label}</span>`;
         }
         // v12.6 — progress bar
         const _fcPct = Math.round(((_flashcardReviewIdx + 1) / deck.cards.length) * 100);
         const _fcColor = _fcPct === 100 ? '#00b894' : 'var(--accent)';
         content.innerHTML = `
-            <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.8rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> All decks</button>
+            <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.9rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> All decks</button>
             <div style="height:5px;border-radius:4px;background:rgba(255,255,255,0.08);margin-bottom:10px;overflow:hidden;">
                 <div style="height:100%;width:${_fcPct}%;background:linear-gradient(90deg,${_fcColor},var(--accent-glow,#00cec9));border-radius:4px;transition:width 0.3s ease;"></div>
             </div>
-            <div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;text-align:center;">Card ${_flashcardReviewIdx + 1} / ${deck.cards.length} · ${escapeHtmlSafe(deck.title)}${dueBadge}</div>
+            <div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:8px;text-align:center;">Card ${_flashcardReviewIdx + 1} / ${deck.cards.length} · ${escapeHtmlSafe(deck.title)}${dueBadge}</div>
             <div onclick="this.dataset.flipped = this.dataset.flipped === '1' ? '0' : '1'; this.querySelector('.fc-side').textContent = this.dataset.flipped === '1' ? ${JSON.stringify(card.back)} : ${JSON.stringify(card.front)}; if(this.dataset.flipped === '1' && typeof window.flipFlashcard === 'function') window.flipFlashcard();"
                  data-flipped="${flipped ? '1' : '0'}"
                  style="background:linear-gradient(135deg, rgba(108,92,231,0.18), rgba(0,206,201,0.10));border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:50px 30px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center;margin-bottom:14px;transition:transform 0.2s;"
                  onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                 <div class="fc-side" style="color:white;font-size:1.2rem;line-height:1.5;">${escapeHtmlSafe(flipped ? card.back : card.front)}</div>
             </div>
-            <div style="text-align:center;color:var(--text-muted);font-size:0.74rem;margin-bottom:14px;"><i class="ph ph-cursor-click"></i> Click the card to reveal — then rate yourself</div>
-            <div id="fc-card-actions" style="display:flex;flex-direction:column;gap:8px;">
-                <div style="display:flex;gap:8px;justify-content:space-between;">
+            <div style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;"><i class="ph ph-cursor-click"></i> Click the card to reveal — then rate yourself</div>
+            <div id="fc-card-actions" style="display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;gap:12px;justify-content:space-between;">
                     <button id="fc-prev-btn" class="btn-secondary" ${_flashcardReviewIdx === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} onclick="_flashcardReviewIdx--; renderFlashcardReview(${deckId})"><i class="ph ph-arrow-left"></i> Prev</button>
                     <button id="fc-next-btn" class="btn-primary" onclick="_flashcardReviewIdx = (_flashcardReviewIdx + 1) % ${deck.cards.length}; renderFlashcardReview(${deckId})">Next <i class="ph ph-arrow-right"></i></button>
                 </div>
@@ -11328,7 +11328,7 @@ ACCURACY: If you are uncertain about a specific date or detail, say so explicitl
 
             if (mainThumb) {
                 const galleryStrip = extraImages.length > 0 ? `
-                    <div style="display:grid;grid-template-columns:repeat(${Math.min(extraImages.length, 4)},1fr);gap:8px;margin-top:10px;">
+                    <div style="display:grid;grid-template-columns:repeat(${Math.min(extraImages.length, 4)},1fr);gap:12px;margin-top:10px;">
                         ${extraImages.map(im => `
                             <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--glass-border);aspect-ratio:1;background:rgba(0,0,0,0.4);">
                                 <img src="${im.src}" alt="${im.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;transition:transform 0.3s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'" title="${im.title}">
@@ -11339,7 +11339,7 @@ ACCURACY: If you are uncertain about a specific date or detail, say so explicitl
                         <div style="width:100%;max-height:380px;overflow:hidden;border-radius:10px;background:#000;display:flex;align-items:center;justify-content:center;">
                             <img src="${mainThumb}" alt="${query}" style="width:100%;height:auto;max-height:380px;object-fit:contain;display:block;">
                         </div>
-                        <p style="margin:8px 0 0;font-size:0.78rem;color:var(--text-muted);text-align:center;font-style:italic;">${wikiTitle} &middot; via Wikipedia${extraImages.length > 0 ? ` (+${extraImages.length} related)` : ''}</p>
+                        <p style="margin:8px 0 0;font-size:0.88rem;color:var(--text-muted);text-align:center;font-style:italic;">${wikiTitle} &middot; via Wikipedia${extraImages.length > 0 ? ` (+${extraImages.length} related)` : ''}</p>
                         ${galleryStrip}
                     </div>`;
             }
@@ -12156,7 +12156,7 @@ async function helpMeLiveVision() {
         const _hmPhrases = ['Reading your screen…','Finding the concept…','Building your guidance…','Preparing the strategy…','Almost there…'];
         let _hmIdx = 0;
         document.getElementById('ai-answer-text').innerHTML =
-            `<span id="hm-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:8px;"><i class="ph ph-spinner ph-spin"></i>${_hmPhrases[0]}</span>`;
+            `<span id="hm-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:12px;"><i class="ph ph-spinner ph-spin"></i>${_hmPhrases[0]}</span>`;
         document.getElementById('ai-explanation-text').innerHTML = '';
         window._hmPhaseTimer = setInterval(() => {
             _hmIdx = (_hmIdx + 1) % _hmPhrases.length;
@@ -12226,10 +12226,10 @@ ABSOLUTE RULES:
         // Render the tutor-block cards in place of the regular straight-answer panel
         if (solutionPanel) {
             solutionPanel.innerHTML = `
-                <div style="padding:14px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.06));border-bottom:1px solid rgba(108,92,231,0.25);display:flex;align-items:center;gap:8px;">
+                <div style="padding:14px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.06));border-bottom:1px solid rgba(108,92,231,0.25);display:flex;align-items:center;gap:12px;">
                     <i class="ph ph-graduation-cap" style="color:#a29bfe;font-size:1.05rem;"></i>
-                    <span style="color:#a29bfe;font-size:0.72rem;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;">Help Me — Tutor Mode</span>
-                    <span style="margin-left:auto;font-size:0.7rem;color:var(--text-muted);">Open the companion to ask follow-up questions about this problem.</span>
+                    <span style="color:#a29bfe;font-size:0.9rem;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;">Help Me — Tutor Mode</span>
+                    <span style="margin-left:auto;font-size:0.9rem;color:var(--text-muted);">Open the companion to ask follow-up questions about this problem.</span>
                 </div>
                 <div style="padding:14px 16px;" id="live-vision-tutor-output">${cleaned}</div>
             `;
@@ -12273,7 +12273,7 @@ async function analyzeText() {
         if (ocrText) {
             resultDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;font-size:0.85rem;color:var(--text-muted);max-height:150px;overflow-y:auto;white-space:pre-wrap;">${ocrText}</div>`;
         } else {
-            resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:0.82rem;">OCR found no readable text — sending the image directly to vision AI...</p>';
+            resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">OCR found no readable text — sending the image directly to vision AI...</p>';
         }
 
         const apiKey = getApiKey();
@@ -12296,13 +12296,13 @@ async function analyzeText() {
             'Formatting the response…',
         ];
         let phaseIdx = 0;
-        answerEl.innerHTML = `<span id="lv-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:8px;"><i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>${statusPhrases[0]}</span>`;
+        answerEl.innerHTML = `<span id="lv-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:12px;"><i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>${statusPhrases[0]}</span>`;
         const phaseTimer = setInterval(() => {
             phaseIdx = (phaseIdx + 1) % statusPhrases.length;
             const s = document.getElementById('lv-fetch-status');
             if (s) s.innerHTML = `<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>${statusPhrases[phaseIdx]}`;
         }, 1200);
-        explainEl.innerHTML = '<span style="color:var(--text-muted);font-size:0.82rem;">Live Vision is analyzing your screen — answer incoming…</span>';
+        explainEl.innerHTML = '<span style="color:var(--text-muted);font-size:0.9rem;">Live Vision is analyzing your screen — answer incoming…</span>';
 
         // v12.8 — Enhanced AI prompt with fill-in-the-blank + question-type-specific rules
         const systemPrompt = `You are NEXUS Live Vision — an ultra-precise AI tutor reading a student's screen. Detect the academic level from vocabulary and notation. Answer with zero filler, maximum precision.
@@ -12415,7 +12415,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         // Special display for fill-in-the-blank: big box with the answer word highlighted
         const answerElFinal = document.getElementById('ai-answer-text');
         if (qType === 'fill-in-the-blank') {
-            _typewriterHTML(answerElFinal, `<div style="font-size:0.7rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`);
+            _typewriterHTML(answerElFinal, `<div style="font-size:0.9rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`);
         } else {
             _typewriterHTML(answerElFinal, cleanedAnswer);
         }
@@ -12722,16 +12722,16 @@ function appendTutorAnswerBox(outputEl, subject) {
         gap: 10px;
     `;
     wrap.innerHTML = `
-        <label style="color:#7fffec;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;">
+        <label style="color:#7fffec;font-size:0.88rem;font-weight:600;letter-spacing:0.5px;">
             <i class="ph ph-pencil-simple-line"></i> Your answer
         </label>
         <textarea data-tutor-answer-input rows="2"
             placeholder="Take the first step — type what you'd do next."
             style="width:100%;padding:11px 13px;background:rgba(8,10,24,0.7);border:1px solid rgba(0,206,201,0.35);border-radius:9px;color:#fff;outline:none;font-size:0.92rem;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
-        <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;">
-            <span style="color:var(--text-muted);font-size:0.7rem;">Stay in tutor mode — no answer given, just guided steps.</span>
+        <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;">
+            <span style="color:var(--text-muted);font-size:0.9rem;">Stay in tutor mode — no answer given, just guided steps.</span>
             <button class="btn-primary" data-tutor-answer-send
-                style="padding:8px 16px;background:linear-gradient(135deg,#00CEC9,#6C5CE7);border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;">
+                style="padding:8px 16px;background:linear-gradient(135deg,#00CEC9,#6C5CE7);border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;font-size:0.85rem;display:inline-flex;align-items:center;gap:9px;">
                 <i class="ph ph-paper-plane-tilt"></i> Send
             </button>
         </div>
@@ -12768,7 +12768,7 @@ async function submitTutorAnswer(subject, answer, outputEl, inputWrap) {
         border: 1px solid rgba(108,92,231,0.35); border-radius: 10px;
         color: #fff; font-size: 0.92rem; line-height: 1.55;
     `;
-    replyBubble.innerHTML = `<strong style="color:#a29bfe;font-size:0.78rem;display:block;margin-bottom:4px;">🗣️ Your reply</strong>${escapeHtmlSafe(text)}`;
+    replyBubble.innerHTML = `<strong style="color:#a29bfe;font-size:0.88rem;display:block;margin-bottom:4px;">🗣️ Your reply</strong>${escapeHtmlSafe(text)}`;
     if (inputWrap && inputWrap.parentNode) inputWrap.parentNode.replaceChild(replyBubble, inputWrap);
 
     // v12.2 — explicit VERIFICATION instruction. Old prompt was too lenient and
@@ -12922,7 +12922,7 @@ function renderFormulaLibrary() {
                     onclick="selectFormulaCategory('${cat.replace(/'/g, "\\'")}')"
                     style="${isActive ? '' : ''}">
                     <i class="ph ph-function"></i> ${cat}
-                    <span style="margin-left:auto;font-size:0.7rem;color:#888;font-weight:500;">${FORMULA_DATA[cat].length}</span>
+                    <span style="margin-left:auto;font-size:0.9rem;color:#888;font-weight:500;">${FORMULA_DATA[cat].length}</span>
                 </button>`;
             }).join('')}
         </div>`;
@@ -12930,18 +12930,18 @@ function renderFormulaLibrary() {
     const items = FORMULA_DATA[_selectedFormulaCategory] || [];
     const right = `
         <div style="padding:24px 28px;overflow-y:auto;flex:1;">
-            <h3 style="color:white;margin:0 0 14px;font-size:1.1rem;">${_selectedFormulaCategory} <span style="color:var(--text-muted);font-size:0.78rem;font-weight:500;">· ${items.length} formulas</span></h3>
+            <h3 style="color:white;margin:0 0 14px;font-size:1.1rem;">${_selectedFormulaCategory} <span style="color:var(--text-muted);font-size:0.88rem;font-weight:500;">· ${items.length} formulas</span></h3>
             <div style="display:grid;gap:10px;">
                 ${items.map(item => `
                     <div class="glass-panel" style="padding:14px;border-left:3px solid var(--accent);">
-                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:12px;">
                             <strong style="color:white;font-size:1rem;">${item.name}</strong>
                             <button class="btn-icon" onclick="copyFormula('${item.formula.replace(/'/g, "\\'")}')" title="Copy formula">
                                 <i class="ph ph-copy"></i>
                             </button>
                         </div>
                         <code style="display:block;background:rgba(255,255,255,0.05);padding:10px;border-radius:4px;font-size:1rem;color:#00cec9;margin-bottom:6px;font-family:'Fira Code',monospace;">${item.formula}</code>
-                        <p style="color:var(--text-muted);font-size:0.82rem;margin:0;">
+                        <p style="color:var(--text-muted);font-size:0.9rem;margin:0;">
                             <i class="ph ph-lightbulb"></i> ${item.use}
                         </p>
                     </div>
@@ -13248,7 +13248,7 @@ async function processPromptEngine() {
     if (!text) { showToast('Type what you want a prompt for.', 'warning'); return; }
 
     output.classList.remove('hidden');
-    output.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#00fff5;"></i><div style="margin-top:8px;font-size:0.82rem;">Generating…</div></div>`;
+    output.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#00fff5;"></i><div style="margin-top:8px;font-size:0.9rem;">Generating…</div></div>`;
 
     const apiKey = getApiKey();
     if (!apiKey) {
@@ -13636,16 +13636,16 @@ function runExperiment(type) {
                 <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">Adjust the pendulum length and gravity, watch the period change live.</p>
                 <div class="lab-slider-label"><span>Length (m): <strong id="lab-pen-L-val">1.00</strong></span></div>
                 <input type="range" min="0.1" max="5" step="0.05" value="1" class="lab-slider" id="lab-pen-L" oninput="updatePendulum()">
-                <div class="lab-slider-label"><span>Gravity (m/s²): <strong id="lab-pen-g-val">9.81</strong></span><span style="font-size:0.7rem;color:var(--text-muted);">Earth=9.81 · Moon=1.62 · Mars=3.71</span></div>
+                <div class="lab-slider-label"><span>Gravity (m/s²): <strong id="lab-pen-g-val">9.81</strong></span><span style="font-size:0.9rem;color:var(--text-muted);">Earth=9.81 · Moon=1.62 · Mars=3.71</span></div>
                 <input type="range" min="1" max="25" step="0.1" value="9.81" class="lab-slider" id="lab-pen-g" oninput="updatePendulum()">
                 <div class="lab-result-box">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">PERIOD T</div><div id="lab-pen-T" style="font-size:1.4rem;color:#00b894;font-weight:700;">2.01 s</div></div>
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">FREQUENCY f</div><div id="lab-pen-f" style="font-size:1.4rem;color:#55efc4;font-weight:700;">0.498 Hz</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">PERIOD T</div><div id="lab-pen-T" style="font-size:1.4rem;color:#00b894;font-weight:700;">2.01 s</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">FREQUENCY f</div><div id="lab-pen-f" style="font-size:1.4rem;color:#55efc4;font-weight:700;">0.498 Hz</div></div>
                     </div>
-                    <div style="font-family:monospace;font-size:0.8rem;color:#dde;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;">T = 2π√(L/g)</div>
+                    <div style="font-family:monospace;font-size:0.9rem;color:#dde;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;">T = 2π√(L/g)</div>
                 </div>
-                <div style="margin-top:10px;padding:10px;background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;border-radius:4px;font-size:0.82rem;line-height:1.5;color:#dde;">
+                <div style="margin-top:10px;padding:10px;background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;border-radius:4px;font-size:0.9rem;line-height:1.5;color:#dde;">
                     <strong style="color:#00cec9;">Notice:</strong> Period depends on length and gravity, NOT on mass or amplitude (for small swings). That's why pendulum clocks work the same regardless of the bob's weight.
                 </div>`;
             updatePendulum();
@@ -13660,13 +13660,13 @@ function runExperiment(type) {
                 <input type="range" min="5" max="60" step="0.5" value="20" class="lab-slider" id="lab-prj-v" oninput="updateProjectile()">
                 <div class="lab-result-box">
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">RANGE</div><div id="lab-prj-R" style="font-size:1.2rem;color:#00b894;font-weight:700;">40.8 m</div></div>
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">MAX HEIGHT</div><div id="lab-prj-H" style="font-size:1.2rem;color:#55efc4;font-weight:700;">10.2 m</div></div>
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">FLIGHT TIME</div><div id="lab-prj-t" style="font-size:1.2rem;color:#00cec9;font-weight:700;">2.88 s</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">RANGE</div><div id="lab-prj-R" style="font-size:1.2rem;color:#00b894;font-weight:700;">40.8 m</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">MAX HEIGHT</div><div id="lab-prj-H" style="font-size:1.2rem;color:#55efc4;font-weight:700;">10.2 m</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">FLIGHT TIME</div><div id="lab-prj-t" style="font-size:1.2rem;color:#00cec9;font-weight:700;">2.88 s</div></div>
                     </div>
                     <canvas id="lab-prj-canvas" width="500" height="180" style="width:100%;background:rgba(0,0,0,0.3);border-radius:6px;border:1px solid rgba(0,184,148,0.2);"></canvas>
                 </div>
-                <div style="margin-top:10px;padding:10px;background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;border-radius:4px;font-size:0.82rem;line-height:1.5;color:#dde;">
+                <div style="margin-top:10px;padding:10px;background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;border-radius:4px;font-size:0.9rem;line-height:1.5;color:#dde;">
                     <strong style="color:#00cec9;">Try this:</strong> Set the angle to 45° to see maximum range. Above or below 45° (with the same speed) gives shorter range.
                 </div>`;
             updateProjectile();
@@ -13681,12 +13681,12 @@ function runExperiment(type) {
                 <input type="range" min="1" max="1000" step="1" value="100" class="lab-slider" id="lab-cir-R" oninput="updateCircuit()">
                 <div class="lab-result-box">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">CURRENT I</div><div id="lab-cir-I" style="font-size:1.4rem;color:#00b894;font-weight:700;">0.090 A</div></div>
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">POWER P</div><div id="lab-cir-P" style="font-size:1.4rem;color:#55efc4;font-weight:700;">0.81 W</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">CURRENT I</div><div id="lab-cir-I" style="font-size:1.4rem;color:#00b894;font-weight:700;">0.090 A</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">POWER P</div><div id="lab-cir-P" style="font-size:1.4rem;color:#55efc4;font-weight:700;">0.81 W</div></div>
                     </div>
-                    <div style="font-family:monospace;font-size:0.8rem;color:#dde;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;">V = I × R · P = V × I</div>
+                    <div style="font-family:monospace;font-size:0.9rem;color:#dde;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;">V = I × R · P = V × I</div>
                 </div>
-                <div style="margin-top:10px;padding:10px;background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;border-radius:4px;font-size:0.82rem;line-height:1.5;color:#dde;">
+                <div style="margin-top:10px;padding:10px;background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;border-radius:4px;font-size:0.9rem;line-height:1.5;color:#dde;">
                     <strong style="color:#00cec9;">Notice:</strong> Halving the resistance doubles the current. A typical LED needs ~20mA at 2V — what resistor would you need on a 9V battery?
                 </div>`;
             updateCircuit();
@@ -13701,10 +13701,10 @@ function runExperiment(type) {
                 <input type="range" min="1" max="25" step="0.1" value="9.81" class="lab-slider" id="lab-ff-g" oninput="updateFreefall()">
                 <div class="lab-result-box">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">FALL TIME</div><div id="lab-ff-t" style="font-size:1.4rem;color:#00b894;font-weight:700;">1.43 s</div></div>
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">IMPACT VELOCITY</div><div id="lab-ff-v" style="font-size:1.4rem;color:#55efc4;font-weight:700;">14.0 m/s</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">FALL TIME</div><div id="lab-ff-t" style="font-size:1.4rem;color:#00b894;font-weight:700;">1.43 s</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">IMPACT VELOCITY</div><div id="lab-ff-v" style="font-size:1.4rem;color:#55efc4;font-weight:700;">14.0 m/s</div></div>
                     </div>
-                    <div style="font-family:monospace;font-size:0.8rem;color:#dde;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;margin-top:8px;">t = √(2h/g) · v = √(2gh)</div>
+                    <div style="font-family:monospace;font-size:0.9rem;color:#dde;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;margin-top:8px;">t = √(2h/g) · v = √(2gh)</div>
                 </div>`;
             updateFreefall();
         },
@@ -13717,9 +13717,9 @@ function runExperiment(type) {
                 <div style="background:linear-gradient(90deg,#ff2222,#ff9933,#ffe600,#00ff00,#0099ff,#5544ff);height:24px;border-radius:6px;margin:8px 0 4px;position:relative;">
                     <div id="lab-ph-marker" style="position:absolute;top:-4px;width:4px;height:32px;background:white;left:50%;border-radius:2px;box-shadow:0 0 6px rgba(0,0,0,0.6);"></div>
                 </div>
-                <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);"><span>0 acid</span><span>7 neutral</span><span>14 base</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:0.9rem;color:var(--text-muted);"><span>0 acid</span><span>7 neutral</span><span>14 base</span></div>
                 <div class="lab-result-box">
-                    <div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">CLASSIFICATION</div>
+                    <div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">CLASSIFICATION</div>
                     <div id="lab-ph-class" style="font-size:1.2rem;color:#00b894;font-weight:700;margin:4px 0 8px;">Neutral</div>
                     <div id="lab-ph-example" style="font-size:0.85rem;color:#dde;line-height:1.5;">Pure water — equal H⁺ and OH⁻ concentrations.</div>
                 </div>`;
@@ -13730,7 +13730,7 @@ function runExperiment(type) {
                 <h3 style="color:#00b894;margin:0 0 6px;font-size:1.1rem;">🧬 Mix Reagents</h3>
                 <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">Pick two reagents and watch what happens when they combine.</p>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div><label style="font-size:0.78rem;color:var(--text-muted);">Reagent A</label>
+                    <div><label style="font-size:0.88rem;color:var(--text-muted);">Reagent A</label>
                     <select id="lab-rea-a" onchange="updateMixing()" style="width:100%;padding:8px;background:#14142a;color:white;border:1px solid rgba(0,184,148,0.3);border-radius:6px;">
                         <option value="HCl" style="background:#14142a;color:white;">HCl (acid)</option>
                         <option value="NaOH" style="background:#14142a;color:white;">NaOH (base)</option>
@@ -13739,7 +13739,7 @@ function runExperiment(type) {
                         <option value="iron" style="background:#14142a;color:white;">Iron (Fe)</option>
                         <option value="water" style="background:#14142a;color:white;">Water (H₂O)</option>
                     </select></div>
-                    <div><label style="font-size:0.78rem;color:var(--text-muted);">Reagent B</label>
+                    <div><label style="font-size:0.88rem;color:var(--text-muted);">Reagent B</label>
                     <select id="lab-rea-b" onchange="updateMixing()" style="width:100%;padding:8px;background:#14142a;color:white;border:1px solid rgba(0,184,148,0.3);border-radius:6px;">
                         <option value="NaOH" style="background:#14142a;color:white;">NaOH (base)</option>
                         <option value="HCl" style="background:#14142a;color:white;">HCl (acid)</option>
@@ -13760,10 +13760,10 @@ function runExperiment(type) {
                 <input type="range" min="0" max="50" step="0.5" value="0" class="lab-slider" id="lab-tit-v" oninput="updateTitration()">
                 <div class="lab-result-box">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">CURRENT pH</div><div id="lab-tit-ph" style="font-size:1.4rem;color:#00b894;font-weight:700;">1.00</div></div>
-                        <div><div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">STATE</div><div id="lab-tit-state" style="font-size:1rem;color:#55efc4;font-weight:700;margin-top:6px;">Strong acid</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">CURRENT pH</div><div id="lab-tit-ph" style="font-size:1.4rem;color:#00b894;font-weight:700;">1.00</div></div>
+                        <div><div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">STATE</div><div id="lab-tit-state" style="font-size:1rem;color:#55efc4;font-weight:700;margin-top:6px;">Strong acid</div></div>
                     </div>
-                    <div style="font-size:0.78rem;color:var(--text-muted);">Setup: 25 mL of 0.1 M HCl in flask, 0.1 M NaOH in burette. Equivalence point at 25 mL added.</div>
+                    <div style="font-size:0.88rem;color:var(--text-muted);">Setup: 25 mL of 0.1 M HCl in flask, 0.1 M NaOH in burette. Equivalence point at 25 mL added.</div>
                 </div>`;
             updateTitration();
         },
@@ -13777,7 +13777,7 @@ function runExperiment(type) {
                     <div id="lab-osm-cell" style="display:inline-block;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#00b894,#055e4d);border:3px solid #00ffd0;transition:all 0.4s;box-shadow:0 0 16px rgba(0,255,208,0.4);"></div>
                 </div>
                 <div class="lab-result-box">
-                    <div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">RESULT</div>
+                    <div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">RESULT</div>
                     <div id="lab-osm-state" style="font-size:1.1rem;color:#00b894;font-weight:700;margin:4px 0 8px;">Isotonic — no net flow</div>
                     <div id="lab-osm-explain" style="font-size:0.85rem;color:#dde;line-height:1.5;">Cell internal solute ≈ 0.3 M (typical). Water moves in both directions equally.</div>
                 </div>`;
@@ -13792,10 +13792,10 @@ function runExperiment(type) {
                 <div class="lab-slider-label"><span>CO₂ concentration (ppm): <strong id="lab-ps-c-val">400</strong></span></div>
                 <input type="range" min="0" max="1500" step="10" value="400" class="lab-slider" id="lab-ps-c" oninput="updatePhotosynthesis()">
                 <div class="lab-result-box">
-                    <div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">RELATIVE PHOTOSYNTHESIS RATE</div>
+                    <div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">RELATIVE PHOTOSYNTHESIS RATE</div>
                     <div style="height:18px;background:rgba(0,0,0,0.3);border-radius:9px;overflow:hidden;margin:6px 0 10px;"><div id="lab-ps-bar" style="width:50%;height:100%;background:linear-gradient(90deg,#00b894,#55efc4);transition:width 0.3s;"></div></div>
                     <div id="lab-ps-rate" style="font-size:1.2rem;color:#00b894;font-weight:700;">50%</div>
-                    <div id="lab-ps-note" style="font-size:0.82rem;color:#dde;line-height:1.5;margin-top:6px;">At moderate light + CO₂, the rate is moderate. Try maxing both to see the limit.</div>
+                    <div id="lab-ps-note" style="font-size:0.9rem;color:#dde;line-height:1.5;margin-top:6px;">At moderate light + CO₂, the rate is moderate. Try maxing both to see the limit.</div>
                 </div>`;
             updatePhotosynthesis();
         },
@@ -13804,13 +13804,13 @@ function runExperiment(type) {
                 <h3 style="color:#00b894;margin:0 0 6px;font-size:1.1rem;">🧬 Punnett Square</h3>
                 <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">Pick parent genotypes (B = dominant brown, b = recessive blue eyes).</p>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div><label style="font-size:0.78rem;color:var(--text-muted);">Parent 1</label>
+                    <div><label style="font-size:0.88rem;color:var(--text-muted);">Parent 1</label>
                     <select id="lab-gen-p1" onchange="updateGenetics()" style="width:100%;padding:8px;background:#14142a;color:white;border:1px solid rgba(0,184,148,0.3);border-radius:6px;">
                         <option value="BB" style="background:#14142a;color:white;">BB (homozygous dominant)</option>
                         <option value="Bb" selected style="background:#14142a;color:white;">Bb (heterozygous)</option>
                         <option value="bb" style="background:#14142a;color:white;">bb (homozygous recessive)</option>
                     </select></div>
-                    <div><label style="font-size:0.78rem;color:var(--text-muted);">Parent 2</label>
+                    <div><label style="font-size:0.88rem;color:var(--text-muted);">Parent 2</label>
                     <select id="lab-gen-p2" onchange="updateGenetics()" style="width:100%;padding:8px;background:#14142a;color:white;border:1px solid rgba(0,184,148,0.3);border-radius:6px;">
                         <option value="BB" style="background:#14142a;color:white;">BB</option>
                         <option value="Bb" selected style="background:#14142a;color:white;">Bb</option>
@@ -13920,7 +13920,7 @@ function updateMixing() {
     const key = a + '|' + b;
     const r = reactions[key] || { eq: 'No reaction (or very slow)', desc: 'These two reagents do not produce a notable reaction at room temperature. Try a different combination.', color: '#a4b0be' };
     document.getElementById('lab-mix-result').innerHTML = `
-        <div style="font-size:0.7rem;color:var(--text-muted);letter-spacing:1px;">REACTION</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);letter-spacing:1px;">REACTION</div>
         <div style="font-family:monospace;font-size:1rem;color:${r.color};font-weight:700;margin:4px 0 8px;">${r.eq}</div>
         <div style="font-size:0.85rem;color:#dde;line-height:1.55;">${r.desc}</div>`;
 }
@@ -13998,7 +13998,7 @@ function updateGenetics() {
     const dominantPct = ((counts.BB || 0) + (counts.Bb || 0)) / 4 * 100;
     const recessivePct = (counts.bb || 0) / 4 * 100;
     document.getElementById('lab-gen-result').innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:monospace;font-size:1.1rem;text-align:center;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-family:monospace;font-size:1.1rem;text-align:center;margin-bottom:12px;">
             ${offspring.map(g => `<div style="padding:10px;background:${g === 'bb' ? 'rgba(58,99,255,0.18)' : 'rgba(165,93,53,0.18)'};border:1px solid ${g === 'bb' ? '#3a63ff' : '#a55d35'};border-radius:6px;color:white;font-weight:700;">${g}</div>`).join('')}
         </div>
         <div style="font-size:0.85rem;color:#dde;line-height:1.6;">
@@ -14671,7 +14671,7 @@ function renderRecentActivities() {
             <i class="ph ph-${icons[activity.type] || 'circle'}"></i>
             <div>
                 <p style="margin:0;color:white;">${activity.description}</p>
-                <span style="font-size:0.75rem;color:var(--text-muted);">${activity.timestamp}</span>
+                <span style="font-size:0.85rem;color:var(--text-muted);">${activity.timestamp}</span>
             </div>
         </div>`;
     });
@@ -14873,13 +14873,13 @@ function applyFreeTierOverlays() {
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.className = 'free-tier-overlay';
-                overlay.style.cssText = 'position:absolute;top:18px;right:24px;background:linear-gradient(135deg, rgba(108,92,231,0.18), rgba(0,206,201,0.10));border:1px solid rgba(108,92,231,0.4);border-radius:12px;padding:10px 14px;max-width:300px;z-index:50;backdrop-filter:blur(8px);box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:0.78rem;display:flex;align-items:center;gap:10px;';
+                overlay.style.cssText = 'position:absolute;top:18px;right:24px;background:linear-gradient(135deg, rgba(108,92,231,0.18), rgba(0,206,201,0.10));border:1px solid rgba(108,92,231,0.4);border-radius:12px;padding:10px 14px;max-width:300px;z-index:50;backdrop-filter:blur(8px);box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:0.88rem;display:flex;align-items:center;gap:10px;';
                 overlay.innerHTML = `
                     <i class="ph ph-star" style="color:#FFD700;font-size:1.2rem;"></i>
                     <div style="flex:1;color:var(--text-muted);line-height:1.4;">
                         <strong style="color:white;">Upgrade to Pro</strong> &mdash; unlock Casual/Tutor modes, shop, themes & more.
                     </div>
-                    <button onclick="openPaymentModal('pro')" style="padding:6px 10px;background:linear-gradient(135deg, #6C5CE7, #00CEC9);border:none;border-radius:6px;color:white;font-weight:600;font-size:0.75rem;cursor:pointer;white-space:nowrap;">Upgrade</button>`;
+                    <button onclick="openPaymentModal('pro')" style="padding:6px 10px;background:linear-gradient(135deg, #6C5CE7, #00CEC9);border:none;border-radius:6px;color:white;font-weight:600;font-size:0.85rem;cursor:pointer;white-space:nowrap;">Upgrade</button>`;
                 // Set position:relative without triggering getComputedStyle — just always ensure it
                 if (!view.style.position || view.style.position === 'static') view.style.position = 'relative';
                 view.appendChild(overlay);
@@ -15309,7 +15309,7 @@ function renderLeaderboard() {
 
     const filtered = searchVal ? data.filter(e => e.name.toLowerCase().includes(searchVal)) : data;
 
-    let html = `<div style="margin-bottom:16px;display:flex;gap:8px;">
+    let html = `<div style="margin-bottom:16px;display:flex;gap:12px;">
         <input type="text" id="lb-search" placeholder="Search users..." value="${searchVal}"
             oninput="renderLeaderboard()"
             style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
@@ -15345,15 +15345,15 @@ function renderLeaderboard() {
             <div style="font-size:1.5rem;min-width:36px;text-align:center;">${profilePic}</div>
             <div style="flex:1;">
                 <div style="font-weight:600;color:${entry.isUser ? 'var(--accent)' : 'white'};font-size:0.95rem;">
-                    ${entry.name} ${badgeEmojis[badge] || ''} ${entry.isUser ? '<span style="font-size:0.7rem;background:var(--accent);color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;">YOU</span>' : ''}
+                    ${entry.name} ${badgeEmojis[badge] || ''} ${entry.isUser ? '<span style="font-size:0.9rem;background:var(--accent);color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;">YOU</span>' : ''}
                 </div>
-                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">
+                <div style="font-size:0.9rem;color:var(--text-muted);margin-top:2px;">
                     ${entry.problems} solved &bull; ${entry.streak} day streak
                 </div>
             </div>
             <div style="text-align:right;">
                 <div style="font-size:1.2rem;font-weight:700;background:linear-gradient(135deg, #FFD700, #FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${entry.xp.toLocaleString()}</div>
-                <div style="font-size:0.7rem;color:var(--text-muted);">XP</div>
+                <div style="font-size:0.9rem;color:var(--text-muted);">XP</div>
             </div>
         </div>`;
     });
@@ -15390,28 +15390,28 @@ function showUserProfile(name, problems, streak, xp, pic, badge, isUser) {
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
             <div class="glass-panel" style="padding:12px;text-align:center;">
                 <div style="font-size:1.5rem;font-weight:700;color:var(--accent);">${problems}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);">Problems</div>
+                <div style="font-size:0.85rem;color:var(--text-muted);">Problems</div>
             </div>
             <div class="glass-panel" style="padding:12px;text-align:center;">
                 <div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">${streak}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);">Day Streak</div>
+                <div style="font-size:0.85rem;color:var(--text-muted);">Day Streak</div>
             </div>
             <div class="glass-panel" style="padding:12px;text-align:center;">
                 <div style="font-size:1.5rem;font-weight:700;background:linear-gradient(135deg, #FFD700, #FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${xp.toLocaleString()}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);">XP</div>
+                <div style="font-size:0.85rem;color:var(--text-muted);">XP</div>
             </div>
         </div>
 
         <h3 style="color:white;margin-bottom:12px;font-size:1rem;"><i class="ph ph-trophy"></i> Achievements (${completedCount}/${achievements.length})</h3>
-        <div style="display:grid;gap:8px;">
+        <div style="display:grid;gap:12px;">
             ${achievements.slice(0, 6).map(a => `
                 <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,${a.completed ? '0.05' : '0.02'});border-radius:8px;border-left:3px solid ${a.completed ? '#00b894' : 'rgba(255,255,255,0.1)'};">
                     <span style="font-size:1.2rem;${a.completed ? '' : 'opacity:0.3;filter:grayscale(1);'}">${a.icon}</span>
                     <div style="flex:1;">
                         <div style="font-size:0.85rem;color:${a.completed ? 'white' : 'var(--text-muted)'};">${a.name}</div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">${a.desc}</div>
+                        <div style="font-size:0.9rem;color:var(--text-muted);">${a.desc}</div>
                     </div>
-                    ${a.completed ? '<span style="font-size:0.7rem;color:#00b894;">✓</span>' : ''}
+                    ${a.completed ? '<span style="font-size:0.9rem;color:#00b894;">✓</span>' : ''}
                 </div>
             `).join('')}
         </div>
@@ -16324,12 +16324,12 @@ function renderPlanningBoardInUpdates() {
         html += `
         <div class="glass-panel" style="padding:18px 22px;border-left:4px solid ${color};">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-                <span style="background:${color}22;color:${color};font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:5px;">${label}</span>
-                ${plan.eta ? `<span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;">ETA: ${plan.eta}</span>` : ''}
+                <span style="background:${color}22;color:${color};font-size:0.9rem;font-weight:700;padding:3px 9px;border-radius:5px;">${label}</span>
+                ${plan.eta ? `<span style="font-size:0.85rem;color:var(--text-muted);margin-left:auto;">ETA: ${plan.eta}</span>` : ''}
             </div>
             <div style="font-weight:600;color:white;font-size:0.95rem;">${escapeHtmlSafe(plan.title)}</div>
-            ${plan.body ? `<div style="font-size:0.82rem;color:var(--text-muted);margin-top:5px;">${escapeHtmlSafe(plan.body)}</div>` : ''}
-            ${plan.from ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">— ${escapeHtmlSafe(plan.from)}</div>` : ''}
+            ${plan.body ? `<div style="font-size:0.9rem;color:var(--text-muted);margin-top:5px;">${escapeHtmlSafe(plan.body)}</div>` : ''}
+            ${plan.from ? `<div style="font-size:0.9rem;color:var(--text-muted);margin-top:6px;">— ${escapeHtmlSafe(plan.from)}</div>` : ''}
         </div>`;
     });
     html += '</div>';
@@ -16350,7 +16350,7 @@ function renderUpdateLog() {
         html += `
         <div class="glass-panel" style="padding:24px;margin-bottom:16px;border:1px solid ${update.tagColor}30;">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                <span style="background:${update.tagColor};color:#000;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:6px;">${update.tag}</span>
+                <span style="background:${update.tagColor};color:#000;font-size:0.9rem;font-weight:700;padding:4px 10px;border-radius:6px;">${update.tag}</span>
                 <h3 style="margin:0;color:${update.tagColor};">${update.version}</h3>
                 <span style="font-size:0.85rem;color:var(--text-muted);margin-left:auto;">${update.date}</span>
             </div>
@@ -16529,17 +16529,17 @@ function renderAchievementsTab() {
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
             <div style="font-size:2.6rem;line-height:1;">${tier.icon}</div>
             <div style="flex:1;min-width:160px;">
-                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
+                <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px;">
                     <span style="font-size:1.25rem;font-weight:800;color:white;">${completedCount} / ${total}</span>
-                    <span style="font-size:0.78rem;color:${tier.color};font-weight:700;letter-spacing:1px;text-transform:uppercase;">${tier.label} Achiever</span>
+                    <span style="font-size:0.88rem;color:${tier.color};font-weight:700;letter-spacing:1px;text-transform:uppercase;">${tier.label} Achiever</span>
                 </div>
                 <div style="height:10px;background:rgba(255,255,255,0.1);border-radius:6px;overflow:hidden;margin-bottom:6px;">
                     <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:6px;transition:width 0.8s ease;"></div>
                 </div>
-                <div style="font-size:0.78rem;color:var(--text-muted);">${pct}% complete — ${total - completedCount} remaining</div>
+                <div style="font-size:0.88rem;color:var(--text-muted);">${pct}% complete — ${total - completedCount} remaining</div>
             </div>
             <div style="text-align:right;">
-                <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:2px;">CREDITS AVAILABLE</div>
+                <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:2px;">CREDITS AVAILABLE</div>
                 <div style="font-size:1.3rem;font-weight:800;color:#FFD700;">
                     +${achievements.filter(a => !a.completed).reduce((s, a) => s + (a.reward || 0), 0).toLocaleString()}
                 </div>
@@ -16555,10 +16555,10 @@ function renderAchievementsTab() {
 
         html += `
         <div style="margin-bottom:24px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
                 <div style="font-size:1rem;font-weight:700;color:${catInfo.color};">${catInfo.label}</div>
                 <div style="height:1px;flex:1;background:${catInfo.color}28;"></div>
-                <div style="font-size:0.75rem;color:var(--text-muted);">${catDone}/${items.length}</div>
+                <div style="font-size:0.85rem;color:var(--text-muted);">${catDone}/${items.length}</div>
             </div>
             <div style="display:grid;gap:10px;">`;
 
@@ -16578,7 +16578,7 @@ function renderAchievementsTab() {
                 const prog = Math.round((cur / meta.max) * 100);
                 progressBar = `
                 <div style="margin-top:8px;">
-                    <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-muted);margin-bottom:3px;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.88rem;color:var(--text-muted);margin-bottom:3px;">
                         <span>${cur.toLocaleString()} / ${meta.max.toLocaleString()}</span>
                         <span>${prog}%</span>
                     </div>
@@ -16592,17 +16592,17 @@ function renderAchievementsTab() {
             <div class="glass-panel" style="padding:16px;display:flex;align-items:flex-start;gap:14px;border-left:3px solid ${borderColor};${bgGlow}${a.completed ? '' : 'opacity:0.78;'}transition:all 0.2s;">
                 <div style="font-size:2rem;flex-shrink:0;${a.completed ? '' : 'filter:grayscale(1);opacity:0.45;'}">${displayIcon}</div>
                 <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                    <div style="display:flex;align-items:center;gap:9px;margin-bottom:2px;">
                         <span style="font-weight:700;color:${a.completed ? 'white' : 'var(--text-muted)'};font-size:0.93rem;">${displayName}</span>
                         ${a.hidden && !a.completed ? '<span style="font-size:0.6rem;color:#ff4d8d;font-weight:700;letter-spacing:1px;border:1px solid #ff4d8d55;border-radius:4px;padding:1px 5px;">HIDDEN</span>' : ''}
                         ${a.completed ? '<span style="font-size:0.62rem;color:#00b894;font-weight:700;letter-spacing:0.5px;">✓ DONE</span>' : ''}
                     </div>
-                    <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4;">${displayDesc}</div>
+                    <div style="font-size:0.88rem;color:var(--text-muted);line-height:1.4;">${displayDesc}</div>
                     ${progressBar}
                 </div>
                 <div style="text-align:right;flex-shrink:0;padding-left:6px;">
                     <div style="font-size:0.9rem;font-weight:700;color:${a.completed ? '#00b894' : '#FFD700'};">+${a.reward || 0}</div>
-                    <div style="font-size:0.65rem;color:var(--text-muted);">${a.completed ? 'earned' : 'credits'}</div>
+                    <div style="font-size:0.88rem;color:var(--text-muted);">${a.completed ? 'earned' : 'credits'}</div>
                 </div>
             </div>`;
         });
@@ -16755,7 +16755,7 @@ function triggerEasterRevealCinematic(egg) {
         box-shadow:0 0 64px ${egg.color}aa, 0 0 128px ${egg.color}55, inset 0 0 32px ${egg.color}33;
         opacity:0;transition:opacity 0.4s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1);`;
     banner.innerHTML = `
-        <div style="font-size:0.75rem;letter-spacing:6px;color:${egg.color};font-weight:800;margin-bottom:8px;">MYTHIC UNLOCK</div>
+        <div style="font-size:0.85rem;letter-spacing:6px;color:${egg.color};font-weight:800;margin-bottom:8px;">MYTHIC UNLOCK</div>
         <div style="font-size:2.2rem;font-weight:900;color:white;margin-bottom:6px;text-shadow:0 0 24px ${egg.color};">${egg.name}</div>
         <div style="font-size:0.9rem;color:rgba(255,255,255,0.7);">Companion added to your collection · +${egg.reward} credits</div>`;
     document.body.appendChild(banner);
@@ -17163,19 +17163,19 @@ function renderProfileSection() {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:var(--accent);">${stats.problemsSolved || 0}</div>
-            <div style="font-size:0.8rem;color:var(--text-muted);">Problems Solved</div>
+            <div style="font-size:0.9rem;color:var(--text-muted);">Problems Solved</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:#ff6b6b;">${stats.currentStreak || 0}</div>
-            <div style="font-size:0.8rem;color:var(--text-muted);">Day Streak</div>
+            <div style="font-size:0.9rem;color:var(--text-muted);">Day Streak</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:#FFD700;">${userCredits}</div>
-            <div style="font-size:0.8rem;color:var(--text-muted);">Credits</div>
+            <div style="font-size:0.9rem;color:var(--text-muted);">Credits</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:#a855f7;">${userInventory.length}</div>
-            <div style="font-size:0.8rem;color:var(--text-muted);">Items Owned</div>
+            <div style="font-size:0.9rem;color:var(--text-muted);">Items Owned</div>
         </div>
     </div>`;
 }
@@ -18783,14 +18783,14 @@ function renderLofiPlayer() {
     const ch = LOFI_CHANNELS[_currentLofiChannel];
     player.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="color:#a29bfe;font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;"><i class="ph-fill ph-music-notes"></i> Lo-fi</div>
+            <div style="color:#a29bfe;font-size:0.9rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;"><i class="ph-fill ph-music-notes"></i> Lo-fi</div>
             <button onclick="closeLofiPlayer()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;"><i class="ph ph-x"></i></button>
         </div>
         <div style="color:white;font-size:0.85rem;font-weight:600;">${escapeHtmlSafe(ch.name)}</div>
         <iframe id="lofi-iframe" src="https://www.youtube.com/embed/${ch.id}?autoplay=1" width="100%" height="180" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="border-radius:8px;background:#000;"></iframe>
-        <div style="display:flex;gap:6px;">
-            <button class="btn-secondary" style="flex:1;font-size:0.78rem;padding:6px 10px;" onclick="cycleLofiChannel(-1)"><i class="ph ph-skip-back"></i> Prev</button>
-            <button class="btn-secondary" style="flex:1;font-size:0.78rem;padding:6px 10px;" onclick="cycleLofiChannel(1)">Next <i class="ph ph-skip-forward"></i></button>
+        <div style="display:flex;gap:9px;">
+            <button class="btn-secondary" style="flex:1;font-size:0.88rem;padding:6px 10px;" onclick="cycleLofiChannel(-1)"><i class="ph ph-skip-back"></i> Prev</button>
+            <button class="btn-secondary" style="flex:1;font-size:0.88rem;padding:6px 10px;" onclick="cycleLofiChannel(1)">Next <i class="ph ph-skip-forward"></i></button>
         </div>
     `;
 }
@@ -18880,9 +18880,9 @@ function renderAPExamList() {
     c.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' +
         Object.entries(AP_EXAM_PACKS).map(([id, p]) => `
             <button onclick="startAPExamPack('${id}')" class="glass-panel" style="padding:14px 16px;text-align:left;border-left:4px solid ${p.accent};cursor:pointer;transition:transform 0.15s;background:rgba(255,255,255,0.04);border-radius:10px;color:white;border-top:1px solid var(--glass-border);border-right:1px solid var(--glass-border);border-bottom:1px solid var(--glass-border);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
-                <div style="color:${p.accent};font-size:0.72rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;"><i class="ph ${p.icon}"></i> ${p.subject.toUpperCase()}</div>
+                <div style="color:${p.accent};font-size:0.9rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;"><i class="ph ${p.icon}"></i> ${p.subject.toUpperCase()}</div>
                 <div style="color:white;font-weight:600;font-size:0.95rem;">${p.name}</div>
-                <div style="color:var(--text-muted);font-size:0.74rem;margin-top:3px;">${p.topics.length} top-tested topics</div>
+                <div style="color:var(--text-muted);font-size:0.85rem;margin-top:3px;">${p.topics.length} top-tested topics</div>
             </button>
         `).join('') + '</div>';
 }
@@ -19206,18 +19206,18 @@ function toggleCompanionLinkMenu(evt) {
     const sessions = getActiveLinkableSessions();
     const linked = getLinkedSession();
     const renderOpt = (s) => `
-        <button onclick="linkCompanionTo('${s.id}')" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:${linked && linked.id === s.id ? 'rgba(0,206,201,0.25)' : 'transparent'};border:1px solid ${linked && linked.id === s.id ? 'rgba(0,206,201,0.5)' : 'transparent'};color:white;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.82rem;margin-bottom:4px;" onmouseover="this.style.background='rgba(0,206,201,0.15)'" onmouseout="this.style.background='${linked && linked.id === s.id ? 'rgba(0,206,201,0.25)' : 'transparent'}'">
+        <button onclick="linkCompanionTo('${s.id}')" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:${linked && linked.id === s.id ? 'rgba(0,206,201,0.25)' : 'transparent'};border:1px solid ${linked && linked.id === s.id ? 'rgba(0,206,201,0.5)' : 'transparent'};color:white;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.9rem;margin-bottom:4px;" onmouseover="this.style.background='rgba(0,206,201,0.15)'" onmouseout="this.style.background='${linked && linked.id === s.id ? 'rgba(0,206,201,0.25)' : 'transparent'}'">
             <i class="ph ${s.icon}" style="color:#00CEC9;"></i>
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtmlSafe(s.label)}</span>
         </button>`;
     let html = '';
     if (sessions.length === 0) {
-        html = '<div style="padding:10px;color:var(--text-muted);font-size:0.78rem;text-align:center;">No active sessions yet.<br><span style="opacity:0.7;">Start a math/science/Live Vision problem to link.</span></div>';
+        html = '<div style="padding:10px;color:var(--text-muted);font-size:0.88rem;text-align:center;">No active sessions yet.<br><span style="opacity:0.7;">Start a math/science/Live Vision problem to link.</span></div>';
     } else {
         html = sessions.map(renderOpt).join('');
     }
     if (linked) {
-        html += `<div style="border-top:1px solid rgba(255,255,255,0.1);margin-top:6px;padding-top:6px;"><button onclick="linkCompanionTo(null)" style="width:100%;text-align:left;background:transparent;border:none;color:#ff6b6b;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;"><i class="ph ph-link-break"></i> Unlink</button></div>`;
+        html += `<div style="border-top:1px solid rgba(255,255,255,0.1);margin-top:6px;padding-top:6px;"><button onclick="linkCompanionTo(null)" style="width:100%;text-align:left;background:transparent;border:none;color:#ff6b6b;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:0.88rem;"><i class="ph ph-link-break"></i> Unlink</button></div>`;
     }
     opts.innerHTML = html;
 }
@@ -19502,15 +19502,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="glass-panel" style="padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:160px;">
                     <div style="color:white;font-weight:500;">${b.label}</div>
-                    <p style="margin:2px 0 0;font-size:0.78rem;color:var(--text-muted);">${b.desc}</p>
+                    <p style="margin:2px 0 0;font-size:0.88rem;color:var(--text-muted);">${b.desc}</p>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:12px;">
                     <button id="sc-btn-${id}" onclick="startRebind('${id}')"
                         style="background:rgba(0,206,201,0.13);border:1px solid rgba(0,206,201,0.4);border-radius:6px;padding:5px 12px;font-family:monospace;font-size:0.84rem;color:#00cec9;cursor:pointer;white-space:nowrap;min-width:90px;text-align:center;">
                         ${escapeHtml(_keyLabel(b))}
                     </button>
                     <button onclick="resetShortcut('${id}')" title="Reset to default"
-                        style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;cursor:pointer;color:var(--text-muted);font-size:0.82rem;">
+                        style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;cursor:pointer;color:var(--text-muted);font-size:0.9rem;">
                         <i class="ph ph-arrow-counter-clockwise"></i>
                     </button>
                 </div>
@@ -19774,9 +19774,9 @@ function renderSprintQuiz() {
     const c = document.getElementById('sprint-quiz-content');
     c.innerHTML = _sprintQuestions.map((q, qi) => `
         <div class="glass-panel" style="padding:18px;margin-bottom:12px;">
-            <div style="font-size:0.78rem;color:#a29bfe;font-weight:700;letter-spacing:1px;margin-bottom:6px;">QUESTION ${qi + 1} OF ${_sprintQuestions.length}</div>
+            <div style="font-size:0.88rem;color:#a29bfe;font-weight:700;letter-spacing:1px;margin-bottom:6px;">QUESTION ${qi + 1} OF ${_sprintQuestions.length}</div>
             <p style="color:white;font-size:1rem;margin:0 0 12px;line-height:1.5;font-weight:600;">${q.q}</p>
-            <div style="display:grid;gap:8px;">
+            <div style="display:grid;gap:12px;">
                 ${q.choices.map((ch, ci) => `
                     <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:8px;cursor:pointer;color:white;">
                         <input type="radio" name="sprint-q-${qi}" value="${ci}" onchange="_sprintAnswers[${qi}]=${ci}" style="accent-color:var(--accent);">
@@ -19891,7 +19891,7 @@ function renderDictionaryBrowse() {
     }
     wordsEl.innerHTML = `
         <h3 style="color:var(--accent);margin:0 0 10px;font-size:1rem;letter-spacing:1.2px;text-transform:uppercase;">${_selectedDictLetter} — ${words.length} words</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">
             ${words.map(w => `
                 <button onclick="lookupBrowseWord('${w}')"
                     style="padding:8px 10px;background:rgba(108,92,231,0.08);border:1px solid rgba(108,92,231,0.25);
@@ -20062,19 +20062,19 @@ function renderQuestsModal() {
             return `
             <div style="background:rgba(255,255,255,0.04);border:1px solid ${q.claimed ? 'rgba(0,184,148,0.4)' : claimable ? 'rgba(255,213,79,0.6)' : 'var(--glass-border)'};border-radius:10px;padding:12px 14px;margin-bottom:8px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;">
-                    <strong style="color:white;font-size:0.92rem;display:flex;align-items:center;gap:8px;"><i class="ph ${icon}" style="color:${colors[scope]};"></i> ${q.title}</strong>
-                    <span style="font-size:0.78rem;color:#FFD700;font-weight:700;">+${q.reward}g</span>
+                    <strong style="color:white;font-size:0.92rem;display:flex;align-items:center;gap:12px;"><i class="ph ${icon}" style="color:${colors[scope]};"></i> ${q.title}</strong>
+                    <span style="font-size:0.88rem;color:#FFD700;font-weight:700;">+${q.reward}g</span>
                 </div>
                 <div style="background:rgba(0,0,0,0.4);border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;">
                     <div style="background:linear-gradient(90deg, ${colors[scope]}, ${colors[scope]}aa);height:100%;width:${pct}%;transition:width 0.3s;"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-size:0.75rem;color:var(--text-muted);">${q.progress} / ${q.target}</span>
+                    <span style="font-size:0.85rem;color:var(--text-muted);">${q.progress} / ${q.target}</span>
                     ${q.claimed
-                        ? '<span style="font-size:0.75rem;color:#00b894;font-weight:600;"><i class="ph ph-check-circle"></i> Claimed</span>'
+                        ? '<span style="font-size:0.85rem;color:#00b894;font-weight:600;"><i class="ph ph-check-circle"></i> Claimed</span>'
                         : claimable
-                            ? `<button class="btn-primary" style="padding:4px 12px;font-size:0.78rem;" onclick="claimQuestReward('${scope}', '${q.id}')">Claim</button>`
-                            : `<span style="font-size:0.72rem;color:var(--text-muted);">In progress</span>`
+                            ? `<button class="btn-primary" style="padding:4px 12px;font-size:0.88rem;" onclick="claimQuestReward('${scope}', '${q.id}')">Claim</button>`
+                            : `<span style="font-size:0.9rem;color:var(--text-muted);">In progress</span>`
                     }
                 </div>
             </div>`;
@@ -20549,14 +20549,14 @@ function openQuickNotes() {
         panel.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);">
                 <span style="color:#ffc312;font-weight:700;font-size:0.85rem;"><i class="ph ph-note-pencil"></i> Quick Note</span>
-                <div style="display:flex;gap:6px;">
-                    <button onclick="saveQuickNoteToNotebook()" title="Save to Notebook" style="background:rgba(0,184,148,0.15);border:1px solid rgba(0,184,148,0.3);border-radius:6px;color:#00b894;cursor:pointer;padding:4px 8px;font-size:0.75rem;"><i class="ph ph-floppy-disk"></i> Save</button>
+                <div style="display:flex;gap:9px;">
+                    <button onclick="saveQuickNoteToNotebook()" title="Save to Notebook" style="background:rgba(0,184,148,0.15);border:1px solid rgba(0,184,148,0.3);border-radius:6px;color:#00b894;cursor:pointer;padding:4px 8px;font-size:0.85rem;"><i class="ph ph-floppy-disk"></i> Save</button>
                     <button onclick="closeQuickNotes()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;"><i class="ph ph-x"></i></button>
                 </div>
             </div>
             <textarea id="quick-notes-textarea" placeholder="Jot anything down… auto-saves to Notebook."
                 style="flex:1;min-height:160px;padding:12px;background:transparent;border:none;color:white;font-size:0.88rem;resize:none;outline:none;font-family:inherit;line-height:1.6;"></textarea>
-            <div style="padding:6px 14px 8px;font-size:0.7rem;color:var(--text-muted);border-top:1px solid rgba(255,255,255,0.05);">Auto-saves to Notebook on close</div>
+            <div style="padding:6px 14px 8px;font-size:0.9rem;color:var(--text-muted);border-top:1px solid rgba(255,255,255,0.05);">Auto-saves to Notebook on close</div>
         `;
         document.body.appendChild(panel);
         // Load any draft
@@ -21379,7 +21379,7 @@ function openAmbientPlayer() {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <div>
                 <h2 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="ph ph-cloud-rain" style="color:#74b9ff;"></i> Ambient Sounds</h2>
-                <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);">Real ambient sounds from YouTube. Tap to toggle, mix multiple together.</p>
+                <p style="margin:4px 0 0;font-size:0.9rem;color:var(--text-muted);">Real ambient sounds from YouTube. Tap to toggle, mix multiple together.</p>
             </div>
             <button onclick="document.getElementById('ambient-modal').classList.add('hidden')" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:8px;padding:8px 12px;cursor:pointer;color:white;">✕</button>
         </div>
@@ -21390,18 +21390,18 @@ function openAmbientPlayer() {
                 onclick="if(!event.target.closest('label')&&event.target.type!=='range')document.getElementById('amb-toggle-${s.id}').click()">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                     <div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:3px;">
                             <i class="ph ${s.icon}" style="font-size:1.3rem;color:${s.color};"></i>
                             <span style="font-weight:600;font-size:0.95rem;">${s.label}</span>
                         </div>
-                        <p style="margin:0;font-size:0.75rem;color:var(--text-muted);">${s.desc}</p>
+                        <p style="margin:0;font-size:0.85rem;color:var(--text-muted);">${s.desc}</p>
                     </div>
                     <label style="position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;">
                         <input type="checkbox" id="amb-toggle-${s.id}" onchange="toggleAmbient('${s.id}',this.checked,document.getElementById('amb-vol-${s.id}').value)" style="opacity:0;width:0;height:0;">
                         <span onclick="return false;" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.1);border-radius:20px;transition:.3s;" id="amb-slider-${s.id}"></span>
                     </label>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:12px;">
                     <i class="ph ph-speaker-low" style="font-size:0.9rem;color:var(--text-muted);"></i>
                     <input type="range" id="amb-vol-${s.id}" min="0" max="100" value="50"
                         oninput="setAmbientVolume('${s.id}',this.value/100)"
@@ -21462,23 +21462,23 @@ function openAddGPAClass(editIdx) {
         <h2 style="margin:0 0 20px;display:flex;align-items:center;gap:10px;"><i class="ph ph-books" style="color:#a29bfe;"></i>${editing ? 'Edit' : 'Add'} Class</h2>
         <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
             <div>
-                <label style="font-size:0.82rem;color:var(--text-muted);display:block;margin-bottom:5px;">Class Name *</label>
+                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:5px;">Class Name *</label>
                 <input id="gpa-input-name" type="text" value="${editing?.name||''}" placeholder="e.g. AP Biology, Algebra II…" style="width:100%;padding:10px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.95rem;outline:none;box-sizing:border-box;">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div>
-                    <label style="font-size:0.82rem;color:var(--text-muted);display:block;margin-bottom:5px;">Grade *</label>
+                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:5px;">Grade *</label>
                     <select id="gpa-input-grade" style="width:100%;padding:10px 13px;background:#14142a;border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.95rem;outline:none;cursor:pointer;">
                         ${Object.keys(GPA_SCALE).map(g => `<option value="${g}" ${(editing?.grade||'A')===g?'selected':''} style="background:#14142a;">${g} (${GPA_SCALE[g].toFixed(1)})</option>`).join('')}
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.82rem;color:var(--text-muted);display:block;margin-bottom:5px;">Credit Hours *</label>
+                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:5px;">Credit Hours *</label>
                     <input id="gpa-input-credits" type="number" min="0.5" max="6" step="0.5" value="${editing?.credits||3}" style="width:100%;padding:10px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.95rem;outline:none;box-sizing:border-box;">
                 </div>
             </div>
             <div>
-                <label style="font-size:0.82rem;color:var(--text-muted);display:block;margin-bottom:5px;">Semester</label>
+                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:5px;">Semester</label>
                 <input id="gpa-input-semester" type="text" value="${editing?.semester||'Current Semester'}" placeholder="e.g. Fall 2026, Current Semester" style="width:100%;padding:10px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.95rem;outline:none;box-sizing:border-box;" list="gpa-semester-list">
                 <datalist id="gpa-semester-list">${semesters.map(s => `<option value="${s}">`).join('')}</datalist>
             </div>
@@ -21543,10 +21543,10 @@ function renderGPATable() {
                 <span style="background:${col}22;color:${col};border:1px solid ${col}44;border-radius:6px;padding:3px 10px;font-weight:700;font-size:0.9rem;">${cls.grade}</span>
             </td>
             <td style="padding:14px 16px;text-align:center;color:var(--text-muted);">${(GPA_SCALE[cls.grade]||0).toFixed(1)}</td>
-            <td style="padding:14px 16px;text-align:center;font-size:0.82rem;color:var(--text-muted);">${cls.semester}</td>
+            <td style="padding:14px 16px;text-align:center;font-size:0.9rem;color:var(--text-muted);">${cls.semester}</td>
             <td style="padding:14px 16px;text-align:center;">
-                <button onclick="openAddGPAClass(${realIdx})" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:6px;padding:5px 10px;cursor:pointer;color:white;margin-right:4px;font-size:0.8rem;"><i class="ph ph-pencil"></i></button>
-                <button onclick="deleteGPAClass(${realIdx})" style="background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:6px;padding:5px 10px;cursor:pointer;color:#ff6b6b;font-size:0.8rem;"><i class="ph ph-trash"></i></button>
+                <button onclick="openAddGPAClass(${realIdx})" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:6px;padding:5px 10px;cursor:pointer;color:white;margin-right:4px;font-size:0.9rem;"><i class="ph ph-pencil"></i></button>
+                <button onclick="deleteGPAClass(${realIdx})" style="background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:6px;padding:5px 10px;cursor:pointer;color:#ff6b6b;font-size:0.9rem;"><i class="ph ph-trash"></i></button>
             </td>
         </tr>`;
     }).join('');
@@ -21767,8 +21767,8 @@ function _injectSM2Buttons(deckId) {
     srRow.id = 'sm2-row';
     srRow.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:10px;margin-top:12px;width:100%;';
     srRow.innerHTML = `
-        <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">How well did you know this?</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+        <p style="margin:0;font-size:0.9rem;color:var(--text-muted);">How well did you know this?</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
             <button onclick="_handleSM2(0,'${deckId}')" style="padding:8px 16px;border-radius:8px;background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.5);color:#ff4757;cursor:pointer;font-weight:600;font-size:0.88rem;">Again 🔴</button>
             <button onclick="_handleSM2(1,'${deckId}')" style="padding:8px 16px;border-radius:8px;background:rgba(253,203,110,0.2);border:1px solid rgba(253,203,110,0.5);color:#fdcb6e;cursor:pointer;font-weight:600;font-size:0.88rem;">Hard 🟡</button>
             <button onclick="_handleSM2(2,'${deckId}')" style="padding:8px 16px;border-radius:8px;background:rgba(0,206,201,0.2);border:1px solid rgba(0,206,201,0.5);color:#00cec9;cursor:pointer;font-weight:600;font-size:0.88rem;">Good 🟢</button>
@@ -21893,7 +21893,7 @@ function _attachCopyBtn(containerEl) {
     btn.title = 'Copy response';
     btn.style.cssText = [
         'position:absolute', 'top:8px', 'right:8px',
-        'padding:4px 10px', 'font-size:0.72rem', 'border-radius:6px',
+        'padding:4px 10px', 'font-size:0.9rem', 'border-radius:6px',
         'background:rgba(108,92,231,0.18)', 'border:1px solid rgba(108,92,231,0.4)',
         'color:var(--text-muted)', 'cursor:pointer', 'z-index:10',
         'display:none', 'align-items:center', 'gap:4px',
@@ -22060,18 +22060,18 @@ function renderHomework() {
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:#fd79a8;">${pending}</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);">Pending</div>
+            <div style="font-size:0.88rem;color:var(--text-muted);">Pending</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:#ff6b6b;">${overdue}</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);">Overdue</div>
+            <div style="font-size:0.88rem;color:var(--text-muted);">Overdue</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
             <div style="font-size:1.8rem;font-weight:700;color:#00b894;">${doneToday}</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);">Done Today</div>
+            <div style="font-size:0.88rem;color:var(--text-muted);">Done Today</div>
         </div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
         <select id="hw-filter" class="input-field" style="flex:1;min-width:110px;padding:8px 10px;font-size:0.85rem;" onchange="renderHomework()">
             <option value="all"       ${filter==='all'       ?'selected':''}>All</option>
             <option value="pending"   ${filter==='pending'   ?'selected':''}>Pending</option>
@@ -22108,19 +22108,19 @@ function renderHomework() {
             <div style="flex-shrink:0;">
                 <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${item.completed?'#00b894':'rgba(255,255,255,0.3)'};background:${item.completed?'#00b894':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;"
                      onclick="toggleHwComplete(${item.id})">
-                    ${item.completed ? '<i class="ph ph-check" style="color:white;font-size:0.75rem;"></i>' : ''}
+                    ${item.completed ? '<i class="ph ph-check" style="color:white;font-size:0.85rem;"></i>' : ''}
                 </div>
             </div>
             <div style="flex:1;min-width:0;">
                 <div style="font-weight:600;color:white;${item.completed?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.title}</div>
-                <div style="font-size:0.8rem;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
+                <div style="font-size:0.9rem;margin-top:3px;display:flex;gap:12px;flex-wrap:wrap;">
                     <span style="color:var(--accent);">${item.subject||'General'}</span>
                     ${dueLabel}
                 </div>
-                ${item.notes ? '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.notes+'</div>' : ''}
+                ${item.notes ? '<div style="font-size:0.88rem;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.notes+'</div>' : ''}
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;flex-wrap:nowrap;">
-                <button onclick="hwAiHelp(${item.id})" style="background:linear-gradient(135deg,rgba(108,92,231,0.2),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.3);border-radius:7px;color:var(--accent);cursor:pointer;font-size:0.75rem;padding:5px 9px;font-weight:600;white-space:nowrap;" title="AI Tutoring Help"><i class="ph ph-sparkle"></i> Help</button>
+                <button onclick="hwAiHelp(${item.id})" style="background:linear-gradient(135deg,rgba(108,92,231,0.2),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.3);border-radius:7px;color:var(--accent);cursor:pointer;font-size:0.85rem;padding:5px 9px;font-weight:600;white-space:nowrap;" title="AI Tutoring Help"><i class="ph ph-sparkle"></i> Help</button>
                 <button onclick="editHwItem(${item.id})" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;" title="Edit"><i class="ph ph-pencil-simple"></i></button>
                 <button onclick="deleteHwItem(${item.id})" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;padding:4px;" title="Delete"><i class="ph ph-trash"></i></button>
             </div>
@@ -22145,18 +22145,18 @@ function openAddHwModal(editId) {
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
             <div>
-                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Title *</label>
+                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Title *</label>
                 <input id="hw-input-title" class="input-field" style="width:100%;padding:10px;" placeholder="e.g. Chapter 5 Worksheet" value="${editing ? editing.title : ''}">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div>
-                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Subject</label>
+                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Subject</label>
                     <select id="hw-input-subject" class="input-field" style="width:100%;padding:10px;">
                         ${SUBJECTS.map(s => '<option '+(editing&&editing.subject===s?'selected':'')+'>'+s+'</option>').join('')}
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Priority</label>
+                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Priority</label>
                     <select id="hw-input-priority" class="input-field" style="width:100%;padding:10px;">
                         <option value="high"   ${editing&&editing.priority==='high'  ?'selected':''}>High</option>
                         <option value="medium" ${!editing||editing.priority==='medium'?'selected':''}>Medium</option>
@@ -22165,11 +22165,11 @@ function openAddHwModal(editId) {
                 </div>
             </div>
             <div>
-                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Due Date</label>
+                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Due Date</label>
                 <input id="hw-input-due" type="date" class="input-field" style="width:100%;padding:10px;" value="${editing ? editing.dueDate : today}">
             </div>
             <div>
-                <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Notes (optional)</label>
+                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Notes (optional)</label>
                 <textarea id="hw-input-notes" class="input-field" style="width:100%;padding:10px;resize:vertical;min-height:60px;" placeholder="Any extra details...">${editing ? (editing.notes||'') : ''}</textarea>
             </div>
         </div>
@@ -22265,9 +22265,9 @@ async function hwAiHelp(itemId) {
     <div class="glass-panel" style="max-width:560px;width:100%;padding:0;border:1px solid rgba(108,92,231,0.4);overflow:hidden;max-height:85vh;display:flex;flex-direction:column;">
         <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,rgba(108,92,231,0.15),rgba(0,206,201,0.08));display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div style="flex:1;min-width:0;">
-                <div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px;"><i class="ph ph-graduation-cap"></i> AI Homework Tutor</div>
+                <div style="font-size:0.9rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px;"><i class="ph ph-graduation-cap"></i> AI Homework Tutor</div>
                 <div style="font-size:0.9rem;color:white;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.title}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted);">${item.subject||'General'}</div>
+                <div style="font-size:0.85rem;color:var(--text-muted);">${item.subject||'General'}</div>
             </div>
             <button class="btn-icon" onclick="document.getElementById('hw-ai-modal').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
         </div>
@@ -22293,7 +22293,7 @@ async function hwAiAsk(subject, title) {
     if (!apiKey || !responseDiv) return;
 
     const modeSettings = localStorage.getItem('tutor_mode') === 'tutor';
-    responseDiv.innerHTML = '<div style="color:var(--accent);display:flex;align-items:center;gap:8px;padding:10px 0;"><i class="ph ph-spinner ph-spin"></i> Thinking…</div>';
+    responseDiv.innerHTML = '<div style="color:var(--accent);display:flex;align-items:center;gap:12px;padding:10px 0;"><i class="ph ph-spinner ph-spin"></i> Thinking…</div>';
 
     const systemPrompt = `You are NEXUS — a patient, encouraging AI tutor helping a student with their homework.
 Subject: ${subject}
@@ -22332,8 +22332,8 @@ Use HTML formatting (not markdown): <strong>, <em>, <ul><li>, <br>, etc.`;
         responseDiv.style.opacity = '0';
         responseDiv.innerHTML = `
             <div style="background:linear-gradient(135deg,rgba(108,92,231,0.1),rgba(0,206,201,0.06));border:1px solid rgba(108,92,231,0.25);border-radius:10px;padding:14px;line-height:1.6;font-size:0.9rem;color:#dde0ee;">${cleaned}</div>
-            <div style="margin-top:12px;display:flex;gap:8px;">
-                <button class="btn-secondary" style="flex:1;font-size:0.82rem;" onclick="document.getElementById('hw-ai-question').value='';document.getElementById('hw-ai-response').innerHTML='';">Ask another question</button>
+            <div style="margin-top:12px;display:flex;gap:12px;">
+                <button class="btn-secondary" style="flex:1;font-size:0.9rem;" onclick="document.getElementById('hw-ai-question').value='';document.getElementById('hw-ai-response').innerHTML='';">Ask another question</button>
             </div>`;
         requestAnimationFrame(() => { responseDiv.style.transition='opacity 0.35s'; responseDiv.style.opacity='1'; });
         logActivity('study', `Homework AI help: ${title}`);
@@ -22413,19 +22413,19 @@ function renderGradeCalc() {
     var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;">'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
             +'<div style="font-size:1.8rem;font-weight:700;color:'+gradeColor(overallPct)+';">'+overallGPA+'%</div>'
-            +'<div style="font-size:0.78rem;color:var(--text-muted);">Overall Avg</div>'
+            +'<div style="font-size:0.88rem;color:var(--text-muted);">Overall Avg</div>'
         +'</div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
             +'<div style="font-size:1.8rem;font-weight:700;color:#a855f7;">'+overallLetter+'</div>'
-            +'<div style="font-size:0.78rem;color:var(--text-muted);">Letter Grade</div>'
+            +'<div style="font-size:0.88rem;color:var(--text-muted);">Letter Grade</div>'
         +'</div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
             +'<div style="font-size:1.8rem;font-weight:700;color:#00CEC9;">'+gpa4+'</div>'
-            +'<div style="font-size:0.78rem;color:var(--text-muted);">GPA (4.0)</div>'
+            +'<div style="font-size:0.88rem;color:var(--text-muted);">GPA (4.0)</div>'
         +'</div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
             +'<div style="font-size:1.8rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div>'
-            +'<div style="font-size:0.78rem;color:var(--text-muted);">Courses</div>'
+            +'<div style="font-size:0.88rem;color:var(--text-muted);">Courses</div>'
         +'</div>'
     +'</div>';
 
@@ -22434,13 +22434,13 @@ function renderGradeCalc() {
         var barColor = gradeColor(overallPct);
         html += '<div class="glass-panel" style="padding:14px;margin-bottom:16px;">'
             +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
-                +'<span style="font-size:0.82rem;font-weight:600;color:white;">Overall Progress</span>'
-                +(bestCourse?'<span style="font-size:0.75rem;color:var(--text-muted);">Best: '+bestCourse.name+' ('+bestCourse.avg.toFixed(1)+'%)</span>':'')
+                +'<span style="font-size:0.9rem;font-weight:600;color:white;">Overall Progress</span>'
+                +(bestCourse?'<span style="font-size:0.85rem;color:var(--text-muted);">Best: '+bestCourse.name+' ('+bestCourse.avg.toFixed(1)+'%)</span>':'')
             +'</div>'
             +'<div style="height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;">'
                 +'<div style="height:100%;width:'+Math.min(100,overallPct)+'%;background:linear-gradient(90deg,'+barColor+','+barColor+'cc);border-radius:5px;transition:width 0.5s;"></div>'
             +'</div>'
-            +'<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-muted);margin-top:4px;">'
+            +'<div style="display:flex;justify-content:space-between;font-size:0.9rem;color:var(--text-muted);margin-top:4px;">'
                 +'<span>0%</span><span>60% (D)</span><span>70% (C)</span><span>80% (B)</span><span>90% (A)</span><span>100%</span>'
             +'</div>'
         +'</div>';
@@ -22457,9 +22457,9 @@ function renderGradeCalc() {
         if (avg !== null && course.targetGrade) {
             var needed = calcNeededScore(course);
             if (avg >= course.targetGrade) {
-                targetNote = '<div style="font-size:0.8rem;color:#00b894;padding:7px 10px;background:rgba(0,184,148,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="ph ph-check-circle"></i> On track for your '+course.targetGrade+'% target</div>';
+                targetNote = '<div style="font-size:0.9rem;color:#00b894;padding:7px 10px;background:rgba(0,184,148,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:9px;"><i class="ph ph-check-circle"></i> On track for your '+course.targetGrade+'% target</div>';
             } else if (needed !== null) {
-                targetNote = '<div style="font-size:0.8rem;color:#fdcb6e;padding:7px 10px;background:rgba(253,203,110,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><i class="ph ph-warning"></i> Need '+needed+'% on next assessment to reach '+course.targetGrade+'%</div>';
+                targetNote = '<div style="font-size:0.9rem;color:#fdcb6e;padding:7px 10px;background:rgba(253,203,110,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:9px;"><i class="ph ph-warning"></i> Need '+needed+'% on next assessment to reach '+course.targetGrade+'%</div>';
             }
         }
 
@@ -22473,47 +22473,47 @@ function renderGradeCalc() {
         var catCounts = {};
         (course.grades||[]).forEach(function(g){ var c=g.category||'other'; catCounts[c]=(catCounts[c]||0)+1; });
         var catBreakdown = Object.keys(catCounts).length > 1
-            ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
-                + Object.keys(catCounts).map(function(c){ return '<span style="font-size:0.68rem;padding:2px 8px;border-radius:10px;background:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'22;color:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+';border:1px solid '+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'44;">'+c+': '+catCounts[c]+'</span>'; }).join('')
+            ? '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px;">'
+                + Object.keys(catCounts).map(function(c){ return '<span style="font-size:0.88rem;padding:2px 8px;border-radius:10px;background:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'22;color:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+';border:1px solid '+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'44;">'+c+': '+catCounts[c]+'</span>'; }).join('')
               + '</div>'
             : '';
 
         var gradesHtml = (course.grades||[]).map(function(g,gi){
             var catColor = GRADE_CATEGORY_COLORS[g.category||'other'] || 'var(--text-muted)';
-            var catTag = g.category ? '<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:'+catColor+'22;color:'+catColor+';border:1px solid '+catColor+'44;margin-right:4px;">'+g.category+'</span>' : '';
-            return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);">'
+            var catTag = g.category ? '<span style="font-size:0.88rem;padding:1px 6px;border-radius:8px;background:'+catColor+'22;color:'+catColor+';border:1px solid '+catColor+'44;margin-right:4px;">'+g.category+'</span>' : '';
+            return '<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);">'
                 +'<div style="flex:1;font-size:0.85rem;color:white;min-width:0;">'
                     +'<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+catTag+(g.name||'Grade '+(gi+1))+'</div>'
                 +'</div>'
-                +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+                +'<div style="display:flex;align-items:center;gap:9px;flex-shrink:0;">'
                     +'<div style="font-size:0.85rem;font-weight:600;color:'+gradeColor(parseFloat(g.score))+';">'+g.score+'%</div>'
-                    +(g.weight&&g.weight!==1?'<div style="font-size:0.72rem;color:var(--text-muted);">×'+g.weight+'</div>':'')
-                    +'<button onclick="deleteGrade('+course.id+','+gi+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:2px 4px;" title="Delete"><i class="ph ph-x"></i></button>'
+                    +(g.weight&&g.weight!==1?'<div style="font-size:0.9rem;color:var(--text-muted);">×'+g.weight+'</div>':'')
+                    +'<button onclick="deleteGrade('+course.id+','+gi+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.9rem;padding:2px 4px;" title="Delete"><i class="ph ph-x"></i></button>'
                 +'</div>'
             +'</div>';
         }).join('');
 
         html += '<div class="glass-panel" style="padding:16px;margin-bottom:12px;">'
             // Course header
-            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:12px;">'
                 +'<div style="min-width:0;flex:1;">'
                     +'<div style="font-weight:700;color:white;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+course.name+'</div>'
-                    +'<div style="font-size:0.78rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered'+(course.targetGrade?' &bull; Target: '+course.targetGrade+'%':'')+'</div>'
+                    +'<div style="font-size:0.88rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered'+(course.targetGrade?' &bull; Target: '+course.targetGrade+'%':'')+'</div>'
                 +'</div>'
                 +'<div style="text-align:right;flex-shrink:0;">'
                     +'<div style="font-size:2rem;font-weight:700;line-height:1;color:'+color+';">'+letter+'</div>'
-                    +'<div style="font-size:0.82rem;color:'+color+';">'+pct+'%</div>'
+                    +'<div style="font-size:0.9rem;color:'+color+';">'+pct+'%</div>'
                 +'</div>'
             +'</div>'
             + gradeBar
             + targetNote
             + catBreakdown
             + (course.grades.length > 0 ? '<div style="margin-bottom:12px;max-height:200px;overflow-y:auto;">'+gradesHtml+'</div>' : '')
-            +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                +'<button class="btn-primary" style="font-size:0.8rem;padding:7px 12px;" onclick="openAddGradeModal('+course.id+')"><i class="ph ph-plus"></i> Add Grade</button>'
-                +'<button class="btn-secondary" style="font-size:0.8rem;padding:7px 10px;" onclick="openTargetModal('+course.id+')"><i class="ph ph-target"></i> Target</button>'
-                +'<button class="btn-secondary" style="font-size:0.8rem;padding:7px 10px;" onclick="openGradeAiAnalysis('+course.id+')"><i class="ph ph-sparkle"></i> AI Advice</button>'
-                +'<button style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:7px 10px;" onclick="deleteCourse('+course.id+')"><i class="ph ph-trash"></i> Remove</button>'
+            +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+                +'<button class="btn-primary" style="font-size:0.9rem;padding:7px 12px;" onclick="openAddGradeModal('+course.id+')"><i class="ph ph-plus"></i> Add Grade</button>'
+                +'<button class="btn-secondary" style="font-size:0.9rem;padding:7px 10px;" onclick="openTargetModal('+course.id+')"><i class="ph ph-target"></i> Target</button>'
+                +'<button class="btn-secondary" style="font-size:0.9rem;padding:7px 10px;" onclick="openGradeAiAnalysis('+course.id+')"><i class="ph ph-sparkle"></i> AI Advice</button>'
+                +'<button style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.9rem;padding:7px 10px;" onclick="deleteCourse('+course.id+')"><i class="ph ph-trash"></i> Remove</button>'
             +'</div>'
         +'</div>';
     });
@@ -22525,7 +22525,7 @@ function openAddCourseModal() {
     modal.id = 'grade-modal-overlay';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
     modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = '<div class="glass-panel" style="max-width:380px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;">Add Course</h3><button class="btn-icon" onclick="document.getElementById(\'grade-modal-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Course Name *</label><input id="grade-course-name" class="input-field" style="width:100%;padding:10px;margin-bottom:14px;" placeholder="e.g. Algebra 1"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Target Grade (%)</label><input id="grade-course-target" class="input-field" type="number" min="0" max="100" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. 85"><div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'grade-modal-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="addCourse()">Add Course</button></div></div>';
+    modal.innerHTML = '<div class="glass-panel" style="max-width:380px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;">Add Course</h3><button class="btn-icon" onclick="document.getElementById(\'grade-modal-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Course Name *</label><input id="grade-course-name" class="input-field" style="width:100%;padding:10px;margin-bottom:14px;" placeholder="e.g. Algebra 1"><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Target Grade (%)</label><input id="grade-course-target" class="input-field" type="number" min="0" max="100" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. 85"><div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'grade-modal-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="addCourse()">Add Course</button></div></div>';
     document.body.appendChild(modal);
     setTimeout(function(){ var el=document.getElementById('grade-course-name'); if(el) el.focus(); }, 100);
 }
@@ -22553,12 +22553,12 @@ function openAddGradeModal(courseId) {
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
             <div>
-                <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Assignment Name</label>
+                <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Assignment Name</label>
                 <input id="grade-name" class="input-field" placeholder="e.g. Unit 3 Test">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div>
-                    <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Category</label>
+                    <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Category</label>
                     <select id="grade-category" class="input-field">
                         <option value="test">Test / Exam</option>
                         <option value="quiz">Quiz</option>
@@ -22570,16 +22570,16 @@ function openAddGradeModal(courseId) {
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Score (%)*</label>
+                    <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Score (%)*</label>
                     <input id="grade-score" class="input-field" type="number" min="0" max="100" placeholder="e.g. 87">
                 </div>
             </div>
             <div>
-                <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:4px;">Weight (optional — 1 = normal)</label>
+                <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Weight (optional — 1 = normal)</label>
                 <input id="grade-weight" class="input-field" type="number" min="0" max="10" step="0.5" placeholder="1">
             </div>
         </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:18px;">
             <button class="btn-secondary" onclick="document.getElementById('grade-modal-overlay').remove()">Cancel</button>
             <button class="btn-primary" onclick="addGrade(${courseId})">Add Grade</button>
         </div>
@@ -22648,10 +22648,10 @@ async function openGradeAiAnalysis(courseId) {
     modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
     modal.innerHTML = '<div class="glass-panel" style="max-width:500px;width:100%;padding:0;border:1px solid rgba(0,206,201,0.35);overflow:hidden;">'
         +'<div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.08));display:flex;align-items:center;gap:10px;">'
-            +'<div style="flex:1;"><div style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;margin-bottom:2px;">AI ACADEMIC ADVISOR</div><div style="color:white;font-size:0.92rem;font-weight:600;">'+course.name+'</div></div>'
+            +'<div style="flex:1;"><div style="font-size:0.9rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;margin-bottom:2px;">AI ACADEMIC ADVISOR</div><div style="color:white;font-size:0.92rem;font-weight:600;">'+course.name+'</div></div>'
             +'<button class="btn-icon" onclick="document.getElementById(\'grade-ai-modal\').remove()"><i class="ph ph-x"></i></button>'
         +'</div>'
-        +'<div style="padding:20px;" id="grade-ai-body"><div style="color:var(--accent);display:flex;align-items:center;gap:8px;"><i class="ph ph-spinner ph-spin"></i> Analyzing your grades…</div></div>'
+        +'<div style="padding:20px;" id="grade-ai-body"><div style="color:var(--accent);display:flex;align-items:center;gap:12px;"><i class="ph ph-spinner ph-spin"></i> Analyzing your grades…</div></div>'
     +'</div>';
     document.body.appendChild(modal);
 
@@ -22710,10 +22710,10 @@ function renderCitationTab() {
     var typeOpts = ['book','website','journal','newspaper','video'].map(function(v){
         return '<option value="'+v+'"'+(_citType===v?' selected':'')+'>'+{'book':'Book','website':'Website','journal':'Journal Article','newspaper':'Newspaper','video':'Online Video'}[v]+'</option>';
     }).join('');
-    var savedHtml = saved.length > 0 ? '<div style="margin-top:24px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Saved Citations ('+saved.length+')</h4><div style="display:flex;gap:8px;"><button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;" onclick="exportCitationsPDF()"><i class="ph ph-printer"></i> Export</button><button class="btn-secondary" style="font-size:0.8rem;padding:6px 10px;color:#ff6b6b;" onclick="clearAllCitations()"><i class="ph ph-trash"></i> Clear</button></div></div>'
-        +saved.map(function(c,i){ return '<div class="glass-panel" style="padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;"><div style="flex:1;font-size:0.85rem;color:white;font-family:serif;">'+c.text+'</div><div style="display:flex;gap:6px;flex-shrink:0;"><button onclick="copyCitation('+i+')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;" title="Copy"><i class="ph ph-copy"></i></button><button onclick="deleteSavedCitation('+i+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;" title="Delete"><i class="ph ph-trash"></i></button></div></div>'; }).join('')
+    var savedHtml = saved.length > 0 ? '<div style="margin-top:24px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Saved Citations ('+saved.length+')</h4><div style="display:flex;gap:12px;"><button class="btn-secondary" style="font-size:0.9rem;padding:6px 10px;" onclick="exportCitationsPDF()"><i class="ph ph-printer"></i> Export</button><button class="btn-secondary" style="font-size:0.9rem;padding:6px 10px;color:#ff6b6b;" onclick="clearAllCitations()"><i class="ph ph-trash"></i> Clear</button></div></div>'
+        +saved.map(function(c,i){ return '<div class="glass-panel" style="padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;"><div style="flex:1;font-size:0.85rem;color:white;font-family:serif;">'+c.text+'</div><div style="display:flex;gap:9px;flex-shrink:0;"><button onclick="copyCitation('+i+')" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;" title="Copy"><i class="ph ph-copy"></i></button><button onclick="deleteSavedCitation('+i+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;" title="Delete"><i class="ph ph-trash"></i></button></div></div>'; }).join('')
         +'</div>' : '';
-    panel.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Format</label><select id="cit-style" class="input-field" style="width:100%;padding:10px;" onchange="_citStyle=this.value;renderCitationForm()">'+styleOpts+'</select></div><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Source Type</label><select id="cit-type" class="input-field" style="width:100%;padding:10px;" onchange="_citType=this.value;renderCitationForm()">'+typeOpts+'</select></div></div><div id="cit-form-area"></div><div id="cit-result-area" style="margin-top:16px;"></div>'+savedHtml;
+    panel.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"><div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Format</label><select id="cit-style" class="input-field" style="width:100%;padding:10px;" onchange="_citStyle=this.value;renderCitationForm()">'+styleOpts+'</select></div><div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Source Type</label><select id="cit-type" class="input-field" style="width:100%;padding:10px;" onchange="_citType=this.value;renderCitationForm()">'+typeOpts+'</select></div></div><div id="cit-form-area"></div><div id="cit-result-area" style="margin-top:16px;"></div>'+savedHtml;
     renderCitationForm();
 }
 function copyCitation(idx) {
@@ -22741,7 +22741,7 @@ function renderCitationForm() {
     if (!area) return;
     var fields = _CIT_FIELDS_V13[_citType] || _CIT_FIELDS_V13.book;
     area.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px;">'
-        + fields.map(function(f){ return '<div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:3px;">'+f.label+(f.req?'<span style="color:#ff6b6b;"> *</span>':'')+'</label><input id="cit-field-'+f.id+'" class="input-field" style="width:100%;padding:10px;" placeholder="'+(f.ph||'')+'"></div>'; }).join('')
+        + fields.map(function(f){ return '<div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:3px;">'+f.label+(f.req?'<span style="color:#ff6b6b;"> *</span>':'')+'</label><input id="cit-field-'+f.id+'" class="input-field" style="width:100%;padding:10px;" placeholder="'+(f.ph||'')+'"></div>'; }).join('')
         + '</div><button class="btn-primary" style="margin-top:14px;width:100%;" onclick="generateCitation()"><i class="ph ph-quotes"></i> Generate Citation</button>';
 }
 function getField(id) { var el=document.getElementById('cit-field-'+id); return el?el.value.trim():''; }
@@ -22775,7 +22775,7 @@ function generateCitation() {
     if (!cit||cit.replace(/[.*\s]/g,'').length<5) { showToast('Fill in the required fields.', 'error'); return; }
     _citationResult = cit;
     var area = document.getElementById('cit-result-area');
-    if (area) area.innerHTML = '<div class="glass-panel" style="padding:14px;border:1px solid rgba(0,206,201,0.3);"><div style="font-size:0.75rem;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:8px;">'+s.toUpperCase()+' — '+t.charAt(0).toUpperCase()+t.slice(1)+'</div><div id="cit-output-text" style="font-size:0.92rem;color:white;font-family:serif;line-height:1.6;">'+cit+'</div><div style="display:flex;gap:8px;margin-top:12px;"><button class="btn-primary" style="font-size:0.82rem;padding:6px 12px;" onclick="copyText(\''+cit.replace(/'/g,"\\'")+'\')" ><i class="ph ph-copy"></i> Copy</button><button class="btn-secondary" style="font-size:0.82rem;padding:6px 12px;" onclick="saveCitation()"><i class="ph ph-bookmark-simple"></i> Save</button></div></div>';
+    if (area) area.innerHTML = '<div class="glass-panel" style="padding:14px;border:1px solid rgba(0,206,201,0.3);"><div style="font-size:0.85rem;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:8px;">'+s.toUpperCase()+' — '+t.charAt(0).toUpperCase()+t.slice(1)+'</div><div id="cit-output-text" style="font-size:0.92rem;color:white;font-family:serif;line-height:1.6;">'+cit+'</div><div style="display:flex;gap:12px;margin-top:12px;"><button class="btn-primary" style="font-size:0.9rem;padding:6px 12px;" onclick="copyText(\''+cit.replace(/'/g,"\\'")+'\')" ><i class="ph ph-copy"></i> Copy</button><button class="btn-secondary" style="font-size:0.9rem;padding:6px 12px;" onclick="saveCitation()"><i class="ph ph-bookmark-simple"></i> Save</button></div></div>';
 }
 function saveCitation() {
     if (!_citationResult) return;
@@ -22820,7 +22820,7 @@ function openQuickStudyQuiz(subject) {
     <div class="glass-panel" style="max-width:540px;width:100%;padding:0;border:1px solid ${color}55;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;">
         <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,${color}22,rgba(0,0,0,0.2));display:flex;align-items:center;gap:10px;">
             <div style="flex:1;min-width:0;">
-                <div style="font-size:0.72rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">Quiz Yourself</div>
+                <div style="font-size:0.9rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">Quiz Yourself</div>
                 <div style="color:white;font-size:0.92rem;font-weight:600;">${subject} — AI Quiz Generator</div>
             </div>
             <button class="btn-icon" onclick="document.getElementById('quick-quiz-modal').remove()"><i class="ph ph-x"></i></button>
@@ -22830,13 +22830,13 @@ function openQuickStudyQuiz(subject) {
             <textarea id="quick-quiz-input" class="input-field" style="width:100%;min-height:130px;resize:vertical;font-size:0.88rem;" placeholder="Paste your ${subject} notes here, or just type a topic like 'photosynthesis' or 'quadratic equations'…"></textarea>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;">
                 <div>
-                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Questions</label>
+                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Questions</label>
                     <select id="quick-quiz-count" class="input-field" style="width:100%;padding:10px;">
                         <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option>
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Difficulty</label>
+                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Difficulty</label>
                     <select id="quick-quiz-diff" class="input-field" style="width:100%;padding:10px;">
                         <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
                     </select>
@@ -22927,7 +22927,7 @@ function renderQuizGen() {
     var panel = document.getElementById('quizgen-panel');
     if (!panel) return;
     if (_quizGenActive) { renderQuizGenQuestion(panel); return; }
-    panel.innerHTML = '<div style="margin-bottom:16px;"><label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:6px;">Paste your notes, textbook excerpt, or any text. The AI generates a multiple-choice quiz from it.</label><textarea id="quizgen-input" class="input-field" style="width:100%;min-height:160px;padding:12px;resize:vertical;font-size:0.9rem;line-height:1.5;" placeholder="Paste notes here..."></textarea></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Questions</label><select id="quizgen-count" class="input-field" style="width:100%;padding:10px;"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div><div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Difficulty</label><select id="quizgen-diff" class="input-field" style="width:100%;padding:10px;"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div></div><button id="quizgen-btn" class="btn-primary" style="width:100%;padding:12px;" onclick="generateNotesQuiz()"><i class="ph ph-magic-wand"></i> Generate Quiz from Notes</button><div id="quizgen-status" style="margin-top:12px;color:var(--text-muted);font-size:0.85rem;text-align:center;"></div>';
+    panel.innerHTML = '<div style="margin-bottom:16px;"><label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:6px;">Paste your notes, textbook excerpt, or any text. The AI generates a multiple-choice quiz from it.</label><textarea id="quizgen-input" class="input-field" style="width:100%;min-height:160px;padding:12px;resize:vertical;font-size:0.9rem;line-height:1.5;" placeholder="Paste notes here..."></textarea></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"><div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Questions</label><select id="quizgen-count" class="input-field" style="width:100%;padding:10px;"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div><div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Difficulty</label><select id="quizgen-diff" class="input-field" style="width:100%;padding:10px;"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div></div><button id="quizgen-btn" class="btn-primary" style="width:100%;padding:12px;" onclick="generateNotesQuiz()"><i class="ph ph-magic-wand"></i> Generate Quiz from Notes</button><div id="quizgen-status" style="margin-top:12px;color:var(--text-muted);font-size:0.85rem;text-align:center;"></div>';
 }
 async function generateNotesQuiz() {
     var text = (document.getElementById('quizgen-input') ? document.getElementById('quizgen-input').value : '').trim();
@@ -22968,7 +22968,7 @@ async function generateNotesQuiz() {
 function renderQuizGenQuestion(panel) {
     if (_quizGenCurrent>=_quizGenQuestions.length) { renderQuizGenResults(panel); return; }
     var q=_quizGenQuestions[_quizGenCurrent], total=_quizGenQuestions.length;
-    panel.innerHTML='<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:0.8rem;color:var(--text-muted);">Question '+(_quizGenCurrent+1)+' of '+total+'</div><div style="font-size:0.8rem;color:var(--accent);">Score: '+_quizGenScore+'/'+_quizGenCurrent+'</div></div><div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:18px;"><div style="width:'+((_quizGenCurrent/total)*100)+'%;height:100%;background:var(--accent);border-radius:2px;"></div></div><div style="font-size:1.05rem;font-weight:600;color:white;line-height:1.5;margin-bottom:20px;">'+q.q+'</div><div style="display:flex;flex-direction:column;gap:10px;">'
+    panel.innerHTML='<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:0.9rem;color:var(--text-muted);">Question '+(_quizGenCurrent+1)+' of '+total+'</div><div style="font-size:0.9rem;color:var(--accent);">Score: '+_quizGenScore+'/'+_quizGenCurrent+'</div></div><div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:18px;"><div style="width:'+((_quizGenCurrent/total)*100)+'%;height:100%;background:var(--accent);border-radius:2px;"></div></div><div style="font-size:1.05rem;font-weight:600;color:white;line-height:1.5;margin-bottom:20px;">'+q.q+'</div><div style="display:flex;flex-direction:column;gap:10px;">'
         +q.options.map(function(opt,i){ var L=String.fromCharCode(65+i); return '<button class="quiz-gen-opt" data-letter="'+L+'" onclick="selectQuizGenAnswer(\''+L+'\')" style="width:100%;text-align:left;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:white;cursor:pointer;font-size:0.92rem;transition:all 0.15s;line-height:1.4;" onmouseenter="this.style.background=\'rgba(0,206,201,0.12)\';this.style.borderColor=\'rgba(0,206,201,0.4)\'" onmouseleave="this.style.background=\'rgba(255,255,255,0.04)\';this.style.borderColor=\'rgba(255,255,255,0.15)\'">'+opt+'</button>'; }).join('')
         +'</div></div>';
 }
@@ -22993,8 +22993,8 @@ function renderQuizGenResults(panel) {
     if(typeof awardXP==='function') awardXP(xpE);
     if(typeof addCredits==='function') addCredits(Math.round(xpE*0.3));
     panel.innerHTML='<div style="text-align:center;margin-bottom:24px;"><div style="font-size:3.5rem;margin-bottom:8px;">'+(pct>=80?'🎉':pct>=60?'👍':'📚')+'</div><div style="font-size:2.2rem;font-weight:700;color:'+(pct>=80?'#00b894':pct>=60?'#fdcb6e':'#ff6b6b')+';">'+pct+'%</div><div style="color:var(--text-muted);margin-top:4px;">'+_quizGenScore+' / '+total+' correct</div><div style="font-size:0.85rem;color:var(--accent);margin-top:8px;">+'+xpE+' XP earned</div></div>'
-        +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">'
-        +_quizGenAnswers.map(function(a,i){ return '<div class="glass-panel" style="padding:12px;border-left:3px solid '+(a.ok?'#00b894':'#ff6b6b')+';"><div style="font-size:0.85rem;color:white;margin-bottom:4px;">'+(i+1)+'. '+a.q+'</div><div style="font-size:0.8rem;">'+(a.ok?'<span style="color:#00b894;"><i class="ph ph-check-circle"></i> Correct ('+a.correct+')</span>':'<span style="color:#ff6b6b;"><i class="ph ph-x-circle"></i> You chose '+a.selected+' — Correct: '+a.correct+'</span>')+'</div></div>'; }).join('')
+        +'<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">'
+        +_quizGenAnswers.map(function(a,i){ return '<div class="glass-panel" style="padding:12px;border-left:3px solid '+(a.ok?'#00b894':'#ff6b6b')+';"><div style="font-size:0.85rem;color:white;margin-bottom:4px;">'+(i+1)+'. '+a.q+'</div><div style="font-size:0.9rem;">'+(a.ok?'<span style="color:#00b894;"><i class="ph ph-check-circle"></i> Correct ('+a.correct+')</span>':'<span style="color:#ff6b6b;"><i class="ph ph-x-circle"></i> You chose '+a.selected+' — Correct: '+a.correct+'</span>')+'</div></div>'; }).join('')
         +'</div><div style="display:flex;gap:10px;"><button class="btn-secondary" style="flex:1;" onclick="renderQuizGen()">New Quiz</button><button class="btn-primary" style="flex:1;" onclick="_quizGenCurrent=0;_quizGenScore=0;_quizGenAnswers=[];_quizGenActive=true;var p=document.getElementById(\'quizgen-panel\');if(p)renderQuizGenQuestion(p);">Retry</button></div>';
 }
 
@@ -23047,9 +23047,9 @@ function renderSrsCard() {
     if(!panel) return;
     if(_srsCurrent>=_srsCards.length){renderSrsResults(panel);return;}
     var item=_srsCards[_srsCurrent], card=item.card, total=_srsCards.length;
-    panel.innerHTML='<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:0.8rem;color:var(--text-muted);">Card '+(_srsCurrent+1)+' / '+total+'</div><div style="font-size:0.8rem;color:var(--accent);">'+item.deckTitle+'</div></div><div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:20px;"><div style="width:'+((_srsCurrent/total)*100)+'%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>'
-        +'<div id="srs-card-flip" onclick="flipSrsCard()" style="cursor:pointer;min-height:160px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:all 0.2s;user-select:none;" onmouseenter="this.style.borderColor=\'rgba(0,206,201,0.4)\'" onmouseleave="this.style.borderColor=\'rgba(255,255,255,0.12)\'"><div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">'+(_srsFlipped?'ANSWER':'QUESTION — tap to reveal')+'</div><div style="font-size:1.05rem;color:white;line-height:1.6;">'+(_srsFlipped?card.back:card.front)+'</div></div>'
-        +(_srsFlipped?'<div style="margin-top:18px;"><div style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-bottom:10px;">How well did you remember?</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"><button onclick="rateSrsCard(0)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(255,107,107,0.2);color:#ff6b6b;cursor:pointer;font-size:0.8rem;font-weight:600;">Again</button><button onclick="rateSrsCard(1)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(253,203,110,0.2);color:#fdcb6e;cursor:pointer;font-size:0.8rem;font-weight:600;">Hard</button><button onclick="rateSrsCard(3)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(0,206,201,0.2);color:#00CEC9;cursor:pointer;font-size:0.8rem;font-weight:600;">Good</button><button onclick="rateSrsCard(5)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(0,184,148,0.2);color:#00b894;cursor:pointer;font-size:0.8rem;font-weight:600;">Easy</button></div></div>'
+    panel.innerHTML='<div style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div style="font-size:0.9rem;color:var(--text-muted);">Card '+(_srsCurrent+1)+' / '+total+'</div><div style="font-size:0.9rem;color:var(--accent);">'+item.deckTitle+'</div></div><div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-bottom:20px;"><div style="width:'+((_srsCurrent/total)*100)+'%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>'
+        +'<div id="srs-card-flip" onclick="flipSrsCard()" style="cursor:pointer;min-height:160px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:all 0.2s;user-select:none;" onmouseenter="this.style.borderColor=\'rgba(0,206,201,0.4)\'" onmouseleave="this.style.borderColor=\'rgba(255,255,255,0.12)\'"><div style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">'+(_srsFlipped?'ANSWER':'QUESTION — tap to reveal')+'</div><div style="font-size:1.05rem;color:white;line-height:1.6;">'+(_srsFlipped?card.back:card.front)+'</div></div>'
+        +(_srsFlipped?'<div style="margin-top:18px;"><div style="font-size:0.9rem;color:var(--text-muted);text-align:center;margin-bottom:10px;">How well did you remember?</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"><button onclick="rateSrsCard(0)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(255,107,107,0.2);color:#ff6b6b;cursor:pointer;font-size:0.9rem;font-weight:600;">Again</button><button onclick="rateSrsCard(1)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(253,203,110,0.2);color:#fdcb6e;cursor:pointer;font-size:0.9rem;font-weight:600;">Hard</button><button onclick="rateSrsCard(3)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(0,206,201,0.2);color:#00CEC9;cursor:pointer;font-size:0.9rem;font-weight:600;">Good</button><button onclick="rateSrsCard(5)" style="padding:10px 6px;border-radius:8px;border:none;background:rgba(0,184,148,0.2);color:#00b894;cursor:pointer;font-size:0.9rem;font-weight:600;">Easy</button></div></div>'
             :'<div style="text-align:center;margin-top:18px;"><button class="btn-secondary" onclick="flipSrsCard()" style="padding:10px 24px;"><i class="ph ph-eye"></i> Reveal Answer</button></div>');
 }
 function flipSrsCard() { _srsFlipped=!_srsFlipped; renderSrsCard(); }
@@ -23065,7 +23065,7 @@ function renderSrsResults(panel) {
     var pct=_srsSession.reviewed>0?Math.round((_srsSession.correct/_srsSession.reviewed)*100):0;
     var xp=_srsSession.reviewed*5+_srsSession.correct*3;
     if(typeof awardXP==='function') awardXP(xp);
-    panel.innerHTML='<div style="text-align:center;padding:32px 16px;"><div style="font-size:3rem;margin-bottom:10px;">🎓</div><h3 style="color:white;margin:0 0 6px;">Review Complete!</h3><div style="color:var(--text-muted);margin-bottom:20px;">Reviewed '+_srsSession.reviewed+' cards — '+pct+'% recalled</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;"><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+_srsSession.correct+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Remembered</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(_srsSession.reviewed-_srsSession.correct)+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Need Practice</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">+'+xp+'</div><div style="font-size:0.75rem;color:var(--text-muted);">XP Earned</div></div></div><button class="btn-primary" onclick="renderSrsHomePanel()"><i class="ph ph-cards"></i> Back to Decks</button></div>';
+    panel.innerHTML='<div style="text-align:center;padding:32px 16px;"><div style="font-size:3rem;margin-bottom:10px;">🎓</div><h3 style="color:white;margin:0 0 6px;">Review Complete!</h3><div style="color:var(--text-muted);margin-bottom:20px;">Reviewed '+_srsSession.reviewed+' cards — '+pct+'% recalled</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;"><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+_srsSession.correct+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Remembered</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(_srsSession.reviewed-_srsSession.correct)+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Need Practice</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">+'+xp+'</div><div style="font-size:0.85rem;color:var(--text-muted);">XP Earned</div></div></div><button class="btn-primary" onclick="renderSrsHomePanel()"><i class="ph ph-cards"></i> Back to Decks</button></div>';
 }
 
 function renderSrsHomePanel() {
@@ -23073,9 +23073,9 @@ function renderSrsHomePanel() {
     var due=getDueFlashcards().length, decks=getFlashcardDecks();
     p.innerHTML='<div class="glass-panel" style="padding:20px;margin-bottom:16px;text-align:center;"><div style="font-size:3rem;margin-bottom:8px;">'+(due>0?'🃏':'✅')+'</div><div style="font-size:1.8rem;font-weight:700;color:'+(due>0?'var(--accent)':'#00b894')+';">'+due+'</div><div style="color:var(--text-muted);margin-bottom:16px;">card'+(due!==1?'s':'')+' due for review today</div>'
         +(due>0?'<button class="btn-primary" style="padding:12px 28px;" onclick="startSrsReview()"><i class="ph ph-play"></i> Start Review ('+due+' cards)</button>':'<div style="color:#00b894;">All caught up! Come back tomorrow.</div>')
-        +'</div><div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Decks ('+decks.length+')</h4><button class="btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV</button></div>'
+        +'</div><div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Decks ('+decks.length+')</h4><button class="btn-secondary" style="font-size:0.9rem;padding:6px 12px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV</button></div>'
         +(decks.length===0?'<div style="text-align:center;padding:24px;color:var(--text-muted);">No decks yet.</div>'
-            :decks.map(function(d){ var di=getDueFlashcards().filter(function(c){return c.deckId===d.id;}).length; return '<div class="glass-panel" style="padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;"><div style="flex:1;"><div style="font-weight:600;color:white;">'+d.title+'</div><div style="font-size:0.78rem;color:var(--text-muted);">'+(d.cards||[]).length+' cards &bull; '+(di>0?'<span style="color:var(--accent);">'+di+' due</span>':'<span style="color:#00b894;">All caught up</span>')+'</div></div>'+(di>0?'<button class="btn-primary" style="font-size:0.8rem;padding:6px 12px;" onclick="startSrsDeckReview('+d.id+')"><i class="ph ph-play"></i> Review</button>':'')+'</div>'; }).join(''))
+            :decks.map(function(d){ var di=getDueFlashcards().filter(function(c){return c.deckId===d.id;}).length; return '<div class="glass-panel" style="padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;"><div style="flex:1;"><div style="font-weight:600;color:white;">'+d.title+'</div><div style="font-size:0.88rem;color:var(--text-muted);">'+(d.cards||[]).length+' cards &bull; '+(di>0?'<span style="color:var(--accent);">'+di+' due</span>':'<span style="color:#00b894;">All caught up</span>')+'</div></div>'+(di>0?'<button class="btn-primary" style="font-size:0.9rem;padding:6px 12px;" onclick="startSrsDeckReview('+d.id+')"><i class="ph ph-play"></i> Review</button>':'')+'</div>'; }).join(''))
         +'</div><div id="srs-panel" style="margin-top:16px;"></div>';
 }
 
@@ -23087,7 +23087,7 @@ function openCsvImportModal() {
     modal.id='csv-import-overlay';
     modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
     modal.onclick=function(e){if(e.target===modal) modal.remove();};
-    modal.innerHTML='<div class="glass-panel" style="max-width:500px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;"><i class="ph ph-upload-simple"></i> Import from CSV / Quizlet</h3><button class="btn-icon" onclick="document.getElementById(\'csv-import-overlay\').remove()"><i class="ph ph-x"></i></button></div><div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Paste CSV where each line is: <code style="color:var(--accent);">term,definition</code><br>Supports Quizlet exports (tab-separated) and comma-separated.</div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Deck Name *</label><input id="csv-deck-name" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. Bio Chapter 5"><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Paste CSV / TSV data *</label><textarea id="csv-data" class="input-field" style="width:100%;min-height:140px;padding:10px;resize:vertical;font-family:monospace;font-size:0.82rem;" placeholder="Mitochondria,The powerhouse of the cell&#10;Photosynthesis,Converting light to glucose"></textarea><div id="csv-preview" style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;"></div><div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'csv-import-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="importCsvDeck()"><i class="ph ph-check"></i> Import Deck</button></div></div>';
+    modal.innerHTML='<div class="glass-panel" style="max-width:500px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;"><i class="ph ph-upload-simple"></i> Import from CSV / Quizlet</h3><button class="btn-icon" onclick="document.getElementById(\'csv-import-overlay\').remove()"><i class="ph ph-x"></i></button></div><div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Paste CSV where each line is: <code style="color:var(--accent);">term,definition</code><br>Supports Quizlet exports (tab-separated) and comma-separated.</div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Deck Name *</label><input id="csv-deck-name" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;" placeholder="e.g. Bio Chapter 5"><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Paste CSV / TSV data *</label><textarea id="csv-data" class="input-field" style="width:100%;min-height:140px;padding:10px;resize:vertical;font-family:monospace;font-size:0.9rem;" placeholder="Mitochondria,The powerhouse of the cell&#10;Photosynthesis,Converting light to glucose"></textarea><div id="csv-preview" style="font-size:0.88rem;color:var(--text-muted);margin-top:6px;"></div><div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'csv-import-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="importCsvDeck()"><i class="ph ph-check"></i> Import Deck</button></div></div>';
     document.body.appendChild(modal);
     document.getElementById('csv-data').addEventListener('input',function(){
         var lines=parseCsvLines(this.value);
@@ -23277,13 +23277,13 @@ function renderDailyChallenge() {
 
     var inner='<div style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:14px;padding:20px;">'
         // Header row
-        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px;">'
             +'<div>'
-                +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
-                    +'<span style="font-size:0.7rem;color:var(--accent);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">🎯 Daily Challenge</span>'
-                    +'<span style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:'+diffColor+'22;color:'+diffColor+';border:1px solid '+diffColor+'44;">'+diffLabel+'</span>'
+                +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">'
+                    +'<span style="font-size:0.9rem;color:var(--accent);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">🎯 Daily Challenge</span>'
+                    +'<span style="font-size:0.88rem;font-weight:700;padding:2px 8px;border-radius:10px;background:'+diffColor+'22;color:'+diffColor+';border:1px solid '+diffColor+'44;">'+diffLabel+'</span>'
                 +'</div>'
-                +'<div style="font-size:0.8rem;color:var(--text-muted);">'+today+' &bull; '+icon+' '+ch.subject+(streak>1?' &bull; 🔥 '+streak+'-day streak':'')+'</div>'
+                +'<div style="font-size:0.9rem;color:var(--text-muted);">'+today+' &bull; '+icon+' '+ch.subject+(streak>1?' &bull; 🔥 '+streak+'-day streak':'')+'</div>'
             +'</div>'
             +'<div style="font-size:1.8rem;">'+icon+'</div>'
         +'</div>'
@@ -23293,25 +23293,25 @@ function renderDailyChallenge() {
     if(completed){
         inner+='<div style="background:rgba(0,184,148,0.15);border:1px solid rgba(0,184,148,0.3);border-radius:10px;padding:14px;margin-bottom:10px;">'
             +'<div style="color:#00b894;font-weight:700;margin-bottom:6px;"><i class="ph ph-check-circle"></i> Correct Answer: '+ch.answer+'</div>'
-            +'<div style="font-size:0.82rem;color:var(--text-muted);">Completed today! +25 XP &amp; +15 credits earned 🎉</div>'
+            +'<div style="font-size:0.9rem;color:var(--text-muted);">Completed today! +25 XP &amp; +15 credits earned 🎉</div>'
             +'</div>'
-            +'<div style="font-size:0.8rem;color:var(--text-muted);">Come back tomorrow for a new challenge.</div>';
+            +'<div style="font-size:0.9rem;color:var(--text-muted);">Come back tomorrow for a new challenge.</div>';
     } else if(revealed){
         inner+='<div style="background:rgba(0,206,201,0.1);border:1px solid rgba(0,206,201,0.25);border-radius:10px;padding:14px;margin-bottom:14px;">'
-            +'<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:6px;letter-spacing:1px;">✓ ANSWER</div>'
+            +'<div style="font-size:0.9rem;color:var(--accent);font-weight:700;margin-bottom:6px;letter-spacing:1px;">✓ ANSWER</div>'
             +'<div style="color:white;font-weight:600;font-size:1rem;line-height:1.5;">'+ch.answer+'</div>'
-            +'<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">💡 '+ch.hint+'</div>'
+            +'<div style="font-size:0.9rem;color:var(--text-muted);margin-top:6px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">💡 '+ch.hint+'</div>'
             +'</div>'
-            +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+            +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
                 +'<button class="btn-secondary" onclick="markDailyChallengeResult(false)" style="flex:1;min-width:120px;"><i class="ph ph-x-circle"></i> Didn\'t get it</button>'
                 +'<button class="btn-primary" onclick="markDailyChallengeResult(true)" style="flex:1;min-width:120px;"><i class="ph ph-check"></i> Got it! (+25 XP)</button>'
             +'</div>';
     } else {
         inner+='<div style="margin-bottom:14px;">'
-            +'<label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:6px;">Your answer (optional — self-check)</label>'
+            +'<label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:6px;">Your answer (optional — self-check)</label>'
             +'<input id="dc-user-answer" type="text" placeholder="Type your answer here…" class="input-field" style="width:100%;" onkeydown="if(event.key===\'Enter\')revealDailyAnswer();">'
             +'</div>'
-            +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+            +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
                 +'<button class="btn-secondary" onclick="revealDailyHint()" style="flex:1;min-width:100px;"><i class="ph ph-lightbulb"></i> Hint</button>'
                 +'<button class="btn-primary" onclick="revealDailyAnswer()" style="flex:1;min-width:130px;"><i class="ph ph-eye"></i> Reveal Answer</button>'
             +'</div>'
@@ -23363,7 +23363,7 @@ function renderSeasonalShopBanner(){
     var events={10:'Halloween Event',11:'Winter Sale',12:'Holiday Event',2:"Valentine's Special",8:'Back to School',9:'Back to School'};
     var label=events[month]||'Seasonal Event';
     panel.style.display='block';
-    panel.innerHTML='<div style="background:linear-gradient(135deg,rgba(253,203,110,0.12),rgba(108,92,231,0.08));border:1px solid rgba(253,203,110,0.3);border-radius:12px;padding:14px 16px;margin-bottom:16px;"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div><div style="font-size:0.75rem;color:#fdcb6e;font-weight:700;letter-spacing:1px;">'+label+' — LIMITED TIME</div><div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px;">'+items.length+' exclusive items available this month</div></div><button class="btn-secondary" style="font-size:0.8rem;padding:7px 14px;" onclick="switchTab(\'shop\')"><i class="ph ph-sparkle"></i> View Shop</button></div></div>';
+    panel.innerHTML='<div style="background:linear-gradient(135deg,rgba(253,203,110,0.12),rgba(108,92,231,0.08));border:1px solid rgba(253,203,110,0.3);border-radius:12px;padding:14px 16px;margin-bottom:16px;"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;"><div><div style="font-size:0.85rem;color:#fdcb6e;font-weight:700;letter-spacing:1px;">'+label+' — LIMITED TIME</div><div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px;">'+items.length+' exclusive items available this month</div></div><button class="btn-secondary" style="font-size:0.9rem;padding:7px 14px;" onclick="switchTab(\'shop\')"><i class="ph ph-sparkle"></i> View Shop</button></div></div>';
 }
 
 // ─────────────────────────────────────────
@@ -23387,22 +23387,22 @@ function renderBetterProfile() {
     var dueCards=getSrsDueCount();
 
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
-        +'<div style="text-align:center;"><div style="font-size:4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
+        +'<div style="text-align:center;"><div style="font-size:4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
         +'<div style="flex:1;min-width:200px;">'
-        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.75rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
         +(bio?'<div style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"'+bio+'"</div>':'')
-        +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div></div>'
-        +'<div style="display:flex;gap:8px;margin-top:12px;"><button class="btn-secondary" style="font-size:0.78rem;padding:6px 12px;" onclick="openEditProfile()"><i class="ph ph-pencil-simple"></i> Edit Profile</button></div>'
+        +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div></div>'
+        +'<div style="display:flex;gap:12px;margin-top:12px;"><button class="btn-secondary" style="font-size:0.88rem;padding:6px 12px;" onclick="openEditProfile()"><i class="ph ph-pencil-simple"></i> Edit Profile</button></div>'
         +'</div></div>'
         +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">'+(stats.problemsSolved||0)+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Problems</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(stats.currentStreak||0)+'🔥</div><div style="font-size:0.75rem;color:var(--text-muted);">Streak</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#a855f7;">'+completed.length+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Achievements</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#fdcb6e;">'+totalMins+'</div><div style="font-size:0.75rem;color:var(--text-muted);">Mins Studied</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+hwDone+'</div><div style="font-size:0.75rem;color:var(--text-muted);">HW Done</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00CEC9;">'+gpaStr+'</div><div style="font-size:0.75rem;color:var(--text-muted);">GPA Avg</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">'+(stats.problemsSolved||0)+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Problems</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(stats.currentStreak||0)+'🔥</div><div style="font-size:0.85rem;color:var(--text-muted);">Streak</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#a855f7;">'+completed.length+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Achievements</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#fdcb6e;">'+totalMins+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Mins Studied</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+hwDone+'</div><div style="font-size:0.85rem;color:var(--text-muted);">HW Done</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00CEC9;">'+gpaStr+'</div><div style="font-size:0.85rem;color:var(--text-muted);">GPA Avg</div></div>'
         +'</div>'
-        +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'tools\')" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.8rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
+        +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'tools\')" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
 
     setTimeout(function(){
@@ -23420,7 +23420,7 @@ function openEditProfile() {
     var gradeOpts='<option value="">Not set</option>';
     for(var g=1;g<=12;g++) gradeOpts+='<option value="'+g+'"'+(grade==g?' selected':'')+'>'+g+'</option>';
     gradeOpts+='<option value="College"'+(grade==='College'?' selected':'')+'>College</option>';
-    modal.innerHTML='<div class="glass-panel" style="max-width:420px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;">Edit Profile</h3><button class="btn-icon" onclick="document.getElementById(\'edit-profile-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Grade Level</label><select id="ep-grade" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;">'+gradeOpts+'</select><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Short Bio</label><input id="ep-bio" class="input-field" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. Aspiring engineer, loves math" maxlength="80" value="'+bio+'"><div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'edit-profile-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="saveEditProfile()">Save</button></div></div>';
+    modal.innerHTML='<div class="glass-panel" style="max-width:420px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;">Edit Profile</h3><button class="btn-icon" onclick="document.getElementById(\'edit-profile-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Grade Level</label><select id="ep-grade" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;">'+gradeOpts+'</select><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Short Bio</label><input id="ep-bio" class="input-field" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. Aspiring engineer, loves math" maxlength="80" value="'+bio+'"><div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'edit-profile-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="saveEditProfile()">Save</button></div></div>';
     document.body.appendChild(modal);
 }
 function saveEditProfile(){
@@ -23475,7 +23475,7 @@ function updateHomeDailyChallenge() {
     var done = state.date === today && state.completed;
     card.innerHTML = done
         ? '<span style="color:#00b894;">&#10003; Completed! Come back tomorrow for a new challenge.</span>'
-        : '<strong style="color:white;">' + ch.subject + ':</strong> ' + ch.question + ' <span style="color:var(--accent);font-size:0.78rem;">&#8594; Open Homework</span>';
+        : '<strong style="color:white;">' + ch.subject + ':</strong> ' + ch.question + ' <span style="color:var(--accent);font-size:0.88rem;">&#8594; Open Homework</span>';
 }
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updateHomeDailyChallenge, 400);

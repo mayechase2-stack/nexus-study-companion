@@ -24,12 +24,12 @@ body {
         linear-gradient(180deg, #0B0E1A 0%, #0A0D17 60%, #080A12 100%);
     color: var(--text-main);
     font-family: var(--font-main);
-    font-size: 15px;
-    line-height: 1.55;
+    font-size: 16px;
+    line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.012em;
     height: 100vh;
     overflow: hidden;
 }
@@ -75,13 +75,14 @@ body {
 }
 
 .nav-links li {
-    padding: 12px 16px;
-    margin-bottom: 8px;
+    padding: 13px 16px;
+    margin-bottom: 4px;
     border-radius: 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 12px;
+    font-size: 0.95rem;
     color: var(--text-muted);
     transition: all 0.2s ease;
 }
@@ -105,7 +106,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
 }
 
@@ -175,7 +176,7 @@ h1 {
     background: var(--bg-panel);
     border: 1px solid var(--glass-border);
     border-radius: 20px;
-    padding: 24px;
+    padding: 28px;
     transition: transform 0.2s, border-color 0.2s;
     backdrop-filter: blur(4px);
     /* Reduced from blur(10px) — many panels visible at once means many compositing layers */
@@ -218,22 +219,23 @@ h1 {
 }
 
 h3 {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 p {
     color: var(--text-muted);
-    font-size: 0.9rem;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    line-height: 1.7;
 }
 
 /* Buttons */
 button {
     border: none;
     cursor: pointer;
-    padding: 10px 20px;
+    padding: 11px 20px;
     border-radius: 8px;
     font-weight: 600;
+    font-size: 0.95rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -304,7 +306,7 @@ button {
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     line-height: 1;
 }
 .tab-btn:focus,
@@ -346,13 +348,13 @@ textarea {
 .input-field {
     display: block;
     width: 100%;
-    padding: 10px 14px;
+    padding: 12px 16px;
     background: rgba(10, 12, 22, 0.75) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     border-radius: 10px !important;
     color: var(--text-main) !important;
     font-family: var(--font-main);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -453,7 +455,7 @@ video {
 }
 
 .feed-header {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
     text-transform: uppercase;
     margin-bottom: 0.5rem;
@@ -464,7 +466,7 @@ video {
     padding: 10px;
     border-radius: 8px;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     flex: 1;
     overflow-y: auto;
     margin-bottom: 1rem;
@@ -519,7 +521,7 @@ input[type="password"] {
 }
 
 .small-text {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     margin-top: 1rem;
     color: var(--text-muted);
 }
@@ -565,7 +567,7 @@ input[type="password"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 12px;
 }
 
 /* Update Log - Moved to Root Level */
@@ -588,7 +590,7 @@ input[type="password"] {
 
 .log-date {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--accent);
     margin-bottom: 5px;
     font-weight: bold;
@@ -645,7 +647,7 @@ input[type="password"] {
 .calc-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
+    gap: 10px;
 }
 
 .calc-grid button {
@@ -675,7 +677,7 @@ input[type="password"] {
 
 .calc-sci {
     color: #fab1a0 !important;
-    font-size: 0.82rem;
+    font-size: 0.9rem;
     font-weight: 500;
 }
 
@@ -1039,7 +1041,7 @@ html { scroll-behavior: smooth; }
 /* --- English Module Tabs --- */
 .english-tabs {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     margin-bottom: 24px;
     background: rgba(0, 0, 0, 0.2);
     padding: 6px;
@@ -1061,7 +1063,7 @@ html { scroll-behavior: smooth; }
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 10px;
 }
 
 .eng-tab-btn:hover {
@@ -1142,7 +1144,6 @@ html { scroll-behavior: smooth; }
     font-size: 1rem;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-size: 0.8rem;
 }
 
 /* --- Library --- */
@@ -1204,7 +1205,7 @@ html { scroll-behavior: smooth; }
 }
 
 .book-title {
-    font-size: 0.82rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: white;
     margin-bottom: 4px;
@@ -1212,7 +1213,7 @@ html { scroll-behavior: smooth; }
 }
 
 .book-author {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
 }
 
@@ -1269,7 +1270,7 @@ html { scroll-behavior: smooth; }
 }
 
 .wpm-stat .stat-label {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1416,7 +1417,7 @@ html { scroll-behavior: smooth; }
 }
 
 .def-card .def-num {
-    font-size: 0.7rem;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--accent);
@@ -1811,7 +1812,7 @@ html { scroll-behavior: smooth; }
 }
 
 .companion-header .companion-status {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.75);
 }
 
@@ -1851,7 +1852,7 @@ html { scroll-behavior: smooth; }
 
 .companion-input-row {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     padding: 12px;
     border-top: 1px solid var(--glass-border);
 }
@@ -1962,7 +1963,7 @@ html { scroll-behavior: smooth; }
 .achievement-badge {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     padding: 8px 16px;
     background: linear-gradient(135deg, rgba(108, 92, 231, 0.2), rgba(0, 206, 201, 0.2));
     border: 1px solid var(--glass-border);
@@ -2512,7 +2513,7 @@ html { scroll-behavior: smooth; }
     }
 
     .tab-btn {
-        font-size: 0.8rem;
+        font-size: 0.9rem;
         padding: 8px 12px;
     }
 
@@ -2524,11 +2525,11 @@ html { scroll-behavior: smooth; }
 
     .calc-grid button {
         padding: 8px 2px;
-        font-size: 0.82rem;
+        font-size: 0.9rem;
     }
 
     .calc-sci {
-        font-size: 0.72rem !important;
+        font-size: 0.82rem !important;
     }
 }
 
@@ -2545,7 +2546,7 @@ html { scroll-behavior: smooth; }
 
     .stats-grid {
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
+        gap: 12px;
     }
 
     .stat-card .stat-number {
@@ -2783,7 +2784,7 @@ select:focus {
     border-top: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     position: relative;
 }
 
@@ -2945,7 +2946,7 @@ kbd {
         padding: 12px !important;
         border-right: none !important;
         border-bottom: 1px solid var(--glass-border) !important;
-        gap: 8px;
+        gap: 12px;
     }
     .sidebar .logo { display: none !important; }
     .sidebar .nav-links {
@@ -2959,10 +2960,10 @@ kbd {
     .sidebar .nav-links li {
         flex-shrink: 0 !important;
         padding: 8px 12px !important;
-        font-size: 0.78rem !important;
+        font-size: 0.85rem !important;
         white-space: nowrap;
     }
-    .sidebar .nav-links li span { font-size: 0.78rem !important; }
+    .sidebar .nav-links li span { font-size: 0.85rem !important; }
     .main-content {
         padding: 12px !important;
         overflow-x: hidden;
@@ -3179,7 +3180,7 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
     letter-spacing: 0.3px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
 }
 .tutor-block > p,
 .tutor-block > ul,
@@ -3355,7 +3356,7 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 10px;
     transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 #cc-mixer-toggle-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); color: white; }
@@ -3383,7 +3384,7 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
 }
 .cc-mix-icon { font-size: 1rem; width: 18px; text-align: center; flex-shrink: 0; }
 .cc-mix-label {
-    font-size: 0.72rem;
+    font-size: 0.9rem;
     font-weight: 600;
     width: 68px;
     flex-shrink: 0;
