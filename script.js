@@ -3095,7 +3095,7 @@ function renderLibShelf() {
     const shelf = _getShelf();
     if (shelf.length === 0) {
         el.innerHTML = `<div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
-            <i class="ph ph-bookmarks" style="font-size:2.5rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
+            <i class="ph ph-bookmarks" style="font-size:1.5rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
             <p>Your shelf is empty. Search for books and click <strong style="color:white;">Save</strong> on any book you want to keep here.</p>
         </div>`;
         return;
@@ -3632,7 +3632,7 @@ function renderVocabularyList() {
     totalCount.textContent = vocab.length;
 
     if (vocab.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="ph ph-bookmark-simple" style="font-size:3rem;display:block;margin-bottom:12px;"></i><p>No words saved yet. Look up words in the Dictionary and click "Save Word"!</p></div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="ph ph-bookmark-simple" style="font-size:1.25rem;display:block;margin-bottom:12px;"></i><p>No words saved yet. Look up words in the Dictionary and click "Save Word"!</p></div>';
         return;
     }
 
@@ -3799,7 +3799,7 @@ function finishVocabQuiz() {
 
     questionDiv.innerHTML = `
         <div style="text-align:center;">
-            <i class="ph ph-trophy" style="font-size:4rem;color:var(--accent);display:block;margin-bottom:16px;"></i>
+            <i class="ph ph-trophy" style="font-size:1.4rem;color:var(--accent);display:block;margin-bottom:16px;"></i>
             <h2 style="color:white;">Quiz Complete!</h2>
         </div>
     `;
@@ -3811,7 +3811,7 @@ function finishVocabQuiz() {
     resultDiv.innerHTML = `
         <div style="text-align:center;">
             <p style="font-size:1.2rem;margin-bottom:8px;">You scored:</p>
-            <p style="font-size:2.5rem;font-weight:700;color:var(--accent);margin:0;">${currentVocabQuiz.correct}/${currentVocabQuiz.total}</p>
+            <p style="font-size:1.5rem;font-weight:700;color:var(--accent);margin:0;">${currentVocabQuiz.correct}/${currentVocabQuiz.total}</p>
             <p style="font-size:1.5rem;color:white;margin-top:8px;">${percentage}%</p>
             <button class="btn-primary" onclick="startVocabQuiz()" style="margin-top:16px;">
                 <i class="ph ph-arrow-clockwise"></i> Try Again
@@ -3856,7 +3856,7 @@ async function generateQuiz() {
 
     setup.style.display = 'none';
     content.classList.remove('hidden');
-    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i><p>Generating Quiz...</p></div>';
+    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.35rem;"></i><p>Generating Quiz...</p></div>';
 
     try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -4149,7 +4149,7 @@ function initShopPage() {
                 proBanner.className = 'shop-pro-preview-banner';
                 proBanner.style.cssText = 'background:linear-gradient(135deg, rgba(108,92,231,0.18), rgba(0,206,201,0.12));border:1px solid rgba(255,215,0,0.35);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;';
                 proBanner.innerHTML = `
-                    <i class="ph ph-eye" style="font-size:2rem;color:#FFD700;"></i>
+                    <i class="ph ph-eye" style="font-size:1.35rem;color:#FFD700;"></i>
                     <div style="flex:1;min-width:240px;">
                         <div style="color:white;font-weight:700;font-size:1.05rem;margin-bottom:4px;">Preview Mode &mdash; Upgrade to Unlock the Shop</div>
                         <div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;">You're browsing the full shop catalog. NEXUS Access can preview every theme, wallpaper, cursor, badge, and effect &mdash; but only Pro can purchase and equip them.</div>
@@ -4255,7 +4255,7 @@ function renderInventoryPage() {
     if (ownedItems.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:60px 20px;">
-                <div style="font-size:4rem;margin-bottom:16px;opacity:0.3;">📦</div>
+                <div style="font-size:1.4rem;margin-bottom:16px;opacity:0.3;">📦</div>
                 <h3 style="margin-bottom:8px;color:var(--text-muted);">${currentInventoryFilter === 'all' ? 'Your Inventory is Empty' : 'No items in this category'}</h3>
                 <p style="color:var(--text-muted);font-size:0.9rem;">Visit the <a href="#" onclick="switchTab('shop');return false;" style="color:var(--accent);">Shop</a> to purchase items!</p>
             </div>`;
@@ -5382,7 +5382,7 @@ function renderShopContent(tab, targetContainer) {
         card.onclick = () => previewItem(item.id, tab);
 
         // Rarity badge (+ STAGING overlay for owner-only items)
-        const stagingBadge = item.staging ? `<div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:0.6rem;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px;">⚙ STAGING</div>` : '';
+        const stagingBadge = item.staging ? `<div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:0.78rem;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px;">⚙ STAGING</div>` : '';
         const rarityBadge = `${stagingBadge}<div style="position:absolute;top:8px;right:8px;background:${rarityColor};color:#000;font-size:0.88rem;font-weight:700;padding:4px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px;">${item.rarity}</div>`;
 
         // Preview section based on type
@@ -5391,27 +5391,27 @@ function renderShopContent(tab, targetContainer) {
             previewSection = `<div style="height:60px;border-radius:8px;background:linear-gradient(135deg, ${item.accent}, ${item.grad});margin-bottom:12px;"></div>`;
         } else if (tab === 'cursors') {
             const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈' }[item.id] || '↖️';
-            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
+            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
         } else if (tab === 'fonts') {
             const fontFamily = { default: 'Inter', mono: 'Courier New', serif: 'Times New Roman', comic: 'Comic Sans MS', script: 'Brush Script MT', futuristic: 'Orbitron', playful: 'Pacifico' }[item.id] || 'Inter';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:'${fontFamily}',sans-serif;font-size:1.3rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
         } else if (tab === 'wallpapers') {
             const wallpaperEmoji = { none: '⬛', starfield: '⭐', matrix: '💚', waves: '🌊', particles: '✨', gradient: '🌈', constellation: '🌌', sakura: '🌸' }[item.id] || '🖼️';
-            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
+            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
         } else if (tab === 'badges') {
             const badgeEmoji = { none: '⚪', scholar: '📚', ace: '🏆', streak: '🔥', night: '🌙', speedster: '⚡', champion: '👑' }[item.id] || '🏅';
-            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${badgeEmoji}</div>`;
+            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${badgeEmoji}</div>`;
         } else if (tab === 'effects') {
             const effectEmoji = { none: '⚪', sparkle: '✨', confetti: '🎉', ripple: '💧', glow: '💫', trail: '🌟' }[item.id] || '✨';
-            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${effectEmoji}</div>`;
+            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${effectEmoji}</div>`;
         } else if (tab === 'companions') {
             const svg = (typeof getCompanionAvatarSVG === 'function') ? getCompanionAvatarSVG(item.id, 84) : '';
-            previewSection = `<div style="height:120px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 60%, rgba(108,92,231,0.18), rgba(0,0,0,0.4));border-radius:8px;margin-bottom:12px;overflow:hidden;">${svg || '<i class="ph ph-user-circle" style="font-size:3rem;color:#888;"></i>'}</div>`;
+            previewSection = `<div style="height:120px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 60%, rgba(108,92,231,0.18), rgba(0,0,0,0.4));border-radius:8px;margin-bottom:12px;overflow:hidden;">${svg || '<i class="ph ph-user-circle" style="font-size:1.25rem;color:#888;"></i>'}</div>`;
         }
 
         const accessOnly = !hasPro();
         const proOverlay = accessOnly ? `
-            <div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:5px;letter-spacing:0.5px;display:flex;align-items:center;gap:4px;">
+            <div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;font-size:0.78rem;font-weight:700;padding:3px 7px;border-radius:5px;letter-spacing:0.5px;display:flex;align-items:center;gap:4px;">
                 <i class="ph ph-lock-key" style="font-size:0.9rem;"></i> PRO
             </div>` : '';
         const buttonHtml = accessOnly
@@ -5447,13 +5447,13 @@ function renderDailyTab(container) {
 
     container.innerHTML = `
         <div style="text-align:center;padding:30px 20px;">
-            <div style="font-size:4rem;margin-bottom:16px;">🎁</div>
+            <div style="font-size:1.4rem;margin-bottom:16px;">🎁</div>
             <h2 style="margin-bottom:12px;">Daily Login Reward</h2>
             <p style="color:var(--text-muted);margin-bottom:24px;">Log in every day to earn credits and maintain your streak!</p>
 
             ${canClaim ? `
                 <div style="background:linear-gradient(135deg, rgba(0, 206, 201, 0.2), rgba(108, 92, 231, 0.2));padding:24px;border-radius:12px;margin-bottom:24px;border:1px solid var(--accent);">
-                    <div style="font-size:3rem;font-weight:700;background:linear-gradient(135deg, #FFD700, #FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;">
+                    <div style="font-size:1.25rem;font-weight:700;background:linear-gradient(135deg, #FFD700, #FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;">
                         +${totalReward}
                     </div>
                     <div style="font-size:0.9rem;color:var(--text-muted);">
@@ -5465,7 +5465,7 @@ function renderDailyTab(container) {
                 </button>
             ` : `
                 <div style="background:rgba(255,255,255,0.05);padding:24px;border-radius:12px;margin-bottom:16px;">
-                    <i class="ph ph-check-circle" style="font-size:3rem;color:#00b894;display:block;margin-bottom:12px;"></i>
+                    <i class="ph ph-check-circle" style="font-size:1.25rem;color:#00b894;display:block;margin-bottom:12px;"></i>
                     <h3 style="color:#00b894;margin-bottom:8px;">Already Claimed Today!</h3>
                     <p style="color:var(--text-muted);">Come back tomorrow for another reward</p>
                 </div>
@@ -5503,7 +5503,7 @@ function renderInventoryTab(container) {
     if (userInventory.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:60px 20px;">
-                <div style="font-size:4rem;margin-bottom:16px;opacity:0.3;">📦</div>
+                <div style="font-size:1.4rem;margin-bottom:16px;opacity:0.3;">📦</div>
                 <h3 style="margin-bottom:8px;color:var(--text-muted);">Your Inventory is Empty</h3>
                 <p style="color:var(--text-muted);font-size:0.9rem;">Visit the shop tabs to purchase customization items!</p>
             </div>
@@ -5616,7 +5616,7 @@ function renderGambleTab(container) {
     container.innerHTML = `
         <div style="text-align:center; padding: 30px 20px;">
             <div style="font-size:5rem;margin-bottom:16px;filter:drop-shadow(0 0 20px gold);">🎰</div>
-            <h2 style="margin-bottom:8px;background:linear-gradient(135deg, #FFD700, #FF6B6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:2rem;">Lucky Spin</h2>
+            <h2 style="margin-bottom:8px;background:linear-gradient(135deg, #FFD700, #FF6B6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.35rem;">Lucky Spin</h2>
             <p style="color:var(--text-muted);margin-bottom:24px;font-size:0.95rem;">Spin the wheel for a chance to win <strong style="color:#fbbf24;">credits</strong> or <strong style="color:#fbbf24;">legendary items</strong>!</p>
 
             <!-- Prize Showcase -->
@@ -5624,12 +5624,12 @@ function renderGambleTab(container) {
                 <h3 style="color:#fbbf24;margin-bottom:12px;font-size:1.1rem;">🎁 Possible Rewards</h3>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">
                     <div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;">
-                        <div style="font-size:2rem;margin-bottom:4px;">💰</div>
+                        <div style="font-size:1.35rem;margin-bottom:4px;">💰</div>
                         <div style="font-size:0.85rem;color:var(--text-muted);">50-200 Credits</div>
                     </div>
                     ${remainingSecrets.map(item => `
                         <div style="background:${item.nexus ? 'rgba(124,77,255,0.15)' : 'rgba(251,191,36,0.15)'};padding:12px;border-radius:8px;border:1px solid ${item.nexus ? '#7c4dff' : '#fbbf24'};">
-                            <div style="font-size:2rem;margin-bottom:4px;">${item.nexus ? '🔮' : ({aurora:'✨',rainbow:'🌈',sakura:'🌸',champion:'👑'}[item.id] || '🎁')}</div>
+                            <div style="font-size:1.35rem;margin-bottom:4px;">${item.nexus ? '🔮' : ({aurora:'✨',rainbow:'🌈',sakura:'🌸',champion:'👑'}[item.id] || '🎁')}</div>
                             <div style="font-size:0.85rem;color:${item.nexus ? '#bb99ff' : '#fbbf24'};font-weight:600;">${item.name}</div>
                         </div>
                     `).join('')}
@@ -5640,7 +5640,7 @@ function renderGambleTab(container) {
             <!-- Spin Wheel Container -->
             <div style="position:relative;width:280px;height:280px;margin:0 auto 24px;background:radial-gradient(circle, rgba(255,215,0,0.2), transparent);border-radius:50%;display:flex;align-items:center;justify-content:center;">
                 <div id="spin-wheel" style="width:260px;height:260px;border-radius:50%;background:conic-gradient(from 0deg, #ff6b6b 0deg 72deg, #fbbf24 72deg 144deg, #00cec9 144deg 216deg, #a855f7 216deg 288deg, #00b894 288deg 360deg);border:4px solid #fbbf24;position:relative;transition:transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(255,215,0,0.4);">
-                    <div style="position:absolute;width:80px;height:80px;background:rgba(0,0,0,0.9);border-radius:50%;border:3px solid #fbbf24;display:flex;align-items:center;justify-content:center;font-size:2rem;">🎯</div>
+                    <div style="position:absolute;width:80px;height:80px;background:rgba(0,0,0,0.9);border-radius:50%;border:3px solid #fbbf24;display:flex;align-items:center;justify-content:center;font-size:1.35rem;">🎯</div>
                 </div>
                 <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:15px solid transparent;border-right:15px solid transparent;border-top:25px solid #ff6b6b;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>
             </div>
@@ -5714,7 +5714,7 @@ function spinLuckyWheel() {
                 }[wonItem.id] || '🎁';
                 resultDiv.innerHTML = `
                     <div style="animation:pulse 0.5s ease-in-out;">
-                        <div style="font-size:3rem;margin-bottom:8px;">${itemEmoji}</div>
+                        <div style="font-size:1.25rem;margin-bottom:8px;">${itemEmoji}</div>
                         <div style="color:#fbbf24;font-size:1.3rem;margin-bottom:4px;">🎉 LEGENDARY! 🎉</div>
                         <div style="color:white;font-size:1.1rem;">${wonItem.name}</div>
                         <div style="color:var(--text-muted);font-size:0.9rem;margin-top:4px;">${wonItem.desc}</div>
@@ -5727,7 +5727,7 @@ function spinLuckyWheel() {
                 updateCredits(DUPE_REWARD);
                 resultDiv.innerHTML = `
                     <div style="animation:pulse 0.5s ease-in-out;">
-                        <div style="font-size:3rem;margin-bottom:8px;">💎</div>
+                        <div style="font-size:1.25rem;margin-bottom:8px;">💎</div>
                         <div style="color:#fbbf24;font-size:1.3rem;margin-bottom:4px;">Duplicate Legendary!</div>
                         <div style="color:#00b894;font-size:1.1rem;">Converted to <strong style="color:#fbbf24;">${DUPE_REWARD} Credits</strong></div>
                         <div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">You already own all legendaries!</div>
@@ -5741,7 +5741,7 @@ function spinLuckyWheel() {
             updateCredits(creditsWon);
             resultDiv.innerHTML = `
                 <div style="animation:pulse 0.5s ease-in-out;">
-                    <div style="font-size:3rem;margin-bottom:8px;">💰</div>
+                    <div style="font-size:1.25rem;margin-bottom:8px;">💰</div>
                     <div style="color:#00b894;font-size:1.2rem;">You won <strong style="color:#fbbf24;">${creditsWon} Credits</strong>!</div>
                 </div>`;
             showToast(`Won ${creditsWon} credits!`, "success", 3000);
@@ -6424,7 +6424,7 @@ function renderUpcomingPlans() {
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
                     <h4 style="margin:0;color:white;font-size:1rem;font-weight:700;flex:1;min-width:200px;${p.status === 'cancelled' ? 'text-decoration:line-through;opacity:0.85;' : ''}">${escapeHtml(p.title)}</h4>
                     <div style="display:flex;align-items:center;gap:9px;">
-                        <span style="background:${statusColor[p.status]}22;color:${statusColor[p.status]};font-size:0.66rem;font-weight:700;padding:3px 9px;border-radius:8px;letter-spacing:0.6px;">${statusLabel[p.status] || p.status.toUpperCase()}</span>
+                        <span style="background:${statusColor[p.status]}22;color:${statusColor[p.status]};font-size:0.78rem;font-weight:700;padding:3px 9px;border-radius:8px;letter-spacing:0.6px;">${statusLabel[p.status] || p.status.toUpperCase()}</span>
                         <span style="color:var(--text-muted);font-size:0.85rem;">ETA: <strong style="color:white;">${escapeHtml(p.eta || '—')}</strong></span>
                         ${ownerMenu}
                     </div>
@@ -6571,7 +6571,7 @@ function renderSuggestions() {
 
     if (items.length === 0) {
         listEl.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--text-muted);">
-            <i class="ph ph-magnifying-glass" style="font-size:2rem;display:block;margin-bottom:10px;opacity:0.4;"></i>
+            <i class="ph ph-magnifying-glass" style="font-size:1.35rem;display:block;margin-bottom:10px;opacity:0.4;"></i>
             <p>No suggestions match. <a href="#" onclick="document.getElementById('sg-search').value='';renderSuggestions();return false;" style="color:var(--accent);">Clear filters</a> or <a href="#" onclick="openSubmitSuggestion();return false;" style="color:var(--accent);">submit one</a>.</p>
         </div>`;
         return;
@@ -6613,7 +6613,7 @@ function renderSuggestions() {
             </button>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
-                    <span style="background:${catColor}22;color:${catColor};font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
+                    <span style="background:${catColor}22;color:${catColor};font-size:0.78rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
                     <span style="color:var(--text-muted);font-size:0.9rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
                 </div>
                 <h4 style="margin:0 0 4px;color:white;font-size:0.95rem;font-weight:600;">${escapeHtml(s.title)}</h4>
@@ -6786,7 +6786,7 @@ function renderSuggestionsPage() {
 
     if (items.length === 0) {
         listEl.innerHTML = `<div style="padding:48px 20px;text-align:center;color:var(--text-muted);">
-            <i class="ph ph-lightbulb" style="font-size:2.5rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
+            <i class="ph ph-lightbulb" style="font-size:1.5rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
             <p>No suggestions yet in this category.</p>
             <button class="btn-primary" onclick="openSuggestionSubmitModal()" style="margin-top:12px;">Be the first to suggest something!</button>
         </div>`;
@@ -6827,7 +6827,7 @@ function renderSuggestionsPage() {
             </button>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:5px;">
-                    <span style="background:${catColor}22;color:${catColor};font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
+                    <span style="background:${catColor}22;color:${catColor};font-size:0.78rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
                     ${approvedBadge}
                     <span style="color:var(--text-muted);font-size:0.9rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
                     ${expiryHint}
@@ -10526,7 +10526,7 @@ function renderFlashcardsList(focusDeckId) {
     if (decks.length === 0) {
         content.innerHTML = `
             <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
-                <div style="font-size:3rem;opacity:0.4;margin-bottom:12px;">📇</div>
+                <div style="font-size:1.25rem;opacity:0.4;margin-bottom:12px;">📇</div>
                 <p style="margin:0;">No flashcard decks yet. Open a history entry and click <strong style="color:#fff;">Make flashcards</strong> to generate one.</p>
             </div>`;
         return;
@@ -10753,7 +10753,7 @@ function renderPomodoroWidget() {
             <div style="color:${accent};font-size:0.9rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;">${phaseLabel}</div>
             <button onclick="closePomodoroWidget()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;"><i class="ph ph-x"></i></button>
         </div>
-        <div style="font-family:'Fira Code', monospace;font-size:2.2rem;font-weight:700;color:white;text-align:center;margin-bottom:10px;letter-spacing:2px;">${time}</div>
+        <div style="font-family:'Fira Code', monospace;font-size:1.4rem;font-weight:700;color:white;text-align:center;margin-bottom:10px;letter-spacing:2px;">${time}</div>
         <div style="display:flex;gap:9px;">${buttons}</div>
         ${s ? `<div style="margin-top:8px;font-size:0.9rem;color:var(--text-muted);text-align:center;">${phase === 'focus' ? 'Companion auto-quieted' : 'Stretch · water · breathe'}</div>` : ''}
     `;
@@ -11005,7 +11005,7 @@ async function solveScience() {
     }
     const output = document.getElementById('science-output');
     output.classList.remove('hidden');
-    output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i><p>Analyzing...</p></div>';
+    output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.35rem;"></i><p>Analyzing...</p></div>';
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
     // v12.1 — fresh conversation
@@ -11460,7 +11460,7 @@ async function analyzeScreenshotPuzzle() {
     const outputContent = document.getElementById('code-output-content');
 
     output.classList.remove('hidden');
-    outputContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p style="margin-top:10px;">🔍 Analyzing puzzle images...</p></div>';
+    outputContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner" style="font-size:1.35rem; animation: spin 1s linear infinite;"></i><p style="margin-top:10px;">🔍 Analyzing puzzle images...</p></div>';
 
     try {
         // Build messages array
@@ -11809,7 +11809,7 @@ async function captureAndAnalyzeBlockPuzzle() {
     const imageDataUrl = canvas.toDataURL('image/png');
 
     output.classList.remove('hidden');
-    outputContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p style="margin-top:10px;">Analyzing your block puzzle...</p></div>';
+    outputContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner" style="font-size:1.35rem; animation: spin 1s linear infinite;"></i><p style="margin-top:10px;">Analyzing your block puzzle...</p></div>';
 
     try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -12028,7 +12028,7 @@ BE CAREFUL:
         showToast('Block puzzle analyzed successfully!', 'success');
 
     } catch (err) {
-        outputContent.innerHTML = `<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-x-circle" style="font-size:2rem;"></i><p style="margin-top:10px;">Error: ${err.message}</p></div>`;
+        outputContent.innerHTML = `<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-x-circle" style="font-size:1.35rem;"></i><p style="margin-top:10px;">Error: ${err.message}</p></div>`;
         showToast('Failed to analyze puzzle.', 'error');
     }
 }
@@ -12046,7 +12046,7 @@ async function solveCode(lang) {
     const output = document.getElementById('code-output');
     const outputContent = document.getElementById('code-output-content');
     output.classList.remove('hidden');
-    outputContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner" style="font-size:2rem; animation: spin 1s linear infinite;"></i><p style="margin-top:10px;">Analyzing your code...</p></div>';
+    outputContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner" style="font-size:1.35rem; animation: spin 1s linear infinite;"></i><p style="margin-top:10px;">Analyzing your code...</p></div>';
 
     const roles = {
         java: 'Java Programming Tutor who explains concepts clearly and provides working code examples',
@@ -12058,7 +12058,7 @@ async function solveCode(lang) {
     const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
-        outputContent.innerHTML = '<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-key" style="font-size:2rem;"></i><p style="margin-top:10px;">API Key required. Please add it in Settings.</p></div>';
+        outputContent.innerHTML = '<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-key" style="font-size:1.35rem;"></i><p style="margin-top:10px;">API Key required. Please add it in Settings.</p></div>';
         return;
     }
     try {
@@ -12081,7 +12081,7 @@ async function solveCode(lang) {
         addToHistory('code', `[${lang.toUpperCase()}] ${input}`, answer);
         showToast('Code analyzed successfully!', 'success');
     } catch (err) {
-        outputContent.innerHTML = `<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-x-circle" style="font-size:2rem;"></i><p style="margin-top:10px;">Error: ${err.message}</p></div>`;
+        outputContent.innerHTML = `<div style="color:#d63031; padding:20px; text-align:center;"><i class="ph ph-x-circle" style="font-size:1.35rem;"></i><p style="margin-top:10px;">Error: ${err.message}</p></div>`;
         showToast('Analysis failed.', 'error');
     }
 }
@@ -12549,7 +12549,7 @@ async function processMathInput() {
 
     // v12.1 — start a fresh tutor conversation
     _mathTutorTurns = [];
-    output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i><p>Analyzing Math Concept...</p></div>';
+    output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.35rem;"></i><p>Analyzing Math Concept...</p></div>';
 
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
@@ -14114,7 +14114,7 @@ function renderTimeline() {
     if (timelineEvents.length === 0) {
         display.innerHTML = `
             <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
-                <div style="font-size:3rem;margin-bottom:8px;opacity:0.3;">📅</div>
+                <div style="font-size:1.25rem;margin-bottom:8px;opacity:0.3;">📅</div>
                 <p>Add events to build your timeline</p>
             </div>
         `;
@@ -15378,7 +15378,7 @@ function showUserProfile(name, problems, streak, xp, pic, badge, isUser) {
     <div class="glass-panel" style="max-width:500px;width:100%;padding:32px;max-height:80vh;overflow-y:auto;border:1px solid rgba(108,92,231,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:24px;">
             <div style="display:flex;align-items:center;gap:16px;">
-                <div style="font-size:3rem;">${pic}</div>
+                <div style="font-size:1.25rem;">${pic}</div>
                 <div>
                     <h2 style="margin:0;color:white;">${name}</h2>
                     <div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">Badge: ${badgeEmojis[badge] || '—'} ${badgeNames[badge] || 'None'}</div>
@@ -16590,11 +16590,11 @@ function renderAchievementsTab() {
 
             html += `
             <div class="glass-panel" style="padding:16px;display:flex;align-items:flex-start;gap:14px;border-left:3px solid ${borderColor};${bgGlow}${a.completed ? '' : 'opacity:0.78;'}transition:all 0.2s;">
-                <div style="font-size:2rem;flex-shrink:0;${a.completed ? '' : 'filter:grayscale(1);opacity:0.45;'}">${displayIcon}</div>
+                <div style="font-size:1.35rem;flex-shrink:0;${a.completed ? '' : 'filter:grayscale(1);opacity:0.45;'}">${displayIcon}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;align-items:center;gap:9px;margin-bottom:2px;">
                         <span style="font-weight:700;color:${a.completed ? 'white' : 'var(--text-muted)'};font-size:0.93rem;">${displayName}</span>
-                        ${a.hidden && !a.completed ? '<span style="font-size:0.6rem;color:#ff4d8d;font-weight:700;letter-spacing:1px;border:1px solid #ff4d8d55;border-radius:4px;padding:1px 5px;">HIDDEN</span>' : ''}
+                        ${a.hidden && !a.completed ? '<span style="font-size:0.78rem;color:#ff4d8d;font-weight:700;letter-spacing:1px;border:1px solid #ff4d8d55;border-radius:4px;padding:1px 5px;">HIDDEN</span>' : ''}
                         ${a.completed ? '<span style="font-size:0.62rem;color:#00b894;font-weight:700;letter-spacing:0.5px;">✓ DONE</span>' : ''}
                     </div>
                     <div style="font-size:0.88rem;color:var(--text-muted);line-height:1.4;">${displayDesc}</div>
@@ -16756,7 +16756,7 @@ function triggerEasterRevealCinematic(egg) {
         opacity:0;transition:opacity 0.4s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1);`;
     banner.innerHTML = `
         <div style="font-size:0.85rem;letter-spacing:6px;color:${egg.color};font-weight:800;margin-bottom:8px;">MYTHIC UNLOCK</div>
-        <div style="font-size:2.2rem;font-weight:900;color:white;margin-bottom:6px;text-shadow:0 0 24px ${egg.color};">${egg.name}</div>
+        <div style="font-size:1.4rem;font-weight:900;color:white;margin-bottom:6px;text-shadow:0 0 24px ${egg.color};">${egg.name}</div>
         <div style="font-size:0.9rem;color:rgba(255,255,255,0.7);">Companion added to your collection · +${egg.reward} credits</div>`;
     document.body.appendChild(banner);
     requestAnimationFrame(() => { banner.style.opacity = '1'; banner.style.transform = 'translate(-50%,-50%) scale(1)'; });
@@ -17154,7 +17154,7 @@ function renderProfileSection() {
 
     container.innerHTML = `
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
-        <div style="font-size:3.5rem;cursor:pointer;transition:transform 0.2s;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'" title="Click to change">${pic}</div>
+        <div style="font-size:1.35rem;cursor:pointer;transition:transform 0.2s;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'" title="Click to change">${pic}</div>
         <div>
             <h2 style="margin:0;color:white;">${username}</h2>
             <div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">${completed.length} achievements &bull; ${xp.toLocaleString()} XP</div>
@@ -17162,19 +17162,19 @@ function renderProfileSection() {
     </div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:var(--accent);">${stats.problemsSolved || 0}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:var(--accent);">${stats.problemsSolved || 0}</div>
             <div style="font-size:0.9rem;color:var(--text-muted);">Problems Solved</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:#ff6b6b;">${stats.currentStreak || 0}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:#ff6b6b;">${stats.currentStreak || 0}</div>
             <div style="font-size:0.9rem;color:var(--text-muted);">Day Streak</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:#FFD700;">${userCredits}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:#FFD700;">${userCredits}</div>
             <div style="font-size:0.9rem;color:var(--text-muted);">Credits</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:#a855f7;">${userInventory.length}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:#a855f7;">${userInventory.length}</div>
             <div style="font-size:0.9rem;color:var(--text-muted);">Items Owned</div>
         </div>
     </div>`;
@@ -17195,7 +17195,7 @@ function openProfilePicPicker() {
         </div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
             ${PROFILE_PICS.map(p => `
-                <div style="font-size:2rem;text-align:center;padding:8px;background:${p === currentPic ? 'rgba(0,206,201,0.2)' : 'rgba(255,255,255,0.05)'};border:2px solid ${p === currentPic ? 'var(--accent)' : 'transparent'};border-radius:10px;cursor:pointer;transition:all 0.2s;"
+                <div style="font-size:1.35rem;text-align:center;padding:8px;background:${p === currentPic ? 'rgba(0,206,201,0.2)' : 'rgba(255,255,255,0.05)'};border:2px solid ${p === currentPic ? 'var(--accent)' : 'transparent'};border-radius:10px;cursor:pointer;transition:all 0.2s;"
                     onclick="selectProfilePic('${p}')"
                     onmouseenter="this.style.transform='scale(1.15)'" onmouseleave="this.style.transform='scale(1)'">${p}</div>
             `).join('')}
@@ -21594,7 +21594,7 @@ function exportGPAReport() {
     const totalPoints = data.reduce((s, c) => s + (GPA_SCALE[c.grade] || 0) * c.credits, 0);
     const cumGPA = totalCredits > 0 ? (totalPoints / totalCredits).toFixed(2) : 'N/A';
     const rows = data.map(c => `<tr><td style="padding:8px 12px;border:1px solid #ddd;">${c.name}</td><td style="padding:8px 12px;border:1px solid #ddd;text-align:center;">${c.grade}</td><td style="padding:8px 12px;border:1px solid #ddd;text-align:center;">${c.credits}</td><td style="padding:8px 12px;border:1px solid #ddd;text-align:center;">${(GPA_SCALE[c.grade]||0).toFixed(1)}</td><td style="padding:8px 12px;border:1px solid #ddd;">${c.semester}</td></tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><title>NEXUS GPA Report</title></head><body style="font-family:sans-serif;max-width:720px;margin:40px auto;padding:24px;"><h1 style="color:#6C5CE7;">📊 NEXUS GPA Report</h1><p style="color:#888;">Generated ${new Date().toLocaleDateString()}</p><div style="background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:24px;display:flex;gap:32px;"><div><strong style="font-size:2rem;color:#6C5CE7;">${cumGPA}</strong><br><span style="color:#888;font-size:0.85rem;">Cumulative GPA</span></div><div><strong style="font-size:2rem;">${totalCredits}</strong><br><span style="color:#888;font-size:0.85rem;">Total Credits</span></div><div><strong style="font-size:2rem;">${data.length}</strong><br><span style="color:#888;font-size:0.85rem;">Classes</span></div></div><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#6C5CE7;color:white;"><th style="padding:10px 12px;text-align:left;">Class</th><th style="padding:10px 12px;">Grade</th><th style="padding:10px 12px;">Credits</th><th style="padding:10px 12px;">Points</th><th style="padding:10px 12px;text-align:left;">Semester</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+    const html = `<!DOCTYPE html><html><head><title>NEXUS GPA Report</title></head><body style="font-family:sans-serif;max-width:720px;margin:40px auto;padding:24px;"><h1 style="color:#6C5CE7;">📊 NEXUS GPA Report</h1><p style="color:#888;">Generated ${new Date().toLocaleDateString()}</p><div style="background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:24px;display:flex;gap:32px;"><div><strong style="font-size:1.35rem;color:#6C5CE7;">${cumGPA}</strong><br><span style="color:#888;font-size:0.85rem;">Cumulative GPA</span></div><div><strong style="font-size:1.35rem;">${totalCredits}</strong><br><span style="color:#888;font-size:0.85rem;">Total Credits</span></div><div><strong style="font-size:1.35rem;">${data.length}</strong><br><span style="color:#888;font-size:0.85rem;">Classes</span></div></div><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#6C5CE7;color:white;"><th style="padding:10px 12px;text-align:left;">Class</th><th style="padding:10px 12px;">Grade</th><th style="padding:10px 12px;">Credits</th><th style="padding:10px 12px;">Points</th><th style="padding:10px 12px;text-align:left;">Semester</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
     const blob = new Blob([html], { type: 'text/html' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = 'nexus-gpa-report.html'; a.click();
@@ -22059,15 +22059,15 @@ function renderHomework() {
     mainPanel.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:#fd79a8;">${pending}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:#fd79a8;">${pending}</div>
             <div style="font-size:0.88rem;color:var(--text-muted);">Pending</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:#ff6b6b;">${overdue}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:#ff6b6b;">${overdue}</div>
             <div style="font-size:0.88rem;color:var(--text-muted);">Overdue</div>
         </div>
         <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.8rem;font-weight:700;color:#00b894;">${doneToday}</div>
+            <div style="font-size:1.25rem;font-weight:700;color:#00b894;">${doneToday}</div>
             <div style="font-size:0.88rem;color:var(--text-muted);">Done Today</div>
         </div>
     </div>
@@ -22091,7 +22091,7 @@ function renderHomework() {
     </div>
     ` + (filtered.length === 0 ? `
         <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
-            <i class="ph ph-clipboard-text" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.4;"></i>
+            <i class="ph ph-clipboard-text" style="font-size:1.25rem;display:block;margin-bottom:12px;opacity:0.4;"></i>
             <div style="font-size:1rem;">${filter==='completed'?'No completed assignments yet.'
                 :filter==='pending'?'All caught up! 🎉':'No assignments yet. Click Add to get started.'}</div>
         </div>
@@ -22399,7 +22399,7 @@ function renderGradeCalc() {
     if (!panel) return;
     var courses = getGradeCourses();
     if (courses.length === 0) {
-        panel.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted);"><i class="ph ph-chart-bar" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.4;"></i><div style="font-size:1rem;">No courses yet.</div><div style="font-size:0.85rem;margin-top:6px;">Click <strong style="color:white;">Add Course</strong> above to get started.</div></div>';
+        panel.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted);"><i class="ph ph-chart-bar" style="font-size:1.25rem;display:block;margin-bottom:12px;opacity:0.4;"></i><div style="font-size:1rem;">No courses yet.</div><div style="font-size:0.85rem;margin-top:6px;">Click <strong style="color:white;">Add Course</strong> above to get started.</div></div>';
         return;
     }
     var avgs = courses.map(calcCourseAvg).filter(function(a){ return a!==null; });
@@ -22412,19 +22412,19 @@ function renderGradeCalc() {
 
     var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;">'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.8rem;font-weight:700;color:'+gradeColor(overallPct)+';">'+overallGPA+'%</div>'
+            +'<div style="font-size:1.25rem;font-weight:700;color:'+gradeColor(overallPct)+';">'+overallGPA+'%</div>'
             +'<div style="font-size:0.88rem;color:var(--text-muted);">Overall Avg</div>'
         +'</div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.8rem;font-weight:700;color:#a855f7;">'+overallLetter+'</div>'
+            +'<div style="font-size:1.25rem;font-weight:700;color:#a855f7;">'+overallLetter+'</div>'
             +'<div style="font-size:0.88rem;color:var(--text-muted);">Letter Grade</div>'
         +'</div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.8rem;font-weight:700;color:#00CEC9;">'+gpa4+'</div>'
+            +'<div style="font-size:1.25rem;font-weight:700;color:#00CEC9;">'+gpa4+'</div>'
             +'<div style="font-size:0.88rem;color:var(--text-muted);">GPA (4.0)</div>'
         +'</div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.8rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div>'
+            +'<div style="font-size:1.25rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div>'
             +'<div style="font-size:0.88rem;color:var(--text-muted);">Courses</div>'
         +'</div>'
     +'</div>';
@@ -22501,7 +22501,7 @@ function renderGradeCalc() {
                     +'<div style="font-size:0.88rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered'+(course.targetGrade?' &bull; Target: '+course.targetGrade+'%':'')+'</div>'
                 +'</div>'
                 +'<div style="text-align:right;flex-shrink:0;">'
-                    +'<div style="font-size:2rem;font-weight:700;line-height:1;color:'+color+';">'+letter+'</div>'
+                    +'<div style="font-size:1.35rem;font-weight:700;line-height:1;color:'+color+';">'+letter+'</div>'
                     +'<div style="font-size:0.9rem;color:'+color+';">'+pct+'%</div>'
                 +'</div>'
             +'</div>'
@@ -22992,7 +22992,7 @@ function renderQuizGenResults(panel) {
     var total=_quizGenQuestions.length, pct=Math.round((_quizGenScore/total)*100), xpE=Math.round(pct*0.5);
     if(typeof awardXP==='function') awardXP(xpE);
     if(typeof addCredits==='function') addCredits(Math.round(xpE*0.3));
-    panel.innerHTML='<div style="text-align:center;margin-bottom:24px;"><div style="font-size:3.5rem;margin-bottom:8px;">'+(pct>=80?'🎉':pct>=60?'👍':'📚')+'</div><div style="font-size:2.2rem;font-weight:700;color:'+(pct>=80?'#00b894':pct>=60?'#fdcb6e':'#ff6b6b')+';">'+pct+'%</div><div style="color:var(--text-muted);margin-top:4px;">'+_quizGenScore+' / '+total+' correct</div><div style="font-size:0.85rem;color:var(--accent);margin-top:8px;">+'+xpE+' XP earned</div></div>'
+    panel.innerHTML='<div style="text-align:center;margin-bottom:24px;"><div style="font-size:1.35rem;margin-bottom:8px;">'+(pct>=80?'🎉':pct>=60?'👍':'📚')+'</div><div style="font-size:1.4rem;font-weight:700;color:'+(pct>=80?'#00b894':pct>=60?'#fdcb6e':'#ff6b6b')+';">'+pct+'%</div><div style="color:var(--text-muted);margin-top:4px;">'+_quizGenScore+' / '+total+' correct</div><div style="font-size:0.85rem;color:var(--accent);margin-top:8px;">+'+xpE+' XP earned</div></div>'
         +'<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">'
         +_quizGenAnswers.map(function(a,i){ return '<div class="glass-panel" style="padding:12px;border-left:3px solid '+(a.ok?'#00b894':'#ff6b6b')+';"><div style="font-size:0.85rem;color:white;margin-bottom:4px;">'+(i+1)+'. '+a.q+'</div><div style="font-size:0.9rem;">'+(a.ok?'<span style="color:#00b894;"><i class="ph ph-check-circle"></i> Correct ('+a.correct+')</span>':'<span style="color:#ff6b6b;"><i class="ph ph-x-circle"></i> You chose '+a.selected+' — Correct: '+a.correct+'</span>')+'</div></div>'; }).join('')
         +'</div><div style="display:flex;gap:10px;"><button class="btn-secondary" style="flex:1;" onclick="renderQuizGen()">New Quiz</button><button class="btn-primary" style="flex:1;" onclick="_quizGenCurrent=0;_quizGenScore=0;_quizGenAnswers=[];_quizGenActive=true;var p=document.getElementById(\'quizgen-panel\');if(p)renderQuizGenQuestion(p);">Retry</button></div>';
@@ -23065,13 +23065,13 @@ function renderSrsResults(panel) {
     var pct=_srsSession.reviewed>0?Math.round((_srsSession.correct/_srsSession.reviewed)*100):0;
     var xp=_srsSession.reviewed*5+_srsSession.correct*3;
     if(typeof awardXP==='function') awardXP(xp);
-    panel.innerHTML='<div style="text-align:center;padding:32px 16px;"><div style="font-size:3rem;margin-bottom:10px;">🎓</div><h3 style="color:white;margin:0 0 6px;">Review Complete!</h3><div style="color:var(--text-muted);margin-bottom:20px;">Reviewed '+_srsSession.reviewed+' cards — '+pct+'% recalled</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;"><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+_srsSession.correct+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Remembered</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(_srsSession.reviewed-_srsSession.correct)+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Need Practice</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">+'+xp+'</div><div style="font-size:0.85rem;color:var(--text-muted);">XP Earned</div></div></div><button class="btn-primary" onclick="renderSrsHomePanel()"><i class="ph ph-cards"></i> Back to Decks</button></div>';
+    panel.innerHTML='<div style="text-align:center;padding:32px 16px;"><div style="font-size:1.25rem;margin-bottom:10px;">🎓</div><h3 style="color:white;margin:0 0 6px;">Review Complete!</h3><div style="color:var(--text-muted);margin-bottom:20px;">Reviewed '+_srsSession.reviewed+' cards — '+pct+'% recalled</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;"><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+_srsSession.correct+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Remembered</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(_srsSession.reviewed-_srsSession.correct)+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Need Practice</div></div><div class="glass-panel" style="padding:14px;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">+'+xp+'</div><div style="font-size:0.85rem;color:var(--text-muted);">XP Earned</div></div></div><button class="btn-primary" onclick="renderSrsHomePanel()"><i class="ph ph-cards"></i> Back to Decks</button></div>';
 }
 
 function renderSrsHomePanel() {
     var p=document.getElementById('srs-home-panel'); if(!p) return;
     var due=getDueFlashcards().length, decks=getFlashcardDecks();
-    p.innerHTML='<div class="glass-panel" style="padding:20px;margin-bottom:16px;text-align:center;"><div style="font-size:3rem;margin-bottom:8px;">'+(due>0?'🃏':'✅')+'</div><div style="font-size:1.8rem;font-weight:700;color:'+(due>0?'var(--accent)':'#00b894')+';">'+due+'</div><div style="color:var(--text-muted);margin-bottom:16px;">card'+(due!==1?'s':'')+' due for review today</div>'
+    p.innerHTML='<div class="glass-panel" style="padding:20px;margin-bottom:16px;text-align:center;"><div style="font-size:1.25rem;margin-bottom:8px;">'+(due>0?'🃏':'✅')+'</div><div style="font-size:1.25rem;font-weight:700;color:'+(due>0?'var(--accent)':'#00b894')+';">'+due+'</div><div style="color:var(--text-muted);margin-bottom:16px;">card'+(due!==1?'s':'')+' due for review today</div>'
         +(due>0?'<button class="btn-primary" style="padding:12px 28px;" onclick="startSrsReview()"><i class="ph ph-play"></i> Start Review ('+due+' cards)</button>':'<div style="color:#00b894;">All caught up! Come back tomorrow.</div>')
         +'</div><div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Decks ('+decks.length+')</h4><button class="btn-secondary" style="font-size:0.9rem;padding:6px 12px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV</button></div>'
         +(decks.length===0?'<div style="text-align:center;padding:24px;color:var(--text-muted);">No decks yet.</div>'
@@ -23285,7 +23285,7 @@ function renderDailyChallenge() {
                 +'</div>'
                 +'<div style="font-size:0.9rem;color:var(--text-muted);">'+today+' &bull; '+icon+' '+ch.subject+(streak>1?' &bull; 🔥 '+streak+'-day streak':'')+'</div>'
             +'</div>'
-            +'<div style="font-size:1.8rem;">'+icon+'</div>'
+            +'<div style="font-size:1.25rem;">'+icon+'</div>'
         +'</div>'
         // Question
         +'<div style="font-size:1.05rem;font-weight:600;color:white;margin-bottom:16px;line-height:1.55;">'+ch.question+'</div>';
@@ -23387,7 +23387,7 @@ function renderBetterProfile() {
     var dueCards=getSrsDueCount();
 
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
-        +'<div style="text-align:center;"><div style="font-size:4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
+        +'<div style="text-align:center;"><div style="font-size:1.4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
         +'<div style="flex:1;min-width:200px;">'
         +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
         +(bio?'<div style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"'+bio+'"</div>':'')
