@@ -137,18 +137,15 @@ function switchTab(tabId) {
     }
 
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-links li').forEach(el => el.classList.remove('active'));
 
     const targetView = document.getElementById(`view-${tabId}`);
     if (targetView) targetView.classList.add('active');
 
-    const navItems = document.querySelectorAll('.nav-links li');
-    navItems.forEach(item => {
+    // Single pass: deactivate all nav items and activate the matching one
+    document.querySelectorAll('.nav-links li').forEach(item => {
         const onclick = item.getAttribute('onclick');
-        // Use quoted match to avoid 'home' matching 'homework', etc.
-        if (onclick && (onclick.includes(`'${tabId}'`) || onclick.includes(`"${tabId}"`))) {
-            item.classList.add('active');
-        }
+        const isActive = onclick && (onclick.includes(`'${tabId}'`) || onclick.includes(`"${tabId}"`));
+        item.classList.toggle('active', isActive);
     });
 
     if (tabId !== 'dashboard') {
@@ -316,6 +313,9 @@ async function startLiveVision() {
 }
 
 function stopLiveVision() {
+    // Guard: skip all work if live vision is not active
+    if (!mediaStream && !visionInterval) return;
+
     const panel = document.getElementById('live-vision-panel');
     const video = document.getElementById('screen-video');
 
@@ -324,8 +324,8 @@ function stopLiveVision() {
         mediaStream = null;
     }
 
-    video.srcObject = null;
-    panel.classList.add('hidden');
+    if (video) video.srcObject = null;
+    if (panel) panel.classList.add('hidden');
     clearInterval(visionInterval);
     // v12.2 — if companion was docked into the vision pocket, pop it back out
     if (typeof undockCompanionFromVision === 'function') undockCompanionFromVision();
@@ -14716,7 +14716,14 @@ function clearActivities() {
 // STUDY STATISTICS & ACHIEVEMENTS SYSTEM
 // ============================================================
 
+let _studyStatsCache = null;
+let _studyStatsCacheTime = 0;
+function _invalidateStudyStatsCache() { _studyStatsCache = null; }
+
 function getStudyStats() {
+    const now = Date.now();
+    if (_studyStatsCache && (now - _studyStatsCacheTime) < 2000) return _studyStatsCache;
+
     const defaults = {
         studyTimeToday: 0,
         problemsSolved: 0,
@@ -14747,6 +14754,8 @@ function getStudyStats() {
         localStorage.setItem('study_stats', JSON.stringify(stats));
     }
 
+    _studyStatsCache = stats;
+    _studyStatsCacheTime = now;
     return stats;
 }
 
@@ -14766,6 +14775,7 @@ function updateStudyStats(type, value = 1) {
             break;
     }
 
+    _invalidateStudyStatsCache();
     localStorage.setItem('study_stats', JSON.stringify(stats));
     renderDashboardStats();
     checkAchievements();
@@ -14847,8 +14857,12 @@ function attachImagePasteHandler(targetId, onImage, previewId, previewContainerI
 
 // Show a subtle "Upgrade to Pro" banner inside subject views for Access users.
 // Removed in v9.0: AI features are no longer locked for Access tier.
+let _freeTierOverlayApplied = null; // null = not run, true/false = last showBanner state
 function applyFreeTierOverlays() {
     const showBanner = !hasPro();
+    // Skip if tier hasn't changed since last call — avoids getComputedStyle forced layout on every tab switch
+    if (_freeTierOverlayApplied === showBanner) return;
+    _freeTierOverlayApplied = showBanner;
     // Banner targets: AI subject views — informs Access users about Pro perks (mode switching, shop, etc.)
     const targets = ['view-math', 'view-english', 'view-science', 'view-social'];
     targets.forEach(id => {
@@ -14866,7 +14880,8 @@ function applyFreeTierOverlays() {
                         <strong style="color:white;">Upgrade to Pro</strong> &mdash; unlock Casual/Tutor modes, shop, themes & more.
                     </div>
                     <button onclick="openPaymentModal('pro')" style="padding:6px 10px;background:linear-gradient(135deg, #6C5CE7, #00CEC9);border:none;border-radius:6px;color:white;font-weight:600;font-size:0.75rem;cursor:pointer;white-space:nowrap;">Upgrade</button>`;
-                if (getComputedStyle(view).position === 'static') view.style.position = 'relative';
+                // Set position:relative without triggering getComputedStyle — just always ensure it
+                if (!view.style.position || view.style.position === 'static') view.style.position = 'relative';
                 view.appendChild(overlay);
             }
         } else {
@@ -16321,11 +16336,14 @@ function renderPlanningBoardInUpdates() {
     container.innerHTML = html;
 }
 
+let _updateLogHtml = null; // cache — changelog is static, no need to rebuild on every visit
 function renderUpdateLog() {
     const container = document.getElementById('update-log-container');
     if (!container) return;
     localStorage.setItem('update_log_opened', '1');
     setTimeout(checkAchievements, 500);
+
+    if (_updateLogHtml) { container.innerHTML = _updateLogHtml; return; }
 
     let html = '';
     UPDATE_LOG.forEach(update => {
@@ -16342,6 +16360,7 @@ function renderUpdateLog() {
         </div>`;
     });
 
+    _updateLogHtml = html;
     container.innerHTML = html;
 }
 
@@ -16594,8 +16613,8 @@ function renderAchievementsTab() {
     container.innerHTML = html;
 }
 
-// Check achievements periodically
-setInterval(checkAchievements, 15000);
+// Check achievements periodically (45s — fast enough to catch events, light enough not to churn)
+setInterval(checkAchievements, 45000);
 // Also check on tab switch (handled in switchTab wrapper below)
 
 // ============================================
@@ -20374,13 +20393,23 @@ function applySfxSettings() {
     localStorage.setItem('sfx_volume', (parseFloat(vol) / 100).toFixed(2));
 }
 
+// Shared AudioContext — reused across calls to avoid the overhead of new AudioContext() per tab switch
+let _sfxAudioCtx = null;
+function _getSfxCtx() {
+    if (!_sfxAudioCtx || _sfxAudioCtx.state === 'closed') {
+        _sfxAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_sfxAudioCtx.state === 'suspended') _sfxAudioCtx.resume();
+    return _sfxAudioCtx;
+}
+
 function playSfx(type) {
     // v12.7: default sfx_enabled to '1' so new installs have sound on
     if (localStorage.getItem('sfx_enabled') === '0') return;
     const vol = parseFloat(localStorage.getItem('sfx_volume') ?? '0.35');
     if (vol === 0) return;
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = _getSfxCtx();
         const gain = ctx.createGain();
         gain.connect(ctx.destination);
 
@@ -20410,7 +20439,6 @@ function playSfx(type) {
         } else if (type === 'tab') {
             playNote(880, t, 0.05, 'sine', 0.25);
         }
-        setTimeout(() => { try { ctx.close(); } catch(_) {} }, 1500);
     } catch (_) {}
 }
 
