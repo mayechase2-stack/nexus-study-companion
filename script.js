@@ -12141,8 +12141,11 @@ async function helpMeLiveVision() {
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
     let ocrText = '';
     try {
-        await ensureTesseract();
-        const ocr = await Tesseract.recognize(canvas, 'eng');
+        const _ocrRace = Promise.race([
+            (async () => { await ensureTesseract(); return await Tesseract.recognize(canvas, 'eng'); })(),
+            new Promise((_, r) => setTimeout(() => r(new Error('ocr-timeout')), 6000))
+        ]);
+        const ocr = await _ocrRace;
         ocrText = (ocr && ocr.data && ocr.data.text) ? ocr.data.text.trim() : '';
     } catch (_) {}
 
@@ -12206,8 +12209,11 @@ ABSOLUTE RULES:
     ];
 
     try {
+        const _hvCtrl = new AbortController();
+        const _hvTimeout = setTimeout(() => _hvCtrl.abort(), 30000);
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
+            signal: _hvCtrl.signal,
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: 'gpt-4o',
@@ -12215,9 +12221,11 @@ ABSOLUTE RULES:
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userParts }
                 ],
+                max_tokens: 800,
                 temperature: 0.5
             })
         });
+        clearTimeout(_hvTimeout);
         if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
@@ -12265,8 +12273,11 @@ async function analyzeText() {
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
         let ocrText = '';
         try {
-            await ensureTesseract();
-            const ocr = await Tesseract.recognize(canvas, 'eng');
+            const _ocrRace = Promise.race([
+                (async () => { await ensureTesseract(); return await Tesseract.recognize(canvas, 'eng'); })(),
+                new Promise((_, r) => setTimeout(() => r(new Error('ocr-timeout')), 6000))
+            ]);
+            const ocr = await _ocrRace;
             ocrText = (ocr && ocr.data && ocr.data.text) ? ocr.data.text.trim() : '';
         } catch (_) { ocrText = ''; }
 
@@ -12377,8 +12388,11 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
             { type: 'image_url', image_url: { url: imageDataUrl } }
         ];
 
+        const _lvCtrl = new AbortController();
+        const _lvTimeout = setTimeout(() => _lvCtrl.abort(), 30000);
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
+            signal: _lvCtrl.signal,
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
                 model: 'gpt-4o',
@@ -12387,9 +12401,11 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userParts }
                 ],
+                max_tokens: 600,
                 temperature: 0.3
             })
         });
+        clearTimeout(_lvTimeout);
 
         const data = await res.json();
         clearInterval(phaseTimer); // stop the rotating-status animation
