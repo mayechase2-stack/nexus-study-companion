@@ -1257,25 +1257,23 @@ function signOut() {
     const currentUser = localStorage.getItem('auth_user');
     if (currentUser) snapshotAccountState(currentUser);
 
-    // Clear active session — belt-and-suspenders: clear both storage types
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_pass');
-    localStorage.removeItem('auth_remember');
-    sessionStorage.removeItem('auth_user');
-    sessionStorage.removeItem('auth_pass');
-    // Clear per-account state so the next sign-in starts from a clean baseline
+    // Clear EVERY place auth could live
+    ['auth_user','auth_pass','auth_remember'].forEach(k => {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+    });
     clearCurrentAccountState();
 
-    // Set a flag that survives the reload — DOMContentLoaded re-clears auth and
-    // forces the overlay even if something wrote auth_user back between here and reload.
-    sessionStorage.setItem('nexus_signed_out', '1');
+    // Remove payment lock in case it was applied
+    document.body.classList.remove('payment-required-lock');
 
-    // Immediately show the auth overlay — don't wait for reload to complete
-    const _overlay = document.getElementById('auth-overlay');
-    if (_overlay) _overlay.style.display = 'block';
+    // Close any open modals
+    const pm = document.getElementById('payment-modal');
+    if (pm) { pm.style.display = 'none'; pm.classList.add('hidden'); }
 
-    showToast("Signed out.", "info", 1200);
-    setTimeout(() => location.reload(), 800);
+    // Navigate to the same page with ?signout=1 so DOMContentLoaded is
+    // guaranteed to run fresh and the URL param forces the auth overlay.
+    window.location.replace(window.location.pathname + '?signout=1');
 }
 
 // ============================================================
@@ -14915,12 +14913,17 @@ function applyFreeTierOverlays() {
 // DOM Init
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth Status on Load
-    // If signOut() set the flag, force the login screen regardless of localStorage
-    if (sessionStorage.getItem('nexus_signed_out')) {
-        sessionStorage.removeItem('nexus_signed_out');
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_pass');
-        // auth overlay stays visible — fall through without hiding it
+    // ?signout=1 means signOut() just navigated here — force auth screen no matter what
+    const _urlParams = new URLSearchParams(window.location.search);
+    if (_urlParams.get('signout') === '1') {
+        // Clean the URL so refreshing doesn't re-trigger this path
+        history.replaceState(null, '', window.location.pathname);
+        // Belt-and-suspenders: clear auth one more time
+        ['auth_user','auth_pass','auth_remember'].forEach(k => {
+            localStorage.removeItem(k);
+            sessionStorage.removeItem(k);
+        });
+        // Auth overlay stays visible — do NOT fall through to hasUser check
     } else {
         const hasUser = localStorage.getItem('auth_user');
         if (hasUser) {
