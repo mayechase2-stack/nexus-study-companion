@@ -859,8 +859,19 @@ function openSignInModal() {
     document.body.style.overflow = 'hidden';
     const u = document.getElementById('auth-username');
     const p = document.getElementById('auth-password');
-    if (u) { u.value = ''; setTimeout(() => u.focus(), 80); }
-    if (p) p.value = '';
+    // Readonly trick: Chrome autofill skips readonly fields.
+    // We set readonly, let autofill fire and find nothing to fill,
+    // then remove readonly 300ms later so the user can type normally.
+    if (u) {
+        u.value = '';
+        u.setAttribute('readonly', 'readonly');
+        setTimeout(() => { u.removeAttribute('readonly'); u.focus(); }, 300);
+    }
+    if (p) {
+        p.value = '';
+        p.setAttribute('readonly', 'readonly');
+        setTimeout(() => p.removeAttribute('readonly'), 300);
+    }
 }
 
 function closeSignInModal() {
@@ -1275,11 +1286,11 @@ function signOut() {
         if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
     });
 
-    // Blank the sign-in form so the browser can't re-submit saved values
+    // Blank the sign-in form and mark readonly so Chrome autofill can't re-fill it
     const uField = document.getElementById('auth-username');
     const pField = document.getElementById('auth-password');
-    if (uField) uField.value = '';
-    if (pField) pField.value = '';
+    if (uField) { uField.value = ''; uField.setAttribute('readonly', 'readonly'); }
+    if (pField) { pField.value = ''; pField.setAttribute('readonly', 'readonly'); }
 
     // Show the auth overlay immediately — NO reload, no navigation, no race conditions
     const overlay = document.getElementById('auth-overlay');
