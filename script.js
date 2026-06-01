@@ -1252,28 +1252,40 @@ function restoreAccountState(username) {
 }
 
 function signOut() {
-    // v12.0 — snapshot the current account's state before tearing down the session
-    // so signing back in later restores credits, inventory, tier, etc.
+    // Snapshot current account so re-login can restore it
     const currentUser = localStorage.getItem('auth_user');
     if (currentUser) snapshotAccountState(currentUser);
 
-    // Clear EVERY place auth could live
+    // Wipe auth from every storage location
     ['auth_user','auth_pass','auth_remember'].forEach(k => {
         localStorage.removeItem(k);
         sessionStorage.removeItem(k);
     });
     clearCurrentAccountState();
 
-    // Remove payment lock in case it was applied
+    // Reset in-memory globals so stale data can't leak back
+    try { userCredits = 0; } catch(_) {}
+    try { userInventory = []; } catch(_) {}
+    try { userLoadout = {}; } catch(_) {}
+
+    // Remove payment lock & close any open modals
     document.body.classList.remove('payment-required-lock');
+    ['payment-modal','signup-flow-modal','signin-modal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
+    });
 
-    // Close any open modals
-    const pm = document.getElementById('payment-modal');
-    if (pm) { pm.style.display = 'none'; pm.classList.add('hidden'); }
+    // Blank the sign-in form so the browser can't re-submit saved values
+    const uField = document.getElementById('auth-username');
+    const pField = document.getElementById('auth-password');
+    if (uField) uField.value = '';
+    if (pField) pField.value = '';
 
-    // Navigate to the same page with ?signout=1 so DOMContentLoaded is
-    // guaranteed to run fresh and the URL param forces the auth overlay.
-    window.location.replace(window.location.pathname + '?signout=1');
+    // Show the auth overlay immediately — NO reload, no navigation, no race conditions
+    const overlay = document.getElementById('auth-overlay');
+    if (overlay) overlay.style.display = 'block';
+
+    showToast('Signed out.', 'info', 1500);
 }
 
 // ============================================================
@@ -14913,25 +14925,12 @@ function applyFreeTierOverlays() {
 // DOM Init
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth Status on Load
-    // ?signout=1 means signOut() just navigated here — force auth screen no matter what
-    const _urlParams = new URLSearchParams(window.location.search);
-    if (_urlParams.get('signout') === '1') {
-        // Clean the URL so refreshing doesn't re-trigger this path
-        history.replaceState(null, '', window.location.pathname);
-        // Belt-and-suspenders: clear auth one more time
-        ['auth_user','auth_pass','auth_remember'].forEach(k => {
-            localStorage.removeItem(k);
-            sessionStorage.removeItem(k);
-        });
-        // Auth overlay stays visible — do NOT fall through to hasUser check
-    } else {
-        const hasUser = localStorage.getItem('auth_user');
-        if (hasUser) {
-            document.getElementById('auth-overlay').style.display = 'none';
-            // If a returning user hasn't paid, force checkout
-            if (!hasPaid()) {
-                setTimeout(() => openPaymentModal('access'), 800);
-            }
+    const hasUser = localStorage.getItem('auth_user');
+    if (hasUser) {
+        document.getElementById('auth-overlay').style.display = 'none';
+        // If a returning user hasn't paid, force checkout
+        if (!hasPaid()) {
+            setTimeout(() => openPaymentModal('access'), 800);
         }
     }
     // Initialize tier UI on every load
