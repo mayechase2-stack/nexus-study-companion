@@ -710,11 +710,11 @@ async function handleAuthSubmit() {
     }
 }
 
-// v12.0 — "Remember me" wiring. Default: ON. When OFF, auth_user/auth_pass
+// v12.0 — "Remember me" wiring. Default: OFF. When OFF, auth_user/auth_pass
 // move from localStorage → sessionStorage so they're wiped on tab close.
 function rememberAuthIfChecked() {
     const cb = document.getElementById('auth-remember-me');
-    const remember = cb ? cb.checked : true; // default: remember
+    const remember = cb ? cb.checked : false; // default: do NOT persist across sessions
     localStorage.setItem('auth_remember', remember ? '1' : '0');
     if (!remember) {
         // Move credentials to sessionStorage so they don't persist across tab close
@@ -1268,8 +1268,12 @@ function signOut() {
     // (the snapshot above preserves the previous user's data for restore).
     clearCurrentAccountState();
 
-    showToast("Signed out. Reloading...", "info", 1500);
-    setTimeout(() => location.reload(), 600);
+    // Immediately show the auth overlay — don't wait for reload to complete
+    const _overlay = document.getElementById('auth-overlay');
+    if (_overlay) _overlay.style.display = 'block';
+
+    showToast("Signed out.", "info", 1200);
+    setTimeout(() => location.reload(), 800);
 }
 
 // ============================================================
