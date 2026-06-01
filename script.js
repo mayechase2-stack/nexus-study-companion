@@ -1257,16 +1257,18 @@ function signOut() {
     const currentUser = localStorage.getItem('auth_user');
     if (currentUser) snapshotAccountState(currentUser);
 
-    // Clear active session
+    // Clear active session — belt-and-suspenders: clear both storage types
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_pass');
-    // Clear "remember me" remnants
     localStorage.removeItem('auth_remember');
     sessionStorage.removeItem('auth_user');
     sessionStorage.removeItem('auth_pass');
     // Clear per-account state so the next sign-in starts from a clean baseline
-    // (the snapshot above preserves the previous user's data for restore).
     clearCurrentAccountState();
+
+    // Set a flag that survives the reload — DOMContentLoaded re-clears auth and
+    // forces the overlay even if something wrote auth_user back between here and reload.
+    sessionStorage.setItem('nexus_signed_out', '1');
 
     // Immediately show the auth overlay — don't wait for reload to complete
     const _overlay = document.getElementById('auth-overlay');
@@ -14913,12 +14915,20 @@ function applyFreeTierOverlays() {
 // DOM Init
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth Status on Load
-    const hasUser = localStorage.getItem('auth_user');
-    if (hasUser) {
-        document.getElementById('auth-overlay').style.display = 'none';
-        // If a returning user hasn't paid, force checkout
-        if (!hasPaid()) {
-            setTimeout(() => openPaymentModal('access'), 800);
+    // If signOut() set the flag, force the login screen regardless of localStorage
+    if (sessionStorage.getItem('nexus_signed_out')) {
+        sessionStorage.removeItem('nexus_signed_out');
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_pass');
+        // auth overlay stays visible — fall through without hiding it
+    } else {
+        const hasUser = localStorage.getItem('auth_user');
+        if (hasUser) {
+            document.getElementById('auth-overlay').style.display = 'none';
+            // If a returning user hasn't paid, force checkout
+            if (!hasPaid()) {
+                setTimeout(() => openPaymentModal('access'), 800);
+            }
         }
     }
     // Initialize tier UI on every load
