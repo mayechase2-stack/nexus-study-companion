@@ -126,6 +126,20 @@ async function streamChat({ apiKey, model, messages, temperature, response_forma
     return controller.abort.bind(controller);
 }
 
+// ── Scroll forwarding: sidebar wheel events → main-content scroll ──────────
+// The sidebar has overflow:hidden so wheel events over it go nowhere.
+// Forward them to .main-content so scrolling always works regardless of cursor position.
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
+    if (sidebar && mainContent) {
+        sidebar.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            mainContent.scrollBy({ top: e.deltaY, behavior: 'auto' });
+        }, { passive: false });
+    }
+});
+
 // Tab Switching Logic
 function switchTab(tabId) {
     // Tier gate: Access users blocked from Pro-only tabs (Pro/Owner pass through)
@@ -167,6 +181,10 @@ function switchTab(tabId) {
     }
     // Apply free-tier overlays after tab is shown
     if (typeof applyFreeTierOverlays === 'function') applyFreeTierOverlays();
+
+    // Reset scroll position to top on every tab switch
+    const _mc = document.querySelector('.main-content');
+    if (_mc) _mc.scrollTop = 0;
 
     // v12.6 — remember last-used tab for restore on next login
     localStorage.setItem('last_tab', tabId);
