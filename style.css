@@ -125,7 +125,7 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     position: relative;
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
     min-width: 0;
 }
 

@@ -135,7 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebar && mainContent) {
         sidebar.addEventListener('wheel', (e) => {
             e.preventDefault();
-            mainContent.scrollBy({ top: e.deltaY, behavior: 'auto' });
+            // deltaMode: 0=pixels, 1=lines (~20px), 2=page
+            let delta = e.deltaY;
+            if (e.deltaMode === 1) delta *= 20;
+            else if (e.deltaMode === 2) delta *= mainContent.clientHeight;
+            mainContent.scrollTop += delta;
         }, { passive: false });
     }
 });
