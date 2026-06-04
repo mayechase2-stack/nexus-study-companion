@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260601g">
+    <link rel="stylesheet" href="style.css?v=20260601h">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3182,34 +3182,32 @@
                 <div id="inventory-page-content" style="min-height:400px;"></div>
             </div>
 
-            <!-- ── v12.4: Suggestions scrollable tab ──────────────────────────── -->
+            <!-- ── v15.0: Suggestions tab (reworked) ──────────────────────────── -->
             <div id="view-suggestions" class="view">
-                <header style="background:linear-gradient(135deg,rgba(253,121,168,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(253,121,168,0.3);">
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="font-size:2.5rem;">💡</div>
-                            <div>
-                                <h1 style="margin:0;background:linear-gradient(135deg,#fd79a8,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Feature Suggestions</h1>
-                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Ideas from the community — scroll through and vote</p>
-                            </div>
-                        </div>
-                        <button class="btn-primary" onclick="openSuggestionSubmitModal()" style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);">
+                <!-- Header row -->
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:22px;">
+                    <div>
+                        <h1 style="margin:0 0 4px;background:linear-gradient(135deg,#fd79a8,#a29bfe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">💡 Suggestions</h1>
+                        <p style="margin:0;color:var(--text-muted);font-size:0.9rem;">Vote on ideas or submit your own — top ideas get built first.</p>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <select id="sg-page-sort" onchange="renderSuggestionsPage()"
+                            style="padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.85rem;outline:none;cursor:pointer;">
+                            <option value="votes">Most Voted</option>
+                            <option value="newest">Newest</option>
+                            <option value="pinned">Pinned First</option>
+                        </select>
+                        <button class="btn-primary" onclick="openSuggestionSubmitModal()"
+                            style="background:linear-gradient(135deg,#fd79a8,#a29bfe);white-space:nowrap;">
                             <i class="ph ph-plus"></i> Submit Idea
                         </button>
                     </div>
-                </header>
-
-                <!-- Filter tabs -->
-                <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button class="tab-btn active" onclick="filterSuggestions('all')">All</button>
-                    <button class="tab-btn" onclick="filterSuggestions('study')"><i class="ph ph-book-open"></i> Study</button>
-                    <button class="tab-btn" onclick="filterSuggestions('social')"><i class="ph ph-users"></i> Social</button>
-                    <button class="tab-btn" onclick="filterSuggestions('feature')"><i class="ph ph-sparkle"></i> Features</button>
-                    <button class="tab-btn" onclick="filterSuggestions('bug')"><i class="ph ph-bug"></i> Bug Reports</button>
                 </div>
 
-                <!-- Suggestions scrollable list -->
-                <div id="suggestions-page-list" style="display:flex;flex-direction:column;gap:14px;padding-right:4px;"></div>
+                <!-- Responsive grid — 2 cols on wide, 1 col on laptop/mobile -->
+                <div id="suggestions-page-list"
+                    style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px;">
+                </div>
             </div>
 
 
@@ -4870,7 +4868,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260601g"></script>
+    <script src="script.js?v=20260601h"></script>
 </body>
 
 </html>

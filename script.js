@@ -135,11 +135,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebar && mainContent) {
         sidebar.addEventListener('wheel', (e) => {
             e.preventDefault();
-            // deltaMode: 0=pixels, 1=lines (~20px), 2=page
+            // Mirror the exact scroll the browser would apply to mainContent:
+            // deltaMode 0=px (most mice), 1=lines (~32px each), 2=page
             let delta = e.deltaY;
-            if (e.deltaMode === 1) delta *= 20;
-            else if (e.deltaMode === 2) delta *= mainContent.clientHeight;
-            mainContent.scrollTop += delta;
+            if (e.deltaMode === 1) delta *= 32;
+            else if (e.deltaMode === 2) delta *= mainContent.clientHeight * 0.9;
+            // Direct assignment so the scrollbar thumb stays in perfect sync
+            mainContent.scrollTop = Math.max(0,
+                Math.min(mainContent.scrollTop + delta,
+                         mainContent.scrollHeight - mainContent.clientHeight));
         }, { passive: false });
     }
 });
@@ -6824,20 +6828,23 @@ function renderSuggestionsPage() {
     if (!listEl) return;
 
     let items = _readSuggestions().slice();
-    if (_sgPageFilter !== 'all') {
-        // Map page filter labels to suggestion categories
-        const catMap = { study: ['features', 'ai'], social: ['companions', 'social'], feature: ['features', 'ai'], bug: ['other'] };
-        const allowed = catMap[_sgPageFilter] || [_sgPageFilter];
-        items = items.filter(s => allowed.includes(s.category));
+
+    // Sort
+    const sortEl = document.getElementById('sg-page-sort');
+    const sort = sortEl ? sortEl.value : 'votes';
+    if (sort === 'newest') {
+        items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } else if (sort === 'pinned') {
+        items.sort((a, b) => (b.ownerApproved ? 1 : 0) - (a.ownerApproved ? 1 : 0) || (b.votes || 0) - (a.votes || 0));
+    } else {
+        items.sort((a, b) => (b.votes || 0) - (a.votes || 0));
     }
-    // Sort by top votes by default
-    items.sort((a, b) => (b.votes || 0) - (a.votes || 0));
 
     if (items.length === 0) {
-        listEl.innerHTML = `<div style="padding:48px 20px;text-align:center;color:var(--text-muted);">
-            <i class="ph ph-lightbulb" style="font-size:1.5rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
-            <p>No suggestions yet in this category.</p>
-            <button class="btn-primary" onclick="openSuggestionSubmitModal()" style="margin-top:12px;">Be the first to suggest something!</button>
+        listEl.innerHTML = `<div style="grid-column:1/-1;padding:60px 20px;text-align:center;color:var(--text-muted);">
+            <i class="ph ph-lightbulb" style="font-size:2rem;display:block;margin-bottom:12px;opacity:0.25;"></i>
+            <p style="margin:0 0 16px;">No suggestions yet — be the first!</p>
+            <button class="btn-primary" onclick="openSuggestionSubmitModal()"><i class="ph ph-plus"></i> Submit an Idea</button>
         </div>`;
         return;
     }
@@ -6851,38 +6858,40 @@ function renderSuggestionsPage() {
     listEl.innerHTML = items.map(s => {
         const catColor = catColors[s.category] || '#9ca3af';
         const ageHrs = Math.round((Date.now() - (s.createdAt || 0)) / 3600000);
-        const ageStr = ageHrs < 1 ? 'just now' : ageHrs < 24 ? `${ageHrs}h ago` : `${Math.round(ageHrs/24)}d ago`;
-            // v12.7: owner gets a star (approve) + trash (delete) button group
-        const daysLeft = s.ownerApproved ? '∞' : Math.max(0, Math.ceil((SUGGESTION_EXPIRY_MS - (Date.now() - (s.createdAt||0))) / 86400000));
+        const ageStr = ageHrs < 1 ? 'just now' : ageHrs < 24 ? `${ageHrs}h ago` : `${Math.round(ageHrs / 24)}d ago`;
+        const pinnedBorder = s.ownerApproved ? 'border-top:2px solid #fdcb6e;' : '';
+
         const ownerBtns = ownerMode ? `
-            <div style="display:flex;flex-direction:column;gap:9px;flex-shrink:0;">
-                <button onclick="ownerApproveSuggestion('${s.id}')" title="${s.ownerApproved ? 'Unpin (currently pinned permanently)' : 'Pin permanently (owner approve)'}"
-                    style="background:${s.ownerApproved ? 'linear-gradient(135deg,#fdcb6e,#e17055)' : 'rgba(253,203,110,0.1)'};border:1px solid ${s.ownerApproved ? 'rgba(253,203,110,0.6)' : 'rgba(253,203,110,0.25)'};border-radius:8px;padding:6px 9px;cursor:pointer;color:${s.ownerApproved ? '#fff' : '#fdcb6e'};font-size:0.9rem;white-space:nowrap;">
-                    <i class="ph ph-star${s.ownerApproved ? '-fill' : ''}"></i>
+            <div style="display:flex;gap:6px;margin-top:10px;">
+                <button onclick="ownerApproveSuggestion('${s.id}');renderSuggestionsPage();"
+                    style="flex:1;padding:5px 8px;background:${s.ownerApproved ? 'rgba(253,203,110,0.2)' : 'rgba(255,255,255,0.05)'};border:1px solid ${s.ownerApproved ? 'rgba(253,203,110,0.5)' : 'var(--glass-border)'};border-radius:7px;cursor:pointer;color:${s.ownerApproved ? '#fdcb6e' : 'var(--text-muted)'};font-size:0.78rem;">
+                    <i class="ph ph-star${s.ownerApproved ? '-fill' : ''}"></i> ${s.ownerApproved ? 'Pinned' : 'Pin'}
                 </button>
-                <button onclick="ownerDeleteSuggestion('${s.id}');renderSuggestionsPage();" title="Delete (owner)"
-                    style="background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.25);border-radius:8px;padding:6px 9px;cursor:pointer;color:#ff6b6b;font-size:0.9rem;">
+                <button onclick="ownerDeleteSuggestion('${s.id}');renderSuggestionsPage();"
+                    style="padding:5px 10px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);border-radius:7px;cursor:pointer;color:#ff6b6b;font-size:0.78rem;">
                     <i class="ph ph-trash"></i>
                 </button>
             </div>` : '';
-        const approvedBadge = s.ownerApproved ? `<span style="background:rgba(253,203,110,0.18);color:#fdcb6e;font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:8px;letter-spacing:0.5px;"><i class="ph ph-star-fill"></i> PINNED</span>` : '';
-        const expiryHint = (!s.ownerApproved && ownerMode && typeof daysLeft === 'number') ? `<span style="color:var(--text-muted);font-size:0.88rem;opacity:0.7;">expires in ${daysLeft}d</span>` : '';
+
         return `
-        <div class="glass-panel" style="padding:16px 18px;display:flex;gap:14px;align-items:flex-start;${s.ownerApproved ? 'border-left:3px solid #fdcb6e;' : ''}">
-            <button onclick="voteSuggestion('${s.id}');renderSuggestionsPage();"
-                style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:${s.voted ? 'linear-gradient(135deg,#6C5CE7,#00CEC9)' : 'rgba(255,255,255,0.06)'};border:1px solid ${s.voted ? 'transparent' : 'var(--glass-border)'};border-radius:10px;padding:10px 14px;cursor:pointer;color:white;min-width:60px;flex-shrink:0;">
-                <i class="ph ph-arrow-fat-up" style="font-size:1.1rem;${s.voted ? '' : 'color:var(--text-muted);'}"></i>
-                <div style="font-size:1rem;font-weight:700;margin-top:2px;">${s.votes || 0}</div>
-            </button>
-            <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:5px;">
-                    <span style="background:${catColor}22;color:${catColor};font-size:0.78rem;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.6px;">${s.category}</span>
-                    ${approvedBadge}
-                    <span style="color:var(--text-muted);font-size:0.9rem;">@${s.author || 'anon'} &middot; ${ageStr}</span>
-                    ${expiryHint}
+        <div class="glass-panel" style="padding:16px;display:flex;flex-direction:column;gap:0;${pinnedBorder}">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+                <!-- Vote pill -->
+                <button onclick="voteSuggestion('${s.id}');renderSuggestionsPage();"
+                    style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:48px;padding:8px 10px;background:${s.voted ? 'linear-gradient(135deg,#6C5CE7,#00CEC9)' : 'rgba(255,255,255,0.05)'};border:1px solid ${s.voted ? 'transparent' : 'var(--glass-border)'};border-radius:10px;cursor:pointer;color:white;flex-shrink:0;transition:all 0.2s;">
+                    <i class="ph ph-caret-up" style="font-size:1rem;${s.voted ? '' : 'opacity:0.5;'}"></i>
+                    <span style="font-size:0.9rem;font-weight:700;">${s.votes || 0}</span>
+                </button>
+                <!-- Content -->
+                <div style="flex:1;min-width:0;">
+                    ${s.ownerApproved ? `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(253,203,110,0.15);color:#fdcb6e;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:6px;margin-bottom:6px;"><i class="ph ph-star-fill"></i> PINNED</span>` : ''}
+                    <p style="margin:0 0 5px;font-weight:600;color:white;font-size:0.93rem;line-height:1.3;">${escapeHtml(s.title)}</p>
+                    ${s.body ? `<p style="margin:0 0 8px;color:var(--text-muted);font-size:0.82rem;line-height:1.5;">${escapeHtml(s.body)}</p>` : ''}
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="background:${catColor}20;color:${catColor};font-size:0.72rem;font-weight:600;padding:2px 7px;border-radius:8px;">${s.category}</span>
+                        <span style="color:var(--text-muted);font-size:0.78rem;">${ageStr}</span>
+                    </div>
                 </div>
-                <h4 style="margin:0 0 4px;color:white;font-size:0.95rem;font-weight:600;">${escapeHtml(s.title)}</h4>
-                ${s.body ? `<p style="margin:0;color:#d8dce5;font-size:0.84rem;line-height:1.5;">${escapeHtml(s.body)}</p>` : ''}
             </div>
             ${ownerBtns}
         </div>`;
