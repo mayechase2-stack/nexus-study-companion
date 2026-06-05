@@ -6250,6 +6250,9 @@ function ownerApproveSuggestion(suggestionId) {
     const s = list.find(x => x.id === suggestionId);
     if (!s) return;
     s.ownerApproved = !s.ownerApproved;
+    // Default status to 'planned' when first pinning; clear when unpinning
+    if (s.ownerApproved && !s.status) s.status = 'planned';
+    if (!s.ownerApproved) s.status = null;
     _writeSuggestions(list);
 
     // Sync to planning board
@@ -6258,6 +6261,16 @@ function ownerApproveSuggestion(suggestionId) {
     renderSuggestions();
     renderSuggestionsPage();
     showToast(s.ownerApproved ? `⭐ "${s.title}" pinned + added to Planning Board.` : `Unpinned "${s.title}" and removed from Planning Board.`, 'success');
+}
+
+function setSuggestionStatus(suggestionId, status) {
+    if (typeof isOwner !== 'function' || !isOwner()) return;
+    const list = _readSuggestions();
+    const s = list.find(x => x.id === suggestionId);
+    if (!s) return;
+    s.status = status;
+    _writeSuggestions(list);
+    renderSuggestionsPage();
 }
 
 // v12.8 — Promote an ownerApproved suggestion → upcoming_plans_extra,
@@ -6861,12 +6874,27 @@ function renderSuggestionsPage() {
         const ageStr = ageHrs < 1 ? 'just now' : ageHrs < 24 ? `${ageHrs}h ago` : `${Math.round(ageHrs / 24)}d ago`;
         const pinnedBorder = s.ownerApproved ? 'border-top:2px solid #fdcb6e;' : '';
 
+        const statusCfg = {
+            'planned':     { label: 'Planned',      color: '#74b9ff', bg: 'rgba(116,185,255,0.12)' },
+            'under-review':{ label: 'Under Review', color: '#fdcb6e', bg: 'rgba(253,203,110,0.12)' },
+            'in-progress': { label: 'In Progress',  color: '#00cec9', bg: 'rgba(0,206,201,0.12)'   },
+            'shipped':     { label: 'Shipped ✓',    color: '#00b894', bg: 'rgba(0,184,148,0.12)'   },
+        };
+        const sc = s.status && statusCfg[s.status];
+
         const ownerBtns = ownerMode ? `
-            <div style="display:flex;gap:6px;margin-top:10px;">
-                <button onclick="ownerApproveSuggestion('${s.id}');renderSuggestionsPage();"
-                    style="flex:1;padding:5px 8px;background:${s.ownerApproved ? 'rgba(253,203,110,0.2)' : 'rgba(255,255,255,0.05)'};border:1px solid ${s.ownerApproved ? 'rgba(253,203,110,0.5)' : 'var(--glass-border)'};border-radius:7px;cursor:pointer;color:${s.ownerApproved ? '#fdcb6e' : 'var(--text-muted)'};font-size:0.78rem;">
+            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+                <button onclick="ownerApproveSuggestion('${s.id}');"
+                    style="padding:5px 10px;background:${s.ownerApproved ? 'rgba(253,203,110,0.2)' : 'rgba(255,255,255,0.05)'};border:1px solid ${s.ownerApproved ? 'rgba(253,203,110,0.5)' : 'var(--glass-border)'};border-radius:7px;cursor:pointer;color:${s.ownerApproved ? '#fdcb6e' : 'var(--text-muted)'};font-size:0.78rem;white-space:nowrap;">
                     <i class="ph ph-star${s.ownerApproved ? '-fill' : ''}"></i> ${s.ownerApproved ? 'Pinned' : 'Pin'}
                 </button>
+                ${s.ownerApproved ? `<select onchange="setSuggestionStatus('${s.id}', this.value)"
+                    style="flex:1;padding:5px 8px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:7px;color:white;font-size:0.78rem;cursor:pointer;outline:none;">
+                    <option value="planned"      ${s.status==='planned'?'selected':''}>📋 Planned</option>
+                    <option value="under-review" ${s.status==='under-review'?'selected':''}>🔍 Under Review</option>
+                    <option value="in-progress"  ${s.status==='in-progress'?'selected':''}>🔨 In Progress</option>
+                    <option value="shipped"      ${s.status==='shipped'?'selected':''}>✅ Shipped</option>
+                </select>` : ''}
                 <button onclick="ownerDeleteSuggestion('${s.id}');renderSuggestionsPage();"
                     style="padding:5px 10px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);border-radius:7px;cursor:pointer;color:#ff6b6b;font-size:0.78rem;">
                     <i class="ph ph-trash"></i>
@@ -6884,7 +6912,10 @@ function renderSuggestionsPage() {
                 </button>
                 <!-- Content -->
                 <div style="flex:1;min-width:0;">
-                    ${s.ownerApproved ? `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(253,203,110,0.15);color:#fdcb6e;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:6px;margin-bottom:6px;"><i class="ph ph-star-fill"></i> PINNED</span>` : ''}
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:${s.ownerApproved ? '6px' : '0'};">
+                        ${s.ownerApproved ? `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(253,203,110,0.15);color:#fdcb6e;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:0.3px;"><i class="ph ph-star-fill"></i> PINNED</span>` : ''}
+                        ${sc ? `<span style="display:inline-flex;align-items:center;gap:4px;background:${sc.bg};color:${sc.color};font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:0.3px;">${sc.label}</span>` : ''}
+                    </div>
                     <p style="margin:0 0 5px;font-weight:600;color:white;font-size:0.93rem;line-height:1.3;">${escapeHtml(s.title)}</p>
                     ${s.body ? `<p style="margin:0 0 8px;color:var(--text-muted);font-size:0.82rem;line-height:1.5;">${escapeHtml(s.body)}</p>` : ''}
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
