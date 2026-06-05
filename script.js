@@ -6097,6 +6097,71 @@ function applyTheme(colorName) {
 // v12.7 — DAILY SUGGESTION POOL
 // 40 suggestions rotate daily. Each session pulls 14 at random to show.
 // Owner stars a suggestion → ownerApproved: true → never auto-deleted.
+
+// ── Owner-pinned roadmap items — always shown, never expire ──────────────────
+const OWNER_PINNED_SUGGESTIONS = [
+    {
+        id: 'pin_01',
+        title: 'Real .com launch — custom domain',
+        body: 'Moving off Netlify subdomain to a proper .com. Cleaner, more professional, easier to share.',
+        category: 'features',
+        votes: 0, voted: false,
+        ownerApproved: true,
+        status: 'in-progress',
+        author: 'chase_owner',
+        createdAt: Date.now() - 1 * 86400000,
+        isUserSubmitted: false
+    },
+    {
+        id: 'pin_02',
+        title: 'Real accounts — cross-device login',
+        body: 'Right now accounts live in your browser only. Moving to a real database so your data follows you on any device or browser.',
+        category: 'features',
+        votes: 0, voted: false,
+        ownerApproved: true,
+        status: 'planned',
+        author: 'chase_owner',
+        createdAt: Date.now() - 2 * 86400000,
+        isUserSubmitted: false
+    },
+    {
+        id: 'pin_03',
+        title: 'Stripe payments — real subscriptions',
+        body: 'Replacing the mock checkout with real Stripe billing. Proper receipts, cancellation, and billing portal.',
+        category: 'features',
+        votes: 0, voted: false,
+        ownerApproved: true,
+        status: 'planned',
+        author: 'chase_owner',
+        createdAt: Date.now() - 3 * 86400000,
+        isUserSubmitted: false
+    },
+    {
+        id: 'pin_04',
+        title: 'Live Vision improvements',
+        body: 'Faster OCR, better subject detection, and support for more question types including graphs and diagrams.',
+        category: 'ai',
+        votes: 0, voted: false,
+        ownerApproved: true,
+        status: 'under-review',
+        author: 'chase_owner',
+        createdAt: Date.now() - 4 * 86400000,
+        isUserSubmitted: false
+    },
+    {
+        id: 'pin_05',
+        title: 'Mobile app / PWA polish',
+        body: 'Better touch support, improved layout on phones, and installable as a home screen app on iOS and Android.',
+        category: 'features',
+        votes: 0, voted: false,
+        ownerApproved: true,
+        status: 'under-review',
+        author: 'chase_owner',
+        createdAt: Date.now() - 5 * 86400000,
+        isUserSubmitted: false
+    },
+];
+// ─────────────────────────────────────────────────────────────────────────────
 // All non-approved suggestions expire after 4 days. Manual-only mode (post-release)
 // skips the auto-pool entirely.
 const SUGGESTION_DAILY_POOL = [
@@ -6189,15 +6254,18 @@ const SUGGESTION_EXPIRY_MS = 4 * 24 * 3600 * 1000; // 4 days
 const SUGGESTION_DAILY_COUNT = 14;
 
 function _readSuggestions() {
+    let stored = [];
     try {
-        const stored = JSON.parse(localStorage.getItem('suggestions') || 'null');
-        if (stored && Array.isArray(stored)) {
-            // Filter out expired non-approved suggestions
+        const raw = JSON.parse(localStorage.getItem('suggestions') || 'null');
+        if (raw && Array.isArray(raw)) {
             const now = Date.now();
-            return stored.filter(s => s.ownerApproved || s.isUserSubmitted || (now - (s.createdAt || 0)) < SUGGESTION_EXPIRY_MS);
+            stored = raw.filter(s => s.ownerApproved || s.isUserSubmitted || (now - (s.createdAt || 0)) < SUGGESTION_EXPIRY_MS);
         }
     } catch (_) {}
-    return [];
+    // Merge owner-pinned items — always present, never from localStorage (they live in code)
+    const storedIds = new Set(stored.map(s => s.id));
+    const pinned = OWNER_PINNED_SUGGESTIONS.filter(p => !storedIds.has(p.id));
+    return [...pinned, ...stored];
 }
 function _writeSuggestions(list) {
     localStorage.setItem('suggestions', JSON.stringify(list));
