@@ -6099,67 +6099,23 @@ function applyTheme(colorName) {
 // Owner stars a suggestion → ownerApproved: true → never auto-deleted.
 
 // ── Owner-pinned roadmap items — always shown, never expire ──────────────────
+// IDs match dp_XX pool IDs so they don't duplicate when the pool loads them.
 const OWNER_PINNED_SUGGESTIONS = [
-    {
-        id: 'pin_01',
-        title: 'Real .com launch — custom domain',
-        body: 'Moving off Netlify subdomain to a proper .com. Cleaner, more professional, easier to share.',
-        category: 'features',
-        votes: 0, voted: false,
-        ownerApproved: true,
-        status: 'in-progress',
-        author: 'chase_owner',
-        createdAt: Date.now() - 1 * 86400000,
-        isUserSubmitted: false
-    },
-    {
-        id: 'pin_02',
-        title: 'Real accounts — cross-device login',
-        body: 'Right now accounts live in your browser only. Moving to a real database so your data follows you on any device or browser.',
-        category: 'features',
-        votes: 0, voted: false,
-        ownerApproved: true,
-        status: 'planned',
-        author: 'chase_owner',
-        createdAt: Date.now() - 2 * 86400000,
-        isUserSubmitted: false
-    },
-    {
-        id: 'pin_03',
-        title: 'Stripe payments — real subscriptions',
-        body: 'Replacing the mock checkout with real Stripe billing. Proper receipts, cancellation, and billing portal.',
-        category: 'features',
-        votes: 0, voted: false,
-        ownerApproved: true,
-        status: 'planned',
-        author: 'chase_owner',
-        createdAt: Date.now() - 3 * 86400000,
-        isUserSubmitted: false
-    },
-    {
-        id: 'pin_04',
-        title: 'Live Vision improvements',
-        body: 'Faster OCR, better subject detection, and support for more question types including graphs and diagrams.',
-        category: 'ai',
-        votes: 0, voted: false,
-        ownerApproved: true,
-        status: 'under-review',
-        author: 'chase_owner',
-        createdAt: Date.now() - 4 * 86400000,
-        isUserSubmitted: false
-    },
-    {
-        id: 'pin_05',
-        title: 'Mobile app / PWA polish',
-        body: 'Better touch support, improved layout on phones, and installable as a home screen app on iOS and Android.',
-        category: 'features',
-        votes: 0, voted: false,
-        ownerApproved: true,
-        status: 'under-review',
-        author: 'chase_owner',
-        createdAt: Date.now() - 5 * 86400000,
-        isUserSubmitted: false
-    },
+    // ── From community pool — pinned by chase_owner ──
+    { id: 'dp_19', title: 'Sign in with Google',             body: "One-click Google OAuth sign-in so new users don't have to create a separate password.",                                       category: 'features',   votes: 45, voted: false, ownerApproved: true, status: 'planned',      author: 'sso_please',   createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_22', title: 'Timed practice test mode',        body: 'Set a time limit, pick a subject, and get a mock test with auto-grading and a score card at the end.',                       category: 'features',   votes: 38, voted: false, ownerApproved: true, status: 'planned',      author: 'testmode',     createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_16', title: 'Study music integration',         body: 'Built-in playlist of copyright-free lo-fi tracks. No login required. Skip/volume controls.',                                   category: 'features',   votes: 30, voted: false, ownerApproved: true, status: 'planned',      author: 'lo_fi_chill',  createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_08', title: 'Spanish + French language packs', body: 'Localize the full UI for non-English students. Auto-detect from browser locale on first launch.',                              category: 'features',   votes: 23, voted: false, ownerApproved: true, status: 'planned',      author: 'globalist',    createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_30', title: 'Debate practice mode',            body: 'Pick a topic, pick a side, and the AI argues the opposite. Great for English and Social Studies prep.',                       category: 'ai',         votes: 23, voted: false, ownerApproved: true, status: 'planned',      author: 'debate_me',    createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_27', title: 'Multiple companion personalities',body: 'Beyond moods — let me pick "drill sergeant" mode that pushes hard or "best friend" mode that keeps it casual.',               category: 'companions', votes: 20, voted: false, ownerApproved: true, status: 'planned',      author: 'tone_setter',  createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'Pure black/white high-contrast theme for users with visual accessibility needs. WCAG AA compliant text.',                    category: 'themes',     votes: 16, voted: false, ownerApproved: true, status: 'planned',      author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_23', title: 'Pixel art cursor set',            body: 'Classic 8-bit cursor, sword cursor for action clicks, heart cursor for hovered buttons.',                                     category: 'cursors',    votes: 15, voted: false, ownerApproved: true, status: 'planned',      author: 'retro_px',     createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    // ── Owner's own roadmap items ──
+    { id: 'pin_01', title: 'Real .com launch — custom domain',      body: 'Moving off Netlify subdomain to a proper .com. Cleaner, more professional, easier to share.',                         category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'in-progress',  author: 'chase_owner', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'pin_02', title: 'Real accounts — cross-device login',    body: 'Right now accounts live in your browser only. Moving to a real database so your data follows you on any device.',    category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned',      author: 'chase_owner', createdAt: Date.now() - 2*86400000, isUserSubmitted: false },
+    { id: 'pin_03', title: 'Stripe payments — real subscriptions',  body: 'Replacing the mock checkout with real Stripe billing. Proper receipts, cancellation, and billing portal.',           category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned',      author: 'chase_owner', createdAt: Date.now() - 3*86400000, isUserSubmitted: false },
+    { id: 'pin_04', title: 'Live Vision improvements',              body: 'Faster OCR, better subject detection, and support for more question types including graphs and diagrams.',            category: 'ai',       votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
+    { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'Better touch support, improved layout on phones, and installable as a home screen app on iOS and Android.',           category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 // All non-approved suggestions expire after 4 days. Manual-only mode (post-release)
