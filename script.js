@@ -4050,7 +4050,11 @@ const SHOP_ITEMS = {
         { id: 'pokeball', name: 'Pokéball', price: 220, desc: '🔴 Trainer-grade pokéball — red/white capsule with a tiny throwing pulse on click', rarity: 'epic' },
         { id: 'phoenix', name: 'Phoenix Feather', price: 250, desc: '✨ LEGENDARY Blazing fire quill', rarity: 'legendary' },
         { id: 'rainbow', name: 'Rainbow Crystal', price: 0, desc: '🌈 LEGENDARY Prismatic gem', rarity: 'legendary', secret: true },
-        { id: 'nexus-cursor', name: 'Nexus Core', price: 0, desc: '🔮 NEXUS Pulsating energy core', rarity: 'nexus', secret: true, nexus: true }
+        { id: 'nexus-cursor', name: 'Nexus Core', price: 0, desc: '🔮 NEXUS Pulsating energy core', rarity: 'nexus', secret: true, nexus: true },
+        // v15.0 — Pixel Art cursor pack
+        { id: 'cursor_pixel_arrow', name: 'Pixel Arrow', price: 120, desc: '🕹️ Classic pixel art arrow — white with black outline', rarity: 'rare' },
+        { id: 'cursor_pixel_sword', name: 'Pixel Sword', price: 120, desc: '⚔️ Diagonal silver pixel sword/blade', rarity: 'rare' },
+        { id: 'cursor_pixel_heart', name: 'Pixel Heart', price: 120, desc: '💗 Pink pixel heart cursor', rarity: 'rare' }
         // v12.1 — Chidori cursor removed from the shop. SVG + click VFX kept
         // for legacy inventory holders, but no surface in the app mentions it.
     ],
@@ -6108,13 +6112,13 @@ const OWNER_PINNED_SUGGESTIONS = [
     { id: 'dp_08', title: 'Spanish + French language packs', body: 'Localize the full UI for non-English students. Auto-detect from browser locale on first launch.',                              category: 'features',   votes: 23, voted: false, ownerApproved: true, status: 'planned',      author: 'globalist',    createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_30', title: 'Debate practice mode',            body: 'Pick a topic, pick a side, and the AI argues the opposite. Great for English and Social Studies prep.',                       category: 'ai',         votes: 23, voted: false, ownerApproved: true, status: 'planned',      author: 'debate_me',    createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_27', title: 'Multiple companion personalities',body: 'Beyond moods — let me pick "drill sergeant" mode that pushes hard or "best friend" mode that keeps it casual.',               category: 'companions', votes: 20, voted: false, ownerApproved: true, status: 'planned',      author: 'tone_setter',  createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'Pure black/white high-contrast theme for users with visual accessibility needs. WCAG AA compliant text.',                    category: 'themes',     votes: 16, voted: false, ownerApproved: true, status: 'planned',      author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'Pure black/white high-contrast theme for users with visual accessibility needs. WCAG AA compliant text.',                    category: 'themes',     votes: 16, voted: false, ownerApproved: true, status: 'shipped',      author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_23', title: 'Pixel art cursor set',            body: 'Classic 8-bit cursor, sword cursor for action clicks, heart cursor for hovered buttons.',                                     category: 'cursors',    votes: 15, voted: false, ownerApproved: true, status: 'planned',      author: 'retro_px',     createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     // ── Owner's own roadmap items ──
     { id: 'pin_01', title: 'Real .com launch — custom domain',      body: 'Moving off Netlify subdomain to a proper .com. Cleaner, more professional, easier to share.',                         category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'in-progress',  author: 'chase_owner', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'pin_02', title: 'Real accounts — cross-device login',    body: 'Right now accounts live in your browser only. Moving to a real database so your data follows you on any device.',    category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned',      author: 'chase_owner', createdAt: Date.now() - 2*86400000, isUserSubmitted: false },
     { id: 'pin_03', title: 'Stripe payments — real subscriptions',  body: 'Replacing the mock checkout with real Stripe billing. Proper receipts, cancellation, and billing portal.',           category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned',      author: 'chase_owner', createdAt: Date.now() - 3*86400000, isUserSubmitted: false },
-    { id: 'pin_04', title: 'Live Vision improvements',              body: 'Faster OCR, better subject detection, and support for more question types including graphs and diagrams.',            category: 'ai',       votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
+    { id: 'pin_04', title: 'Live Vision improvements',              body: 'Faster OCR, better subject detection, and support for more question types including graphs and diagrams.',            category: 'ai',       votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
     { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'Better touch support, improved layout on phones, and installable as a home screen app on iOS and Android.',           category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
@@ -7540,6 +7544,79 @@ function applyCursor(type) {
 <!-- inner spark detail -->
 <path d='M21 22 L24 24 L22 26 M27 22 L24 24 L26 26' stroke='#a8e0ff' stroke-width='0.8' fill='none' stroke-linecap='round'/>
 </svg>`, 24, 24);
+    } else if (type === 'cursor_pixel_arrow') {
+        // v15.0 — Pixel Art arrow: classic 16x16 pixel arrow, white fill + black outline
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+<rect x='1' y='1' width='1' height='12' fill='black'/><rect x='2' y='1' width='1' height='1' fill='black'/>
+<rect x='2' y='2' width='1' height='1' fill='white'/><rect x='2' y='3' width='1' height='1' fill='white'/>
+<rect x='2' y='4' width='1' height='1' fill='white'/><rect x='2' y='5' width='1' height='1' fill='white'/>
+<rect x='2' y='6' width='1' height='1' fill='white'/><rect x='2' y='7' width='1' height='1' fill='white'/>
+<rect x='2' y='8' width='1' height='1' fill='white'/><rect x='2' y='9' width='1' height='1' fill='white'/>
+<rect x='2' y='10' width='1' height='1' fill='white'/><rect x='2' y='11' width='1' height='1' fill='white'/>
+<rect x='2' y='12' width='1' height='1' fill='black'/>
+<rect x='3' y='2' width='1' height='1' fill='black'/><rect x='3' y='3' width='1' height='1' fill='white'/>
+<rect x='3' y='4' width='1' height='1' fill='white'/><rect x='3' y='5' width='1' height='1' fill='white'/>
+<rect x='3' y='6' width='1' height='1' fill='white'/><rect x='3' y='7' width='1' height='1' fill='white'/>
+<rect x='3' y='8' width='1' height='1' fill='white'/><rect x='3' y='9' width='1' height='1' fill='white'/>
+<rect x='3' y='10' width='1' height='1' fill='black'/><rect x='3' y='11' width='1' height='1' fill='black'/>
+<rect x='4' y='3' width='1' height='1' fill='black'/><rect x='4' y='4' width='1' height='1' fill='white'/>
+<rect x='4' y='5' width='1' height='1' fill='white'/><rect x='4' y='6' width='1' height='1' fill='white'/>
+<rect x='4' y='7' width='1' height='1' fill='white'/><rect x='4' y='8' width='1' height='1' fill='white'/>
+<rect x='4' y='9' width='1' height='1' fill='black'/>
+<rect x='5' y='4' width='1' height='1' fill='black'/><rect x='5' y='5' width='1' height='1' fill='white'/>
+<rect x='5' y='6' width='1' height='1' fill='white'/><rect x='5' y='7' width='1' height='1' fill='white'/>
+<rect x='5' y='8' width='1' height='1' fill='black'/><rect x='5' y='9' width='1' height='1' fill='black'/>
+<rect x='5' y='10' width='1' height='1' fill='black'/>
+<rect x='6' y='5' width='1' height='1' fill='black'/><rect x='6' y='6' width='1' height='1' fill='white'/>
+<rect x='6' y='7' width='1' height='1' fill='black'/><rect x='6' y='8' width='1' height='1' fill='white'/>
+<rect x='6' y='9' width='1' height='1' fill='white'/><rect x='6' y='10' width='1' height='1' fill='black'/>
+<rect x='7' y='6' width='1' height='1' fill='black'/><rect x='7' y='7' width='1' height='1' fill='black'/>
+<rect x='7' y='8' width='1' height='1' fill='black'/><rect x='7' y='9' width='1' height='1' fill='white'/>
+<rect x='7' y='10' width='1' height='1' fill='white'/><rect x='7' y='11' width='1' height='1' fill='black'/>
+<rect x='8' y='9' width='1' height='1' fill='black'/><rect x='8' y='10' width='1' height='1' fill='white'/>
+<rect x='8' y='11' width='1' height='1' fill='white'/><rect x='8' y='12' width='1' height='1' fill='black'/>
+<rect x='9' y='10' width='1' height='1' fill='black'/><rect x='9' y='11' width='1' height='1' fill='white'/>
+<rect x='9' y='12' width='1' height='1' fill='black'/>
+<rect x='10' y='11' width='1' height='1' fill='black'/><rect x='10' y='12' width='1' height='1' fill='black'/>
+</svg>`, 0, 0, 'auto');
+    } else if (type === 'cursor_pixel_sword') {
+        // v15.0 — Pixel sword: diagonal silver blade
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+<rect x='13' y='1' width='1' height='1' fill='#c0c0c0'/>
+<rect x='12' y='2' width='1' height='1' fill='#d8d8d8'/>
+<rect x='11' y='3' width='1' height='1' fill='#e8e8e8'/>
+<rect x='10' y='4' width='1' height='1' fill='#d0d0d0'/>
+<rect x='9' y='5' width='1' height='1' fill='#c0c0c0'/>
+<rect x='8' y='6' width='1' height='1' fill='#b8b8b8'/>
+<rect x='7' y='7' width='1' height='1' fill='#a8a8a8'/>
+<rect x='6' y='8' width='1' height='1' fill='#989898'/>
+<rect x='5' y='9' width='1' height='1' fill='#888888'/>
+<rect x='4' y='10' width='1' height='1' fill='#787878'/>
+<rect x='3' y='11' width='2' height='1' fill='#606060'/>
+<rect x='2' y='12' width='2' height='1' fill='#505050'/>
+<rect x='12' y='3' width='1' height='1' fill='#909090'/>
+<rect x='11' y='4' width='1' height='1' fill='#909090'/>
+<rect x='3' y='12' width='1' height='1' fill='#FFD700'/>
+<rect x='2' y='13' width='1' height='1' fill='#FFD700'/>
+<rect x='1' y='14' width='2' height='1' fill='#804000'/>
+</svg>`, 0, 0, 'auto');
+    } else if (type === 'cursor_pixel_heart') {
+        // v15.0 — Pixel heart: pink heart cursor
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+<rect x='2' y='4' width='2' height='1' fill='#ff69b4'/>
+<rect x='7' y='4' width='2' height='1' fill='#ff69b4'/>
+<rect x='1' y='5' width='4' height='1' fill='#ff69b4'/>
+<rect x='6' y='5' width='4' height='1' fill='#ff69b4'/>
+<rect x='1' y='6' width='10' height='1' fill='#ff69b4'/>
+<rect x='1' y='7' width='10' height='1' fill='#ff69b4'/>
+<rect x='2' y='8' width='9' height='1' fill='#ff69b4'/>
+<rect x='3' y='9' width='7' height='1' fill='#ff69b4'/>
+<rect x='4' y='10' width='5' height='1' fill='#ff69b4'/>
+<rect x='5' y='11' width='3' height='1' fill='#ff69b4'/>
+<rect x='6' y='12' width='1' height='1' fill='#ff69b4'/>
+<rect x='2' y='5' width='1' height='1' fill='#ffb6d9'/>
+<rect x='7' y='5' width='1' height='1' fill='#ffb6d9'/>
+</svg>`, 6, 6, 'auto');
     } else {
         document.body.style.cursor = 'default';
     }
@@ -12248,19 +12325,20 @@ async function helpMeLiveVision() {
     const solutionPanel = document.getElementById('solution-panel');
     if (!mediaStream || video.paused) { showToast('Start screen sharing first.', 'warning'); return; }
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    // Scale canvas to max 1280px wide (proportional)
+    const MAX_W = 1280;
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (vw > MAX_W) {
+        canvas.width = MAX_W;
+        canvas.height = Math.round(vh * (MAX_W / vw));
+    } else {
+        canvas.width = vw;
+        canvas.height = vh;
+    }
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    // Skip OCR — GPT-4o vision reads screen text far better
     let ocrText = '';
-    try {
-        const _ocrRace = Promise.race([
-            (async () => { await ensureTesseract(); return await Tesseract.recognize(canvas, 'eng'); })(),
-            new Promise((_, r) => setTimeout(() => r(new Error('ocr-timeout')), 6000))
-        ]);
-        const ocr = await _ocrRace;
-        ocrText = (ocr && ocr.data && ocr.data.text) ? ocr.data.text.trim() : '';
-    } catch (_) {}
 
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
@@ -12376,29 +12454,24 @@ async function analyzeText() {
     resultDiv.innerHTML = '<div style="text-align:center;padding:10px;color:var(--accent);"><i class="ph ph-spinner ph-spin"></i> Scanning screen...</div>';
     solutionPanel.classList.add('hidden');
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    // Scale canvas to max 1280px wide (proportional)
+    const _MAX_W = 1280;
+    const _vw = video.videoWidth, _vh = video.videoHeight;
+    if (_vw > _MAX_W) {
+        canvas.width = _MAX_W;
+        canvas.height = Math.round(_vh * (_MAX_W / _vw));
+    } else {
+        canvas.width = _vw;
+        canvas.height = _vh;
+    }
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
     try {
-        // ── DUAL-PATH: capture image (for vision) AND run OCR (as fallback hint) ──
-        // Image goes straight to GPT-4o vision so equations, diagrams, and layout aren't lost to OCR mangling.
+        // Skip OCR — GPT-4o vision reads screen text far better than Tesseract
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
         let ocrText = '';
-        try {
-            const _ocrRace = Promise.race([
-                (async () => { await ensureTesseract(); return await Tesseract.recognize(canvas, 'eng'); })(),
-                new Promise((_, r) => setTimeout(() => r(new Error('ocr-timeout')), 6000))
-            ]);
-            const ocr = await _ocrRace;
-            ocrText = (ocr && ocr.data && ocr.data.text) ? ocr.data.text.trim() : '';
-        } catch (_) { ocrText = ''; }
 
-        if (ocrText) {
-            resultDiv.innerHTML = `<div style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;font-size:0.85rem;color:var(--text-muted);max-height:150px;overflow-y:auto;white-space:pre-wrap;">${ocrText}</div>`;
-        } else {
-            resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">OCR found no readable text — sending the image directly to vision AI...</p>';
-        }
+        resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Sending image to vision AI...</p>';
 
         const apiKey = getApiKey();
         if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
@@ -12428,13 +12501,14 @@ async function analyzeText() {
         }, 1200);
         explainEl.innerHTML = '<span style="color:var(--text-muted);font-size:0.9rem;">Live Vision is analyzing your screen — answer incoming…</span>';
 
-        // v12.8 — Enhanced AI prompt with fill-in-the-blank + question-type-specific rules
+        // v15.0 — Aggressive fill-in-the-blank detection + ultra-precise system prompt
         const systemPrompt = `You are NEXUS Live Vision — an ultra-precise AI tutor reading a student's screen. Detect the academic level from vocabulary and notation. Answer with zero filler, maximum precision.
+
+CRITICAL — FILL-IN-THE-BLANK DETECTION: Before anything else, scan the image for: underscores (___), '[BLANK]', '(blank)', empty input boxes, or any obvious gap in a sentence. If found, this IS a fill-in-the-blank question. Answer = ONLY the exact word(s) that fill the blank — never a full sentence.
 
 UNIVERSAL ONLINE-SCHOOL COMPREHENSION:
 - This text could come from ANY online learning platform: Acellus, Edgenuity, Apex Learning, FLVS, Khan Academy, IXL, Albert.io, Quizlet, McGraw-Hill Connect, Pearson MyLab, Canvas, Schoology, Google Classroom, Moodle, Blackboard, Edmentum, Study.com, CK-12, NewsELA, NoRedInk, ALEKS, WebAssign, Mastering Physics/Chemistry/Biology, MyMathLab, ConnectED, BrainPOP, Buzz, Lincoln Learning, Calvert, K12, Connections Academy, etc. — handle them ALL identically.
-- Do NOT assume any single platform. The OCR text may be malformed, have UI buttons mixed in (e.g. "Submit", "Next", "Hint"), include question numbers, or have multiple choices labeled A/B/C/D, 1/2/3/4, or with bullets — strip the noise and answer the actual academic question.
-- Be tolerant of OCR errors: "0" vs "O", "l" vs "1" vs "I", missing spaces, line breaks splitting equations, rotated/skewed text. Reconstruct the intended question before answering.
+- Do NOT assume any single platform. The image may have UI buttons mixed in (e.g. "Submit", "Next", "Hint"), question numbers, or multiple choices labeled A/B/C/D, 1/2/3/4, or with bullets — strip the noise and answer the actual academic question.
 - Recognize common online-school question formats: multiple choice, fill-in-the-blank, drag-and-drop, matching, short answer, true/false, free response, multi-select. Always identify which format and answer accordingly.
 
 ROLE & CAPABILITIES:
@@ -12515,7 +12589,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     { role: 'user', content: userParts }
                 ],
                 max_tokens: 600,
-                temperature: 0.3
+                temperature: 0.1
             })
         });
         clearTimeout(_lvTimeout);
@@ -19505,7 +19579,17 @@ async function sendCompanionMessage() {
         const sessionContext = buildLinkedSessionContext();
         // v12.3 — also append long-term memory of past conversations
         const memoryContext = (typeof buildCompanionMemoryContext === 'function') ? buildCompanionMemoryContext(id) : '';
-        const systemPrompt = NEXUS_COMPANION_PROMPT + '\n\n' + personaData.persona + sessionContext + memoryContext;
+        // v15.0 — companion personality prefix
+        const _cpersonality = localStorage.getItem('companion_personality') || 'default';
+        const _cpersonalityPrefixes = {
+            default:    '',
+            drill:      '\n\nPERSONALITY OVERRIDE — DRILL SERGEANT: You are tough-love, blunt, and demanding. Short sharp responses only. No coddling. Push the student hard. Use commands. No filler.',
+            bestfriend: '\n\nPERSONALITY OVERRIDE — BEST FRIEND: Super casual and encouraging. Use "dude", "you got this", "no cap", "fr fr". High energy, hype them up, keep it chill.',
+            sherlock:   '\n\nPERSONALITY OVERRIDE — SHERLOCK: Analytical and deductive. Never give the direct answer. Ask probing questions to lead the student to discover it themselves. Speak with precise, clinical observation.',
+            sensei:     '\n\nPERSONALITY OVERRIDE — CHILL SENSEI: Calm, Zen, and wise. Use metaphors and analogies. Speak slowly (in text). Never rush. Always find the deeper lesson.'
+        };
+        const personalityPrefix = _cpersonalityPrefixes[_cpersonality] || '';
+        const systemPrompt = NEXUS_COMPANION_PROMPT + personalityPrefix + '\n\n' + personaData.persona + sessionContext + memoryContext;
         const messages = [
             { role: 'system', content: systemPrompt },
             ..._companionChatHistory.slice(-12)
@@ -23609,3 +23693,383 @@ function updateHomeDailyChallenge() {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updateHomeDailyChallenge, 400);
 });
+
+// ════════════════════════════════════════════════════════════════════
+// v15.0 — DEBATE PRACTICE (Feature 5)
+// ════════════════════════════════════════════════════════════════════
+var _debateTopic = '';
+var _debateSide = 'FOR';
+var _debateHistory = [];
+var _debateExchanges = 0;
+
+function startDebate() {
+    var topicEl = document.getElementById('debate-topic-input');
+    var sideEl = document.getElementById('debate-side-select');
+    if (!topicEl || !sideEl) return;
+    var topic = topicEl.value.trim();
+    if (!topic) { showToast('Enter a debate topic first.', 'warning'); return; }
+    _debateTopic = topic;
+    _debateSide = sideEl.value;
+    _debateHistory = [];
+    _debateExchanges = 0;
+    var chatArea = document.getElementById('debate-chat-area');
+    if (chatArea) {
+        chatArea.innerHTML = '';
+        chatArea.style.display = 'flex';
+    }
+    document.getElementById('debate-input-row').style.display = 'flex';
+    document.getElementById('debate-start-btn').style.display = 'none';
+    document.getElementById('debate-new-btn').style.display = 'inline-flex';
+    var oppSideLabel = _debateSide === 'FOR' ? 'AGAINST' : 'FOR';
+    _addDebateMsg('system', 'Topic: <strong>' + topic + '</strong> — You argue <strong>' + _debateSide + '</strong>. Opponent argues <strong>' + oppSideLabel + '</strong>. Make your opening argument!');
+}
+
+function _addDebateMsg(role, html) {
+    var area = document.getElementById('debate-chat-area');
+    if (!area) return;
+    var div = document.createElement('div');
+    div.style.cssText = 'margin-bottom:10px;padding:10px 14px;border-radius:10px;font-size:0.9rem;line-height:1.5;max-width:85%;';
+    if (role === 'user') {
+        div.style.cssText += 'background:rgba(108,92,231,0.2);border:1px solid rgba(108,92,231,0.4);align-self:flex-end;margin-left:auto;color:white;';
+    } else if (role === 'ai') {
+        div.style.cssText += 'background:rgba(0,206,201,0.1);border:1px solid rgba(0,206,201,0.3);color:#e0f7f7;';
+    } else {
+        div.style.cssText += 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--text-muted);font-size:0.82rem;font-style:italic;width:100%;max-width:100%;text-align:center;';
+    }
+    div.innerHTML = html;
+    area.appendChild(div);
+    area.scrollTop = area.scrollHeight;
+}
+
+async function sendDebateMsg() {
+    var input = document.getElementById('debate-user-input');
+    if (!input) return;
+    var text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    _addDebateMsg('user', text);
+    _debateHistory.push({ role: 'user', content: text });
+    _debateExchanges++;
+
+    var apiKey = getApiKey();
+    if (!apiKey) { _addDebateMsg('ai', 'Need API key in Settings.'); return; }
+
+    var oppSide = _debateSide === 'FOR' ? 'AGAINST' : 'FOR';
+    var sysPrompt = "You are a sharp debate opponent. Topic: '" + _debateTopic + "'. The student argues " + _debateSide + ". You argue " + oppSide + " convincingly. 2-3 sentences per response, no filler. After exactly 5 student messages, output '\u{1F3C6} VERDICT:' followed by who made the stronger case and why.";
+
+    var messages = [{ role: 'system', content: sysPrompt }].concat(_debateHistory.slice(-10));
+
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o', messages: messages, max_tokens: 300, temperature: 0.8 })
+        });
+        var data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        var reply = data.choices[0].message.content || '';
+        _debateHistory.push({ role: 'assistant', content: reply });
+        _addDebateMsg('ai', reply.replace(/\n/g, '<br>'));
+        if (reply.indexOf('VERDICT:') !== -1) {
+            document.getElementById('debate-input-row').style.display = 'none';
+        }
+    } catch (err) {
+        _addDebateMsg('ai', 'Error: ' + err.message);
+    }
+}
+
+function resetDebate() {
+    _debateTopic = '';
+    _debateHistory = [];
+    _debateExchanges = 0;
+    var chatArea = document.getElementById('debate-chat-area');
+    if (chatArea) { chatArea.innerHTML = ''; chatArea.style.display = 'none'; }
+    var inputRow = document.getElementById('debate-input-row');
+    if (inputRow) inputRow.style.display = 'none';
+    var startBtn = document.getElementById('debate-start-btn');
+    if (startBtn) startBtn.style.display = 'inline-flex';
+    var newBtn = document.getElementById('debate-new-btn');
+    if (newBtn) newBtn.style.display = 'none';
+    var topicEl = document.getElementById('debate-topic-input');
+    if (topicEl) topicEl.value = '';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v15.0 — PRACTICE TEST MODE (Feature 6)
+// ════════════════════════════════════════════════════════════════════
+var _ptQuestions = [];
+var _ptAnswers = {};
+var _ptTimerInterval = null;
+var _ptSecondsLeft = 0;
+var _ptStartTime = 0;
+
+function generatePracticeTest() {
+    var subject = document.getElementById('pt-subject').value;
+    var difficulty = document.getElementById('pt-difficulty').value;
+    var numQ = parseInt(document.getElementById('pt-num-questions').value);
+    var timeLimitMin = parseInt(document.getElementById('pt-time-limit').value);
+
+    var apiKey = getApiKey();
+    if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
+
+    var setupDiv = document.getElementById('pt-setup');
+    var loadingDiv = document.getElementById('pt-loading');
+    if (setupDiv) setupDiv.style.display = 'none';
+    if (loadingDiv) loadingDiv.style.display = 'block';
+
+    var prompt = 'Generate ' + numQ + ' ' + difficulty + ' ' + subject + ' multiple-choice questions for a high school / college student. Return ONLY valid JSON:\n{"questions":[{"q":"question text","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why A is correct"}]}\nNo extra text outside the JSON.';
+
+    fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' },
+            max_tokens: 2000,
+            temperature: 0.7
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) throw new Error(data.error.message);
+        var parsed = JSON.parse(data.choices[0].message.content);
+        _ptQuestions = parsed.questions || [];
+        _ptAnswers = {};
+        _ptStartTime = Date.now();
+        _ptSecondsLeft = timeLimitMin * 60;
+        if (loadingDiv) loadingDiv.style.display = 'none';
+        _renderPracticeTest();
+        _startPracticeTimer();
+    })
+    .catch(function(err) {
+        if (loadingDiv) loadingDiv.style.display = 'none';
+        if (setupDiv) setupDiv.style.display = 'block';
+        showToast('Error: ' + err.message, 'error');
+    });
+}
+
+function _startPracticeTimer() {
+    if (_ptTimerInterval) clearInterval(_ptTimerInterval);
+    _updatePracticeTimer();
+    _ptTimerInterval = setInterval(function() {
+        _ptSecondsLeft--;
+        _updatePracticeTimer();
+        if (_ptSecondsLeft <= 0) {
+            clearInterval(_ptTimerInterval);
+            showToast('Time is up! Submitting...', 'warning');
+            submitPracticeTest();
+        }
+    }, 1000);
+}
+
+function _updatePracticeTimer() {
+    var el = document.getElementById('pt-timer-display');
+    if (!el) return;
+    var m = Math.floor(_ptSecondsLeft / 60);
+    var s = _ptSecondsLeft % 60;
+    el.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    el.style.color = _ptSecondsLeft < 120 ? '#ff6b6b' : 'white';
+}
+
+function _renderPracticeTest() {
+    var testDiv = document.getElementById('pt-test-area');
+    if (!testDiv) return;
+    testDiv.style.display = 'block';
+    var questionsDiv = document.getElementById('pt-questions');
+    if (!questionsDiv) return;
+    questionsDiv.innerHTML = _ptQuestions.map(function(q, i) {
+        return '<div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;">'
+            + '<div style="font-weight:600;color:white;margin-bottom:10px;">' + (i+1) + '. ' + q.q + '</div>'
+            + '<div style="display:flex;flex-direction:column;gap:6px;">'
+            + q.options.map(function(opt, oi) {
+                var letter = ['A','B','C','D'][oi];
+                return '<label style="display:flex;align-items:center;gap:8px;color:var(--text-muted);cursor:pointer;padding:6px 10px;border-radius:6px;">'
+                    + '<input type="radio" name="pt-q-' + i + '" value="' + letter + '" onchange="window._ptAnswers[' + i + ']=this.value;" style="accent-color:var(--accent);">'
+                    + opt
+                    + '</label>';
+            }).join('')
+            + '</div></div>';
+    }).join('');
+}
+
+function submitPracticeTest() {
+    if (_ptTimerInterval) clearInterval(_ptTimerInterval);
+    var timeUsed = Math.round((Date.now() - _ptStartTime) / 1000);
+    var testDiv = document.getElementById('pt-test-area');
+    if (testDiv) testDiv.style.display = 'none';
+
+    var correct = 0;
+    var resultsDiv = document.getElementById('pt-results');
+    if (!resultsDiv) return;
+    resultsDiv.style.display = 'block';
+
+    var details = _ptQuestions.map(function(q, i) {
+        var userAns = _ptAnswers[i] || '—';
+        var isCorrect = userAns === q.answer;
+        if (isCorrect) correct++;
+        var bg = isCorrect ? 'rgba(0,184,148,0.1)' : 'rgba(255,107,107,0.1)';
+        var border = isCorrect ? 'rgba(0,184,148,0.4)' : 'rgba(255,107,107,0.4)';
+        var color = isCorrect ? '#00b894' : '#ff6b6b';
+        var verdict = isCorrect ? '&#10003;' : '&#10007; Correct: ' + q.answer;
+        return '<div style="margin-bottom:12px;padding:12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:8px;">'
+            + '<div style="font-weight:600;color:white;margin-bottom:4px;">' + (i+1) + '. ' + q.q + '</div>'
+            + '<div style="font-size:0.85rem;color:' + color + ';">Your answer: ' + userAns + ' ' + verdict + '</div>'
+            + '<div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;">' + q.explanation + '</div>'
+            + '</div>';
+    }).join('');
+
+    var mins = Math.floor(timeUsed/60), secs = timeUsed%60;
+    var scoreEl = document.getElementById('pt-score-display');
+    if (scoreEl) {
+        scoreEl.innerHTML = '<div style="text-align:center;margin-bottom:20px;">'
+            + '<div style="font-size:3rem;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--grad));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">' + correct + '/' + _ptQuestions.length + '</div>'
+            + '<div style="color:var(--text-muted);margin-top:4px;">Time used: ' + String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0') + '</div>'
+            + '</div>' + details;
+    }
+}
+
+function resetPracticeTest() {
+    if (_ptTimerInterval) clearInterval(_ptTimerInterval);
+    _ptQuestions = [];
+    _ptAnswers = {};
+    var setupDiv = document.getElementById('pt-setup');
+    var loadingDiv = document.getElementById('pt-loading');
+    var testDiv = document.getElementById('pt-test-area');
+    var resultsDiv = document.getElementById('pt-results');
+    if (setupDiv) setupDiv.style.display = 'block';
+    if (loadingDiv) loadingDiv.style.display = 'none';
+    if (testDiv) testDiv.style.display = 'none';
+    if (resultsDiv) resultsDiv.style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v15.0 — LO-FI MUSIC PLAYER (Feature 2)
+// ════════════════════════════════════════════════════════════════════
+(function() {
+    var LOFI_STATIONS = [
+        { name: 'Lofi Girl',    id: 'jfKfPfyJRdk' },
+        { name: 'Chillhop',     id: '5yx6BWlEVcY' },
+        { name: 'Jazz Hop',     id: 'Dx5qFachd3A' },
+        { name: 'Synthwave',    id: '4xDzrJKXOOY' },
+        { name: 'Rain + Study', id: 'mPZkdNFkNps' }
+    ];
+    var _lofiOpen = false;
+    var _lofiStation = 0;
+    var _lofiMuted = false;
+    var _lofiPlaying = false;
+
+    function _buildPlayer() {
+        if (document.getElementById('lofi-player-wrap')) return;
+        var wrap = document.createElement('div');
+        wrap.id = 'lofi-player-wrap';
+        wrap.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:9500;display:flex;flex-direction:column;align-items:flex-start;gap:8px;';
+
+        var toggleBtn = document.createElement('button');
+        toggleBtn.id = 'lofi-toggle-btn';
+        toggleBtn.title = 'Lo-fi Music';
+        toggleBtn.style.cssText = 'width:42px;height:42px;border-radius:50%;background:rgba(20,20,40,0.95);border:1px solid rgba(108,92,231,0.5);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,border-color 0.2s;';
+        toggleBtn.innerHTML = '<i class="ph ph-music-note"></i>';
+        toggleBtn.onmouseenter = function() { toggleBtn.style.transform = 'scale(1.1)'; toggleBtn.style.borderColor = 'rgba(108,92,231,0.9)'; };
+        toggleBtn.onmouseleave = function() { toggleBtn.style.transform = ''; toggleBtn.style.borderColor = 'rgba(108,92,231,0.5)'; };
+        toggleBtn.onclick = function() { _toggleLofi(); };
+
+        var card = document.createElement('div');
+        card.id = 'lofi-player-card';
+        card.style.cssText = 'display:none;background:rgba(14,16,28,0.97);border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:14px 16px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.6);backdrop-filter:blur(12px);';
+        card.innerHTML = '<div style="color:#a29bfe;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Lo-fi Player</div>'
+            + '<div id="lofi-station-name" style="color:white;font-size:0.92rem;font-weight:600;margin-bottom:12px;"></div>'
+            + '<div id="lofi-iframe-wrap" style="display:none;"></div>'
+            + '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;">'
+            + '<button onclick="window._lofiPrev()" style="background:rgba(255,255,255,0.06);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-skip-back"></i></button>'
+            + '<button id="lofi-play-btn" onclick="window._lofiTogglePlay()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-play"></i></button>'
+            + '<button onclick="window._lofiNext()" style="background:rgba(255,255,255,0.06);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-skip-forward"></i></button>'
+            + '</div>'
+            + '<div style="display:flex;align-items:center;gap:8px;">'
+            + '<i class="ph ph-speaker-low" style="color:var(--text-muted);font-size:0.9rem;"></i>'
+            + '<input id="lofi-volume" type="range" min="0" max="100" value="70" style="flex:1;accent-color:#6C5CE7;cursor:pointer;">'
+            + '<i class="ph ph-speaker-high" style="color:var(--text-muted);font-size:0.9rem;"></i>'
+            + '</div>';
+
+        wrap.appendChild(card);
+        wrap.appendChild(toggleBtn);
+        document.body.appendChild(wrap);
+        _updateStationName();
+    }
+
+    function _toggleLofi() {
+        _lofiOpen = !_lofiOpen;
+        var card = document.getElementById('lofi-player-card');
+        if (!card) return;
+        card.style.display = _lofiOpen ? 'block' : 'none';
+        if (_lofiOpen && !_lofiPlaying) _lofiPlay();
+    }
+
+    function _updateStationName() {
+        var el = document.getElementById('lofi-station-name');
+        if (el) el.textContent = LOFI_STATIONS[_lofiStation].name;
+    }
+
+    function _lofiPlay() {
+        _lofiPlaying = true;
+        _lofiMuted = false;
+        var wrap = document.getElementById('lofi-iframe-wrap');
+        if (!wrap) return;
+        var vid = LOFI_STATIONS[_lofiStation].id;
+        wrap.innerHTML = '<iframe id="lofi-iframe" width="1" height="1" src="https://www.youtube.com/embed/' + vid + '?autoplay=1&mute=0" frameborder="0" allow="autoplay" style="opacity:0;position:absolute;pointer-events:none;"></iframe>';
+        var btn = document.getElementById('lofi-play-btn');
+        if (btn) btn.innerHTML = '<i class="ph ph-pause"></i>';
+    }
+
+    window._lofiTogglePlay = function() {
+        if (_lofiPlaying) {
+            var iframe = document.getElementById('lofi-iframe');
+            if (iframe) {
+                _lofiMuted = !_lofiMuted;
+                var vid = LOFI_STATIONS[_lofiStation].id;
+                iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1&mute=' + (_lofiMuted ? 1 : 0);
+                var btn = document.getElementById('lofi-play-btn');
+                if (btn) btn.innerHTML = _lofiMuted ? '<i class="ph ph-play"></i>' : '<i class="ph ph-pause"></i>';
+            }
+        } else {
+            _lofiPlay();
+        }
+    };
+
+    window._lofiPrev = function() {
+        _lofiStation = (_lofiStation - 1 + LOFI_STATIONS.length) % LOFI_STATIONS.length;
+        _updateStationName();
+        if (_lofiPlaying) _lofiPlay();
+    };
+
+    window._lofiNext = function() {
+        _lofiStation = (_lofiStation + 1) % LOFI_STATIONS.length;
+        _updateStationName();
+        if (_lofiPlaying) _lofiPlay();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _buildPlayer);
+    } else {
+        _buildPlayer();
+    }
+})();
+
+// ─── Companion personality dropdown init ────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        var sel = document.getElementById('companion-personality-select');
+        if (sel) {
+            sel.value = localStorage.getItem('companion_personality') || 'default';
+            sel.addEventListener('change', function() {
+                localStorage.setItem('companion_personality', this.value);
+                if (typeof showToast === 'function') showToast('Companion personality updated!', 'success');
+            });
+        }
+    }, 800);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// v15.0 END
+// ════════════════════════════════════════════════════════════════════
+

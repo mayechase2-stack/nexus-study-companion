@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260601k">
+    <link rel="stylesheet" href="style.css?v=20260601z">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1027,6 +1027,11 @@
                     <i class="ph ph-wrench"></i>
                     <span>Study Tools</span>
                 </li>
+                <!-- v15.0 — Practice Test -->
+                <li onclick="switchTab('practice-test')" title="Practice Test">
+                    <i class="ph ph-timer"></i>
+                    <span>Practice Test</span>
+                </li>
             </ul>
 
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--glass-border);">
@@ -1046,6 +1051,11 @@
                 <div class="status-indicator" style="cursor: pointer; margin-bottom: 12px;" onclick="switchTab('shop')">
                     <div class="status-dot" style="background: gold; box-shadow: 0 0 10px gold;"></div>
                     <span id="credit-display">Credits: 0</span> <i class="ph ph-shopping-cart" style="margin-left:5px;"></i>
+                </div>
+                <!-- v15.0 — Lo-fi music player shortcut -->
+                <div class="status-indicator" style="cursor: pointer; margin-bottom: 12px;" onclick="(function(){var btn=document.getElementById('lofi-toggle-btn');if(btn)btn.click();})()">
+                    <i class="ph ph-music-note" style="font-size: 1.1rem; color: #a29bfe;"></i>
+                    <span style="color: #a29bfe;">Lo-fi Music</span>
                 </div>
                 <div class="status-indicator" style="cursor: pointer;" onclick="signOut()">
                     <i class="ph ph-sign-out" style="font-size: 1.1rem; color: #ff6b6b;"></i>
@@ -2642,6 +2652,34 @@
                         <div id="citation-panel"></div>
                     </div>
                 </div>
+
+                <!-- v15.0 — Debate Practice -->
+                <div class="glass-panel" style="padding:20px;margin-top:16px;">
+                    <details>
+                        <summary style="cursor:pointer;font-size:1.05rem;font-weight:700;color:white;list-style:none;display:flex;align-items:center;gap:10px;user-select:none;">
+                            <span style="font-size:1.3rem;">&#x2694;&#xFE0F;</span> Debate Practice
+                            <span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;margin-left:auto;">(click to expand)</span>
+                        </summary>
+                        <div style="margin-top:14px;">
+                            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+                                <input id="debate-topic-input" type="text" placeholder="Enter debate topic (e.g. Should homework be banned?)" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.93rem;box-sizing:border-box;">
+                                <select id="debate-side-select" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.93rem;">
+                                    <option value="FOR">I'm arguing FOR</option>
+                                    <option value="AGAINST">I'm arguing AGAINST</option>
+                                </select>
+                            </div>
+                            <div style="display:flex;gap:10px;margin-bottom:14px;">
+                                <button id="debate-start-btn" onclick="startDebate()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-swords"></i> Start Debate</button>
+                                <button id="debate-new-btn" onclick="resetDebate()" style="display:none;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> New Debate</button>
+                            </div>
+                            <div id="debate-chat-area" style="display:none;flex-direction:column;gap:0;max-height:340px;overflow-y:auto;margin-bottom:12px;padding:4px 0;"></div>
+                            <div id="debate-input-row" style="display:none;gap:8px;">
+                                <input id="debate-user-input" type="text" placeholder="Make your argument..." onkeydown="if(event.key==='Enter')sendDebateMsg()" style="flex:1;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                                <button onclick="sendDebateMsg()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:10px 16px;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;"><i class="ph ph-paper-plane-tilt"></i></button>
+                            </div>
+                        </div>
+                    </details>
+                </div>
             </div>
 
             <!-- Science View -->
@@ -3573,6 +3611,91 @@ if __name__ == '__main__':
                 </div>
             </div> <!-- End hidden coding lab -->
 
+            <!-- v15.0 — Practice Test View -->
+            <div id="view-practice-test" class="view">
+                <header style="background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(0,206,201,0.3);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="font-size:2.5rem;">&#x23F1;&#xFE0F;</div>
+                            <div>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#00CEC9,#6C5CE7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Timed Practice Test</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">AI-generated timed tests with instant scoring</p>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Setup Screen -->
+                <div id="pt-setup" class="glass-panel" style="padding:24px;">
+                    <h3 style="margin:0 0 18px;color:white;font-size:1.1rem;">Configure Your Test</h3>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px;">
+                        <div>
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">SUBJECT</label>
+                            <select id="pt-subject" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                                <option value="Math">Math</option>
+                                <option value="Science">Science</option>
+                                <option value="English">English</option>
+                                <option value="Social Studies">Social Studies</option>
+                                <option value="History">History</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">DIFFICULTY</label>
+                            <select id="pt-difficulty" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                                <option value="Easy">Easy</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="Hard">Hard</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">QUESTIONS</label>
+                            <select id="pt-num-questions" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                                <option value="5">5 questions</option>
+                                <option value="10" selected>10 questions</option>
+                                <option value="15">15 questions</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">TIME LIMIT</label>
+                            <select id="pt-time-limit" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                                <option value="5">5 min</option>
+                                <option value="10" selected>10 min</option>
+                                <option value="15">15 min</option>
+                                <option value="20">20 min</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="generatePracticeTest()" style="background:linear-gradient(135deg,#00CEC9,#6C5CE7);border:none;color:white;padding:13px 28px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;"><i class="ph ph-lightning"></i> Generate Test</button>
+                </div>
+
+                <!-- Loading -->
+                <div id="pt-loading" style="display:none;text-align:center;padding:40px;">
+                    <i class="ph ph-spinner ph-spin" style="font-size:2.5rem;color:var(--accent);"></i>
+                    <p style="color:var(--text-muted);margin-top:12px;">Generating your test...</p>
+                </div>
+
+                <!-- Test Area -->
+                <div id="pt-test-area" style="display:none;">
+                    <!-- Timer -->
+                    <div style="text-align:center;margin-bottom:20px;padding:16px;background:rgba(0,0,0,0.3);border-radius:12px;border:1px solid rgba(0,206,201,0.3);">
+                        <div id="pt-timer-display" style="font-size:3rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:4px;">10:00</div>
+                        <div style="color:var(--text-muted);font-size:0.82rem;margin-top:4px;">Time remaining</div>
+                    </div>
+                    <!-- Questions -->
+                    <div id="pt-questions"></div>
+                    <button onclick="submitPracticeTest()" style="background:linear-gradient(135deg,#00b894,#6C5CE7);border:none;color:white;padding:13px 28px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-top:10px;"><i class="ph ph-check-circle"></i> Submit Test</button>
+                </div>
+
+                <!-- Results -->
+                <div id="pt-results" style="display:none;">
+                    <div class="glass-panel" style="padding:24px;">
+                        <h3 style="margin:0 0 16px;color:white;font-size:1.15rem;"><i class="ph ph-trophy" style="color:#FFD700;"></i> Results</h3>
+                        <div id="pt-score-display"></div>
+                        <button onclick="resetPracticeTest()" style="background:rgba(108,92,231,0.2);border:1px solid rgba(108,92,231,0.4);color:#a29bfe;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:16px;"><i class="ph ph-arrow-counter-clockwise"></i> Take Another Test</button>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -3885,6 +4008,18 @@ if __name__ == '__main__':
                                     <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Sprite's emotes and energy adapt based on how many study sessions you've done today. More sessions = more energetic sprite!</p>
                                 </div>
                             </label>
+                        </div>
+                        <!-- v15.0 — Companion Personality Presets -->
+                        <div class="glass-panel" style="padding:18px;margin-bottom:10px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;">Personality</strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">Changes how the companion responds in chat.</p>
+                            <select id="companion-personality-select" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                                <option value="default" style="background:#14142a;color:white;">Default</option>
+                                <option value="drill" style="background:#14142a;color:white;">Drill Sergeant (tough love, short sharp responses)</option>
+                                <option value="bestfriend" style="background:#14142a;color:white;">Best Friend (casual, encouraging, uses "dude")</option>
+                                <option value="sherlock" style="background:#14142a;color:white;">Sherlock (analytical, never gives direct answers)</option>
+                                <option value="sensei" style="background:#14142a;color:white;">Chill Sensei (calm, Zen, uses metaphors)</option>
+                            </select>
                         </div>
                     </div>
                     <!-- APPEARANCE (v10.6 expanded) -->
@@ -4868,7 +5003,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260601k"></script>
+    <script src="script.js?v=20260601z"></script>
 </body>
 
 </html>
