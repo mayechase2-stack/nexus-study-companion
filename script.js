@@ -24108,20 +24108,18 @@ function resetPracticeTest() {
         if (document.getElementById('lofi-player-wrap')) return;
         var wrap = document.createElement('div');
         wrap.id = 'lofi-player-wrap';
-        wrap.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9200;display:flex;flex-direction:column;align-items:flex-start;gap:8px;';
+        // No floating button — accessed only via sidebar "Lo-fi Music" item
+        wrap.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9200;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none;';
 
+        // Hidden placeholder so sidebar click still finds lofi-toggle-btn
         var toggleBtn = document.createElement('button');
         toggleBtn.id = 'lofi-toggle-btn';
-        toggleBtn.title = 'Lo-fi Music';
-        toggleBtn.style.cssText = 'width:42px;height:42px;border-radius:50%;background:rgba(20,20,40,0.95);border:1px solid rgba(108,92,231,0.5);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,border-color 0.2s;';
-        toggleBtn.innerHTML = '<i class="ph ph-music-note"></i>';
-        toggleBtn.onmouseenter = function() { toggleBtn.style.transform = 'scale(1.1)'; toggleBtn.style.borderColor = 'rgba(108,92,231,0.9)'; };
-        toggleBtn.onmouseleave = function() { toggleBtn.style.transform = ''; toggleBtn.style.borderColor = 'rgba(108,92,231,0.5)'; };
+        toggleBtn.style.cssText = 'display:none;';
         toggleBtn.onclick = function() { _toggleLofi(); };
 
         var card = document.createElement('div');
         card.id = 'lofi-player-card';
-        card.style.cssText = 'display:none;background:rgba(14,16,28,0.97);border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:14px 16px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.6);backdrop-filter:blur(12px);';
+        card.style.cssText = 'display:none;pointer-events:auto;background:rgba(14,16,28,0.97);border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:14px 16px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.6);backdrop-filter:blur(12px);';
         card.innerHTML = '<div style="color:#a29bfe;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Lo-fi Player</div>'
             + '<div id="lofi-station-name" style="color:white;font-size:0.92rem;font-weight:600;margin-bottom:12px;"></div>'
             + '<div id="lofi-iframe-wrap" style="display:none;"></div>'
