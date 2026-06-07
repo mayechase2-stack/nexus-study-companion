@@ -2314,20 +2314,51 @@ html { scroll-behavior: smooth; }
     display: none;
 }
 
+/* Laptop / tablet: <= 1280px — tighten sidebar, breathe out content */
+@media (max-width: 1280px) {
+    .sidebar {
+        width: 200px;
+        padding: 1.25rem 1rem;
+    }
+    .sidebar .logo {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+    }
+    .nav-links li {
+        padding: 8px 10px !important;
+        font-size: 0.82rem !important;
+    }
+    .main-content {
+        padding: 1.75rem 2rem;
+    }
+    .glass-panel {
+        padding: 16px 18px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .card-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    h1 { font-size: clamp(1.1rem, 2vw, 1.35rem); }
+    h2 { font-size: clamp(0.95rem, 1.8vw, 1.15rem); }
+}
+
 /* Tablet: <= 1024px */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 220px;
-        padding: 1.5rem;
+        width: 180px;
+        padding: 1rem 0.85rem;
     }
 
     .main-content {
-        padding: 2rem;
+        padding: 1.25rem 1.5rem;
         min-width: 0;
     }
 
     h1 {
-        font-size: 1.4rem;
+        font-size: 1.3rem;
     }
 
     .stats-grid {
@@ -2335,7 +2366,7 @@ html { scroll-behavior: smooth; }
     }
 
     .card-grid {
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
 
     /* Auth landing page responsive */
@@ -2394,27 +2425,34 @@ html { scroll-behavior: smooth; }
     .sidebar {
         position: fixed;
         top: 0;
-        left: -280px;
-        width: 270px;
+        left: -300px;
+        width: 280px;
         height: 100vh;
         height: 100dvh;
         z-index: 9998;
-        transition: left 0.3s ease;
-        padding: 2rem 1.5rem;
+        transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 1.5rem 1.25rem;
         overflow-y: auto;
+        /* Solid background — no see-through on mobile */
+        background: #0a0a0f !important;
+        backdrop-filter: none !important;
+        box-shadow: 4px 0 32px rgba(0, 0, 0, 0.8);
+        border-right: 1px solid rgba(108, 92, 231, 0.2) !important;
     }
 
     .sidebar.open {
         left: 0;
     }
 
-    /* Overlay for when sidebar is open */
+    /* Full-screen backdrop — darker so content clearly recedes */
     .sidebar-overlay {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(3px);
         z-index: 9997;
+        transition: opacity 0.28s ease;
     }
 
     .sidebar-overlay.active {

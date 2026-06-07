@@ -12374,9 +12374,11 @@ async function helpMeLiveVision() {
         // v13.1 — animated fetch status for tutor mode
         const _hmPhrases = ['Reading your screen…','Finding the concept…','Building your guidance…','Preparing the strategy…','Almost there…'];
         let _hmIdx = 0;
-        document.getElementById('ai-answer-text').innerHTML =
+        const _hmAnswerEl = document.getElementById('ai-answer-text');
+        const _hmExplainEl = document.getElementById('ai-explanation-text');
+        if (_hmAnswerEl) _hmAnswerEl.innerHTML =
             `<span id="hm-fetch-status" style="color:var(--accent);font-size:0.88rem;display:flex;align-items:center;gap:12px;"><i class="ph ph-spinner ph-spin"></i>${_hmPhrases[0]}</span>`;
-        document.getElementById('ai-explanation-text').innerHTML = '';
+        if (_hmExplainEl) _hmExplainEl.innerHTML = '';
         window._hmPhaseTimer = setInterval(() => {
             _hmIdx = (_hmIdx + 1) % _hmPhrases.length;
             const s = document.getElementById('hm-fetch-status');
@@ -12504,11 +12506,22 @@ async function analyzeText() {
 
         // v13.1 — Animated "fetching answers" state that rotates status words
         // like Claude does, so the user knows the AI is actively working.
+        // Restore the standard answer panel structure in case tutor mode replaced it
         solutionPanel.classList.remove('hidden');
+        solutionPanel.innerHTML = `
+            <div style="padding:10px 14px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;gap:10px;">
+                <span id="ai-topic-tag" style="font-size:0.78rem;font-weight:700;color:var(--accent);letter-spacing:0.5px;">Analyzing…</span>
+            </div>
+            <div style="padding:12px 14px;">
+                <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);letter-spacing:0.8px;margin-bottom:6px;">ANSWER</div>
+                <div id="ai-answer-text" style="color:white;font-size:0.95rem;line-height:1.5;"></div>
+            </div>
+            <div style="padding:0 14px 12px;">
+                <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);letter-spacing:0.8px;margin-bottom:6px;">EXPLANATION</div>
+                <div id="ai-explanation-text" style="color:#d8dce5;font-size:0.88rem;line-height:1.6;"></div>
+            </div>`;
         const answerEl = document.getElementById('ai-answer-text');
         const explainEl = document.getElementById('ai-explanation-text');
-        answerEl.innerHTML = '';
-        explainEl.innerHTML = '';
 
         const statusPhrases = [
             'Reading your screen…',
