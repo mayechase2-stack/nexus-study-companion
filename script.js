@@ -2563,6 +2563,31 @@ function convertMarkdownLeaks(html) {
     s = s.replace(/\\text\{([^}]+)\}/g, '$1');
     // \; \: \, → space
     s = s.replace(/\\[;:,]/g, ' ');
+    // ── LaTeX symbol → Unicode (common math commands) ──
+    const latexMap = {
+        '\\geq':'≥','\\leq':'≤','\\neq':'≠','\\approx':'≈','\\equiv':'≡',
+        '\\times':'×','\\div':'÷','\\cdot':'·','\\pm':'±','\\mp':'∓',
+        '\\infty':'∞','\\pi':'π','\\theta':'θ','\\alpha':'α','\\beta':'β',
+        '\\gamma':'γ','\\delta':'δ','\\Delta':'Δ','\\Sigma':'Σ','\\sigma':'σ',
+        '\\lambda':'λ','\\mu':'μ','\\phi':'φ','\\Phi':'Φ','\\omega':'ω',
+        '\\sqrt':'√','\\in':'∈','\\notin':'∉','\\subset':'⊂','\\cup':'∪',
+        '\\cap':'∩','\\forall':'∀','\\exists':'∃','\\rightarrow':'→',
+        '\\leftarrow':'←','\\leftrightarrow':'↔','\\Rightarrow':'⇒',
+        '\\to':'→','\\circ':'∘','\\therefore':'∴','\\because':'∵',
+        '\\perp':'⊥','\\parallel':'∥','\\angle':'∠','\\triangle':'△',
+        '\\vec{':'','\\hat{':'','\\overrightarrow{':''
+    };
+    for (const [cmd, sym] of Object.entries(latexMap)) {
+        s = s.split(cmd).join(sym);
+    }
+    // \sqrt{x} → √(x)
+    s = s.replace(/√\{([^}]+)\}/g, '√($1)');
+    // x^{2} → x² etc.
+    s = s.replace(/\^{?2}?/g, (m) => m.includes('{') ? '²' : m === '^2' ? '²' : m);
+    s = s.replace(/\^2\b/g, '²');
+    s = s.replace(/\^3\b/g, '³');
+    // Remove stray closing braces left from \vec{, \hat{ etc.
+    s = s.replace(/([a-zA-Z0-9])\}/g, '$1');
     return s;
 }
 
@@ -12389,7 +12414,8 @@ ABSOLUTE RULES:
 - Do NOT reveal the final answer. Ever.
 - Use the exact <div class="tutor-block tutor-block-X"> wrappers shown.
 - Pure HTML only, no markdown, no asterisks.
-- Tolerant of OCR noise — reconstruct the intended problem before responding.
+- NEVER use LaTeX commands (\geq, \frac, \sqrt, \times, etc.). Use Unicode symbols directly: ≥ ≤ ÷ × √ ² ³ π θ etc.
+- Tolerant of screen noise — reconstruct the intended problem before responding.
 - If you can't read the problem clearly, say so plainly in concept-block and ask the student to retype it.`;
 
     const userParts = [
@@ -12554,6 +12580,8 @@ REASONING (apply silently):
 3. Reconstruct garbled OCR words using subject context.
 4. Solve or recall. Verify units, dates, spelling.
 5. Compress to minimum correct words.
+
+MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. Write ≥ not \geq, × not \times, √ not \sqrt, ÷ not \div, ² ³ for exponents, π θ α β for Greek letters. Fractions as a/b.
 
 STRICT JSON OUTPUT (no prose outside JSON):
 {
