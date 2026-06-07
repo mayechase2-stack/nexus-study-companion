@@ -6987,24 +6987,26 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v12.8';
+const NEXUS_CURRENT_VERSION = 'v15.0';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
 // next visit until the user opens that tab.
 const FEATURE_VERSIONS = {
-    math:         'v12.3',
-    science:      'v12.3',
-    english:      'v12.7', // Library Knowledge Hub (v12.7)
-    social:       'v12.3',
-    notebook:     'v12.4', // Quick Notes auto-saves here
-    shop:         'v12.3',
-    inventory:    'v12.4', // Owner shop bypass
-    achievements: 'v12.1',
-    leaderboard:  'v10.5',
-    dashboard:    'v12.4', // Flashcards + For College sections added
-    history:      'v12.3',
-    suggestions:  'v12.7'  // Daily pool, owner 3-dots, expiry system
+    math:            'v12.3',
+    science:         'v12.3',
+    english:         'v15.0', // Debate Practice mode added
+    social:          'v12.3',
+    notebook:        'v12.4',
+    shop:            'v15.0', // Pixel Art cursor pack added
+    inventory:       'v12.4',
+    achievements:    'v12.1',
+    leaderboard:     'v10.5',
+    dashboard:       'v12.4',
+    history:         'v12.3',
+    suggestions:     'v15.0', // Full rework + owner pinned roadmap
+    'practice-test': 'v15.0', // New tab
+    homework:        'v13.0',
 };
 
 function updateNewBadge() {
@@ -15680,6 +15682,27 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v15.0',
+        date: 'June 1, 2026',
+        tag: 'UPDATE 15.0 — MUSIC, DEBATES, TESTS & MORE',
+        tagColor: '#fd79a8',
+        changes: [
+            'LO-FI MUSIC PLAYER — Floating mini-player with 5 stations: Lofi Girl, Chillhop, Jazz Hop, Synthwave, and Rain + Study. Real volume slider, play/pause, and prev/next station controls. Access it from the sidebar or the floating music note button. Survives tab switches.',
+            'DEBATE PRACTICE MODE — Pick any topic, choose your side (For / Against), and the AI argues the opposite. Get 5 sharp exchanges then a verdict on who made the stronger case. Found in the English suite.',
+            'TIMED PRACTICE TEST — New sidebar tab. Pick subject, difficulty, number of questions, and a time limit. AI generates a full multiple-choice test, countdown timer turns red under 2 minutes, instant score card with explanations when time runs out.',
+            'PIXEL ART CURSOR PACK — Three new rare cursors in the Shop (120g each): Pixel Arrow, Pixel Sword, and Pixel Heart. Classic 8-bit style using SVG data URIs.',
+            'COMPANION PERSONALITY PRESETS — Five new presets in Settings → Companion: Default, Drill Sergeant (tough love), Best Friend (casual + encouraging), Sherlock (analytical, never gives direct answers), and Chill Sensei (Zen, uses metaphors).',
+            'LIVE VISION OVERHAUL — Canvas now scales to max 1280px before sending so the AI focuses on the question. OCR removed entirely (was causing hangs and noise). Fill-in-the-blank detection moved to #1 priority in the prompt. Temperature lowered to 0.1 for more accurate answers. LaTeX symbols now render as Unicode (≥ not \\geq, × not \\times, etc.).',
+            'LIVE VISION BUG FIX — "Cannot set properties of null" crash when switching between Tutor Mode and Casual Mode fixed. Solution panel is now always rebuilt fresh before accessing its elements.',
+            'SUGGESTIONS REWORK — Category filter tabs removed. New responsive grid layout (2 columns on wide screens, 1 on laptop). Sort by Most Voted, Newest, or Pinned First. Status badges on pinned suggestions: Planned, Under Review, In Progress, Shipped.',
+            'OWNER ROADMAP IN SUGGESTIONS — 13 hardcoded pinned suggestions now visible to every user: .com launch, real accounts, Stripe payments, and all community-voted planned features. Statuses update when each ships.',
+            'SCROLL IMPROVEMENTS — Hovering the sidebar while scrolling now forwards wheel events to the main content. Tab switches reset scroll position to top. Sidebar wheel forwarding handles line/pixel/page delta modes correctly.',
+            'RESPONSIVE LAYOUT FIX — New 1280px breakpoint for 13–14" laptops: sidebar shrinks to 200px, nav items more compact, reduced padding so content breathes instead of cramming.',
+            'MOBILE SIDEBAR REDESIGN — The semi-transparent floating glass box is replaced with a solid dark panel (#0a0a0f) that slides in from the left with a smooth cubic-bezier animation. Backdrop is now 72% opacity with blur so the content behind clearly recedes.',
+            'SCROLLBAR POLISH — Wider thumb (8px), visible track background, purple active state when dragging.',
+        ]
+    },
+    {
         version: 'v14.0',
         date: 'May 29, 2026',
         tag: 'UPDATE 14.0 — UNIVERSAL TUTOR',
@@ -16580,7 +16603,7 @@ function renderPlanningBoardInUpdates() {
     container.innerHTML = html;
 }
 
-let _updateLogHtml = null; // cache — changelog is static, no need to rebuild on every visit
+let _updateLogHtml = null; // cache — reset to null on each deploy to pick up new entries
 function renderUpdateLog() {
     const container = document.getElementById('update-log-container');
     if (!container) return;
