@@ -15687,7 +15687,7 @@ const UPDATE_LOG = [
         tag: 'UPDATE 15.0 — MUSIC, DEBATES, TESTS & MORE',
         tagColor: '#fd79a8',
         changes: [
-            'LO-FI MUSIC PLAYER — Floating mini-player with 5 stations: Lofi Girl, Chillhop, Jazz Hop, Synthwave, and Rain + Study. Real volume slider, play/pause, and prev/next station controls. Access it from the sidebar or the floating music note button. Survives tab switches.',
+            'LO-FI MUSIC PLAYER — Mini-player with 5 stations: Lofi Girl, Chillhop, Jazz Hop, Synthwave, and Rain + Study. Real volume slider, play/pause, and prev/next station controls. Open it from the sidebar. Survives tab switches.',
             'DEBATE PRACTICE MODE — Pick any topic, choose your side (For / Against), and the AI argues the opposite. Get 5 sharp exchanges then a verdict on who made the stronger case. Found in the English suite.',
             'TIMED PRACTICE TEST — New sidebar tab. Pick subject, difficulty, number of questions, and a time limit. AI generates a full multiple-choice test, countdown timer turns red under 2 minutes, instant score card with explanations when time runs out.',
             'PIXEL ART CURSOR PACK — Three new rare cursors in the Shop (120g each): Pixel Arrow, Pixel Sword, and Pixel Heart. Classic 8-bit style using SVG data URIs.',
@@ -15700,6 +15700,7 @@ const UPDATE_LOG = [
             'RESPONSIVE LAYOUT FIX — New 1280px breakpoint for 13–14" laptops: sidebar shrinks to 200px, nav items more compact, reduced padding so content breathes instead of cramming.',
             'MOBILE SIDEBAR REDESIGN — The semi-transparent floating glass box is replaced with a solid dark panel (#0a0a0f) that slides in from the left with a smooth cubic-bezier animation. Backdrop is now 72% opacity with blur so the content behind clearly recedes.',
             'SCROLLBAR POLISH — Wider thumb (8px), visible track background, purple active state when dragging.',
+            'FIX — Lo-fi player declutter: removed the overlapping floating music button (now opened only from the sidebar), and restored the play/pause, skip, and volume controls that had stopped responding to clicks.',
         ]
     },
     {
