@@ -6987,7 +6987,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.0';
+const NEXUS_CURRENT_VERSION = 'v15.1';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15682,6 +15682,19 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v15.1',
+        date: 'June 8, 2026',
+        tag: 'UPDATE 15.1 — LO-FI PLAYER REBUILT',
+        tagColor: '#a29bfe',
+        changes: [
+            'LO-FI PLAYER REBUILT — The mini-player is now a clean centered modal (opened from the sidebar) instead of a floating box, so it no longer crowds the screen alongside the sprite and Quick Notes button. Full station picker, now-playing display with a spinning record, and a bigger play button.',
+            'FIXED: STATIONS NOW ACTUALLY PLAY — The old streams (incl. the “Lofi Girl” one) had died after a YouTube copyright takedown, so nothing played. The player now uses the YouTube IFrame API with fresh 24/7 stations (Lofi Hip Hop, Chillhop Café, Jazz Hop, Chill Beats, Synthwave, Rain + Study) and automatically skips any station that goes offline.',
+            'REMEMBERS YOUR STATION & VOLUME — Your last station and volume are saved and restored next time you open NEXUS.',
+            'SLEEP TIMER — Auto-stop the music after 25, 45, or 60 minutes, with a live countdown. Great for focus sessions or falling asleep to it.',
+            'CLEANUP — Removed a leftover duplicate lo-fi player that was quietly loading a second hidden YouTube stream in the background.',
+        ]
+    },
+    {
         version: 'v15.0',
         date: 'June 1, 2026',
         tag: 'UPDATE 15.0 — MUSIC, DEBATES, TESTS & MORE',
@@ -19018,138 +19031,10 @@ function clearCompanionMemory() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// v12.3 — LO-FI MUSIC PLAYER (community suggestion)
-// Floating mini-player with curated study channels (YouTube iframe embeds).
-// Survives tab switches because it lives outside the .view containers.
+// LO-FI MUSIC PLAYER — superseded by the v15.1 modal player near the end
+// of this file (search "v15.1 — LO-FI MUSIC PLAYER"). The old floating
+// LOFI_CHANNELS panel was removed in v15.1.
 // ════════════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════════
-// LO-FI MUSIC PLAYER — YT IFrame API backed, volume-controlled
-// ════════════════════════════════════════════════════════════════════
-const LOFI_CHANNELS = [
-    { id: 'jfKfPfyJRdk', name: 'Lofi Girl — beats to relax/study to' },
-    { id: '5qap5aO4i9A', name: 'Lofi Girl — past stream' },
-    { id: 'rUxyKA_-grg', name: 'Lofi Girl — sleepy beats' },
-    { id: 'EtESJUgkAcg', name: 'Chill Vibes — synthwave study' },
-    { id: '4xDzrJKXOOY', name: 'Synthwave radio — beats to chill/game to' }
-];
-let _currentLofiChannel = 0;
-let _lofiYtPlayer = null;
-let _lofiVolume = 70;
-let _lofiMuted = false;
-let _lofiPlaying = false;
-
-// Called by the ambient-sound onYouTubeIframeAPIReady after it sets up ambient players
-function _initLofiYTPlayer() {
-    if (_lofiYtPlayer) return;
-    // Create a hidden container for the lo-fi YT player
-    if (!document.getElementById('lofi-yt-wrap')) {
-        const wrap = document.createElement('div');
-        wrap.id = 'lofi-yt-wrap';
-        wrap.style.cssText = 'position:fixed;top:-2px;left:-2px;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;z-index:-1;';
-        const d = document.createElement('div'); d.id = 'lofi-yt-div';
-        wrap.appendChild(d);
-        document.body.appendChild(wrap);
-    }
-    _lofiYtPlayer = new YT.Player('lofi-yt-div', {
-        videoId: LOFI_CHANNELS[_currentLofiChannel].id,
-        playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: LOFI_CHANNELS[_currentLofiChannel].id, modestbranding: 1, rel: 0 },
-        events: {
-            onReady: function(e) {
-                e.target.setVolume(_lofiVolume);
-                if (_lofiMuted) e.target.mute();
-            }
-        }
-    });
-}
-
-function toggleLofiPlayer() {
-    const panel = document.getElementById('lofi-panel');
-    if (!panel) { _buildLofiPanel(); return; }
-    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
-}
-
-function _buildLofiPanel() {
-    const panel = document.createElement('div');
-    panel.id = 'lofi-panel';
-    panel.style.cssText = `
-        position:fixed;bottom:70px;left:16px;z-index:9400;
-        background:rgba(8,8,18,0.97);border:1px solid rgba(162,155,254,0.35);
-        border-radius:14px;padding:14px 16px;width:260px;
-        box-shadow:0 12px 40px rgba(0,0,0,0.7);
-        backdrop-filter:blur(16px);display:flex;flex-direction:column;gap:10px;
-        font-family:inherit;
-    `;
-    panel.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="color:#a29bfe;font-size:0.82rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
-                <i class="ph-fill ph-music-notes"></i> Lo-fi
-            </span>
-            <button onclick="document.getElementById('lofi-panel').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:2px;"><i class="ph ph-x"></i></button>
-        </div>
-        <div id="lofi-station-name" style="color:white;font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${LOFI_CHANNELS[_currentLofiChannel].name}</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="cycleLofiChannel(-1)" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:8px;padding:6px 10px;cursor:pointer;color:white;"><i class="ph ph-skip-back"></i></button>
-            <button id="lofi-play-btn" onclick="lofiTogglePlay()" style="flex:1;background:linear-gradient(135deg,#6c5ce7,#a29bfe);border:none;border-radius:8px;padding:7px;cursor:pointer;color:white;font-size:0.85rem;font-weight:600;">
-                ▶ Play
-            </button>
-            <button onclick="cycleLofiChannel(1)" style="background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:8px;padding:6px 10px;cursor:pointer;color:white;"><i class="ph ph-skip-forward"></i></button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <i class="ph ph-speaker-simple-low" style="color:var(--text-muted);font-size:0.95rem;flex-shrink:0;"></i>
-            <input type="range" id="lofi-vol" min="0" max="100" value="${_lofiVolume}"
-                oninput="setLofiVolume(this.value)"
-                style="flex:1;accent-color:#a29bfe;cursor:pointer;">
-            <i class="ph ph-speaker-simple-high" style="color:var(--text-muted);font-size:0.95rem;flex-shrink:0;"></i>
-        </div>
-    `;
-    document.body.appendChild(panel);
-    // Ensure YT API is ready and init the lo-fi player
-    _ensureYouTubeAPI();
-    if (_ytApiReady) _initLofiYTPlayer();
-}
-
-function lofiTogglePlay() {
-    if (!_lofiYtPlayer || typeof _lofiYtPlayer.getPlayerState !== 'function') {
-        showToast('Player loading… try again in a second.', 'info', 2000);
-        return;
-    }
-    const state = _lofiYtPlayer.getPlayerState();
-    if (state === 1) { // playing
-        _lofiYtPlayer.pauseVideo();
-        _lofiPlaying = false;
-        const btn = document.getElementById('lofi-play-btn');
-        if (btn) btn.innerHTML = '▶ Play';
-    } else {
-        _lofiYtPlayer.playVideo();
-        _lofiPlaying = true;
-        const btn = document.getElementById('lofi-play-btn');
-        if (btn) btn.innerHTML = '⏸ Pause';
-    }
-}
-
-function setLofiVolume(val) {
-    _lofiVolume = parseInt(val);
-    if (_lofiYtPlayer && typeof _lofiYtPlayer.setVolume === 'function') {
-        _lofiYtPlayer.setVolume(_lofiVolume);
-        if (_lofiVolume > 0) _lofiYtPlayer.unMute();
-    }
-}
-
-function cycleLofiChannel(dir) {
-    _currentLofiChannel = (_currentLofiChannel + dir + LOFI_CHANNELS.length) % LOFI_CHANNELS.length;
-    const ch = LOFI_CHANNELS[_currentLofiChannel];
-    const nameEl = document.getElementById('lofi-station-name');
-    if (nameEl) nameEl.textContent = ch.name;
-    // Load new video in existing player
-    if (_lofiYtPlayer && typeof _lofiYtPlayer.loadVideoById === 'function') {
-        _lofiYtPlayer.loadVideoById({ videoId: ch.id, suggestedQuality: 'small' });
-        _lofiYtPlayer.setVolume(_lofiVolume);
-        if (_lofiPlaying) {
-            const btn = document.getElementById('lofi-play-btn');
-            if (btn) btn.innerHTML = '⏸ Pause';
-        }
-    }
-}
 
 // ════════════════════════════════════════════════════════════════════
 // v12.3 — AP EXAM PREP PACKS (community suggestion)
@@ -21093,7 +20978,6 @@ function _ensureYouTubeAPI() {
 
 window.onYouTubeIframeAPIReady = function() {
     _ytApiReady = true;
-    _initLofiYTPlayer(); // hook lo-fi player into the same API load
     // Build a hidden container for the 6 iframes (1×1px, off-screen)
     if (!document.getElementById('yt-ambient-wrap')) {
         const wrap = document.createElement('div');
@@ -24090,137 +23974,282 @@ function resetPracticeTest() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// v15.0 — LO-FI MUSIC PLAYER (Feature 2)
+// v15.1 — LO-FI MUSIC PLAYER (modal rebuild)
+//   • Centered modal instead of a floating card → no extra screen clutter
+//   • Station picker, now-playing, persistent station + volume, sleep timer
+//   • YouTube IFrame API for reliable playback + auto-skip on dead streams
 // ════════════════════════════════════════════════════════════════════
 (function() {
+    // 24/7 YouTube live streams. NOTE: live-stream IDs die when a channel gets a
+    // copyright strike or restarts (this is what killed the old "Lofi Girl" id
+    // jfKfPfyJRdk on 2026-05-19). The player auto-skips a dead station; to refresh
+    // one permanently, paste the new ?v= id from the stream's YouTube URL here.
     var LOFI_STATIONS = [
-        { name: 'Lofi Girl',    id: 'jfKfPfyJRdk' },
-        { name: 'Chillhop',     id: '5yx6BWlEVcY' },
-        { name: 'Jazz Hop',     id: 'Dx5qFachd3A' },
-        { name: 'Synthwave',    id: '4xDzrJKXOOY' },
-        { name: 'Rain + Study', id: 'mPZkdNFkNps' }
+        { name: 'Lofi Hip Hop', genre: 'Classic lofi beats',  id: 'wkhLHTmS_GI' },
+        { name: 'Chillhop Café', genre: 'Jazzy chillhop',      id: 'eX0Y877z-wg' },
+        { name: 'Jazz Hop',      genre: 'Lo-fi jazz',          id: 'NmbWL1UICTE' },
+        { name: 'Chill Beats',   genre: 'JazzHop & hip hop',   id: 'jtj2EoswM7Y' },
+        { name: 'Synthwave',     genre: 'Retro synth waves',   id: '4xDzrJKXOOY' },
+        { name: 'Rain + Study',  genre: 'Rain ambience',       id: 'mPZkdNFkNps' }
     ];
-    var _lofiOpen = false;
-    var _lofiStation = 0;
-    var _lofiMuted = false;
-    var _lofiPlaying = false;
 
-    function _buildPlayer() {
-        if (document.getElementById('lofi-player-wrap')) return;
-        var wrap = document.createElement('div');
-        wrap.id = 'lofi-player-wrap';
-        // No floating button — accessed only via sidebar "Lo-fi Music" item
-        wrap.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9200;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none;';
+    var _station = parseInt(localStorage.getItem('lofi_station') || '0', 10);
+    if (isNaN(_station) || _station < 0 || _station >= LOFI_STATIONS.length) _station = 0;
+    var _volume = parseInt(localStorage.getItem('lofi_volume') || '70', 10);
+    if (isNaN(_volume) || _volume < 0 || _volume > 100) _volume = 70;
+    var _playing = false;
+    var _player = null;        // YT.Player instance
+    var _apiLoading = false;
+    var _wantPlay = false;     // start playback as soon as the player is ready
+    var _errSkips = 0;         // consecutive dead-stream skips (avoid infinite loop)
+    var _sleepMin = 0;         // 0 = off
+    var _sleepTimer = null, _sleepTick = null, _sleepDeadline = 0;
 
-        // Hidden placeholder so sidebar click still finds lofi-toggle-btn
-        var toggleBtn = document.createElement('button');
-        toggleBtn.id = 'lofi-toggle-btn';
-        toggleBtn.style.cssText = 'display:none;';
-        toggleBtn.onclick = function() { _toggleLofi(); };
-
-        var card = document.createElement('div');
-        card.id = 'lofi-player-card';
-        card.style.cssText = 'display:none;pointer-events:auto;background:rgba(14,16,28,0.97);border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:14px 16px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.6);backdrop-filter:blur(12px);';
-        card.innerHTML = '<div style="color:#a29bfe;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Lo-fi Player</div>'
-            + '<div id="lofi-station-name" style="color:white;font-size:0.92rem;font-weight:600;margin-bottom:12px;"></div>'
-            + '<div id="lofi-iframe-wrap" style="display:none;"></div>'
-            + '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;">'
-            + '<button onclick="window._lofiPrev()" style="background:rgba(255,255,255,0.06);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-skip-back"></i></button>'
-            + '<button id="lofi-play-btn" onclick="window._lofiTogglePlay()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-play"></i></button>'
-            + '<button onclick="window._lofiNext()" style="background:rgba(255,255,255,0.06);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-skip-forward"></i></button>'
-            + '</div>'
-            + '<div style="display:flex;align-items:center;gap:8px;">'
-            + '<i class="ph ph-speaker-low" style="color:var(--text-muted);font-size:0.9rem;"></i>'
-            + '<input id="lofi-volume" type="range" min="0" max="100" value="70" style="flex:1;accent-color:#6C5CE7;cursor:pointer;">'
-            + '<i class="ph ph-speaker-high" style="color:var(--text-muted);font-size:0.9rem;"></i>'
-            + '</div>';
-
-        wrap.appendChild(card);
-        wrap.appendChild(toggleBtn);
-        document.body.appendChild(wrap);
-        _updateStationName();
+    // ─── YouTube IFrame API ──────────────────────────────────────────
+    // Hidden, audio-only host that lives on <body> so music keeps playing
+    // even when the modal is closed. Must exist before new YT.Player('lofi-yt').
+    function _ensureHost() {
+        if (document.getElementById('lofi-yt-host')) return;
+        var host = document.createElement('div');
+        host.id = 'lofi-yt-host';
+        host.style.cssText = 'position:fixed;width:1px;height:1px;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+        var inner = document.createElement('div');
+        inner.id = 'lofi-yt';
+        host.appendChild(inner);
+        document.body.appendChild(host);
     }
 
-    function _toggleLofi() {
-        _lofiOpen = !_lofiOpen;
-        var card = document.getElementById('lofi-player-card');
-        if (!card) return;
-        card.style.display = _lofiOpen ? 'block' : 'none';
-        if (_lofiOpen && !_lofiPlaying) _lofiPlay();
+    function _ensureApi(cb) {
+        _ensureHost(); // always — the API may already be loaded (ambient sounds load it)
+        if (window.YT && window.YT.Player) { cb(); return; }
+        var prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function() {
+            if (typeof prev === 'function') { try { prev(); } catch (e) {} }
+            cb();
+        };
+        if (_apiLoading) return;
+        _apiLoading = true;
+        if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+            var tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(tag);
+        }
     }
 
-    function _updateStationName() {
-        var el = document.getElementById('lofi-station-name');
-        if (el) el.textContent = LOFI_STATIONS[_lofiStation].name;
-    }
-
-    function _lofiPlay() {
-        _lofiPlaying = true;
-        _lofiMuted = false;
-        var wrap = document.getElementById('lofi-iframe-wrap');
-        if (!wrap) return;
-        var vid = LOFI_STATIONS[_lofiStation].id;
-        var vol = parseInt((document.getElementById('lofi-volume') || {}).value || 70);
-        // enablejsapi=1 required for postMessage volume control
-        wrap.innerHTML = '<iframe id="lofi-iframe" width="1" height="1" src="https://www.youtube.com/embed/' + vid + '?autoplay=1&mute=0&enablejsapi=1&origin=' + encodeURIComponent(location.origin) + '" frameborder="0" allow="autoplay" style="opacity:0;position:absolute;pointer-events:none;"></iframe>';
-        var btn = document.getElementById('lofi-play-btn');
-        if (btn) btn.innerHTML = '<i class="ph ph-pause"></i>';
-        // Once iframe loads, apply the current volume
-        var iframeEl = wrap.querySelector('iframe');
-        if (iframeEl) {
-            iframeEl.addEventListener('load', function() {
-                _lofiSendVolume(vol);
+    function _createPlayer() {
+        _ensureApi(function() {
+            if (_player) { _startCurrent(); return; }
+            _player = new YT.Player('lofi-yt', {
+                height: '1', width: '1',
+                videoId: LOFI_STATIONS[_station].id,
+                playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, playsinline: 1 },
+                events: {
+                    onReady: function(e) {
+                        e.target.setVolume(_volume);
+                        if (_wantPlay) e.target.playVideo();
+                    },
+                    onStateChange: function(e) {
+                        if (e.data === YT.PlayerState.PLAYING) { _playing = true; _errSkips = 0; }
+                        else if (e.data === YT.PlayerState.PAUSED) { _playing = false; }
+                        else if (e.data === YT.PlayerState.ENDED) { _next(); } // live edge dropped → advance
+                        _syncUI();
+                    },
+                    onError: function() { _onStreamError(); }
+                }
             });
-        }
-        // Also wire the volume slider now that iframe exists
-        var slider = document.getElementById('lofi-volume');
-        if (slider) {
-            slider.oninput = function() { _lofiSendVolume(parseInt(this.value)); };
-        }
+        });
     }
 
-    function _lofiSendVolume(vol) {
-        var iframe = document.getElementById('lofi-iframe');
-        if (!iframe || !iframe.contentWindow) return;
-        // YouTube postMessage API — requires enablejsapi=1
+    function _startCurrent() {
+        if (!_player) { _createPlayer(); return; }
         try {
-            iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'setVolume', args: [vol] }), '*');
-        } catch(e) {}
+            _player.loadVideoById(LOFI_STATIONS[_station].id); // autoplays
+            _player.setVolume(_volume);
+        } catch (e) {}
     }
 
-    window._lofiTogglePlay = function() {
-        if (_lofiPlaying) {
-            var iframe = document.getElementById('lofi-iframe');
-            if (iframe) {
-                _lofiMuted = !_lofiMuted;
-                try {
-                    iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: _lofiMuted ? 'mute' : 'unMute', args: [] }), '*');
-                } catch(e) {}
-                var btn = document.getElementById('lofi-play-btn');
-                if (btn) btn.innerHTML = _lofiMuted ? '<i class="ph ph-play"></i>' : '<i class="ph ph-pause"></i>';
-            }
-        } else {
-            _lofiPlay();
+    function _onStreamError() {
+        _errSkips++;
+        _setStatus('“' + LOFI_STATIONS[_station].name + '” is unavailable — skipping…');
+        if (_errSkips >= LOFI_STATIONS.length) {
+            _errSkips = 0;
+            _pause();
+            _setStatus('All stations are unreachable right now. Try again later.');
+            return;
         }
-    };
-
-    window._lofiPrev = function() {
-        _lofiStation = (_lofiStation - 1 + LOFI_STATIONS.length) % LOFI_STATIONS.length;
-        _updateStationName();
-        if (_lofiPlaying) _lofiPlay();
-    };
-
-    window._lofiNext = function() {
-        _lofiStation = (_lofiStation + 1) % LOFI_STATIONS.length;
-        _updateStationName();
-        if (_lofiPlaying) _lofiPlay();
-    };
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', _buildPlayer);
-    } else {
-        _buildPlayer();
+        _setIndex((_station + 1) % LOFI_STATIONS.length);
+        if (_playing || _wantPlay) _startCurrent();
     }
+
+    // ─── playback controls ───────────────────────────────────────────
+    function _play()  { _wantPlay = true;  _playing = true;  if (!_player) _createPlayer(); else _startCurrent(); _syncUI(); }
+    function _pause() { _wantPlay = false; _playing = false; if (_player) { try { _player.pauseVideo(); } catch (e) {} } _syncUI(); }
+    function _toggle(){ _playing ? _pause() : _play(); }
+
+    function _setIndex(i) {
+        _station = ((i % LOFI_STATIONS.length) + LOFI_STATIONS.length) % LOFI_STATIONS.length;
+        localStorage.setItem('lofi_station', _station);
+        _syncUI();
+    }
+    function _pick(i) { _setIndex(i); _play(); }                 // clicking a station plays it
+    function _prev()  { _setIndex(_station - 1); if (_playing || _wantPlay) _startCurrent(); }
+    function _next()  { _setIndex(_station + 1); if (_playing || _wantPlay) _startCurrent(); }
+
+    function _setVolume(v) {
+        _volume = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+        localStorage.setItem('lofi_volume', _volume);
+        if (_player) { try { _player.setVolume(_volume); } catch (e) {} }
+    }
+
+    // ─── sleep timer ─────────────────────────────────────────────────
+    function _setSleep(min) {
+        if (_sleepTimer) { clearTimeout(_sleepTimer); _sleepTimer = null; }
+        if (_sleepTick)  { clearInterval(_sleepTick); _sleepTick = null; }
+        _sleepMin = min;
+        if (min > 0) {
+            _sleepDeadline = Date.now() + min * 60000;
+            _sleepTimer = setTimeout(function () {
+                _pause(); _setSleep(0); _setStatus('Sleep timer ended — music stopped.');
+            }, min * 60000);
+            _sleepTick = setInterval(_updateSleepLabel, 1000);
+        }
+        _syncUI();
+        _updateSleepLabel();
+    }
+
+    // ─── UI ──────────────────────────────────────────────────────────
+    function _buildModal() {
+        if (document.getElementById('lofi-modal')) return;
+        var modal = document.createElement('div');
+        modal.id = 'lofi-modal';
+        modal.className = 'modal hidden';
+        modal.innerHTML =
+            '<div class="modal-content glass-panel" style="max-width:440px;width:94%;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+          +   '<div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--glass-border);">'
+          +     '<h2 style="margin:0;font-size:1.25rem;"><i class="ph ph-music-notes" style="color:#a29bfe;"></i> Lo-fi Player</h2>'
+          +     '<button class="btn-icon" onclick="closeLofiPlayer()"><i class="ph ph-x"></i></button>'
+          +   '</div>'
+          +   '<div style="padding:20px 22px;">'
+          +     '<div style="text-align:center;margin-bottom:18px;">'
+          +       '<div style="width:88px;height:88px;margin:0 auto 14px;border-radius:18px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(108,92,231,0.45);"><i class="ph ph-vinyl-record" id="lofi-disc" style="font-size:2.6rem;color:white;"></i></div>'
+          +       '<div id="lofi-np-name" style="color:white;font-size:1.05rem;font-weight:700;"></div>'
+          +       '<div id="lofi-np-genre" style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;"></div>'
+          +       '<div id="lofi-status" style="color:#fdcb6e;font-size:0.76rem;margin-top:8px;min-height:1em;"></div>'
+          +     '</div>'
+          +     '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px;">'
+          +       '<button onclick="window._lofiPrev()" title="Previous station" style="background:rgba(255,255,255,0.06);border:none;color:white;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-skip-back"></i></button>'
+          +       '<button id="lofi-play-btn" onclick="window._lofiTogglePlay()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;width:58px;height:58px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 6px 20px rgba(108,92,231,0.5);"><i class="ph ph-play"></i></button>'
+          +       '<button onclick="window._lofiNext()" title="Next station" style="background:rgba(255,255,255,0.06);border:none;color:white;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-skip-forward"></i></button>'
+          +     '</div>'
+          +     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">'
+          +       '<i class="ph ph-speaker-low" style="color:var(--text-muted);"></i>'
+          +       '<input id="lofi-volume" type="range" min="0" max="100" value="' + _volume + '" oninput="window._lofiVol(this.value)" style="flex:1;accent-color:#6C5CE7;cursor:pointer;">'
+          +       '<i class="ph ph-speaker-high" style="color:var(--text-muted);"></i>'
+          +     '</div>'
+          +     '<div style="margin-bottom:18px;">'
+          +       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="color:var(--text-muted);font-size:0.78rem;font-weight:600;letter-spacing:0.5px;"><i class="ph ph-moon-stars"></i> SLEEP TIMER</span><span id="lofi-sleep-label" style="color:#a29bfe;font-size:0.78rem;"></span></div>'
+          +       '<div id="lofi-sleep-row" style="display:flex;gap:6px;">'
+          +         '<button data-min="0"  onclick="window._lofiSleep(0)"  class="lofi-sleep-btn" style="flex:1;">Off</button>'
+          +         '<button data-min="25" onclick="window._lofiSleep(25)" class="lofi-sleep-btn" style="flex:1;">25m</button>'
+          +         '<button data-min="45" onclick="window._lofiSleep(45)" class="lofi-sleep-btn" style="flex:1;">45m</button>'
+          +         '<button data-min="60" onclick="window._lofiSleep(60)" class="lofi-sleep-btn" style="flex:1;">60m</button>'
+          +       '</div>'
+          +     '</div>'
+          +     '<div style="color:var(--text-muted);font-size:0.78rem;font-weight:600;letter-spacing:0.5px;margin-bottom:8px;"><i class="ph ph-radio"></i> STATIONS</div>'
+          +     '<div id="lofi-station-list" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>'
+          +   '</div>'
+          + '</div>';
+        document.body.appendChild(modal);
+
+        // close on backdrop click
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeLofiPlayer(); });
+
+        // sleep-button + station-row styling injected once
+        if (!document.getElementById('lofi-style')) {
+            var st = document.createElement('style');
+            st.id = 'lofi-style';
+            st.textContent =
+                '.lofi-sleep-btn{background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-muted);border-radius:8px;padding:7px 0;cursor:pointer;font-size:0.8rem;transition:all .15s;}'
+              + '.lofi-sleep-btn:hover{border-color:rgba(108,92,231,0.6);color:white;}'
+              + '.lofi-sleep-btn.active{background:linear-gradient(135deg,#6C5CE7,#00CEC9);border-color:transparent;color:white;}'
+              + '.lofi-station-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .15s;}'
+              + '.lofi-station-row:hover{border-color:rgba(108,92,231,0.6);background:rgba(108,92,231,0.08);}'
+              + '.lofi-station-row.active{border-color:#6C5CE7;background:rgba(108,92,231,0.15);}'
+              + '#lofi-disc.spin{animation:spin 4s linear infinite;}';
+            document.head.appendChild(st);
+        }
+        _renderStations();
+        _syncUI();
+    }
+
+    function _renderStations() {
+        var list = document.getElementById('lofi-station-list');
+        if (!list) return;
+        list.innerHTML = LOFI_STATIONS.map(function (s, i) {
+            return '<div class="lofi-station-row' + (i === _station ? ' active' : '') + '" onclick="window._lofiPick(' + i + ')">'
+                 +   '<i class="ph ' + (i === _station && _playing ? 'ph-speaker-high' : 'ph-music-note') + '" style="color:#a29bfe;font-size:1.1rem;"></i>'
+                 +   '<div style="flex:1;"><div style="color:white;font-size:0.9rem;font-weight:600;">' + s.name + '</div>'
+                 +     '<div style="color:var(--text-muted);font-size:0.74rem;">' + s.genre + '</div></div>'
+                 +   (i === _station ? '<i class="ph ph-check-circle" style="color:#00CEC9;"></i>' : '')
+                 + '</div>';
+        }).join('');
+    }
+
+    function _setStatus(msg) {
+        var el = document.getElementById('lofi-status');
+        if (el) el.textContent = msg || '';
+    }
+
+    function _updateSleepLabel() {
+        var el = document.getElementById('lofi-sleep-label');
+        if (!el) return;
+        if (_sleepMin <= 0) { el.textContent = ''; return; }
+        var left = Math.max(0, _sleepDeadline - Date.now());
+        var m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+        el.textContent = m + ':' + (s < 10 ? '0' : '') + s + ' left';
+    }
+
+    function _syncUI() {
+        var name = document.getElementById('lofi-np-name');
+        var genre = document.getElementById('lofi-np-genre');
+        var btn = document.getElementById('lofi-play-btn');
+        var disc = document.getElementById('lofi-disc');
+        if (name)  name.textContent = LOFI_STATIONS[_station].name;
+        if (genre) genre.textContent = LOFI_STATIONS[_station].genre;
+        if (btn)   btn.innerHTML = _playing ? '<i class="ph ph-pause"></i>' : '<i class="ph ph-play"></i>';
+        if (disc)  disc.className = 'ph ph-vinyl-record' + (_playing ? ' spin' : '');
+        var vol = document.getElementById('lofi-volume');
+        if (vol && document.activeElement !== vol) vol.value = _volume;
+        var rows = document.querySelectorAll('.lofi-sleep-btn');
+        rows.forEach(function (b) { b.classList.toggle('active', parseInt(b.getAttribute('data-min'), 10) === _sleepMin); });
+        _renderStations();
+        if (_playing) _setStatus('');
+    }
+
+    // ─── public API ──────────────────────────────────────────────────
+    window.openLofiPlayer = function () {
+        _buildModal();
+        var m = document.getElementById('lofi-modal');
+        if (m) m.classList.remove('hidden');
+        _syncUI();
+        _updateSleepLabel();
+    };
+    window.closeLofiPlayer = function () {
+        var m = document.getElementById('lofi-modal');
+        if (m) m.classList.add('hidden'); // music keeps playing — host lives on <body>
+    };
+    window.toggleLofiPlayer = function () {
+        var m = document.getElementById('lofi-modal');
+        if (m && !m.classList.contains('hidden')) window.closeLofiPlayer();
+        else window.openLofiPlayer();
+    };
+
+    window._lofiTogglePlay = _toggle;
+    window._lofiPrev = _prev;
+    window._lofiNext = _next;
+    window._lofiPick = _pick;
+    window._lofiVol = _setVolume;
+    window._lofiSleep = _setSleep;
 })();
 
 // ─── Companion personality dropdown init ────────────────────────────
