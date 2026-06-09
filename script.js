@@ -6987,7 +6987,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.1';
+const NEXUS_CURRENT_VERSION = 'v15.2';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15682,6 +15682,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v15.2',
+        date: 'June 8, 2026',
+        tag: 'UPDATE 15.2 — LO-FI THAT ACTUALLY PLAYS',
+        tagColor: '#a29bfe',
+        changes: [
+            'LO-FI PLAYER, DONE RIGHT — Reworked into a compact popover that pops out right next to the “Lo-fi Music” item in the sidebar (by Credits / Sign Out), instead of a big centered box. Click anywhere outside to close; the music keeps playing.',
+            'MUSIC ACTUALLY PLAYS NOW — Switched from fragile YouTube live streams (which kept dying to copyright takedowns) to stable looping lofi MIX videos: Lofi Girl mixes, the classic 1 A.M Study Session, Studio Ghibli lofi, late-night study beats, and more. Each loops automatically, and any video that blocks embedding is skipped.',
+            'Kept the good stuff — station picker, now-playing with spinning record, saved station + volume, and the 25/45/60-minute sleep timer.',
+        ]
+    },
+    {
         version: 'v15.1',
         date: 'June 8, 2026',
         tag: 'UPDATE 15.1 — LO-FI PLAYER REBUILT',
@@ -23974,23 +23985,24 @@ function resetPracticeTest() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// v15.1 — LO-FI MUSIC PLAYER (modal rebuild)
-//   • Centered modal instead of a floating card → no extra screen clutter
+// v15.2 — LO-FI MUSIC PLAYER (popover rebuild)
+//   • Compact popover anchored to the sidebar "Lo-fi Music" item
+//   • Regular looping MIX videos (not fragile live streams) via IFrame API
 //   • Station picker, now-playing, persistent station + volume, sleep timer
-//   • YouTube IFrame API for reliable playback + auto-skip on dead streams
+//   • Auto-skips any video that blocks embedding
 // ════════════════════════════════════════════════════════════════════
 (function() {
-    // 24/7 YouTube live streams. NOTE: live-stream IDs die when a channel gets a
-    // copyright strike or restarts (this is what killed the old "Lofi Girl" id
-    // jfKfPfyJRdk on 2026-05-19). The player auto-skips a dead station; to refresh
-    // one permanently, paste the new ?v= id from the stream's YouTube URL here.
+    // Regular YouTube MIX videos (NOT live streams) — these are stable: normal
+    // uploads keep the same id and don't restart like live streams do. Each loops
+    // when it ends. If a video ever blocks embedding, the player auto-skips it; to
+    // swap one, paste a new ?v= id from any lofi-mix video's YouTube URL below.
     var LOFI_STATIONS = [
-        { name: 'Lofi Hip Hop', genre: 'Classic lofi beats',  id: 'wkhLHTmS_GI' },
-        { name: 'Chillhop Café', genre: 'Jazzy chillhop',      id: 'eX0Y877z-wg' },
-        { name: 'Jazz Hop',      genre: 'Lo-fi jazz',          id: 'NmbWL1UICTE' },
-        { name: 'Chill Beats',   genre: 'JazzHop & hip hop',   id: 'jtj2EoswM7Y' },
-        { name: 'Synthwave',     genre: 'Retro synth waves',   id: '4xDzrJKXOOY' },
-        { name: 'Rain + Study',  genre: 'Rain ambience',       id: 'mPZkdNFkNps' }
+        { name: 'Lofi Hip Hop',  genre: 'Lofi Girl — mix pt.1', id: 'CFGLoQIhmow' },
+        { name: 'Lofi Hip Hop 2', genre: 'Lofi Girl — mix pt.2', id: '8b3fqIBrNW0' },
+        { name: 'Best of Lofi',  genre: 'Lofi Girl — 2025',     id: '7ccH8u8fj8Y' },
+        { name: '1 A.M Session', genre: 'Late-night lofi',      id: 'lTRiuFIWV54' },
+        { name: 'Ghibli Lofi',   genre: 'Studio Ghibli chill',  id: 'LMTGQqUUyzk' },
+        { name: 'Late Night',    genre: 'kainbeats study lofi',  id: 'nT0JtSBjV9k' }
     ];
 
     var _station = parseInt(localStorage.getItem('lofi_station') || '0', 10);
@@ -24051,7 +24063,7 @@ function resetPracticeTest() {
                     onStateChange: function(e) {
                         if (e.data === YT.PlayerState.PLAYING) { _playing = true; _errSkips = 0; }
                         else if (e.data === YT.PlayerState.PAUSED) { _playing = false; }
-                        else if (e.data === YT.PlayerState.ENDED) { _next(); } // live edge dropped → advance
+                        else if (e.data === YT.PlayerState.ENDED) { try { e.target.seekTo(0); e.target.playVideo(); } catch (er) {} } // loop the mix
                         _syncUI();
                     },
                     onError: function() { _onStreamError(); }
@@ -24117,62 +24129,59 @@ function resetPracticeTest() {
         _updateSleepLabel();
     }
 
-    // ─── UI ──────────────────────────────────────────────────────────
-    function _buildModal() {
-        if (document.getElementById('lofi-modal')) return;
-        var modal = document.createElement('div');
-        modal.id = 'lofi-modal';
-        modal.className = 'modal hidden';
-        modal.innerHTML =
-            '<div class="modal-content glass-panel" style="max-width:440px;width:94%;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
-          +   '<div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--glass-border);">'
-          +     '<h2 style="margin:0;font-size:1.25rem;"><i class="ph ph-music-notes" style="color:#a29bfe;"></i> Lo-fi Player</h2>'
-          +     '<button class="btn-icon" onclick="closeLofiPlayer()"><i class="ph ph-x"></i></button>'
+    // ─── UI (popover anchored to the sidebar "Lo-fi Music" item) ──────
+    function _buildPopover() {
+        if (document.getElementById('lofi-popover')) return;
+        var pop = document.createElement('div');
+        pop.id = 'lofi-popover';
+        pop.style.cssText = 'position:fixed;z-index:1000020;width:300px;max-width:calc(100vw - 24px);background:rgba(12,14,24,0.98);border:1px solid rgba(108,92,231,0.5);border-radius:16px;box-shadow:0 16px 50px rgba(0,0,0,0.7);backdrop-filter:blur(16px);display:none;overflow:hidden;';
+        pop.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--glass-border);">'
+          +   '<span style="color:#a29bfe;font-size:0.78rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;"><i class="ph-fill ph-music-notes"></i> Lo-fi Player</span>'
+          +   '<button onclick="closeLofiPlayer()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:2px;line-height:1;"><i class="ph ph-x"></i></button>'
+          + '</div>'
+          + '<div style="padding:14px 16px;">'
+          +   '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">'
+          +     '<div style="width:52px;height:52px;flex-shrink:0;border-radius:12px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(108,92,231,0.45);"><i class="ph ph-vinyl-record" id="lofi-disc" style="font-size:1.7rem;color:white;"></i></div>'
+          +     '<div style="min-width:0;flex:1;">'
+          +       '<div id="lofi-np-name" style="color:white;font-size:0.95rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>'
+          +       '<div id="lofi-np-genre" style="color:var(--text-muted);font-size:0.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>'
+          +       '<div id="lofi-status" style="color:#fdcb6e;font-size:0.72rem;margin-top:3px;min-height:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>'
+          +     '</div>'
           +   '</div>'
-          +   '<div style="padding:20px 22px;">'
-          +     '<div style="text-align:center;margin-bottom:18px;">'
-          +       '<div style="width:88px;height:88px;margin:0 auto 14px;border-radius:18px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(108,92,231,0.45);"><i class="ph ph-vinyl-record" id="lofi-disc" style="font-size:2.6rem;color:white;"></i></div>'
-          +       '<div id="lofi-np-name" style="color:white;font-size:1.05rem;font-weight:700;"></div>'
-          +       '<div id="lofi-np-genre" style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;"></div>'
-          +       '<div id="lofi-status" style="color:#fdcb6e;font-size:0.76rem;margin-top:8px;min-height:1em;"></div>'
-          +     '</div>'
-          +     '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px;">'
-          +       '<button onclick="window._lofiPrev()" title="Previous station" style="background:rgba(255,255,255,0.06);border:none;color:white;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-skip-back"></i></button>'
-          +       '<button id="lofi-play-btn" onclick="window._lofiTogglePlay()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;width:58px;height:58px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 6px 20px rgba(108,92,231,0.5);"><i class="ph ph-play"></i></button>'
-          +       '<button onclick="window._lofiNext()" title="Next station" style="background:rgba(255,255,255,0.06);border:none;color:white;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-skip-forward"></i></button>'
-          +     '</div>'
-          +     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">'
-          +       '<i class="ph ph-speaker-low" style="color:var(--text-muted);"></i>'
-          +       '<input id="lofi-volume" type="range" min="0" max="100" value="' + _volume + '" oninput="window._lofiVol(this.value)" style="flex:1;accent-color:#6C5CE7;cursor:pointer;">'
-          +       '<i class="ph ph-speaker-high" style="color:var(--text-muted);"></i>'
-          +     '</div>'
-          +     '<div style="margin-bottom:18px;">'
-          +       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="color:var(--text-muted);font-size:0.78rem;font-weight:600;letter-spacing:0.5px;"><i class="ph ph-moon-stars"></i> SLEEP TIMER</span><span id="lofi-sleep-label" style="color:#a29bfe;font-size:0.78rem;"></span></div>'
-          +       '<div id="lofi-sleep-row" style="display:flex;gap:6px;">'
-          +         '<button data-min="0"  onclick="window._lofiSleep(0)"  class="lofi-sleep-btn" style="flex:1;">Off</button>'
-          +         '<button data-min="25" onclick="window._lofiSleep(25)" class="lofi-sleep-btn" style="flex:1;">25m</button>'
-          +         '<button data-min="45" onclick="window._lofiSleep(45)" class="lofi-sleep-btn" style="flex:1;">45m</button>'
-          +         '<button data-min="60" onclick="window._lofiSleep(60)" class="lofi-sleep-btn" style="flex:1;">60m</button>'
-          +       '</div>'
-          +     '</div>'
-          +     '<div style="color:var(--text-muted);font-size:0.78rem;font-weight:600;letter-spacing:0.5px;margin-bottom:8px;"><i class="ph ph-radio"></i> STATIONS</div>'
-          +     '<div id="lofi-station-list" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>'
+          +   '<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;">'
+          +     '<button onclick="window._lofiPrev()" title="Previous" style="background:rgba(255,255,255,0.06);border:none;color:white;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-skip-back"></i></button>'
+          +     '<button id="lofi-play-btn" onclick="window._lofiTogglePlay()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 6px 18px rgba(108,92,231,0.5);"><i class="ph ph-play"></i></button>'
+          +     '<button onclick="window._lofiNext()" title="Next" style="background:rgba(255,255,255,0.06);border:none;color:white;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-skip-forward"></i></button>'
           +   '</div>'
+          +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">'
+          +     '<i class="ph ph-speaker-low" style="color:var(--text-muted);font-size:0.9rem;"></i>'
+          +     '<input id="lofi-volume" type="range" min="0" max="100" value="' + _volume + '" oninput="window._lofiVol(this.value)" style="flex:1;accent-color:#6C5CE7;cursor:pointer;">'
+          +     '<i class="ph ph-speaker-high" style="color:var(--text-muted);font-size:0.9rem;"></i>'
+          +   '</div>'
+          +   '<div style="margin-bottom:14px;">'
+          +     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;"><span style="color:var(--text-muted);font-size:0.72rem;font-weight:600;letter-spacing:0.5px;"><i class="ph ph-moon-stars"></i> SLEEP</span><span id="lofi-sleep-label" style="color:#a29bfe;font-size:0.72rem;"></span></div>'
+          +     '<div id="lofi-sleep-row" style="display:flex;gap:5px;">'
+          +       '<button data-min="0"  onclick="window._lofiSleep(0)"  class="lofi-sleep-btn" style="flex:1;">Off</button>'
+          +       '<button data-min="25" onclick="window._lofiSleep(25)" class="lofi-sleep-btn" style="flex:1;">25m</button>'
+          +       '<button data-min="45" onclick="window._lofiSleep(45)" class="lofi-sleep-btn" style="flex:1;">45m</button>'
+          +       '<button data-min="60" onclick="window._lofiSleep(60)" class="lofi-sleep-btn" style="flex:1;">60m</button>'
+          +     '</div>'
+          +   '</div>'
+          +   '<div style="color:var(--text-muted);font-size:0.72rem;font-weight:600;letter-spacing:0.5px;margin-bottom:7px;"><i class="ph ph-playlist"></i> STATIONS</div>'
+          +   '<div id="lofi-station-list" style="display:flex;flex-direction:column;gap:5px;max-height:150px;overflow-y:auto;"></div>'
           + '</div>';
-        document.body.appendChild(modal);
-
-        // close on backdrop click
-        modal.addEventListener('click', function (e) { if (e.target === modal) closeLofiPlayer(); });
+        document.body.appendChild(pop);
 
         // sleep-button + station-row styling injected once
         if (!document.getElementById('lofi-style')) {
             var st = document.createElement('style');
             st.id = 'lofi-style';
             st.textContent =
-                '.lofi-sleep-btn{background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-muted);border-radius:8px;padding:7px 0;cursor:pointer;font-size:0.8rem;transition:all .15s;}'
+                '.lofi-sleep-btn{background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:var(--text-muted);border-radius:7px;padding:6px 0;cursor:pointer;font-size:0.76rem;transition:all .15s;}'
               + '.lofi-sleep-btn:hover{border-color:rgba(108,92,231,0.6);color:white;}'
               + '.lofi-sleep-btn.active{background:linear-gradient(135deg,#6C5CE7,#00CEC9);border-color:transparent;color:white;}'
-              + '.lofi-station-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .15s;}'
+              + '.lofi-station-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);cursor:pointer;transition:all .15s;}'
               + '.lofi-station-row:hover{border-color:rgba(108,92,231,0.6);background:rgba(108,92,231,0.08);}'
               + '.lofi-station-row.active{border-color:#6C5CE7;background:rgba(108,92,231,0.15);}'
               + '#lofi-disc.spin{animation:spin 4s linear infinite;}';
@@ -24180,6 +24189,29 @@ function resetPracticeTest() {
         }
         _renderStations();
         _syncUI();
+    }
+
+    // Anchor the popover next to the sidebar "Lo-fi Music" item, popping upward.
+    function _positionPopover() {
+        var pop = document.getElementById('lofi-popover');
+        if (!pop || pop.style.display === 'none') return;
+        var pw = pop.offsetWidth, ph = pop.offsetHeight;
+        var item = document.getElementById('lofi-menu-item');
+        var left, top;
+        if (item) {
+            var r = item.getBoundingClientRect();
+            left = r.right + 10;                 // to the right of the sidebar
+            top  = r.bottom - ph;                // align bottoms (grows upward)
+            if (left + pw > window.innerWidth - 8) left = r.left - pw - 10; // flip if no room
+        } else {
+            left = 16; top = window.innerHeight - ph - 80;
+        }
+        if (left < 8) left = 8;
+        if (top < 8) top = 8;
+        if (top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
+        pop.style.bottom = 'auto';
     }
 
     function _renderStations() {
@@ -24227,20 +24259,35 @@ function resetPracticeTest() {
     }
 
     // ─── public API ──────────────────────────────────────────────────
+    var _popOpen = false;
+    function _onDocClick(e) {
+        var pop = document.getElementById('lofi-popover');
+        var item = document.getElementById('lofi-menu-item');
+        if (!pop) return;
+        if (pop.contains(e.target)) return;          // click inside the player
+        if (item && item.contains(e.target)) return; // the sidebar item handles its own toggle
+        window.closeLofiPlayer();
+    }
     window.openLofiPlayer = function () {
-        _buildModal();
-        var m = document.getElementById('lofi-modal');
-        if (m) m.classList.remove('hidden');
+        _buildPopover();
+        var pop = document.getElementById('lofi-popover');
+        if (pop) pop.style.display = 'block';
+        _popOpen = true;
+        _positionPopover();
         _syncUI();
         _updateSleepLabel();
+        setTimeout(function () { document.addEventListener('click', _onDocClick, true); }, 0);
+        window.addEventListener('resize', _positionPopover);
     };
     window.closeLofiPlayer = function () {
-        var m = document.getElementById('lofi-modal');
-        if (m) m.classList.add('hidden'); // music keeps playing — host lives on <body>
+        var pop = document.getElementById('lofi-popover');
+        if (pop) pop.style.display = 'none'; // music keeps playing — host lives on <body>
+        _popOpen = false;
+        document.removeEventListener('click', _onDocClick, true);
+        window.removeEventListener('resize', _positionPopover);
     };
     window.toggleLofiPlayer = function () {
-        var m = document.getElementById('lofi-modal');
-        if (m && !m.classList.contains('hidden')) window.closeLofiPlayer();
+        if (_popOpen) window.closeLofiPlayer();
         else window.openLofiPlayer();
     };
 
