@@ -6987,7 +6987,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.2';
+const NEXUS_CURRENT_VERSION = 'v15.3';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15682,6 +15682,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v15.3',
+        date: 'June 9, 2026',
+        tag: 'UPDATE 15.3 — LO-FI STATIONS & SKIP SONG',
+        tagColor: '#a29bfe',
+        changes: [
+            'NEW STATION LINEUP — Brought back genre variety like the old v15 stations, now on stable mix videos: Lofi Hip Hop, Chillhop, Jazz Hop (Nujabes-era), Synthwave, Rain + Study, and a Late-night 1 A.M session.',
+            'SKIP SONG BUTTON — Since each station is a long continuous mix, the new “Skip song” button jumps ~2 minutes ahead to land on roughly the next track — without leaving the station. (Prev/Next still switch stations.)',
+        ]
+    },
+    {
         version: 'v15.2',
         date: 'June 8, 2026',
         tag: 'UPDATE 15.2 — LO-FI THAT ACTUALLY PLAYS',
@@ -23994,15 +24004,15 @@ function resetPracticeTest() {
 (function() {
     // Regular YouTube MIX videos (NOT live streams) — these are stable: normal
     // uploads keep the same id and don't restart like live streams do. Each loops
-    // when it ends. If a video ever blocks embedding, the player auto-skips it; to
-    // swap one, paste a new ?v= id from any lofi-mix video's YouTube URL below.
+    // when it ends. Genre variety like the old v15 stations. If a video ever blocks
+    // embedding the player auto-skips it; to swap one, paste a new ?v= id below.
     var LOFI_STATIONS = [
-        { name: 'Lofi Hip Hop',  genre: 'Lofi Girl — mix pt.1', id: 'CFGLoQIhmow' },
-        { name: 'Lofi Hip Hop 2', genre: 'Lofi Girl — mix pt.2', id: '8b3fqIBrNW0' },
-        { name: 'Best of Lofi',  genre: 'Lofi Girl — 2025',     id: '7ccH8u8fj8Y' },
-        { name: '1 A.M Session', genre: 'Late-night lofi',      id: 'lTRiuFIWV54' },
-        { name: 'Ghibli Lofi',   genre: 'Studio Ghibli chill',  id: 'LMTGQqUUyzk' },
-        { name: 'Late Night',    genre: 'kainbeats study lofi',  id: 'nT0JtSBjV9k' }
+        { name: 'Lofi Hip Hop', genre: 'Lofi Girl mix',       id: 'CFGLoQIhmow' },
+        { name: 'Chillhop',     genre: 'Jazzy chillhop beats', id: 'Liv0MXUPiqo' },
+        { name: 'Jazz Hop',     genre: 'Nujabes-era jazzhop',  id: 'Z0veIEk4OEE' },
+        { name: 'Synthwave',    genre: 'Dreamy retro synth',   id: '8sPfeUXPZxU' },
+        { name: 'Rain + Study', genre: '90s lofi + rain',      id: 'sF80I-TQiW0' },
+        { name: '1 A.M Session', genre: 'Late-night lofi',     id: 'lTRiuFIWV54' }
     ];
 
     var _station = parseInt(localStorage.getItem('lofi_station') || '0', 10);
@@ -24107,6 +24117,21 @@ function resetPracticeTest() {
     function _prev()  { _setIndex(_station - 1); if (_playing || _wantPlay) _startCurrent(); }
     function _next()  { _setIndex(_station + 1); if (_playing || _wantPlay) _startCurrent(); }
 
+    // "Skip song" — these stations are long mixes with no per-track data, so skip
+    // jumps ~2 min ahead (about one lofi track) to land on roughly the next song.
+    var SKIP_SECONDS = 140;
+    function _skipSong() {
+        if (!_player || typeof _player.getCurrentTime !== 'function') { _play(); return; }
+        try {
+            var t = _player.getCurrentTime() + SKIP_SECONDS;
+            var d = (typeof _player.getDuration === 'function') ? _player.getDuration() : 0;
+            if (d && t >= d - 2) { _player.seekTo(0, true); }   // past the end → loop the mix
+            else { _player.seekTo(t, true); }
+            if (!_playing) _play();
+            _setStatus('Skipped ~' + Math.round(SKIP_SECONDS / 60) + ' min ahead');
+        } catch (e) {}
+    }
+
     function _setVolume(v) {
         _volume = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
         localStorage.setItem('lofi_volume', _volume);
@@ -24149,11 +24174,12 @@ function resetPracticeTest() {
           +       '<div id="lofi-status" style="color:#fdcb6e;font-size:0.72rem;margin-top:3px;min-height:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>'
           +     '</div>'
           +   '</div>'
-          +   '<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;">'
-          +     '<button onclick="window._lofiPrev()" title="Previous" style="background:rgba(255,255,255,0.06);border:none;color:white;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-skip-back"></i></button>'
+          +   '<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px;">'
+          +     '<button onclick="window._lofiPrev()" title="Previous station" style="background:rgba(255,255,255,0.06);border:none;color:white;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-skip-back"></i></button>'
           +     '<button id="lofi-play-btn" onclick="window._lofiTogglePlay()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;width:50px;height:50px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 6px 18px rgba(108,92,231,0.5);"><i class="ph ph-play"></i></button>'
-          +     '<button onclick="window._lofiNext()" title="Next" style="background:rgba(255,255,255,0.06);border:none;color:white;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-skip-forward"></i></button>'
+          +     '<button onclick="window._lofiNext()" title="Next station" style="background:rgba(255,255,255,0.06);border:none;color:white;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-skip-forward"></i></button>'
           +   '</div>'
+          +   '<button onclick="window._lofiSkip()" title="Jump ~2 min ahead to the next song in this mix" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);color:#a29bfe;border-radius:9px;padding:8px;cursor:pointer;font-size:0.8rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px;"><i class="ph ph-fast-forward"></i> Skip song</button>'
           +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">'
           +     '<i class="ph ph-speaker-low" style="color:var(--text-muted);font-size:0.9rem;"></i>'
           +     '<input id="lofi-volume" type="range" min="0" max="100" value="' + _volume + '" oninput="window._lofiVol(this.value)" style="flex:1;accent-color:#6C5CE7;cursor:pointer;">'
@@ -24294,6 +24320,7 @@ function resetPracticeTest() {
     window._lofiTogglePlay = _toggle;
     window._lofiPrev = _prev;
     window._lofiNext = _next;
+    window._lofiSkip = _skipSong;
     window._lofiPick = _pick;
     window._lofiVol = _setVolume;
     window._lofiSleep = _setSleep;
