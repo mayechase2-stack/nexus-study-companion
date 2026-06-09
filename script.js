@@ -134,6 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.querySelector('.main-content');
     if (sidebar && mainContent) {
         sidebar.addEventListener('wheel', (e) => {
+            // If the cursor is over the nav list and it actually overflows, let it
+            // scroll itself — otherwise the nav gets stuck and you can't reach the
+            // lower tabs on short screens.
+            const nav = e.target.closest('.nav-links');
+            if (nav && nav.scrollHeight > nav.clientHeight + 1) return; // native nav scroll
             e.preventDefault();
             // Mirror the exact scroll the browser would apply to mainContent:
             // deltaMode 0=px (most mice), 1=lines (~32px each), 2=page
@@ -6987,7 +6992,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.3';
+const NEXUS_CURRENT_VERSION = 'v15.4';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15681,6 +15686,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v15.4',
+        date: 'June 9, 2026',
+        tag: 'UPDATE 15.4 — SCROLL FIX & LAPTOP LAYOUT',
+        tagColor: '#00CEC9',
+        changes: [
+            'FIXED SIDEBAR SCROLLING — The mouse wheel used to be hijacked so the sidebar nav could never scroll, leaving you stuck on the top tabs (Command Center, etc.) on shorter screens. Now the nav scrolls normally when it overflows, so you can reach every tab and the scrollbar tracks your wheel.',
+            'LESS CLUTTER ON LAPTOPS — The compact layout (slimmer sidebar, tighter spacing, smaller headings) now kicks in for screens up to 1536px wide, so 13–14" laptops get room to breathe instead of everything feeling oversized.',
+        ]
+    },
     {
         version: 'v15.3',
         date: 'June 9, 2026',

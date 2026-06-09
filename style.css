@@ -2315,7 +2315,7 @@ html { scroll-behavior: smooth; }
 }
 
 /* Laptop / tablet: <= 1280px — tighten sidebar, breathe out content */
-@media (max-width: 1280px) {
+@media (max-width: 1536px) {
     .sidebar {
         width: 200px;
         padding: 1.25rem 1rem;
