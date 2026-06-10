@@ -14454,18 +14454,17 @@ function loadTimelineTemplate(template) {
 // ============================================================
 
 function switchNotebookTab(tab) {
-    // Update tab buttons
-    document.querySelectorAll('#notes-tab, #canvas-tab').forEach(btn => btn.classList.remove('active'));
-    if (tab === 'notes') {
-        document.getElementById('notes-tab').classList.add('active');
-        document.getElementById('notebook-notes-section').style.display = 'block';
-        document.getElementById('notebook-canvas-section').style.display = 'none';
-    } else {
-        document.getElementById('canvas-tab').classList.add('active');
-        document.getElementById('notebook-notes-section').style.display = 'none';
-        document.getElementById('notebook-canvas-section').style.display = 'block';
-        initDrawingCanvas();
-    }
+    // v16.0 — notebook now hosts Notes, Drawing Canvas, Quiz Gen, and Flashcards
+    var tabs = { notes:'notes-tab', canvas:'canvas-tab', quiz:'quiz-tab', cards:'cards-tab' };
+    var secs = { notes:'notebook-notes-section', canvas:'notebook-canvas-section', quiz:'notebook-quiz-section', cards:'notebook-cards-section' };
+    if (!tabs[tab]) tab = 'notes';
+    Object.keys(tabs).forEach(function(k){ var b=document.getElementById(tabs[k]); if(b) b.classList.remove('active'); });
+    Object.keys(secs).forEach(function(k){ var s=document.getElementById(secs[k]); if(s) s.style.display='none'; });
+    var btn = document.getElementById(tabs[tab]); if (btn) btn.classList.add('active');
+    var sec = document.getElementById(secs[tab]); if (sec) sec.style.display = 'block';
+    if (tab === 'canvas') { initDrawingCanvas(); }
+    else if (tab === 'quiz' && typeof renderQuizGen === 'function') { renderQuizGen(); }
+    else if (tab === 'cards' && typeof renderSrsHomePanel === 'function') { renderSrsHomePanel(); }
 }
 
 function toggleDrawingMode() {
@@ -23285,12 +23284,12 @@ where "correct" is the 0-based index of the right answer. No commentary, just JS
         _quizGenScore     = 0;
         _quizGenAnswers   = [];
 
-        // Close the quick modal and open study tools with the quiz
+        // Close the quick modal and open the Notebook's Quiz Gen tab with the quiz
         const modal = document.getElementById('quick-quiz-modal');
         if (modal) modal.remove();
-        switchTab('tools');
+        switchTab('notebook');
         setTimeout(() => {
-            switchToolsTab('quizgen');
+            switchNotebookTab('quiz');
             const panel = document.getElementById('quizgen-panel');
             if (panel) renderQuizGenQuestion(panel);
             logStudyEvent('study', `${subject} quiz — ${count} questions`);
@@ -23578,7 +23577,7 @@ function renderStudyHistoryChart(canvasId) {
         _orig(tabId);
         if(tabId==='homework') setTimeout(renderHomework,80);
         if(tabId==='grades')   setTimeout(renderGradeCalc,80);
-        if(tabId==='tools')    setTimeout(function(){switchToolsTab(_activeToolsTab||'quizgen');},80);
+        if(tabId==='dashboard'||tabId==='home') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); },120);
         if(tabId==='profile')  setTimeout(renderBetterProfile,80);
     };
 })();
