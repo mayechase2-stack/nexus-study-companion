@@ -2529,8 +2529,10 @@ Format: clean HTML only (<strong>, <ul><li>, <br>, etc.). No markdown asterisks.
         history.push({ role: 'assistant', content: answer });
         window._tutorHistory = history;
 
+        // Reset the bubble from its flex "spinner" layout to a normal block reply —
+        // otherwise the answer's <ul>/<li> render as flex items in a tiny 1-word column.
+        loadBubble.style.cssText = 'background:rgba(10,12,22,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:0.85rem;color:#dde0ee;line-height:1.55;align-self:flex-start;max-width:85%;word-break:break-word;overflow-wrap:anywhere;';
         loadBubble.innerHTML = cleaned;
-        loadBubble.style.color = '#dde0ee';
         chat.scrollTop = chat.scrollHeight;
         logStudyEvent('study', `Tutor: ${resolvedSubject}${resolvedTopic ? ' — ' + resolvedTopic : ''}: ${question.substring(0,60)}`);
     } catch (err) {
@@ -10684,21 +10686,18 @@ function saveManualFlashcardDeck() {
     renderFlashcardsList(deck.id);
 }
 
-// AI Generate panel — user picks limit, we generate from recent history
+// AI Generate panel — give a topic/subject, or leave blank to use recent history
 async function openFlashcardAIGenerate() {
     const content = document.getElementById('flashcards-content');
     if (!content) return;
-    const history = JSON.parse(localStorage.getItem('user_history') || '[]').slice(0, 20);
-    if (history.length === 0) {
-        content.innerHTML = `
-            <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.9rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
-            <p style="color:var(--text-muted);text-align:center;padding:24px;">No history yet. Complete some study sessions first!</p>`;
-        return;
-    }
+    const histCount = JSON.parse(localStorage.getItem('user_history') || '[]').length;
     content.innerHTML = `
         <button class="btn-secondary" onclick="renderFlashcardsList()" style="font-size:0.9rem;margin-bottom:14px;"><i class="ph ph-arrow-left"></i> Back</button>
-        <h3 style="margin:0 0 12px;color:white;font-size:1rem;"><i class="ph ph-sparkle" style="color:#00cec9;"></i> AI Generate from History</h3>
-        <p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 14px;">Generates flashcards from your ${history.length} most recent study sessions.</p>
+        <h3 style="margin:0 0 12px;color:white;font-size:1rem;"><i class="ph ph-sparkle" style="color:#00cec9;"></i> AI Generate Flashcards</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 14px;">Type a topic or subject to make a deck about it${histCount ? ', or leave it blank to generate from your recent study history' : ''}.</p>
+        <label style="color:white;font-size:0.88rem;display:block;margin-bottom:6px;">Topic or subject</label>
+        <input type="text" id="fc-ai-topic" placeholder="e.g. Cell biology, Causes of WWI, Algebra: quadratic equations"
+            style="width:100%;padding:10px;margin-bottom:14px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.9rem;outline:none;box-sizing:border-box;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
             <label style="color:white;font-size:0.88rem;">Cards to generate:</label>
             <input type="number" id="fc-ai-limit" value="10" min="3" max="50" style="width:80px;padding:9px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;font-size:0.9rem;outline:none;text-align:center;">
@@ -10713,10 +10712,23 @@ async function runFlashcardAIGenerate() {
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add your OpenAI API key in Settings.', 'error'); return; }
     const limit = Math.max(3, Math.min(50, parseInt(document.getElementById('fc-ai-limit')?.value || '10', 10)));
+    const topic = (document.getElementById('fc-ai-topic')?.value || '').trim();
     const statusEl = document.getElementById('fc-ai-status');
+
+    let sysPrompt, userContent;
+    if (topic) {
+        sysPrompt = `Generate exactly ${limit} study flashcards on the given topic. Return STRICT JSON: {"title":"short deck title","cards":[{"front":"term or question (1-8 words)","back":"clear answer (1-2 sentences, plain text)"}]}`;
+        userContent = 'Topic: ' + topic;
+    } else {
+        const history = JSON.parse(localStorage.getItem('user_history') || '[]').slice(0, 15);
+        if (history.length === 0) {
+            if (statusEl) statusEl.innerHTML = `<span style="color:#ff6b6b;">Enter a topic above, or do some study sessions first.</span>`;
+            return;
+        }
+        sysPrompt = `Generate exactly ${limit} flashcards from the following study history. Return STRICT JSON: {"title":"short deck title","cards":[{"front":"term or question (1-8 words)","back":"clear answer (1-2 sentences, plain text)"}]}`;
+        userContent = history.map(h => `Q: ${h.question || ''}\nA: ${(h.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 800)}`).join('\n\n---\n\n').slice(0, 8000);
+    }
     if (statusEl) statusEl.innerHTML = '<span style="color:var(--text-muted);">Generating…</span>';
-    const history = JSON.parse(localStorage.getItem('user_history') || '[]').slice(0, 15);
-    const combined = history.map(h => `Q: ${h.question || ''}\nA: ${(h.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 800)}`).join('\n\n---\n\n').slice(0, 8000);
     try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -10725,15 +10737,15 @@ async function runFlashcardAIGenerate() {
                 model: 'gpt-4o',
                 response_format: { type: 'json_object' },
                 messages: [
-                    { role: 'system', content: `Generate exactly ${limit} flashcards from the following study history. Return STRICT JSON: {"title":"short deck title","cards":[{"front":"term or question (1-8 words)","back":"clear answer (1-2 sentences, plain text)"}]}` },
-                    { role: 'user', content: combined }
+                    { role: 'system', content: sysPrompt },
+                    { role: 'user', content: userContent }
                 ]
             })
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
         const parsed = JSON.parse(data.choices[0].message.content);
-        const deck = { id: Date.now(), title: parsed.title || 'AI Generated Deck', subject: 'ai', createdAt: Date.now(), cards: parsed.cards || [] };
+        const deck = { id: Date.now(), title: parsed.title || (topic ? topic : 'AI Generated Deck'), subject: 'ai', createdAt: Date.now(), cards: parsed.cards || [] };
         const decks = getFlashcardDecks();
         decks.unshift(deck);
         saveFlashcardDecks(decks);
@@ -11027,8 +11039,9 @@ function renderFlashcardReview(deckId) {
                 <div style="height:100%;width:${_fcPct}%;background:linear-gradient(90deg,${_fcColor},var(--accent-glow,#00cec9));border-radius:4px;transition:width 0.3s ease;"></div>
             </div>
             <div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:8px;text-align:center;">Card ${_flashcardReviewIdx + 1} / ${deck.cards.length} · ${escapeHtmlSafe(deck.title)}${dueBadge}</div>
-            <div onclick="this.dataset.flipped = this.dataset.flipped === '1' ? '0' : '1'; this.querySelector('.fc-side').textContent = this.dataset.flipped === '1' ? ${JSON.stringify(card.back)} : ${JSON.stringify(card.front)}; if(this.dataset.flipped === '1' && typeof window.flipFlashcard === 'function') window.flipFlashcard();"
+            <div onclick="window._fcFlip(this)"
                  data-flipped="${flipped ? '1' : '0'}"
+                 data-front="${escapeHtmlSafe(card.front)}" data-back="${escapeHtmlSafe(card.back)}"
                  style="background:linear-gradient(135deg, rgba(108,92,231,0.18), rgba(0,206,201,0.10));border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:50px 30px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center;margin-bottom:14px;transition:transform 0.2s;"
                  onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
                 <div class="fc-side" style="color:white;font-size:1.2rem;line-height:1.5;">${escapeHtmlSafe(flipped ? card.back : card.front)}</div>
@@ -11046,6 +11059,18 @@ function renderFlashcardReview(deckId) {
     }
     show(false);
 }
+
+// Flip a review card. (Replaces the old inline onclick whose JSON.stringify
+// injected double-quotes into a double-quoted onclick="" attribute, which broke
+// the handler so "click to reveal" never worked.)
+window._fcFlip = function(el) {
+    if (!el) return;
+    var flipped = el.dataset.flipped !== '1';
+    el.dataset.flipped = flipped ? '1' : '0';
+    var side = el.querySelector('.fc-side');
+    if (side) side.textContent = flipped ? (el.dataset.back || '') : (el.dataset.front || '');
+    if (flipped && typeof window.flipFlashcard === 'function') window.flipFlashcard();
+};
 
 // v12.1 — "Explain the concept" re-runs Tutor Mode on the original question
 // from a history entry. Switches to the appropriate subject view + fills in
@@ -23258,14 +23283,29 @@ function renderQuizGenQuestion(panel) {
         +q.options.map(function(opt,i){ var L=String.fromCharCode(65+i); return '<button class="quiz-gen-opt" data-letter="'+L+'" onclick="selectQuizGenAnswer(\''+L+'\')" style="width:100%;text-align:left;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:white;cursor:pointer;font-size:0.92rem;transition:all 0.15s;line-height:1.4;" onmouseenter="this.style.background=\'rgba(0,206,201,0.12)\';this.style.borderColor=\'rgba(0,206,201,0.4)\'" onmouseleave="this.style.background=\'rgba(255,255,255,0.04)\';this.style.borderColor=\'rgba(255,255,255,0.15)\'">'+opt+'</button>'; }).join('')
         +'</div></div>';
 }
+// Normalize the AI's "answer" to a clean A-D letter. The model returns it
+// inconsistently ("A", "a", "A. Photosynthesis", or even the full option text),
+// so a strict === against the clicked letter was marking correct picks wrong.
+function _quizGenCorrectLetter(q) {
+    var a = String(q.answer || '').trim();
+    var m = a.match(/^\s*([A-Da-d])(?![A-Za-z])/);   // leading letter not part of a word
+    if (m) return m[1].toUpperCase();
+    for (var i = 0; i < (q.options || []).length; i++) {   // else match the option text
+        var txt = String(q.options[i]).replace(/^[A-Da-d][\.\):\-]\s*/, '').trim().toLowerCase();
+        var al = a.toLowerCase();
+        if (txt && (al === txt || al.indexOf(txt) !== -1 || txt.indexOf(al) !== -1))
+            return String.fromCharCode(65 + i);
+    }
+    return (a.toUpperCase().match(/[A-D]/) || ['A'])[0];
+}
 function selectQuizGenAnswer(letter) {
-    var q=_quizGenQuestions[_quizGenCurrent], ok=(letter===q.answer);
-    _quizGenAnswers.push({q:q.q,selected:letter,correct:q.answer,ok:ok});
+    var q=_quizGenQuestions[_quizGenCurrent], correctL=_quizGenCorrectLetter(q), ok=(letter===correctL);
+    _quizGenAnswers.push({q:q.q,selected:letter,correct:correctL,ok:ok});
     if(ok) _quizGenScore++;
     document.querySelectorAll('.quiz-gen-opt').forEach(function(btn){
         btn.style.pointerEvents='none';
         var l=btn.dataset.letter;
-        if(l===q.answer){btn.style.background='rgba(0,184,148,0.25)';btn.style.borderColor='#00b894';btn.style.color='#00b894';}
+        if(l===correctL){btn.style.background='rgba(0,184,148,0.25)';btn.style.borderColor='#00b894';btn.style.color='#00b894';}
         else if(l===letter&&!ok){btn.style.background='rgba(255,107,107,0.2)';btn.style.borderColor='#ff6b6b';btn.style.color='#ff6b6b';}
     });
     setTimeout(function(){
