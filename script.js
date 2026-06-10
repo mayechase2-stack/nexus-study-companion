@@ -8,6 +8,10 @@
 // ════════════════════════════════════════════════════════════════════
 const NEXUS_API_KEY   = ''; // intentionally empty — never hardcode a key here
 const NEXUS_KEY_LIMIT = 35; // (only relevant if a host key were proxied server-side)
+// v16.5 — Google Sign-In. This is a PUBLIC OAuth Client ID (safe to commit, unlike
+// the API key). Create one at console.cloud.google.com and paste it here; leave it
+// empty to hide the Google button. The github.io origin must be an Authorized JS origin.
+const GOOGLE_CLIENT_ID = '';
 
 function getApiKey() {
     // Personal key set → use it, no limit applies
@@ -890,6 +894,7 @@ function openSignInModal() {
     if (!m) return;
     m.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    setTimeout(_initGoogleSignIn, 100);   // v16.5 — render the Google button if configured
     const u = document.getElementById('auth-username');
     const p = document.getElementById('auth-password');
     // Readonly trick: Chrome autofill skips readonly fields.
@@ -912,6 +917,43 @@ function closeSignInModal() {
     if (!m) return;
     m.style.display = 'none';
     document.body.style.overflow = '';
+}
+
+// ── v16.5 — Sign in with Google (client-side, no backend) ──────────────
+function _decodeJwt(t) {
+    try {
+        var p = t.split('.')[1];
+        return JSON.parse(decodeURIComponent(atob(p.replace(/-/g, '+').replace(/_/g, '/'))
+            .split('').map(function (c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
+    } catch (e) { return {}; }
+}
+function handleGoogleCredential(response) {
+    var d = _decodeJwt((response && response.credential) || '');
+    var name = d.name || (d.email ? d.email.split('@')[0] : 'Scholar');
+    localStorage.setItem('auth_user', name);
+    localStorage.setItem('auth_pass', 'google');      // marker so logged-in checks pass
+    localStorage.setItem('auth_provider', 'google');
+    if (d.email) localStorage.setItem('auth_email', d.email);
+    isSignUpMode = false;
+    closeSignInModal();
+    if (typeof completeLogin === 'function') completeLogin();
+    showToast('Signed in with Google as ' + name, 'success');
+}
+function _initGoogleSignIn() {
+    var cont = document.getElementById('google-signin-container');
+    var note = document.getElementById('google-signin-note');
+    if (!cont) return;
+    if (!GOOGLE_CLIENT_ID) { cont.innerHTML = ''; if (note) note.textContent = ''; return; }
+    if (!(window.google && google.accounts && google.accounts.id)) {
+        if (note) note.textContent = 'Loading Google…';
+        setTimeout(_initGoogleSignIn, 500); return;       // GSI script still loading
+    }
+    if (note) note.textContent = '';
+    try {
+        google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
+        cont.innerHTML = '';
+        google.accounts.id.renderButton(cont, { theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'pill', width: 360 });
+    } catch (e) { if (note) note.textContent = 'Google sign-in unavailable.'; }
 }
 
 let _signupCurrentStep = 1;
@@ -6192,10 +6234,10 @@ function applyTheme(colorName) {
 // IDs match dp_XX pool IDs so they don't duplicate when the pool loads them.
 const OWNER_PINNED_SUGGESTIONS = [
     // ── From community pool — pinned by chase_owner ──
-    { id: 'dp_19', title: 'Sign in with Google',             body: "One-click Google OAuth sign-in so new users don't have to create a separate password. Will arrive alongside real cross-device accounts (see Roadmap below) — your Google identity becomes your NEXUS login, with your history, XP, and shop items tied to it.", category: 'features', votes: 45, voted: false, ownerApproved: true, status: 'planned', author: 'sso_please', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_19', title: 'Sign in with Google',             body: "SHIPPED (v16.5): a 'Continue with Google' button on the sign-in screen, using Google Identity Services entirely in your browser (no password to remember). Your name/email become your local NEXUS identity. (Cross-device sync still needs the backend on the roadmap below.)", category: 'features', votes: 45, voted: false, ownerApproved: true, status: 'shipped', author: 'sso_please', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_22', title: 'Timed practice test mode',        body: 'SHIPPED (v15.0): the Practice Test tab lets you pick a subject, difficulty, question count, and a time limit. The AI generates a full multiple-choice test, a countdown turns red under 2 minutes, and you get an instant score card with per-question explanations.', category: 'features', votes: 38, voted: false, ownerApproved: true, status: 'shipped', author: 'testmode', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_16', title: 'Study music integration',         body: 'SHIPPED: the Lo-fi Player (sidebar → Lo-fi Music) streams ad-free, royalty-free lo-fi tracks bundled right into the app. Play/pause, previous/next/skip song, volume, a sleep timer, and it remembers your last track — no login or YouTube ads.', category: 'features', votes: 30, voted: false, ownerApproved: true, status: 'shipped', author: 'lo_fi_chill', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_08', title: 'Spanish + French language packs', body: 'Full UI localization for non-English students, auto-detected from your browser locale on first launch with a manual override in Settings. Spanish and French first, more to follow based on demand. Still on the planning board — a big translation pass.', category: 'features', votes: 23, voted: false, ownerApproved: true, status: 'planned', author: 'globalist', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_08', title: 'Spanish + French language packs', body: 'SHIPPED (v16.5): a language switcher in Settings → Appearance (English / Español / Français) that translates the app\'s navigation and labels. A deeper pass to translate every screen can follow; AI answers always match the language you write in.', category: 'features', votes: 23, voted: false, ownerApproved: true, status: 'shipped', author: 'globalist', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_30', title: 'Debate practice mode',            body: 'SHIPPED: now a permanent Command Center feature. Enter any topic, pick a side (For/Against), and the AI argues the opposite across several sharp exchanges, then delivers a verdict on who made the stronger case. Great for English and Social Studies prep.', category: 'ai', votes: 23, voted: false, ownerApproved: true, status: 'shipped', author: 'debate_me', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_27', title: 'Multiple companion personalities',body: 'SHIPPED (v15.0): Settings → Companion lets you choose how your Sprite talks — Default, Drill Sergeant (tough love), Best Friend (casual + encouraging), Sherlock (analytical, never hands you the answer), and Chill Sensei (calm, metaphor-driven).', category: 'companions', votes: 20, voted: false, ownerApproved: true, status: 'shipped', author: 'tone_setter', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'SHIPPED: a pure high-contrast theme for visual-accessibility needs, with WCAG-AA-compliant text contrast across every panel, modal, and input.', category: 'themes', votes: 16, voted: false, ownerApproved: true, status: 'shipped', author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
@@ -15568,6 +15610,46 @@ function _initQuickNotesDrag() {
 }
 document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
 
+// v16.5 — Debate, Daily Challenge, and Study History belong on the HOME tab.
+// They're authored under Command Center in the markup; move the live nodes into
+// Home on load (preserves their ids + handlers so render functions still work).
+(function () {
+    function _v165MoveToHome() {
+        var home = document.getElementById('view-home');
+        if (!home) return;
+        ['daily-challenge-panel', 'command-debate-section', 'home-study-history'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el && el.parentElement && el.parentElement.id !== 'view-home') home.appendChild(el);
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _v165MoveToHome);
+    else _v165MoveToHome();
+})();
+
+// v16.5 — lightweight UI language switcher (navigation + footer labels). Full-app
+// and AI-response translation is out of scope; this covers the app's chrome.
+const NEXUS_I18N = {
+    es: { 'Home':'Inicio','Command Center':'Centro de Mando','Math':'Matemáticas','Science':'Ciencias','English Aid':'Ayuda de Inglés','Social Studies':'Estudios Sociales','Notebook':'Cuaderno','Profile':'Perfil','Leaderboard':'Clasificación','Shop':'Tienda','Inventory':'Inventario','Suggestions':'Sugerencias','Updates':'Novedades','Grade Calc':'Notas','Practice Test':'Examen de Práctica','Lo-fi Music':'Música Lo-fi','Settings':'Ajustes','Sign Out':'Cerrar sesión','Light Mode':'Modo Claro','Dark Mode':'Modo Oscuro','Upgrade to Pro':'Mejorar a Pro' },
+    fr: { 'Home':'Accueil','Command Center':'Centre de Commande','Math':'Maths','Science':'Sciences','English Aid':'Aide en Anglais','Social Studies':'Études Sociales','Notebook':'Carnet','Profile':'Profil','Leaderboard':'Classement','Shop':'Boutique','Inventory':'Inventaire','Suggestions':'Suggestions','Updates':'Mises à jour','Grade Calc':'Notes','Practice Test':'Test Pratique','Lo-fi Music':'Musique Lo-fi','Settings':'Paramètres','Sign Out':'Déconnexion','Light Mode':'Mode Clair','Dark Mode':'Mode Sombre','Upgrade to Pro':'Passer à Pro' }
+};
+function setAppLanguage(lang) {
+    localStorage.setItem('app_lang', lang || 'en');
+    var dict = NEXUS_I18N[lang] || null;
+    document.querySelectorAll('.nav-links li span, .status-indicator span').forEach(function (el) {
+        if (!el.dataset.en) el.dataset.en = el.textContent.trim();
+        var en = el.dataset.en;
+        el.textContent = (dict && dict[en]) ? dict[en] : en;
+    });
+    document.documentElement.lang = lang || 'en';
+    var sel = document.getElementById('setting-app-lang');
+    if (sel) sel.value = lang || 'en';
+}
+document.addEventListener('DOMContentLoaded', function () {
+    var l = localStorage.getItem('app_lang');
+    if (l && l !== 'en') setTimeout(function () { setAppLanguage(l); }, 400);
+    else { var sel = document.getElementById('setting-app-lang'); if (sel && l) sel.value = l; }
+});
+
 // v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
@@ -15894,6 +15976,9 @@ const UPDATE_LOG = [
             'ROADMAP UPDATED — Pinned suggestions now reflect reality: shipped items are marked shipped, and the in-progress roadmap (.com launch, real accounts, Stripe, Live Vision, mobile) is detailed.',
             'LIVE VISION READS MORE — It now answers graph/chart, labeled-diagram, and data-table questions straight from your screen, not just text-based ones.',
             'INSTALLABLE PWA — Add NEXUS to your home screen; a service worker keeps it working offline while always serving the freshest version when you\'re online. Bigger tap targets on phones too.',
+            'SIGN IN WITH GOOGLE — A "Continue with Google" option on the sign-in screen (runs in your browser; the owner adds a Google Client ID to switch it on).',
+            'LANGUAGE SWITCHER — Settings → Appearance now offers English / Español / Français for the app\'s navigation and labels.',
+            'HOME TAB — Debate Practice, the Daily Challenge, and Study History now live on the Home tab (not the Command Center).',
         ]
     },
     {

@@ -7,13 +7,15 @@
     <!-- Keep the app out of search engines — link-only access -->
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0B0E1A">
+    <!-- v16.5 — Google Identity Services (client-side Sign in with Google) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <meta name="description" content="NEXUS — AI-powered study companion for high school students. Math, Science, English, Social Studies, GPA tracking, flashcards, and more.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260610i">
+    <link rel="stylesheet" href="style.css?v=20260610j">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -741,6 +743,10 @@
                     onclick="handleAuthSubmit()">
                     <svg width="18" height="18" style="color:#fff;"><use href="#ic-sign-in"/></svg> Sign In
                 </button>
+                <!-- v16.5 — Continue with Google (client-side Google Identity Services) -->
+                <div style="display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--text-muted);font-size:0.8rem;"><div style="flex:1;height:1px;background:var(--glass-border);"></div>or<div style="flex:1;height:1px;background:var(--glass-border);"></div></div>
+                <div id="google-signin-container" style="display:flex;justify-content:center;"></div>
+                <div id="google-signin-note" style="text-align:center;font-size:0.78rem;color:var(--text-muted);margin-top:8px;"></div>
                 <p style="text-align:center;margin:18px 0 0;color:var(--text-muted);font-size:0.85rem;">
                     Don't have an account?
                     <a href="#" onclick="event.preventDefault();closeSignInModal();openSignUpFlow();" style="color:var(--accent);text-decoration:none;font-weight:600;">Get started</a>
@@ -1436,7 +1442,7 @@
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00fff5, #7c4dff);">Forge</button>
                     </div>
                     <!-- Debate Practice - v16.5 (permanent Command Center feature) -->
-                    <div class="card glass-panel" onclick="var d=document.getElementById('command-debate-section');if(d)d.scrollIntoView({behavior:'smooth',block:'start'})" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
+                    <div class="card glass-panel" onclick="switchTab('home');setTimeout(function(){var d=document.getElementById('command-debate-section');if(d)d.scrollIntoView({behavior:'smooth',block:'start'});},150)" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
                         <div class="icon-glow" style="background:radial-gradient(circle,rgba(108,92,231,0.3),transparent);"><i class="ph ph-swords"></i></div>
                         <h3>Debate Practice</h3>
                         <p>Pick a side — the AI argues the opposite</p>
@@ -1765,8 +1771,8 @@
                     </div>
                 </div>
 
-                <!-- v16.0 — Study History (moved from Study Tools) -->
-                <div class="glass-panel" style="padding:20px;margin-top:20px;">
+                <!-- v16.5 — Study History (relocated to Home at runtime) -->
+                <div id="home-study-history" class="glass-panel" style="padding:20px;margin-top:20px;">
                     <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-chart-bar"></i> Study Session History</h3>
                     <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Your study time over the last 7 days, broken down by day.</p>
                     <canvas id="study-history-canvas" style="width:100%;height:180px;display:block;border-radius:8px;"></canvas>
@@ -2203,7 +2209,7 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
                     <button onclick="openQuickStudyQuiz('Math')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
                     <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
-                    <button onclick="switchTab('dashboard');" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                    <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
                 <div class="math-container">
@@ -2423,7 +2429,7 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
                     <button onclick="openQuickStudyQuiz('English')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
                     <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
-                    <button onclick="switchTab('dashboard');" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                    <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(162,155,254,0.1));border:1px solid rgba(108,92,231,0.3);border-radius:10px;color:#a29bfe;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
                 <!-- English Tab Bar -->
@@ -2744,7 +2750,7 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
                     <button onclick="openQuickStudyQuiz('Science')" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
                     <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
-                    <button onclick="switchTab('dashboard');" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                    <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(0,184,148,0.18),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.3);border-radius:10px;color:#00b894;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
@@ -2846,7 +2852,7 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
                     <button onclick="openQuickStudyQuiz('Social Studies')" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
                     <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
-                    <button onclick="switchTab('dashboard');" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                    <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
                 <div class="eng-tabs" style="margin-bottom: 24px;">
@@ -3335,11 +3341,11 @@
                 <div class="glass-panel" style="padding:32px;text-align:center;max-width:520px;margin:40px auto;">
                     <div style="font-size:2rem;margin-bottom:10px;">🧰</div>
                     <h2 style="margin:0 0 8px;color:white;">Study Tools moved</h2>
-                    <p style="color:var(--text-muted);margin:0 0 18px;">Quiz Gen and Flashcards now live in your <strong style="color:#fff;">Notebook</strong>, and Study History is on the <strong style="color:#fff;">Command Center</strong>.</p>
+                    <p style="color:var(--text-muted);margin:0 0 18px;">Quiz Gen and Flashcards now live in your <strong style="color:#fff;">Notebook</strong>, and Study History is on the <strong style="color:#fff;">Home</strong> tab.</p>
                     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
                         <button class="btn-primary" onclick="switchTab('notebook');setTimeout(function(){switchNotebookTab('quiz');},80)"><i class="ph ph-magic-wand"></i> Quiz Gen</button>
                         <button class="btn-primary" onclick="switchTab('notebook');setTimeout(function(){switchNotebookTab('cards');},80)"><i class="ph ph-cards"></i> Flashcards</button>
-                        <button class="btn-secondary" onclick="switchTab('dashboard')"><i class="ph ph-chart-bar"></i> Study History</button>
+                        <button class="btn-secondary" onclick="switchTab('home')"><i class="ph ph-chart-bar"></i> Study History</button>
                     </div>
                 </div>
             </div>
@@ -4030,6 +4036,16 @@ if __name__ == '__main__':
                     <!-- APPEARANCE (v10.6 expanded) -->
                     <div class="settings-tab-pane" data-pane="appearance" style="display:none;">
                         <h3 style="margin:0 0 14px;color:white;font-size:1.1rem;">Appearance</h3>
+                        <!-- v16.5 — language switcher -->
+                        <div class="glass-panel" style="padding:18px;margin-bottom:14px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;"><i class="ph ph-translate"></i> Language</strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">Translates the app's navigation and labels. (AI answers stay in whatever language you ask in.)</p>
+                            <select id="setting-app-lang" onchange="setAppLanguage(this.value)" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;">
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                                <option value="fr">Français</option>
+                            </select>
+                        </div>
                         <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Themes, fonts, cursors, wallpapers, and click effects are all managed in the <strong style="color:white;">Shop</strong> &amp; <strong style="color:white;">Inventory</strong> tabs (Pro tier).</p>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
                             <button class="btn-secondary" onclick="toggleSettings();switchTab('shop');"><i class="ph ph-storefront"></i> Open Shop</button>
@@ -5008,7 +5024,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260610i"></script>
+    <script src="script.js?v=20260610j"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
