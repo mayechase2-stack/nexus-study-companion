@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260610c">
+    <link rel="stylesheet" href="style.css?v=20260610d">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -928,14 +928,13 @@
         </div><!-- end z-index wrapper -->
     </div>
 
-    <!-- Help & FAQ Button - floats above everything including auth overlay -->
+    <!-- Help & FAQ Button - v16.0: small "?" circle; first tap expands, second tap opens -->
     <div id="help-fab" style="position:fixed;bottom:24px;right:24px;z-index:999999;">
-        <button onclick="openHelpCenter()"
-            style="background:linear-gradient(135deg, rgba(108,92,231,0.2), rgba(0,206,201,0.2));border:1px solid rgba(108,92,231,0.4);color:white;padding:12px 24px;border-radius:12px;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.3s;backdrop-filter:blur(10px);"
-            onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(108,92,231,0.3)'"
-            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-            <i class="ph ph-question" style="font-size:1.2rem;"></i>
-            <span>Help & FAQ</span>
+        <button id="help-fab-btn" onclick="toggleHelpFab()" data-expanded="0" title="Help & FAQ"
+            style="background:linear-gradient(135deg, rgba(108,92,231,0.9), rgba(0,206,201,0.9));border:1px solid rgba(108,92,231,0.5);color:white;width:46px;height:46px;padding:0;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.25s ease;backdrop-filter:blur(10px);box-shadow:0 4px 18px rgba(108,92,231,0.35);white-space:nowrap;overflow:hidden;"
+            onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+            <i class="ph ph-question" style="font-size:1.2rem;flex-shrink:0;"></i>
+            <span id="help-fab-label" style="display:none;">Help &amp; FAQ</span>
         </button>
     </div>
 
@@ -1444,12 +1443,12 @@
                         <p>Forge elite, structured prompts</p>
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00fff5, #7c4dff);">Forge</button>
                     </div>
-                    <!-- Citation Generator - v12.5 -->
-                    <div class="card glass-panel" onclick="switchTab('english');switchEngTab('citation')" style="background:linear-gradient(135deg,rgba(253,203,110,0.12),rgba(250,177,160,0.08));border:1px solid rgba(253,203,110,0.45);">
-                        <div class="icon-glow" style="background:radial-gradient(circle,rgba(253,203,110,0.3),transparent);"><i class="ph ph-quotes"></i></div>
-                        <h3>Citation Generator</h3>
-                        <p>MLA, APA &amp; Chicago in one click</p>
-                        <button class="btn-primary" style="margin-top:8px;background:linear-gradient(135deg,#fdcb6e,#fab1a0);color:#1a1000;">Cite</button>
+                    <!-- Debate Practice - v16.0 (replaced the Citation card; citations now live in English Aid) -->
+                    <div class="card glass-panel" onclick="switchTab('english');setTimeout(function(){var d=document.getElementById('english-debate-details');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'center'});}},150)" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
+                        <div class="icon-glow" style="background:radial-gradient(circle,rgba(108,92,231,0.3),transparent);"><i class="ph ph-swords"></i></div>
+                        <h3>Debate Practice</h3>
+                        <p>Pick a side — the AI argues the opposite</p>
+                        <button class="btn-primary" style="margin-top:8px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);color:white;">Debate</button>
                     </div>
                 </div>
 
@@ -2351,7 +2350,7 @@
                         <div style="display:flex;align-items:center;gap:12px;">
                             <div style="font-size:2.5rem;">✍️</div>
                             <div>
-                                <h1 style="margin:0;background:linear-gradient(135deg,#a29bfe,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">English Suite</h1>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#a29bfe,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">English Aid</h1>
                                 <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Writing tools, library, speed typing &amp; dictionary</p>
                             </div>
                         </div>
@@ -2661,7 +2660,7 @@
 
                 <!-- v15.0 — Debate Practice -->
                 <div class="glass-panel" style="padding:20px;margin-top:16px;">
-                    <details>
+                    <details id="english-debate-details">
                         <summary style="cursor:pointer;font-size:1.05rem;font-weight:700;color:white;list-style:none;display:flex;align-items:center;gap:10px;user-select:none;">
                             <span style="font-size:1.3rem;">&#x2694;&#xFE0F;</span> Debate Practice
                             <span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;margin-left:auto;">(click to expand)</span>
@@ -5009,7 +5008,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260610c"></script>
+    <script src="script.js?v=20260610d"></script>
 </body>
 
 </html>

@@ -308,7 +308,7 @@ function updateHomeStats() {
     const continueLabel = el('home-continue-label');
     const continueBtn = el('home-continue-btn');
     if (continueBar && lastTab && lastTab !== 'home' && lastTab !== 'dashboard') {
-        const tabNames = { math:'Math Solver', science:'Science Lab', english:'English Suite', social:'Social Studies', notebook:'Notebook', history:'Study History', achievements:'Achievements', leaderboard:'Leaderboard', shop:'Shop', inventory:'Inventory', suggestions:'Suggestions', updates:'Updates' };
+        const tabNames = { math:'Math Solver', science:'Science Lab', english:'English Aid', social:'Social Studies', notebook:'Notebook', history:'Study History', achievements:'Achievements', leaderboard:'Leaderboard', shop:'Shop', inventory:'Inventory', suggestions:'Suggestions', updates:'Updates' };
         const label = tabNames[lastTab] || lastTab;
         if (continueLabel) continueLabel.textContent = label;
         if (continueBtn) continueBtn.setAttribute('onclick', `switchTab('${lastTab}')`);
@@ -15438,6 +15438,77 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // HELP CENTER & FAQ SYSTEM - v7.0
 // ============================================
+
+// v16.0 — Help & FAQ FAB: first tap expands the "?" circle to a labeled pill,
+// second tap opens the help center. Auto-collapses if left alone.
+function toggleHelpFab() {
+    const btn = document.getElementById('help-fab-btn');
+    const label = document.getElementById('help-fab-label');
+    if (!btn) { openHelpCenter(); return; }
+    if (btn.dataset.expanded === '1') { collapseHelpFab(); openHelpCenter(); return; }
+    btn.dataset.expanded = '1';
+    if (label) label.style.display = 'inline';
+    btn.style.width = 'auto';
+    btn.style.borderRadius = '12px';
+    btn.style.padding = '12px 20px';
+    clearTimeout(window._helpFabTimer);
+    window._helpFabTimer = setTimeout(collapseHelpFab, 3500);
+}
+function collapseHelpFab() {
+    const btn = document.getElementById('help-fab-btn');
+    const label = document.getElementById('help-fab-label');
+    if (!btn) return;
+    btn.dataset.expanded = '0';
+    if (label) label.style.display = 'none';
+    btn.style.width = '46px';
+    btn.style.borderRadius = '50%';
+    btn.style.padding = '0';
+}
+
+// v16.0 — make the Quick Notes bubble draggable; position persists in localStorage.
+function _initQuickNotesDrag() {
+    var fab = document.getElementById('quick-notes-fab');
+    if (!fab || fab._dragInit) return;
+    fab._dragInit = true;
+    fab.style.touchAction = 'none';
+    fab.title = (fab.title || 'Quick Note') + ' — drag to move';
+    try {
+        var pos = JSON.parse(localStorage.getItem('quicknotes_pos') || 'null');
+        if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+            fab.style.left = pos.left + 'px'; fab.style.top = pos.top + 'px'; fab.style.bottom = 'auto';
+        }
+    } catch (e) {}
+    var down = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    fab.addEventListener('pointerdown', function (e) {
+        down = true; moved = false;
+        var r = fab.getBoundingClientRect();
+        sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+        if (fab.setPointerCapture) try { fab.setPointerCapture(e.pointerId); } catch (er) {}
+    });
+    fab.addEventListener('pointermove', function (e) {
+        if (!down) return;
+        var dx = e.clientX - sx, dy = e.clientY - sy;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;   // tiny moves still count as a click
+        moved = true; e.preventDefault();
+        var nl = Math.max(6, Math.min(window.innerWidth - fab.offsetWidth - 6, ox + dx));
+        var nt = Math.max(6, Math.min(window.innerHeight - fab.offsetHeight - 6, oy + dy));
+        fab.style.left = nl + 'px'; fab.style.top = nt + 'px'; fab.style.bottom = 'auto';
+    });
+    fab.addEventListener('pointerup', function () {
+        if (!down) return; down = false;
+        if (moved) {
+            var r = fab.getBoundingClientRect();
+            localStorage.setItem('quicknotes_pos', JSON.stringify({ left: Math.round(r.left), top: Math.round(r.top) }));
+            fab._suppressClick = true;
+            setTimeout(function () { fab._suppressClick = false; }, 60);
+        }
+    });
+    // If the pointer actually dragged, swallow the click so it doesn't open notes.
+    fab.addEventListener('click', function (e) {
+        if (fab._suppressClick) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+}
+document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
 
 function openHelpCenter() {
     const modal = document.getElementById('help-modal');
