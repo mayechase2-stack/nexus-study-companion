@@ -2395,6 +2395,50 @@ function showConfirm(title, message, onConfirm) {
  *   options.context  — optional background info (assignment text, etc.)
  *   options.question — pre-filled question in the input
  */
+// v16.0 — Tutor session memory. A "session" is a window of activity (default
+// 15 min, user-configurable). Reopening the tutor within the window resumes the
+// same conversation; after the window lapses, a fresh session starts.
+function _tutorSessionMinutes() {
+    var m = parseInt(localStorage.getItem('tutor_session_minutes') || '15', 10);
+    return (isNaN(m) || m < 1) ? 15 : Math.min(120, m);
+}
+function _loadTutorSession() {
+    try {
+        var s = JSON.parse(localStorage.getItem('tutor_session') || 'null');
+        if (s && s.lastActivity && (Date.now() - s.lastActivity) <= _tutorSessionMinutes() * 60000) return s;
+    } catch (e) {}
+    return null;
+}
+function _saveTutorSession() {
+    try {
+        var m = window._tutorMeta || {};
+        localStorage.setItem('tutor_session', JSON.stringify({
+            history: window._tutorHistory || [], subject: m.subject, topic: m.topic,
+            context: m.context, lastActivity: Date.now()
+        }));
+    } catch (e) {}
+}
+function _replayTutorSession(history) {
+    var chat = document.getElementById('univ-tutor-chat');
+    if (!chat) return;
+    var note = document.createElement('div');
+    note.style.cssText = 'text-align:center;font-size:0.72rem;color:var(--text-muted);margin:2px 0;';
+    note.textContent = '— resumed your session —';
+    chat.appendChild(note);
+    history.forEach(function (msg) {
+        var b = document.createElement('div');
+        if (msg.role === 'user') {
+            b.style.cssText = 'background:linear-gradient(135deg,rgba(108,92,231,0.25),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.3);border-radius:10px;padding:10px 14px;font-size:0.88rem;color:white;line-height:1.5;align-self:flex-end;max-width:85%;word-break:break-word;';
+            b.textContent = msg.content;
+        } else {
+            b.style.cssText = 'background:rgba(10,12,22,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:0.85rem;color:#dde0ee;line-height:1.55;align-self:flex-start;max-width:85%;word-break:break-word;';
+            b.innerHTML = (typeof convertMarkdownLeaks === 'function' ? convertMarkdownLeaks(msg.content) : msg.content);
+        }
+        chat.appendChild(b);
+    });
+    chat.scrollTop = chat.scrollHeight;
+}
+
 function openUniversalTutor(options) {
     options = options || {};
     const subject  = options.subject  || 'General';
@@ -2449,8 +2493,15 @@ function openUniversalTutor(options) {
     </div>`;
 
     document.body.appendChild(modal);
-    window._tutorHistory = [];  // reset conversation history
     window._tutorMeta = { subject, topic, context };
+    // v16.0 — resume the conversation if we're still inside the session window
+    var _sess = _loadTutorSession();
+    if (_sess && _sess.history && _sess.history.length) {
+        window._tutorHistory = _sess.history;
+        _replayTutorSession(_sess.history);
+    } else {
+        window._tutorHistory = [];
+    }
     const input = document.getElementById('univ-tutor-input');
     if (input) {
         input.focus();
@@ -2528,6 +2579,7 @@ Format: clean HTML only (<strong>, <ul><li>, <br>, etc.). No markdown asterisks.
         // Append assistant reply to history
         history.push({ role: 'assistant', content: answer });
         window._tutorHistory = history;
+        _saveTutorSession();   // v16.0 — persist for the session window
 
         // Reset the bubble from its flex "spinner" layout to a normal block reply —
         // otherwise the answer's <ul>/<li> render as flex items in a tiny 1-word column.
@@ -6996,7 +7048,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.7';
+const NEXUS_CURRENT_VERSION = 'v16.0';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15509,6 +15561,19 @@ function _initQuickNotesDrag() {
 }
 document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
 
+// v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+        var ts = document.getElementById('setting-tutor-session-min');
+        if (ts) { ts.value = localStorage.getItem('tutor_session_minutes') || '15';
+            var d = document.getElementById('setting-tutor-session-display'); if (d) d.textContent = ts.value + ' min'; }
+        var md = document.getElementById('setting-companion-memory-days');
+        if (md) { md.value = localStorage.getItem('companion_memory_days') || '30';
+            var v = parseInt(md.value, 10);
+            var dd = document.getElementById('setting-memory-days-display'); if (dd) dd.textContent = (v === 0 ? 'Forever' : v + ' day' + (v !== 1 ? 's' : '')); }
+    }, 600);
+});
+
 function openHelpCenter() {
     const modal = document.getElementById('help-modal');
     if (modal) {
@@ -15783,6 +15848,22 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v16.0',
+        date: 'June 10, 2026',
+        tag: 'UPDATE 16.0 — BIG TUNE-UP',
+        tagColor: '#6C5CE7',
+        changes: [
+            'TUTOR CHAT FIXED — Replies render as proper messages again (no more squished one-word-per-line column), and your tutor conversation now SAVES for the session — reopen within your session window and it picks up right where you left off.',
+            'QUIZ GEN FIXED — Correct answers are no longer marked wrong.',
+            'FLASHCARDS FIXED — "Click to reveal" actually flips now, and AI Generate lets you type a topic/subject (not just your history).',
+            'NOTEBOOK IS THE STUDY HUB — Quiz Gen and Flashcards moved into the Notebook as tabs; Study History moved to the Command Center home.',
+            'PROFILE + ACHIEVEMENTS MERGED — One "Profile" tab with your customization, stats, and achievements together.',
+            'ENGLISH AID — "English Suite" renamed to "English Aid". Debate Practice is now a Command Center card; Citations stay in English Aid.',
+            'HELP BUTTON — Now a tidy "?" circle: tap to expand, tap again to open. Quick Notes bubble can be dragged anywhere.',
+            'MEMORY CONTROLS — New Settings → Companion sliders: set your tutor session length and how long Nexus & your Sprite remember past conversations.',
+        ]
+    },
     {
         version: 'v15.7',
         date: 'June 10, 2026',
@@ -17703,8 +17784,7 @@ if (typeof claimDailyReward === 'function') {
 const _origSwitchTabForAchievements = window.switchTab;
 window.switchTab = function(tabId) {
     _origSwitchTabForAchievements(tabId);
-    if (tabId === 'achievements') renderAchievementsTab();
-    if (tabId === 'achievements') renderProfileSection();
+    if (tabId === 'achievements') { if (typeof renderBetterProfile === 'function') renderBetterProfile(); else renderProfileSection(); renderAchievementsTab(); } // v16.0 — Profile + Achievements merged into one tab
     if (tabId === 'leaderboard') checkAchievements();
 };
 
@@ -19162,7 +19242,14 @@ const COMPANION_MEMORY_MAX_ENTRIES = 40; // last 40 exchanges per companion
 function getCompanionMemory(companionId) {
     try {
         const all = JSON.parse(localStorage.getItem('companion_memory') || '{}');
-        return all[companionId] || [];
+        let arr = all[companionId] || [];
+        // v16.0 — retention: forget conversations older than the user's setting (0 = forever)
+        const days = parseInt(localStorage.getItem('companion_memory_days') || '30', 10);
+        if (!isNaN(days) && days > 0) {
+            const cutoff = Date.now() - days * 86400000;
+            arr = arr.filter(m => (m.ts || 0) >= cutoff);
+        }
+        return arr;
     } catch { return []; }
 }
 function appendCompanionMemory(companionId, userMsg, aiMsg) {
@@ -23578,7 +23665,7 @@ function renderStudyHistoryChart(canvasId) {
         if(tabId==='homework') setTimeout(renderHomework,80);
         if(tabId==='grades')   setTimeout(renderGradeCalc,80);
         if(tabId==='dashboard'||tabId==='home') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); },120);
-        if(tabId==='profile')  setTimeout(renderBetterProfile,80);
+        if(tabId==='profile') { switchTab('achievements'); return; } // v16.0 — Profile merged into the Achievements tab
     };
 })();
 
@@ -23798,7 +23885,7 @@ function renderBetterProfile() {
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+hwDone+'</div><div style="font-size:0.85rem;color:var(--text-muted);">HW Done</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00CEC9;">'+gpaStr+'</div><div style="font-size:0.85rem;color:var(--text-muted);">GPA Avg</div></div>'
         +'</div>'
-        +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'tools\')" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
+        +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'notebook\');setTimeout(function(){switchNotebookTab(\'cards\');},80)" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
 
     setTimeout(function(){

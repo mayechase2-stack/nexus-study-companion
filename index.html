@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260610e">
+    <link rel="stylesheet" href="style.css?v=20260610f">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -223,7 +223,7 @@
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
-                v15.7 NOW LIVE
+                v16.0 NOW LIVE
             </div>
             <h1 style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;margin-bottom:20px;font-weight:900;letter-spacing:-1.5px;">
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
@@ -986,8 +986,8 @@
                     <span>English Aid</span>
                 </li>
                 <li onclick="switchTab('achievements')">
-                    <i class="ph ph-medal-military"></i>
-                    <span>Achievements</span>
+                    <i class="ph ph-user-circle"></i>
+                    <span>Profile</span>
                 </li>
                 <li onclick="switchTab('leaderboard')">
                     <i class="ph ph-trophy"></i>
@@ -3141,8 +3141,8 @@
                     <div style="display:flex;align-items:center;gap:12px;">
                         <div style="font-size:2.5rem;">🏆</div>
                         <div>
-                            <h1 style="margin:0;background:linear-gradient(135deg, #a855f7, #00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Achievements</h1>
-                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Complete goals to earn credits and unlock rewards</p>
+                            <h1 style="margin:0;background:linear-gradient(135deg, #a855f7, #00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Profile &amp; Achievements</h1>
+                            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Customize your profile and track your goals &amp; rewards</p>
                         </div>
                     </div>
                 </header>
@@ -3966,6 +3966,19 @@ if __name__ == '__main__':
                     </div>
                     <!-- COMPANION (v10.6) -->
                     <div class="settings-tab-pane" data-pane="companion" style="display:none;">
+                        <h3 style="margin:0 0 14px;color:white;font-size:1.1rem;">Memory &amp; Sessions</h3>
+                        <div class="glass-panel" style="padding:18px;margin-bottom:10px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;">Tutor session length <span id="setting-tutor-session-display" style="color:var(--accent);font-weight:700;">15 min</span></strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">How long your Nexus tutor keeps one conversation going. Reopen within this window and it picks up where you left off; after it lapses, a fresh session starts.</p>
+                            <input type="range" id="setting-tutor-session-min" min="5" max="60" step="1" value="15" style="width:100%;accent-color:var(--accent);"
+                                oninput="document.getElementById('setting-tutor-session-display').textContent=this.value+' min';localStorage.setItem('tutor_session_minutes',this.value)">
+                        </div>
+                        <div class="glass-panel" style="padding:18px;margin-bottom:16px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;">Memory retention <span id="setting-memory-days-display" style="color:var(--accent);font-weight:700;">30 days</span></strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">How far back Nexus &amp; your Sprite remember past conversations. Older chats are forgotten. Set to 0 to remember forever.</p>
+                            <input type="range" id="setting-companion-memory-days" min="0" max="90" step="1" value="30" style="width:100%;accent-color:var(--accent);"
+                                oninput="var v=parseInt(this.value);document.getElementById('setting-memory-days-display').textContent=(v===0?'Forever':v+' day'+(v!==1?'s':''));localStorage.setItem('companion_memory_days',this.value)">
+                        </div>
                         <h3 style="margin:0 0 14px;color:white;font-size:1.1rem;">Companion Behavior</h3>
                         <div class="glass-panel" style="padding:14px;margin-bottom:10px;">
                             <label style="display:flex;align-items:center;gap:12px;color:white;cursor:pointer;">
@@ -5000,7 +5013,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260610e"></script>
+    <script src="script.js?v=20260610f"></script>
 </body>
 
 </html>
