@@ -6994,7 +6994,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.6';
+const NEXUS_CURRENT_VERSION = 'v15.7';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15689,6 +15689,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v15.7',
+        date: 'June 10, 2026',
+        tag: 'UPDATE 15.7 — FOCUS SOUNDS TWEAK',
+        tagColor: '#74b9ff',
+        changes: [
+            'FOCUS SOUNDS — Removed Rain (Storm already covers that vibe) and swapped Forest for a flowing Stream / River. The focus-sound mixer is now Storm, Café, White Noise, Fireplace, and Stream.',
+        ]
+    },
+    {
         version: 'v15.6',
         date: 'June 9, 2026',
         tag: 'UPDATE 15.6 — AD-FREE LO-FI',
@@ -20995,12 +21004,11 @@ const _ambientGains = {};        // playing-state tracker (holds YT player or nu
 
 // YouTube video IDs — 10-hour loops, no music, pure ambient
 const _YT_VIDEOS = {
-    rain:       '56Xx9_PkTAk',   // Rain Sounds on Glass Window Roof | 10 Hours
     thunder:    'nDq6TstdEi8',   // EPIC THUNDER & RAIN | 10 Hours
     cafe:       'h2zkV-l_TbY',   // RESTAURANT AMBIENCE • 10H Busy Coffee Shop
     whitenoise: 'nMfPqeZjc2c',   // White Noise Black Screen | 10 Hours
     fire:       'EiwLa7pGy5Q',   // 10 Hours 4K Fireplace Cozy Crackling
-    forest:     'xuu1pBvCkz0',   // 10 Hours of Nature Forest Sounds — Birds, Insects
+    stream:     'jSG4HX2j7Ao',   // River Sounds for Studying/Relaxation | 10 Hours
 };
 const _ytPlayers  = {};          // id → YT.Player instance
 let   _ytApiReady = false;
@@ -21051,8 +21059,6 @@ window.onYouTubeIframeAPIReady = function() {
 };
 
 const AMBIENT_SOUNDS = [
-    { id: 'rain',       label: 'Rain',         icon: 'ph-cloud-rain',   color: '#74b9ff',
-      desc: 'Soft rainfall on glass' },
     { id: 'thunder',    label: 'Storm',        icon: 'ph-cloud-lightning', color: '#a29bfe',
       desc: 'Distant thunder & rain' },
     { id: 'cafe',       label: 'Café',         icon: 'ph-coffee',       color: '#fab1a0',
@@ -21061,8 +21067,8 @@ const AMBIENT_SOUNDS = [
       desc: 'Pure, steady background hiss' },
     { id: 'fire',       label: 'Fireplace',    icon: 'ph-fire',         color: '#e17055',
       desc: 'Crackling fire ambience' },
-    { id: 'forest',     label: 'Forest',       icon: 'ph-tree',         color: '#00b894',
-      desc: 'Birds & wind through trees' }
+    { id: 'stream',     label: 'Stream',       icon: 'ph-drop',         color: '#74b9ff',
+      desc: 'Flowing river & brook' }
 ];
 
 function _getAmbientCtx() {
