@@ -24026,7 +24026,13 @@ function resetPracticeTest() {
         { file: 'assets/audio/leberch-lofi-hip-hop-519408.mp3',               title: 'Hip Hop',     artist: 'leberch' },
         { file: 'assets/audio/solarflex-lofi-beats-541528.mp3',               title: 'Beats',       artist: 'solarflex' },
         { file: 'assets/audio/mirostar-lofi-beats-531504.mp3',                title: 'Beats',       artist: 'mirostar' },
-        { file: 'assets/audio/fassounds-good-night-lofi-cozy-chill-music-160166.mp3', title: 'Good Night', artist: 'fassounds' }
+        { file: 'assets/audio/fassounds-good-night-lofi-cozy-chill-music-160166.mp3', title: 'Good Night', artist: 'fassounds' },
+        { file: 'assets/audio/watermello-lofi-lofi-girl-lofi-chill-484610.mp3',     title: 'Lofi Chill', artist: 'watermello' },
+        { file: 'assets/audio/the_mountain-lofi-513863.mp3',                        title: 'Lofi',       artist: 'the_mountain' },
+        { file: 'assets/audio/prettyjohn1-lofi-beats-524251.mp3',                   title: 'Beats',      artist: 'prettyjohn1' },
+        { file: 'assets/audio/pulsebox-lofi-mellow-522897.mp3',                     title: 'Mellow',     artist: 'pulsebox' },
+        { file: 'assets/audio/pulsebox-lofi-melody-522894.mp3',                     title: 'Melody',     artist: 'pulsebox' },
+        { file: 'assets/audio/pulsebox-lofi-night-522890.mp3',                      title: 'Night',      artist: 'pulsebox' }
     ];
 
     var _track = parseInt(localStorage.getItem('lofi_track') || '0', 10);
