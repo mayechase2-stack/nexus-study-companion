@@ -3525,3 +3525,10 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
     overflow-wrap: anywhere;
     white-space: pre-wrap;
 }
+
+/* v16.5 — mobile touch polish: comfortable tap targets on phones */
+@media (max-width: 768px) {
+    .nav-links li { padding: 12px 14px !important; }
+    .btn-primary, .btn-secondary, .status-indicator { min-height: 42px; }
+    .card.glass-panel { padding: 16px !important; }
+}

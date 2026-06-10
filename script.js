@@ -6204,8 +6204,8 @@ const OWNER_PINNED_SUGGESTIONS = [
     { id: 'pin_01', title: 'Real .com launch — custom domain',      body: 'IN PROGRESS: NEXUS has moved off Netlify onto GitHub Pages and now auto-deploys on every update. Next step is pointing a proper .com at it so the app has a clean, professional, easy-to-share address (and HTTPS) instead of a long subdomain.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     { id: 'pin_02', title: 'Real accounts — cross-device login',    body: 'PLANNED: today your account, history, XP, and shop items live only in this browser (localStorage). The plan is a real backend database + secure login so your progress follows you to any device, with a path to recover your account if you clear your browser.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned', author: 'chase_owner', createdAt: Date.now() - 2*86400000, isUserSubmitted: false },
     { id: 'pin_03', title: 'Stripe payments — real subscriptions',  body: 'PLANNED: the current checkout is a mock. Real billing will run through Stripe with proper receipts, a billing portal, easy cancellation, and a free tier — paired with a small server-side proxy so Pro users get AI without pasting their own API key.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned', author: 'chase_owner', createdAt: Date.now() - 3*86400000, isUserSubmitted: false },
-    { id: 'pin_04', title: 'Live Vision improvements',              body: 'IN PROGRESS: making the screen-reading Live Vision faster and smarter — quicker capture, better subject detection, cleaner handling of LaTeX/math, and support for more question types including graphs, tables, and diagrams.', category: 'ai', votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
-    { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'UNDER REVIEW: NEXUS already installs as a PWA. This pass focuses on phones — bigger touch targets, layouts that stack cleanly, a smoother install prompt, and offline access to your notes, flashcards, and calculator.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
+    { id: 'pin_04', title: 'Live Vision improvements',              body: 'SHIPPED (v16.5): Live Vision now reads more question types straight from your screen — graphs/charts (values, slopes, intercepts), labeled diagrams, and data tables — on top of fill-in-the-blank, multiple choice, matching, and computation, with cleaner LaTeX/math output.', category: 'ai', votes: 0, voted: false, ownerApproved: true, status: 'shipped', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
+    { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'SHIPPED (v16.5): NEXUS is now a proper installable PWA with a service worker — add it to your home screen and it keeps working offline (network-first, so online you still get the freshest version), plus bigger tap targets on phones.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'shipped', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 // All non-approved suggestions expire after 4 days. Manual-only mode (post-release)
@@ -12673,6 +12673,13 @@ DRAG-AND-DROP / ORDERING:
 DEFINITION / IDENTIFICATION:
   -> "[term] is [definition in 15 words or fewer]." One explanatory sentence in explanation.
 
+GRAPH / CHART READING: a plotted graph, bar/line chart, or number line is shown.
+  -> Read the requested value, trend, slope, intercept, max/min, or coordinate directly from the figure. State it with units.
+DIAGRAM / LABELING: a labeled figure (cell, anatomy, circuit, map, molecule) with parts to identify.
+  -> "answer" = the label(s) for the marked part(s), e.g. "A = nucleus, B = mitochondrion".
+DATA TABLE: a table of values to read from or compute with.
+  -> Pull the exact cell value(s), or compute the requested statistic, and state it with units.
+
 REASONING (apply silently):
 1. Identify the question format from the list above.
 2. Strip all UI noise (buttons, progress bars) to isolate the academic question.
@@ -12687,7 +12694,7 @@ STRICT JSON OUTPUT (no prose outside JSON):
   "answer": "Exact answer in the format required by the question type. No filler phrases.",
   "explanation": "1-3 sentences on WHY this is correct. For fill-in-the-blank: show the complete sentence with blank filled in. Cite the key principle/rule/formula by name.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
-  "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | other"
+  "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other"
 }
 
 QUALITY BAR: Every answer survives teacher review. If the screen is unreadable, set "answer" to a clarification request and "topic" to "Clarification Needed".
@@ -15885,6 +15892,8 @@ const UPDATE_LOG = [
             'PROFILE EXPANDED — Your Profile now shows a level title, member-since date, most-studied subject, daily-challenge streak, and total study sessions.',
             'LEADERBOARDS EXPANDED — Rank yourself by XP, Problems Solved, Day Streak, Study Minutes, or Badges, against a deeper field of competitors.',
             'ROADMAP UPDATED — Pinned suggestions now reflect reality: shipped items are marked shipped, and the in-progress roadmap (.com launch, real accounts, Stripe, Live Vision, mobile) is detailed.',
+            'LIVE VISION READS MORE — It now answers graph/chart, labeled-diagram, and data-table questions straight from your screen, not just text-based ones.',
+            'INSTALLABLE PWA — Add NEXUS to your home screen; a service worker keeps it working offline while always serving the freshest version when you\'re online. Bigger tap targets on phones too.',
         ]
     },
     {
