@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260610f">
+    <link rel="stylesheet" href="style.css?v=20260610g">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1015,11 +1015,8 @@
                     <i class="ph ph-package"></i>
                     <span>Inventory</span>
                 </li>
+                <!-- v16.5 — Homework feature removed -->
                 <!-- v13.0 — New study tools -->
-                <li onclick="switchTab('homework')">
-                    <i class="ph ph-clipboard-text"></i>
-                    <span>Homework</span>
-                </li>
                 <li onclick="switchTab('grades')">
                     <i class="ph ph-chart-bar"></i>
                     <span>Grade Calc</span>
@@ -1235,7 +1232,7 @@
                             </div>
 
                             <!-- v13.0 — Daily Challenge quick card -->
-                            <div id="home-daily-challenge-card" onclick="switchTab('homework')" style="padding:14px 16px;background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(108,92,231,0.5)'" onmouseout="this.style.borderColor='rgba(108,92,231,0.3)'">
+                            <div id="home-daily-challenge-card" onclick="var p=document.getElementById('daily-challenge-panel');if(p)p.scrollIntoView({behavior:'smooth',block:'center'})" style="padding:14px 16px;background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(108,92,231,0.5)'" onmouseout="this.style.borderColor='rgba(108,92,231,0.3)'">
                                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
                                     <span style="font-size:1rem;">🎯</span>
                                     <span style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:0.5px;">DAILY CHALLENGE</span>
@@ -1313,9 +1310,7 @@
                                     <button class="btn-primary" onclick="switchTab('math')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00CEC9,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
                                         <i class="ph ph-function"></i> Math Lab
                                     </button>
-                                    <button class="btn-primary" onclick="switchTab('homework')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#fd79a8,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-clipboard-text"></i> Homework
-                                    </button>
+                                    <!-- v16.5 — Homework quick button removed -->
                                     <button class="btn-primary" onclick="switchTab('grades')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00b894,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
                                         <i class="ph ph-chart-bar"></i> Grades
                                     </button>
@@ -1440,8 +1435,8 @@
                         <p>Forge elite, structured prompts</p>
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00fff5, #7c4dff);">Forge</button>
                     </div>
-                    <!-- Debate Practice - v16.0 (replaced the Citation card; citations now live in English Aid) -->
-                    <div class="card glass-panel" onclick="switchTab('english');setTimeout(function(){var d=document.getElementById('english-debate-details');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'center'});}},150)" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
+                    <!-- Debate Practice - v16.5 (permanent Command Center feature) -->
+                    <div class="card glass-panel" onclick="var d=document.getElementById('command-debate-section');if(d)d.scrollIntoView({behavior:'smooth',block:'start'})" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
                         <div class="icon-glow" style="background:radial-gradient(circle,rgba(108,92,231,0.3),transparent);"><i class="ph ph-swords"></i></div>
                         <h3>Debate Practice</h3>
                         <p>Pick a side — the AI argues the opposite</p>
@@ -1740,6 +1735,36 @@
                     </div>
                 </div>
 
+                <!-- v16.5 — Daily Challenge (moved from Homework) -->
+                <div id="daily-challenge-panel" style="margin-top:20px;"></div>
+
+                <!-- v16.5 — Debate Practice (permanent Command Center feature, moved from English Aid) -->
+                <div id="command-debate-section" class="glass-panel" style="padding:20px;margin-top:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                        <span style="font-size:1.4rem;">&#x2694;&#xFE0F;</span>
+                        <div>
+                            <h3 style="margin:0;color:white;">Debate Practice</h3>
+                            <p style="margin:2px 0 0;font-size:0.82rem;color:var(--text-muted);">Pick a topic and a side — the AI argues the opposite, then judges who made the stronger case.</p>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+                        <input id="debate-topic-input" type="text" placeholder="Enter debate topic (e.g. Should school start later?)" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.93rem;box-sizing:border-box;">
+                        <select id="debate-side-select" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.93rem;">
+                            <option value="FOR">I'm arguing FOR</option>
+                            <option value="AGAINST">I'm arguing AGAINST</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-bottom:14px;">
+                        <button id="debate-start-btn" onclick="startDebate()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-swords"></i> Start Debate</button>
+                        <button id="debate-new-btn" onclick="resetDebate()" style="display:none;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> New Debate</button>
+                    </div>
+                    <div id="debate-chat-area" style="display:none;flex-direction:column;gap:0;max-height:340px;overflow-y:auto;margin-bottom:12px;padding:4px 0;"></div>
+                    <div id="debate-input-row" style="display:none;gap:8px;">
+                        <input id="debate-user-input" type="text" placeholder="Make your argument..." onkeydown="if(event.key==='Enter')sendDebateMsg()" style="flex:1;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
+                        <button onclick="sendDebateMsg()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:10px 16px;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;"><i class="ph ph-paper-plane-tilt"></i></button>
+                    </div>
+                </div>
+
                 <!-- v16.0 — Study History (moved from Study Tools) -->
                 <div class="glass-panel" style="padding:20px;margin-top:20px;">
                     <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-chart-bar"></i> Study Session History</h3>
@@ -1919,7 +1944,6 @@
                         <option value="english"   style="background:#14142a;color:white;">📚 English</option>
                         <option value="science"   style="background:#14142a;color:white;">🔬 Science</option>
                         <option value="social"    style="background:#14142a;color:white;">🌍 Social Studies</option>
-                        <option value="homework"  style="background:#14142a;color:white;">📋 Homework</option>
                         <option value="grade"     style="background:#14142a;color:white;">📊 Grades</option>
                         <option value="challenge" style="background:#14142a;color:white;">🎯 Daily Challenge</option>
                         <option value="study"     style="background:#14142a;color:white;">📖 Study</option>
@@ -2695,33 +2719,8 @@
                     </div>
                 </div>
 
-                <!-- v15.0 — Debate Practice -->
-                <div class="glass-panel" style="padding:20px;margin-top:16px;">
-                    <details id="english-debate-details">
-                        <summary style="cursor:pointer;font-size:1.05rem;font-weight:700;color:white;list-style:none;display:flex;align-items:center;gap:10px;user-select:none;">
-                            <span style="font-size:1.3rem;">&#x2694;&#xFE0F;</span> Debate Practice
-                            <span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;margin-left:auto;">(click to expand)</span>
-                        </summary>
-                        <div style="margin-top:14px;">
-                            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-                                <input id="debate-topic-input" type="text" placeholder="Enter debate topic (e.g. Should homework be banned?)" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.93rem;box-sizing:border-box;">
-                                <select id="debate-side-select" style="width:100%;padding:10px 14px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.93rem;">
-                                    <option value="FOR">I'm arguing FOR</option>
-                                    <option value="AGAINST">I'm arguing AGAINST</option>
-                                </select>
-                            </div>
-                            <div style="display:flex;gap:10px;margin-bottom:14px;">
-                                <button id="debate-start-btn" onclick="startDebate()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-swords"></i> Start Debate</button>
-                                <button id="debate-new-btn" onclick="resetDebate()" style="display:none;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 20px;border-radius:9px;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> New Debate</button>
-                            </div>
-                            <div id="debate-chat-area" style="display:none;flex-direction:column;gap:0;max-height:340px;overflow-y:auto;margin-bottom:12px;padding:4px 0;"></div>
-                            <div id="debate-input-row" style="display:none;gap:8px;">
-                                <input id="debate-user-input" type="text" placeholder="Make your argument..." onkeydown="if(event.key==='Enter')sendDebateMsg()" style="flex:1;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
-                                <button onclick="sendDebateMsg()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:10px 16px;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;"><i class="ph ph-paper-plane-tilt"></i></button>
-                            </div>
-                        </div>
-                    </details>
-                </div>
+                <!-- v16.5 — Debate Practice moved out of English Aid to the Command Center -->
+
             </div>
 
             <!-- Science View -->
@@ -3291,25 +3290,8 @@
             </div>
 
 
-            <!-- ══ v13.0: Homework Tracker ══════════════════════════════════ -->
-            <div id="view-homework" class="view">
-                <header style="background:linear-gradient(135deg,rgba(253,121,168,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(253,121,168,0.3);">
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="font-size:2.5rem;">📋</div>
-                            <div>
-                                <h1 style="margin:0;background:linear-gradient(135deg,#fd79a8,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Homework Tracker</h1>
-                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track assignments, due dates, and priorities</p>
-                            </div>
-                        </div>
-                        <button onclick="openUniversalTutor({subject:'Homework Help',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(253,121,168,0.25),rgba(108,92,231,0.15));border:1px solid rgba(253,121,168,0.4);border-radius:10px;color:#fd79a8;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
-                    </div>
-                </header>
-                <!-- Daily challenge banner -->
-                <div id="daily-challenge-panel" style="margin-bottom:20px;"></div>
-                <!-- Homework list injected by JS -->
-                <div id="hw-main"></div>
-            </div>
+            <!-- v16.5 — Homework Tracker removed. Daily Challenge moved to the Command Center (see #daily-challenge-panel there). -->
+            <div id="view-homework" class="view"></div>
 
             <!-- ══ v13.0: Grade Calculator ══════════════════════════════════ -->
             <div id="view-grades" class="view">
@@ -5013,7 +4995,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260610f"></script>
+    <script src="script.js?v=20260610g"></script>
 </body>
 
 </html>

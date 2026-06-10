@@ -23662,9 +23662,8 @@ function renderStudyHistoryChart(canvasId) {
         if(STUDY.indexOf(tabId)>=0){ endStudySession(); startStudySession(tabId.charAt(0).toUpperCase()+tabId.slice(1)); }
         else endStudySession();
         _orig(tabId);
-        if(tabId==='homework') setTimeout(renderHomework,80);
         if(tabId==='grades')   setTimeout(renderGradeCalc,80);
-        if(tabId==='dashboard'||tabId==='home') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); },120);
+        if(tabId==='dashboard'||tabId==='home') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); if(typeof renderDailyChallenge==='function') renderDailyChallenge(); },120);
         if(tabId==='profile') { switchTab('achievements'); return; } // v16.0 — Profile merged into the Achievements tab
     };
 })();
