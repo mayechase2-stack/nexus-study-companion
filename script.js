@@ -1,11 +1,13 @@
 ﻿// ════════════════════════════════════════════════════════════════════
-// NEXUS CONFIG — paste your OpenAI key below.
-// Every user gets 35 free AI requests on the host key.
-// After 35 uses they're prompted to add their own key in Settings.
-// Users who set their own key in Settings bypass the limit entirely.
+// NEXUS CONFIG
+// SECURITY: no host key here. This file is downloaded by every visitor's
+// browser, so any key placed here is public and WILL be stolen. Each user
+// adds their own OpenAI key in ⚙️ Settings (stored only in their browser).
+// (To safely offer shared/free requests later, route them through a small
+//  server-side proxy that holds the key — never ship a key in this file.)
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_API_KEY   = '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'; // host key
-const NEXUS_KEY_LIMIT = 35;                      // free uses per device
+const NEXUS_API_KEY   = ''; // intentionally empty — never hardcode a key here
+const NEXUS_KEY_LIMIT = 35; // (only relevant if a host key were proxied server-side)
 
 function getApiKey() {
     // Personal key set → use it, no limit applies
@@ -6992,7 +6994,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v15.4';
+const NEXUS_CURRENT_VERSION = 'v15.5';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15687,6 +15689,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v15.5',
+        date: 'June 9, 2026',
+        tag: 'UPDATE 15.5 — SCROLL WHEEL FIXED',
+        tagColor: '#00CEC9',
+        changes: [
+            'SCROLL WHEEL FIXED — A leftover feature was hijacking the mouse wheel to flip between sidebar tabs (which snapped the page back to the top), so scrolling looked broken and only click-and-dragging the scrollbar worked. Removed it — the wheel now scrolls the page normally everywhere.',
+        ]
+    },
+    {
         version: 'v15.4',
         date: 'June 9, 2026',
         tag: 'UPDATE 15.4 — SCROLL FIX & LAPTOP LAYOUT',
@@ -20622,30 +20633,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show Pomodoro bar if timer was running (companion-chat is closed on load, so it'll show in float widget instead)
     // (handled by the separate DOMContentLoaded at line ~9410)
 
-    // ── v14.0: scroll wheel cycles sidebar nav — 1 tab per scroll notch ──
-    const navLinks = document.querySelector('.nav-links');
-    if (navLinks) {
-        let _wheelLock = false;
-        document.querySelector('.sidebar').addEventListener('wheel', (e) => {
-            e.preventDefault();
-            if (_wheelLock) return;
-            _wheelLock = true;
-            setTimeout(() => { _wheelLock = false; }, 380); // 380ms = clean 1-tab-per-notch
-
-            // Only navigate switchTab() items (skip modal-openers)
-            const items = [...navLinks.querySelectorAll('li')].filter(li =>
-                (li.getAttribute('onclick') || '').includes("switchTab('")
-            );
-            const activeIdx = items.findIndex(li => li.classList.contains('active'));
-            const dir = e.deltaY > 0 ? 1 : -1;
-            const nextIdx = Math.max(0, Math.min(items.length - 1, (activeIdx < 0 ? 0 : activeIdx) + dir));
-            const next = items[nextIdx];
-            if (next) {
-                const tabId = (next.getAttribute('onclick') || '').match(/switchTab\('([^']+)'\)/)?.[1];
-                if (tabId) switchTab(tabId);
-            }
-        }, { passive: false });
-    }
+    // v15.5 — REMOVED the v14.0 "scroll wheel cycles nav tabs" handler. It
+    // preventDefault()ed every wheel notch and switched tabs (resetting scroll
+    // to the top), which hijacked normal scrolling — the wheel appeared dead and
+    // only click-and-drag worked. Scrolling is now native (main content + nav).
 });
 
 // ════════════════════════════════════════════════════════════════════
