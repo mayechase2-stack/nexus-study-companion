@@ -6192,20 +6192,20 @@ function applyTheme(colorName) {
 // IDs match dp_XX pool IDs so they don't duplicate when the pool loads them.
 const OWNER_PINNED_SUGGESTIONS = [
     // ── From community pool — pinned by chase_owner ──
-    { id: 'dp_19', title: 'Sign in with Google',             body: "One-click Google OAuth sign-in so new users don't have to create a separate password.",                                       category: 'features',   votes: 45, voted: false, ownerApproved: true, status: 'planned',      author: 'sso_please',   createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_22', title: 'Timed practice test mode',        body: 'Set a time limit, pick a subject, and get a mock test with auto-grading and a score card at the end.',                       category: 'features',   votes: 38, voted: false, ownerApproved: true, status: 'planned',      author: 'testmode',     createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_16', title: 'Study music integration',         body: 'Built-in playlist of copyright-free lo-fi tracks. No login required. Skip/volume controls.',                                   category: 'features',   votes: 30, voted: false, ownerApproved: true, status: 'planned',      author: 'lo_fi_chill',  createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_08', title: 'Spanish + French language packs', body: 'Localize the full UI for non-English students. Auto-detect from browser locale on first launch.',                              category: 'features',   votes: 23, voted: false, ownerApproved: true, status: 'planned',      author: 'globalist',    createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_30', title: 'Debate practice mode',            body: 'Pick a topic, pick a side, and the AI argues the opposite. Great for English and Social Studies prep.',                       category: 'ai',         votes: 23, voted: false, ownerApproved: true, status: 'planned',      author: 'debate_me',    createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_27', title: 'Multiple companion personalities',body: 'Beyond moods — let me pick "drill sergeant" mode that pushes hard or "best friend" mode that keeps it casual.',               category: 'companions', votes: 20, voted: false, ownerApproved: true, status: 'planned',      author: 'tone_setter',  createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'Pure black/white high-contrast theme for users with visual accessibility needs. WCAG AA compliant text.',                    category: 'themes',     votes: 16, voted: false, ownerApproved: true, status: 'shipped',      author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_23', title: 'Pixel art cursor set',            body: 'Classic 8-bit cursor, sword cursor for action clicks, heart cursor for hovered buttons.',                                     category: 'cursors',    votes: 15, voted: false, ownerApproved: true, status: 'planned',      author: 'retro_px',     createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_19', title: 'Sign in with Google',             body: "One-click Google OAuth sign-in so new users don't have to create a separate password. Will arrive alongside real cross-device accounts (see Roadmap below) — your Google identity becomes your NEXUS login, with your history, XP, and shop items tied to it.", category: 'features', votes: 45, voted: false, ownerApproved: true, status: 'planned', author: 'sso_please', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_22', title: 'Timed practice test mode',        body: 'SHIPPED (v15.0): the Practice Test tab lets you pick a subject, difficulty, question count, and a time limit. The AI generates a full multiple-choice test, a countdown turns red under 2 minutes, and you get an instant score card with per-question explanations.', category: 'features', votes: 38, voted: false, ownerApproved: true, status: 'shipped', author: 'testmode', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_16', title: 'Study music integration',         body: 'SHIPPED: the Lo-fi Player (sidebar → Lo-fi Music) streams ad-free, royalty-free lo-fi tracks bundled right into the app. Play/pause, previous/next/skip song, volume, a sleep timer, and it remembers your last track — no login or YouTube ads.', category: 'features', votes: 30, voted: false, ownerApproved: true, status: 'shipped', author: 'lo_fi_chill', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_08', title: 'Spanish + French language packs', body: 'Full UI localization for non-English students, auto-detected from your browser locale on first launch with a manual override in Settings. Spanish and French first, more to follow based on demand. Still on the planning board — a big translation pass.', category: 'features', votes: 23, voted: false, ownerApproved: true, status: 'planned', author: 'globalist', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_30', title: 'Debate practice mode',            body: 'SHIPPED: now a permanent Command Center feature. Enter any topic, pick a side (For/Against), and the AI argues the opposite across several sharp exchanges, then delivers a verdict on who made the stronger case. Great for English and Social Studies prep.', category: 'ai', votes: 23, voted: false, ownerApproved: true, status: 'shipped', author: 'debate_me', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_27', title: 'Multiple companion personalities',body: 'SHIPPED (v15.0): Settings → Companion lets you choose how your Sprite talks — Default, Drill Sergeant (tough love), Best Friend (casual + encouraging), Sherlock (analytical, never hands you the answer), and Chill Sensei (calm, metaphor-driven).', category: 'companions', votes: 20, voted: false, ownerApproved: true, status: 'shipped', author: 'tone_setter', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'SHIPPED: a pure high-contrast theme for visual-accessibility needs, with WCAG-AA-compliant text contrast across every panel, modal, and input.', category: 'themes', votes: 16, voted: false, ownerApproved: true, status: 'shipped', author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'dp_23', title: 'Pixel art cursor set',            body: 'SHIPPED (v15.0): three 8-bit cursors in the Shop — Pixel Arrow, Pixel Sword, and Pixel Heart — drawn as crisp SVG data URIs so they stay sharp at any size.', category: 'cursors', votes: 15, voted: false, ownerApproved: true, status: 'shipped', author: 'retro_px', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
     // ── Owner's own roadmap items ──
-    { id: 'pin_01', title: 'Real .com launch — custom domain',      body: 'Moving off Netlify subdomain to a proper .com. Cleaner, more professional, easier to share.',                         category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'in-progress',  author: 'chase_owner', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'pin_02', title: 'Real accounts — cross-device login',    body: 'Right now accounts live in your browser only. Moving to a real database so your data follows you on any device.',    category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned',      author: 'chase_owner', createdAt: Date.now() - 2*86400000, isUserSubmitted: false },
-    { id: 'pin_03', title: 'Stripe payments — real subscriptions',  body: 'Replacing the mock checkout with real Stripe billing. Proper receipts, cancellation, and billing portal.',           category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned',      author: 'chase_owner', createdAt: Date.now() - 3*86400000, isUserSubmitted: false },
-    { id: 'pin_04', title: 'Live Vision improvements',              body: 'Faster OCR, better subject detection, and support for more question types including graphs and diagrams.',            category: 'ai',       votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
-    { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'Better touch support, improved layout on phones, and installable as a home screen app on iOS and Android.',           category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
+    { id: 'pin_01', title: 'Real .com launch — custom domain',      body: 'IN PROGRESS: NEXUS has moved off Netlify onto GitHub Pages and now auto-deploys on every update. Next step is pointing a proper .com at it so the app has a clean, professional, easy-to-share address (and HTTPS) instead of a long subdomain.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
+    { id: 'pin_02', title: 'Real accounts — cross-device login',    body: 'PLANNED: today your account, history, XP, and shop items live only in this browser (localStorage). The plan is a real backend database + secure login so your progress follows you to any device, with a path to recover your account if you clear your browser.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned', author: 'chase_owner', createdAt: Date.now() - 2*86400000, isUserSubmitted: false },
+    { id: 'pin_03', title: 'Stripe payments — real subscriptions',  body: 'PLANNED: the current checkout is a mock. Real billing will run through Stripe with proper receipts, a billing portal, easy cancellation, and a free tier — paired with a small server-side proxy so Pro users get AI without pasting their own API key.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned', author: 'chase_owner', createdAt: Date.now() - 3*86400000, isUserSubmitted: false },
+    { id: 'pin_04', title: 'Live Vision improvements',              body: 'IN PROGRESS: making the screen-reading Live Vision faster and smarter — quicker capture, better subject detection, cleaner handling of LaTeX/math, and support for more question types including graphs, tables, and diagrams.', category: 'ai', votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
+    { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'UNDER REVIEW: NEXUS already installs as a PWA. This pass focuses on phones — bigger touch targets, layouts that stack cleanly, a smoother install prompt, and offline access to your notes, flashcards, and calculator.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'under-review', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 // All non-approved suggestions expire after 4 days. Manual-only mode (post-release)
@@ -7048,7 +7048,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v16.0';
+const NEXUS_CURRENT_VERSION = 'v16.5';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15694,23 +15694,34 @@ function getLeaderboardData() {
     const stats = getStudyStats();
     const username = localStorage.getItem('auth_user') || 'You';
 
+    let userMins = 0, userAch = 0;
+    try { userMins = getStudySessions().reduce((s, v) => s + (v.duration || 0), 0); } catch (e) {}
+    try { userAch = JSON.parse(localStorage.getItem('achievements_completed') || '[]').length; } catch (e) {}
+
     const leaderboard = [
-        { name: username, problems: stats.problemsSolved || 0, streak: stats.currentStreak || 0, xp: parseInt(localStorage.getItem('total_xp') || '0'), isUser: true },
-        { name: 'MathWizard99', problems: 247, streak: 14, xp: 8420 },
-        { name: 'ScienceNerd', problems: 198, streak: 22, xp: 7150 },
-        { name: 'HistoryBuff', problems: 156, streak: 9, xp: 5800 },
-        { name: 'StudyChamp', problems: 312, streak: 31, xp: 10250 },
-        { name: 'QuizMaster', problems: 89, streak: 5, xp: 3200 },
-        { name: 'BrainiacX', problems: 175, streak: 18, xp: 6400 },
-        { name: 'AcePilot', problems: 134, streak: 7, xp: 4900 },
-        { name: 'NexusElite', problems: 220, streak: 26, xp: 9100 },
-        { name: 'GalaxyLearner', problems: 103, streak: 12, xp: 3800 }
+        { name: username, problems: stats.problemsSolved || 0, streak: stats.currentStreak || 0, xp: parseInt(localStorage.getItem('total_xp') || '0'), minutes: userMins, achievements: userAch, isUser: true },
+        { name: 'StudyChamp',    problems: 312, streak: 31, xp: 10250, minutes: 2480, achievements: 24 },
+        { name: 'NexusElite',    problems: 220, streak: 26, xp: 9100,  minutes: 2010, achievements: 21 },
+        { name: 'CalcKing',      problems: 265, streak: 20, xp: 8800,  minutes: 1980, achievements: 20 },
+        { name: 'MathWizard99',  problems: 247, streak: 14, xp: 8420,  minutes: 1760, achievements: 18 },
+        { name: 'ScienceNerd',   problems: 198, streak: 22, xp: 7150,  minutes: 1890, achievements: 19 },
+        { name: 'BrainiacX',     problems: 175, streak: 18, xp: 6400,  minutes: 1320, achievements: 15 },
+        { name: 'HistoryBuff',   problems: 156, streak: 9,  xp: 5800,  minutes: 1140, achievements: 13 },
+        { name: 'NightOwl',      problems: 142, streak: 16, xp: 5200,  minutes: 1450, achievements: 12 },
+        { name: 'AcePilot',      problems: 134, streak: 7,  xp: 4900,  minutes: 980,  achievements: 11 },
+        { name: 'LangPro',       problems: 118, streak: 11, xp: 4300,  minutes: 1020, achievements: 10 },
+        { name: 'GalaxyLearner', problems: 103, streak: 12, xp: 3800,  minutes: 870,  achievements: 9 },
+        { name: 'NovaScholar',   problems: 95,  streak: 8,  xp: 3500,  minutes: 760,  achievements: 7 },
+        { name: 'QuizMaster',    problems: 89,  streak: 5,  xp: 3200,  minutes: 640,  achievements: 8 },
+        { name: 'PaperAce',      problems: 77,  streak: 4,  xp: 2600,  minutes: 520,  achievements: 6 }
     ];
 
-    // Sort by XP descending
-    leaderboard.sort((a, b) => b.xp - a.xp);
+    const sortKey = window._lbSort || 'xp';
+    leaderboard.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
     return leaderboard;
 }
+
+function _lbSetSort(k) { window._lbSort = k; renderLeaderboard(); } // v16.5 — switch leaderboard category
 
 function renderLeaderboard() {
     const container = document.getElementById('leaderboard-content');
@@ -15719,10 +15730,23 @@ function renderLeaderboard() {
     const data = getLeaderboardData();
     const medals = ['🥇', '🥈', '🥉'];
     const searchVal = (document.getElementById('lb-search')?.value || '').toLowerCase();
-
     const filtered = searchVal ? data.filter(e => e.name.toLowerCase().includes(searchVal)) : data;
 
-    let html = `<div style="margin-bottom:16px;display:flex;gap:12px;">
+    // v16.5 — rank by any of these categories
+    const LB_METRICS = [
+        { key: 'xp', label: 'XP', icon: 'ph-star' },
+        { key: 'problems', label: 'Problems', icon: 'ph-brain' },
+        { key: 'streak', label: 'Streak', icon: 'ph-flame' },
+        { key: 'minutes', label: 'Minutes', icon: 'ph-clock' },
+        { key: 'achievements', label: 'Badges', icon: 'ph-medal' }
+    ];
+    const sortKey = window._lbSort || 'xp';
+    const activeMetric = LB_METRICS.find(m => m.key === sortKey) || LB_METRICS[0];
+
+    let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">'
+        + LB_METRICS.map(m => '<button onclick="_lbSetSort(\'' + m.key + '\')" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;cursor:pointer;font-size:0.83rem;font-weight:600;transition:all .15s;border:1px solid ' + (m.key === sortKey ? 'transparent' : 'var(--glass-border)') + ';background:' + (m.key === sortKey ? 'linear-gradient(135deg,#6C5CE7,#00CEC9)' : 'rgba(255,255,255,0.05)') + ';color:' + (m.key === sortKey ? '#fff' : 'var(--text-muted)') + ';"><i class="ph ' + m.icon + '"></i> ' + m.label + '</button>').join('')
+        + '</div>';
+    html += `<div style="margin-bottom:16px;display:flex;gap:12px;">
         <input type="text" id="lb-search" placeholder="Search users..." value="${searchVal}"
             oninput="renderLeaderboard()"
             style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.9rem;">
@@ -15765,8 +15789,8 @@ function renderLeaderboard() {
                 </div>
             </div>
             <div style="text-align:right;">
-                <div style="font-size:1.2rem;font-weight:700;background:linear-gradient(135deg, #FFD700, #FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${entry.xp.toLocaleString()}</div>
-                <div style="font-size:0.9rem;color:var(--text-muted);">XP</div>
+                <div style="font-size:1.2rem;font-weight:700;background:linear-gradient(135deg, #FFD700, #FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${(entry[sortKey] || 0).toLocaleString()}</div>
+                <div style="font-size:0.9rem;color:var(--text-muted);">${activeMetric.label}</div>
             </div>
         </div>`;
     });
@@ -15848,6 +15872,21 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v16.5',
+        date: 'June 10, 2026',
+        tag: 'UPDATE 16.5 — STRUCTURE & POLISH',
+        tagColor: '#00CEC9',
+        changes: [
+            'DEBATE PRACTICE → COMMAND CENTER — Debate is now a permanent feature right on the Command Center home (moved out of English Aid). Citations stay in English Aid.',
+            'DAILY CHALLENGE → HOME — The daily challenge now lives on the Command Center instead of the (now-removed) Homework tab.',
+            'HOMEWORK TRACKER REMOVED — Streamlined the app; the Homework tab is gone.',
+            'GRADE CALCULATOR EXPLAINED & REFINED — Added a clear "what it is & how to use it" guide, and switched to a proper 4.0 GPA scale.',
+            'PROFILE EXPANDED — Your Profile now shows a level title, member-since date, most-studied subject, daily-challenge streak, and total study sessions.',
+            'LEADERBOARDS EXPANDED — Rank yourself by XP, Problems Solved, Day Streak, Study Minutes, or Badges, against a deeper field of competitors.',
+            'ROADMAP UPDATED — Pinned suggestions now reflect reality: shipped items are marked shipped, and the in-progress roadmap (.com launch, real accounts, Stripe, Live Vision, mobile) is detailed.',
+        ]
+    },
     {
         version: 'v16.0',
         date: 'June 10, 2026',
@@ -22851,6 +22890,14 @@ function letterGradeDetailed(avg) {
     return 'F';
 }
 
+// v16.5 — standard percent → 4.0 GPA conversion (replaces the rough (pct-60)/10)
+function pctToGpa4(p) {
+    if (p === null || isNaN(p)) return 0;
+    if (p >= 93) return 4.0; if (p >= 90) return 3.7; if (p >= 87) return 3.3; if (p >= 83) return 3.0;
+    if (p >= 80) return 2.7; if (p >= 77) return 2.3; if (p >= 73) return 2.0; if (p >= 70) return 1.7;
+    if (p >= 67) return 1.3; if (p >= 63) return 1.0; if (p >= 60) return 0.7; return 0.0;
+}
+
 function calcNeededScore(course) {
     if (!course.targetGrade || course.grades.length === 0) return null;
     var target = course.targetGrade;
@@ -22874,8 +22921,8 @@ function renderGradeCalc() {
     var overallPct = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length) : null;
     var overallGPA = overallPct !== null ? overallPct.toFixed(1) : '—';
     var overallLetter = letterGradeDetailed(overallPct);
-    // 4.0 scale: simplified conversion
-    var gpa4 = overallPct !== null ? Math.max(0, Math.min(4, (overallPct - 60) / 10)).toFixed(2) : '—';
+    // 4.0 scale: standard letter-grade conversion
+    var gpa4 = overallPct !== null ? pctToGpa4(overallPct).toFixed(1) : '—';
     var bestCourse = courses.reduce(function(b,c){ var a=calcCourseAvg(c); return (a!==null&&(b===null||a>b.avg))?{name:c.name,avg:a}:b; }, null);
 
     var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;">'
@@ -23862,16 +23909,23 @@ function renderBetterProfile() {
     var completed=JSON.parse(localStorage.getItem('achievements_completed')||'[]');
     var sessions=getStudySessions();
     var totalMins=sessions.reduce(function(s,v){return s+(v.duration||0);},0);
-    var hw=getHomework(), hwDone=hw.filter(function(i){return i.completed;}).length;
     var courses=getGradeCourses(), avgs=courses.map(calcCourseAvg).filter(function(a){return a!==null;});
     var gpaStr=avgs.length?(avgs.reduce(function(s,a){return s+a;},0)/avgs.length).toFixed(1)+'%':'—';
     var level=Math.floor(xp/500)+1, xpForNext=level*500, xpPct=Math.min(100,Math.round(((xp%500)/500)*100));
     var dueCards=getSrsDueCount();
+    // v16.5 — expanded profile details
+    var joined=localStorage.getItem('profile_joined'); if(!joined){ joined=String(Date.now()); localStorage.setItem('profile_joined',joined); }
+    var joinedStr=new Date(parseInt(joined,10)).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    var subjCount={}; sessions.forEach(function(s){ if(s.subject) subjCount[s.subject]=(subjCount[s.subject]||0)+1; });
+    var favSubject=Object.keys(subjCount).sort(function(a,b){return subjCount[b]-subjCount[a];})[0]||'—';
+    var dcStreak=parseInt(localStorage.getItem('dc_streak')||'0');
+    var _titles=['Newcomer','Learner','Scholar','Honor Roll','Dean’s List','Valedictorian'];
+    var title=_titles[Math.min(_titles.length-1, Math.floor((level-1)/3))];
 
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
         +'<div style="text-align:center;"><div style="font-size:1.4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
         +'<div style="flex:1;min-width:200px;">'
-        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span><span style="background:rgba(168,85,247,0.18);color:#c89bff;font-size:0.82rem;font-weight:700;padding:3px 10px;border-radius:20px;">'+title+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
         +(bio?'<div style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"'+bio+'"</div>':'')
         +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div></div>'
         +'<div style="display:flex;gap:12px;margin-top:12px;"><button class="btn-secondary" style="font-size:0.88rem;padding:6px 12px;" onclick="openEditProfile()"><i class="ph ph-pencil-simple"></i> Edit Profile</button></div>'
@@ -23881,9 +23935,10 @@ function renderBetterProfile() {
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(stats.currentStreak||0)+'🔥</div><div style="font-size:0.85rem;color:var(--text-muted);">Streak</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#a855f7;">'+completed.length+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Achievements</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#fdcb6e;">'+totalMins+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Mins Studied</div></div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+hwDone+'</div><div style="font-size:0.85rem;color:var(--text-muted);">HW Done</div></div>'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+sessions.length+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Sessions</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00CEC9;">'+gpaStr+'</div><div style="font-size:0.85rem;color:var(--text-muted);">GPA Avg</div></div>'
         +'</div>'
+        +'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;font-size:0.85rem;color:var(--text-muted);"><span><i class="ph ph-calendar-blank"></i> Member since <strong style="color:#fff;">'+joinedStr+'</strong></span><span><i class="ph ph-bookmark-simple"></i> Most studied: <strong style="color:#fff;">'+favSubject+'</strong></span><span><i class="ph ph-target"></i> Daily streak: <strong style="color:#fff;">'+dcStreak+'</strong></span></div>'
         +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'notebook\');setTimeout(function(){switchNotebookTab(\'cards\');},80)" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
 

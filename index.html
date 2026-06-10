@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260610g">
+    <link rel="stylesheet" href="style.css?v=20260610h">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -223,7 +223,7 @@
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
-                v16.0 NOW LIVE
+                v16.5 NOW LIVE
             </div>
             <h1 style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;margin-bottom:20px;font-weight:900;letter-spacing:-1.5px;">
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
@@ -3301,7 +3301,7 @@
                             <div style="font-size:2.5rem;">📊</div>
                             <div>
                                 <h1 style="margin:0;background:linear-gradient(135deg,#00CEC9,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Grade Calculator</h1>
-                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Track grades, weighted averages, and GPA</p>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Know where you stand in every class — and what you need to hit your goal.</p>
                             </div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -3311,6 +3311,19 @@
                         </div>
                     </div>
                 </header>
+
+                <!-- v16.5 — purpose & how-to explainer -->
+                <details class="glass-panel" style="padding:16px 20px;margin-bottom:18px;border:1px solid rgba(0,206,201,0.25);background:linear-gradient(135deg,rgba(0,206,201,0.06),rgba(108,92,231,0.04));" open>
+                    <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-weight:700;color:white;user-select:none;"><i class="ph ph-info" style="color:#00CEC9;font-size:1.1rem;"></i> What this is &amp; how to use it</summary>
+                    <p style="margin:10px 0 10px;font-size:0.88rem;color:#cfd4e2;line-height:1.55;">A running average for each class so you always know your grade — and exactly what you need on the next assignment to hit your goal. It's a personal planner, not your school's official gradebook.</p>
+                    <ol style="margin:0;padding-left:20px;color:#cfd4e2;font-size:0.86rem;line-height:1.75;">
+                        <li><strong style="color:#fff;">Add a course</strong> (e.g. "Biology") and, optionally, a <strong style="color:#fff;">target grade</strong> — the % you're aiming for.</li>
+                        <li><strong style="color:#fff;">Add each grade</strong> as you get it: a score out of 100 and an optional <strong style="color:#fff;">weight</strong> (so tests can count more than homework). Leave weights blank for a plain average.</li>
+                        <li>NEXUS shows your <strong style="color:#fff;">current %, letter grade, and 4.0 GPA</strong>, and — if you set a target — the <strong style="color:#fff;">score you need next</strong> to reach it.</li>
+                    </ol>
+                    <p style="margin:10px 0 0;font-size:0.8rem;color:var(--text-muted);">Tip: weights don't have to add up to 100 — they're normalized automatically. Stuck? Hit 🎓 Ask Tutor.</p>
+                </details>
+
                 <!-- Seasonal shop banner -->
                 <div id="seasonal-shop-banner" style="display:none;"></div>
                 <!-- Grade cards injected by JS -->
@@ -4995,7 +5008,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260610g"></script>
+    <script src="script.js?v=20260610h"></script>
 </body>
 
 </html>
