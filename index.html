@@ -9,13 +9,15 @@
     <meta name="theme-color" content="#0B0E1A">
     <!-- v16.5 — Google Identity Services (client-side Sign in with Google) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- v16.5 — EmailJS (client-side receipt emails on purchase) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <meta name="description" content="NEXUS — AI-powered study companion for high school students. Math, Science, English, Social Studies, GPA tracking, flashcards, and more.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260610j">
+    <link rel="stylesheet" href="style.css?v=20260610k">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4613,8 +4615,8 @@ if __name__ == '__main__':
                             onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
                     </div>
                     <div>
-                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Email Address</label>
-                        <input type="email" id="pay-email" placeholder="you@example.com" required
+                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Email Address <span style="opacity:0.7;">(optional — get a receipt + your login emailed)</span></label>
+                        <input type="email" id="pay-email" placeholder="you@example.com (optional)"
                             style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;"
                             onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
                     </div>
@@ -5024,7 +5026,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260610j"></script>
+    <script src="script.js?v=20260610k"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

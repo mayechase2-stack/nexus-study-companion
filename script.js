@@ -12,6 +12,11 @@ const NEXUS_KEY_LIMIT = 35; // (only relevant if a host key were proxied server-
 // the API key). Create one at console.cloud.google.com and paste it here; leave it
 // empty to hide the Google button. The github.io origin must be an Authorized JS origin.
 const GOOGLE_CLIENT_ID = '';
+// v16.5 — EmailJS (sends the purchase receipt from the browser). All three IDs are
+// PUBLIC/safe to commit. Get them free at emailjs.com; leave empty to disable email.
+const EMAILJS_PUBLIC_KEY  = '';
+const EMAILJS_SERVICE_ID  = '';
+const EMAILJS_TEMPLATE_ID = '';
 
 function getApiKey() {
     // Personal key set → use it, no limit applies
@@ -1550,6 +1555,30 @@ function submitOwnerPin() {
     }
 }
 
+// v16.5 — optional purchase receipt email via EmailJS (client-side, no backend)
+function _sendNexusReceipt(email, planLabel, price) {
+    if (!email) return;
+    if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !window.emailjs) {
+        try { localStorage.setItem('pending_receipt_email', email); } catch (e) {}  // remember for when it's configured
+        return;
+    }
+    var pass = localStorage.getItem('auth_pass');
+    var passDisplay = (pass === 'google') ? 'You sign in with Google (no password)' : (pass || 'N/A');
+    try {
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+            to_email: email,
+            username: localStorage.getItem('auth_user') || 'Scholar',
+            password: passDisplay,
+            plan: planLabel,
+            price: '$' + price.toFixed(2) + '/mo',
+            date: new Date().toLocaleDateString(),
+            about: 'NEXUS is your AI-powered study companion — homework help across Math, Science, English, and Social Studies, plus a tutor, flashcards, quizzes, a grade calculator, focus sounds, and more. Add your own OpenAI API key in Settings to power the AI features.'
+        }).then(function () { showToast('Receipt emailed to ' + email, 'success', 3500); })
+          .catch(function () { showToast("Couldn't send the receipt email.", 'info', 3000); });
+    } catch (e) {}
+}
+
 function submitPayment(event) {
     if (event && event.preventDefault) event.preventDefault();
     const fields = {
@@ -1561,8 +1590,9 @@ function submitPayment(event) {
         zip: document.getElementById('pay-zip'),
         address: document.getElementById('pay-address')
     };
-    // Basic validation
+    // Basic validation (email is optional — your choice)
     for (const k in fields) {
+        if (k === 'email') continue;
         if (!fields[k] || !fields[k].value.trim()) {
             showToast(`Please fill in all fields (${k}).`, 'error', 3500);
             if (fields[k]) fields[k].focus();
@@ -1588,9 +1618,9 @@ function submitPayment(event) {
         fields.exp.focus();
         return;
     }
-    // Email check
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.value)) {
-        showToast('Please enter a valid email address.', 'error', 3500);
+    // Email check — only if the (optional) email was provided
+    if (fields.email.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.value.trim())) {
+        showToast('Please enter a valid email address (or leave it blank).', 'error', 3500);
         fields.email.focus();
         return;
     }
@@ -1604,6 +1634,7 @@ function submitPayment(event) {
         const plan = _selectedPlan === 'pro' ? 'pro' : 'access';
         const price = plan === 'pro' ? PRO_PRICE : ACCESS_PRICE;
         const planLabel = plan === 'pro' ? 'NEXUS Pro' : 'NEXUS Access';
+        const receiptEmail = (fields.email && fields.email.value) ? fields.email.value.trim() : '';
         setUserTier(plan);
         const granted = grantStarterGold(plan);
         localStorage.setItem('nexus_subscription', JSON.stringify({
@@ -1622,6 +1653,7 @@ function submitPayment(event) {
         }
         const goldMsg = granted > 0 ? ` +${granted} starter gold added!` : '';
         showToast(`Welcome to ${planLabel}!${goldMsg}`, 'success', 5000);
+        _sendNexusReceipt(receiptEmail, planLabel + ' Monthly', price);   // optional receipt
         for (const k in fields) { if (fields[k]) fields[k].value = ''; }
     }, 1500);
 }
@@ -15979,6 +16011,7 @@ const UPDATE_LOG = [
             'SIGN IN WITH GOOGLE — A "Continue with Google" option on the sign-in screen (runs in your browser; the owner adds a Google Client ID to switch it on).',
             'LANGUAGE SWITCHER — Settings → Appearance now offers English / Español / Français for the app\'s navigation and labels.',
             'HOME TAB — Debate Practice, the Daily Challenge, and Study History now live on the Home tab (not the Command Center).',
+            'PURCHASE RECEIPT (OPTIONAL) — Add your email at checkout to get a receipt, a quick "what is NEXUS" intro, and your login emailed so you don\'t forget it. (Owner: connect a free EmailJS account to switch it on.)',
         ]
     },
     {
