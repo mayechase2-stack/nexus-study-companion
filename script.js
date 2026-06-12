@@ -4623,8 +4623,9 @@ function previewItem(id, type) {
         }
     }
 
-    // Render the item into the mockup
-    renderPreviewMockup(categorySingular, item);
+    // Render the item into the mockup — never let a per-category render error
+    // stop the modal from opening (that would make previews silently "not work").
+    try { renderPreviewMockup(categorySingular, item); } catch (e) { console.warn('preview mockup error:', e); }
 
     const owned = userInventory.includes(id);
     const equipped = Object.values(userLoadout).includes(id);
@@ -4663,11 +4664,15 @@ function previewItem(id, type) {
         equipBtn.style.display = 'none';
     }
 
-    document.getElementById('shop-preview-modal').classList.remove('hidden');
+    // Force it visible above every other layer (was z-index 9998 — could end up
+    // behind other stacking contexts, which is the likeliest reason "none worked").
+    const _pm = document.getElementById('shop-preview-modal');
+    if (_pm) { _pm.classList.remove('hidden'); _pm.style.display = 'flex'; _pm.style.zIndex = '1000050'; }
 }
 
 function closeShopPreview() {
-    document.getElementById('shop-preview-modal').classList.add('hidden');
+    const _pmc = document.getElementById('shop-preview-modal');
+    if (_pmc) { _pmc.classList.add('hidden'); _pmc.style.display = 'none'; }
     previewItemCache = null;
     // Stop the mockup wallpaper canvas if it was running
     if (window._previewMockupAnimFrame) {
@@ -5610,8 +5615,15 @@ function renderShopContent(tab, targetContainer) {
             const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈' }[item.id] || '↖️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
         } else if (tab === 'fonts') {
-            const fontFamily = { default: 'Inter', mono: 'Courier New', serif: 'Times New Roman', comic: 'Comic Sans MS', script: 'Brush Script MT', futuristic: 'Orbitron', playful: 'Pacifico' }[item.id] || 'Inter';
-            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:'${fontFamily}',sans-serif;font-size:1.3rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
+            const fontFamily = {
+                default: "'Inter',sans-serif", mono: "'Fira Code',monospace", serif: "'Cormorant Garamond',serif",
+                rounded: "'Quicksand',sans-serif", condensed: "'Oswald',sans-serif", handwriting: "'Dancing Script',cursive",
+                typewriter: "'Courier Prime',monospace", newspaper: "'Playfair Display',serif", pixel: "'Press Start 2P',monospace",
+                futuristic: "'Orbitron',sans-serif", gothic: "'UnifrakturMaguntia',serif", elegant: "'Playfair Display',serif",
+                chalk: "'Caveat',cursive", 'comic-pro': "'Bangers',cursive"
+            }[item.id] || "'Inter',sans-serif";
+            const _fsz = item.id === 'pixel' ? '0.8rem' : (item.id === 'comic-pro' ? '1.7rem' : '1.5rem');
+            previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:${fontFamily};font-size:${_fsz};color:#fff;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
         } else if (tab === 'wallpapers') {
             const wallpaperEmoji = { none: '⬛', starfield: '⭐', matrix: '💚', waves: '🌊', particles: '✨', gradient: '🌈', constellation: '🌌', sakura: '🌸' }[item.id] || '🖼️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
@@ -7807,10 +7819,24 @@ function applyFont(type) {
         'comic-pro': "'Bangers', 'Comic Sans MS', cursive"
     };
     document.body.style.fontFamily = fonts[type] || fonts.default;
-    // Pixel font needs larger line-height since it's very compact
-    document.body.style.lineHeight = type === 'pixel' ? '2.2' : '';
-    document.body.style.letterSpacing = type === 'pixel' ? '0.5px' : '';
-    document.body.style.fontSize = type === 'pixel' ? '10px' : '';
+    // v16.5 — per-font sizing fixes. Several display/script fonts render small
+    // and/or cramped at the default size, so bump size + letter-spacing + line-height
+    // for those. Sans fonts use the responsive default (empty = no override).
+    const tweaks = {
+        pixel:       { size: '12px',   ls: '0.5px', lh: '2.0'  }, // Press Start 2P — blocky & compact
+        gothic:      { size: '17px',   ls: '0.5px', lh: '1.75' }, // UnifrakturMaguntia — dense
+        'comic-pro': { size: '17px',   ls: '0.6px', lh: '1.7'  }, // Bangers
+        chalk:       { size: '18px',   ls: '0.3px', lh: '1.7'  }, // Caveat — small x-height
+        handwriting: { size: '18px',   ls: '0.3px', lh: '1.75' }, // Dancing Script
+        serif:       { size: '16.5px', ls: '0.2px', lh: '1.7'  }, // Cormorant Garamond — small x-height
+        elegant:     { size: '',       ls: '0.2px', lh: '1.7'  }, // Playfair
+        newspaper:   { size: '',       ls: '0.2px', lh: '1.7'  },
+        condensed:   { size: '',       ls: '0.5px', lh: ''     }  // Oswald — narrow/tight
+    };
+    const t = tweaks[type] || { size: '', ls: '', lh: '' };
+    document.body.style.fontSize = t.size;
+    document.body.style.letterSpacing = t.ls;
+    document.body.style.lineHeight = t.lh;
 }
 
 let wallpaperAnimFrame = null;
@@ -12387,7 +12413,7 @@ BE CAREFUL:
 - "Blocks Left: 9" means 9 TOTAL blocks, not 9 different types
 - Include ALL dropdown selections (turn → right/left, etc.)`
                             },
-                            { type: "image_url", image_url: { url: imageDataUrl } }
+                            { type: "image_url", image_url: { url: imageDataUrl, detail: 'high' } }
                         ]
                     }
 ],
@@ -12584,7 +12610,7 @@ ABSOLUTE RULES:
         { type: 'text', text: ocrText
             ? `OCR-EXTRACTED TEXT FROM SCREEN (may have errors — use the image as the source of truth):\n${ocrText}\n\nGuide me through this. Don't give the answer.`
             : 'Read the problem in the image and guide me through it. Don\'t give the answer.' },
-        { type: 'image_url', image_url: { url: imageDataUrl } }
+        { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }
     ];
 
     try {
@@ -12780,7 +12806,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
             { type: 'text', text: ocrText
                 ? `OCR-EXTRACTED TEXT FROM SCREEN (may have errors — use the image as the source of truth):\n${ocrText}\n\nLook at the image and answer the academic question shown.`
                 : 'Look at the image and answer the academic question shown on the screen.' },
-            { type: 'image_url', image_url: { url: imageDataUrl } }
+            { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }
         ];
 
         const _lvCtrl = new AbortController();
@@ -16012,6 +16038,9 @@ const UPDATE_LOG = [
             'LANGUAGE SWITCHER — Settings → Appearance now offers English / Español / Français for the app\'s navigation and labels.',
             'HOME TAB — Debate Practice, the Daily Challenge, and Study History now live on the Home tab (not the Command Center).',
             'PURCHASE RECEIPT (OPTIONAL) — Add your email at checkout to get a receipt, a quick "what is NEXUS" intro, and your login emailed so you don\'t forget it. (Owner: connect a free EmailJS account to switch it on.)',
+            'SHOP PREVIEWS FIXED — Clicking any shop item now reliably opens its preview (forced above other layers; a render glitch can no longer silently block it), and font cards show their actual typeface.',
+            'FONT SIZING FIXED — Display/script fonts (Pixel, Gothic, Bangers, Caveat, Dancing Script, Cormorant) now render at a comfortable size with proper spacing instead of tiny/cramped.',
+            'LIVE VISION SHARPER — Screen reads now use high-detail image analysis for more accurate problem reading and answers.',
         ]
     },
     {
