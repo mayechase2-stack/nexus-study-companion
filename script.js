@@ -2838,6 +2838,54 @@ function setEnglishInputImage(dataUrl) {
 }
 document.addEventListener('DOMContentLoaded', () => { setTimeout(wireEnglishInputPaste, 600); });
 
+// v16.5 — Notebook grammar checker (suggestion dp_36): check the selection, or the whole page.
+async function checkNotebookGrammar() {
+    if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
+    var area = document.getElementById('notebook-area');
+    if (!area) return;
+    var sel = window.getSelection();
+    var selText = '';
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+        var node = sel.anchorNode;
+        while (node && node !== area) node = node.parentNode;
+        if (node === area) selText = sel.toString().trim();
+    }
+    var text = selText || (area.innerText || '').trim();
+    if (!text) { showToast('Write some notes first (or select text to check).', 'warning'); return; }
+    var apiKey = getApiKey();
+    if (!apiKey) { showToast('Please add your OpenAI API key in Settings.', 'error'); return; }
+
+    var existing = document.getElementById('notebook-grammar-modal'); if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'notebook-grammar-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:580px;width:94%;max-height:84vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(255,195,18,0.4);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-spell-check" style="color:#ffc312;"></i> Grammar Check <span style="font-size:0.72rem;color:var(--text-muted);">(' + (selText ? 'selection' : 'full page') + ')</span></h3><button class="btn-icon" onclick="document.getElementById(\'notebook-grammar-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div id="notebook-grammar-output" style="padding:18px 20px;overflow-y:auto;line-height:1.6;color:#e0e0e0;"><i class="ph ph-spinner ph-spin"></i> Checking grammar…</div>'
+        + '</div>';
+    document.body.appendChild(modal);
+
+    var out = document.getElementById('notebook-grammar-output');
+    var prompt = 'You are a meticulous English language editor. Review the provided notes text:\n'
+        + '1. Fix ALL grammar, spelling, punctuation, capitalization, and syntax errors.\n'
+        + '2. Correct subject-verb agreement, tense consistency, pronoun references, run-ons, fragments, and comma splices.\n'
+        + '3. Preserve the author\'s voice, meaning, and any technical terms or shorthand.\n'
+        + 'Return the corrected version first inside <p> tags, then a section titled "Changes Made:" with a brief bulleted <ul> of the key fixes. If the text is already clean, say so warmly. Use only <p>, <ul>, <li>, <strong>.';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: prompt }, { role: 'user', content: text }], temperature: 0.2 })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error((data.error && data.error.message) || 'API error');
+        out.innerHTML = (data.choices && data.choices[0] && data.choices[0].message.content) || 'No response.';
+    } catch (e) {
+        out.innerHTML = '<p style="color:#ff6b6b;">Grammar check failed: ' + escapeHtmlSafe(e.message || String(e)) + '</p>';
+    }
+}
+
 async function englishAction(type) {
     if (!hasPaid()) { openPaymentModal('access'); return; }
     const text = document.getElementById('english-input').value.trim();
@@ -15724,6 +15772,39 @@ document.addEventListener('DOMContentLoaded', function () {
     else { var sel = document.getElementById('setting-app-lang'); if (sel && l) sel.value = l; }
 });
 
+// v16.5 — Word of the Day (curated list, picked deterministically by date)
+const NEXUS_WORDS = [
+    { word: 'Ephemeral',   def: 'Lasting for a very short time.', ety: 'Greek ephēmeros, "lasting only a day."', ex: 'The ephemeral glow of the sunset was gone in minutes.' },
+    { word: 'Ubiquitous',  def: 'Present or found everywhere.', ety: 'Latin ubique, "everywhere."', ex: 'Smartphones are now ubiquitous in classrooms.' },
+    { word: 'Pragmatic',   def: 'Dealing with things sensibly and realistically.', ety: 'Greek pragma, "a deed."', ex: 'She took a pragmatic approach to studying — short, daily sessions.' },
+    { word: 'Ameliorate',  def: 'To make a bad situation better.', ety: 'Latin melior, "better."', ex: 'Flashcards helped ameliorate his weak vocabulary.' },
+    { word: 'Tenacious',   def: 'Holding firmly; persistent.', ety: 'Latin tenax, "holding fast."', ex: 'Her tenacious effort paid off on the final exam.' },
+    { word: 'Eloquent',    def: 'Fluent and persuasive in speech or writing.', ety: 'Latin eloqui, "to speak out."', ex: 'His eloquent essay won the debate.' },
+    { word: 'Meticulous',  def: 'Showing great attention to detail.', ety: 'Latin meticulosus, "fearful," later "careful."', ex: 'She was meticulous in citing every source.' },
+    { word: 'Candid',      def: 'Truthful and straightforward.', ety: 'Latin candidus, "white, pure."', ex: 'The teacher gave candid feedback on the draft.' },
+    { word: 'Gregarious',  def: 'Fond of company; sociable.', ety: 'Latin grex, "flock, herd."', ex: 'The gregarious student thrived in group projects.' },
+    { word: 'Aesthetic',   def: 'Concerned with beauty or its appreciation.', ety: 'Greek aisthētikos, "of sense perception."', ex: 'The app\'s clean aesthetic made studying feel calmer.' },
+    { word: 'Diligent',    def: 'Showing careful and persistent effort.', ety: 'Latin diligere, "to value, take delight in."', ex: 'Diligent note-taking raised her grades.' },
+    { word: 'Nuance',      def: 'A subtle difference in meaning or tone.', ety: 'French nuer, "to shade."', ex: 'He missed the nuance between the two answers.' },
+    { word: 'Empathy',     def: 'The ability to understand another\'s feelings.', ety: 'Greek empatheia, "in-feeling."', ex: 'Her empathy made her a great study-group leader.' },
+    { word: 'Innovate',    def: 'To introduce new methods or ideas.', ety: 'Latin novus, "new."', ex: 'They innovated a new way to memorize formulas.' },
+    { word: 'Pensive',     def: 'Deeply or seriously thoughtful.', ety: 'French penser, "to think."', ex: 'She grew pensive over the tricky proof.' },
+    { word: 'Resilient',   def: 'Able to recover quickly from difficulty.', ety: 'Latin resilire, "to leap back."', ex: 'A resilient student bounces back from a bad grade.' }
+];
+function renderWordOfDay() {
+    var el = document.getElementById('word-of-day-widget');
+    if (!el) return;
+    var w = NEXUS_WORDS[Math.floor(Date.now() / 86400000) % NEXUS_WORDS.length];
+    el.innerHTML = '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(0,206,201,0.12),rgba(108,92,231,0.08));border:1px solid rgba(0,206,201,0.3);border-radius:12px;">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span style="font-size:1rem;">📖</span><span style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:0.5px;">WORD OF THE DAY</span></div>'
+        + '<div style="font-size:1.05rem;font-weight:800;color:#fff;">' + w.word + '</div>'
+        + '<div style="font-size:0.86rem;color:#d8dce5;margin-top:3px;">' + w.def + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;"><strong>Origin:</strong> ' + w.ety + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;font-style:italic;">"' + w.ex + '"</div>'
+        + '</div>';
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(renderWordOfDay, 300); });
+
 // v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
@@ -19487,6 +19568,49 @@ function clearCompanionMemory() {
     if (!confirm('Clear the companion\'s long-term memory of your past conversations?')) return;
     localStorage.removeItem('companion_memory');
     showToast('🧠 Companion memory cleared.', 'info', 2500);
+    var m = document.getElementById('companion-memory-modal'); if (m) m.remove();
+}
+// v16.5 — Settings card: surface everything the companion remembers, across all companions.
+function showCompanionMemorySummary() {
+    var all = {};
+    try { all = JSON.parse(localStorage.getItem('companion_memory') || '{}'); } catch (_) {}
+    var days = parseInt(localStorage.getItem('companion_memory_days') || '30', 10);
+    var cutoff = (!isNaN(days) && days > 0) ? (Date.now() - days * 86400000) : 0;
+    var entries = [];
+    Object.keys(all).forEach(function (cid) {
+        var name = (typeof COMPANIONS_DATA !== 'undefined' && COMPANIONS_DATA[cid]) ? COMPANIONS_DATA[cid].name : cid;
+        (all[cid] || []).forEach(function (m) {
+            if ((m.ts || 0) >= cutoff) entries.push({ ts: m.ts, user: m.user, ai: m.ai, who: name });
+        });
+    });
+    entries.sort(function (a, b) { return b.ts - a.ts; });
+
+    var existing = document.getElementById('companion-memory-modal'); if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'companion-memory-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+
+    var body;
+    if (!entries.length) {
+        body = '<p style="color:var(--text-muted);text-align:center;padding:28px 8px;line-height:1.6;">Your companion hasn\'t saved any long-term memories yet.<br>Chat with your Sprite and meaningful exchanges will show up here.</p>';
+    } else {
+        body = '<p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 12px;">Your companion remembers these ' + entries.length + ' past exchange' + (entries.length === 1 ? '' : 's') + ' (within your ' + (cutoff ? days + '-day' : 'unlimited') + ' retention window):</p>'
+            + entries.map(function (m) {
+                return '<div style="border:1px solid var(--glass-border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,0.02);">'
+                    + '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:5px;display:flex;justify-content:space-between;"><span>' + escapeHtmlSafe(m.who) + '</span><span>' + new Date(m.ts).toLocaleDateString() + '</span></div>'
+                    + '<div style="font-size:0.84rem;color:#cdd2e0;"><strong style="color:#a29bfe;">You:</strong> ' + escapeHtmlSafe((m.user || '').slice(0, 180)) + '</div>'
+                    + '<div style="font-size:0.84rem;color:#cdd2e0;margin-top:2px;"><strong style="color:#00CEC9;">Sprite:</strong> ' + escapeHtmlSafe((m.ai || '').slice(0, 180)) + '</div>'
+                    + '</div>';
+            }).join('');
+    }
+
+    modal.innerHTML = '<div class="glass-panel" style="max-width:540px;width:94%;max-height:84vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-brain" style="color:#a29bfe;"></i> What your companion knows</h3><button class="btn-icon" onclick="document.getElementById(\'companion-memory-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow-y:auto;">' + body + '</div>'
+        + (entries.length ? '<div style="padding:12px 20px;border-top:1px solid var(--glass-border);text-align:right;flex-shrink:0;"><button class="btn-secondary" style="color:#ff6b6b;border-color:rgba(255,107,107,0.35);font-size:0.85rem;" onclick="clearCompanionMemory()"><i class="ph ph-trash"></i> Clear all memory</button></div>' : '')
+        + '</div>';
+    document.body.appendChild(modal);
 }
 
 // ════════════════════════════════════════════════════════════════════

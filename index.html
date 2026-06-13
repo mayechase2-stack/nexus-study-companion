@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260611b">
+    <link rel="stylesheet" href="style.css?v=20260613a">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1248,6 +1248,9 @@
                                 <div id="home-tip-text" style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Loading today's challenge…</div>
                             </div>
 
+                            <!-- v16.5 — Word of the Day -->
+                            <div id="word-of-day-widget" style="margin-bottom:12px;"></div>
+
                             <!-- Update banner — v13.0 -->
                             <div style="padding:14px 16px;background:linear-gradient(135deg,rgba(253,121,168,0.12),rgba(108,92,231,0.08));border:1px solid rgba(253,121,168,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;" onclick="switchTab('updates')">
                                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -1853,6 +1856,11 @@
                     <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;text-align:center;">
                         <i class="ph ph-floppy-disk"></i> Auto-saves as you type • Last saved: <span id="notebook-last-saved">Never</span>
                     </p>
+                    <!-- v16.5 — Notebook grammar checker -->
+                    <div style="text-align:center;margin-top:8px;">
+                        <button class="btn-secondary" onclick="checkNotebookGrammar()" style="font-size:0.85rem;"><i class="ph ph-spell-check"></i> Check Grammar</button>
+                        <div style="font-size:0.74rem;color:var(--text-muted);margin-top:5px;">Select text to check just that part — or check the whole page.</div>
+                    </div>
                 </div>
 
                 <!-- Drawing Canvas Section -->
@@ -4049,6 +4057,12 @@ if __name__ == '__main__':
                                 <option value="rival" style="background:#14142a;color:white;">Rival (competitive — pushes you to beat them)</option>
                             </select>
                         </div>
+                        <!-- v16.5 — Companion memory summary -->
+                        <div class="glass-panel" style="padding:18px;margin-bottom:10px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;"><i class="ph ph-brain"></i> Companion Memory</strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">See what your Sprite remembers from past conversations — and clear it anytime.</p>
+                            <button class="btn-secondary" onclick="showCompanionMemorySummary()" style="font-size:0.85rem;"><i class="ph ph-list-magnifying-glass"></i> What does my companion know?</button>
+                        </div>
                     </div>
                     <!-- APPEARANCE (v10.6 expanded) -->
                     <div class="settings-tab-pane" data-pane="appearance" style="display:none;">
@@ -5041,7 +5055,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260611b"></script>
+    <script src="script.js?v=20260613a"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
