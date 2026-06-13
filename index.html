@@ -1856,11 +1856,12 @@
                     <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;text-align:center;">
                         <i class="ph ph-floppy-disk"></i> Auto-saves as you type • Last saved: <span id="notebook-last-saved">Never</span>
                     </p>
-                    <!-- v16.5 — Notebook grammar checker -->
-                    <div style="text-align:center;margin-top:8px;">
+                    <!-- v16.5 — Notebook grammar checker · v17.0 — concept map -->
+                    <div style="text-align:center;margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
                         <button class="btn-secondary" onclick="checkNotebookGrammar()" style="font-size:0.85rem;"><i class="ph ph-spell-check"></i> Check Grammar</button>
-                        <div style="font-size:0.74rem;color:var(--text-muted);margin-top:5px;">Select text to check just that part — or check the whole page.</div>
+                        <button class="btn-secondary" onclick="openConceptMap()" style="font-size:0.85rem;"><i class="ph ph-tree-structure"></i> Concept Map</button>
                     </div>
+                    <div style="font-size:0.74rem;color:var(--text-muted);margin-top:5px;text-align:center;">Grammar: select text to check part, or check the whole page. &bull; Concept Map: visualize any topic.</div>
                 </div>
 
                 <!-- Drawing Canvas Section -->
@@ -2877,6 +2878,30 @@
                     <button onclick="openQuickStudyQuiz('Social Studies')" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-magic-wand"></i> Quiz Yourself</button>
                     <button onclick="openFlashcards('ai')" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-cards"></i> Flashcards</button>
                     <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
+                </div>
+
+                <!-- v17.0 — Region Explorer -->
+                <div style="background:rgba(253,121,168,0.06);border:1px solid rgba(253,121,168,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><i class="ph ph-globe-hemisphere-west" style="color:#fd79a8;font-size:1.2rem;"></i><strong style="color:white;">Region Explorer</strong><span style="font-size:0.78rem;color:var(--text-muted);">— history, government &amp; economy of any place</span></div>
+                    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                        <input id="social-region-search" class="input-field" placeholder="Type a country or region (e.g. Brazil, Ancient Egypt, Southeast Asia)" style="flex:1;min-width:220px;" onkeydown="if(event.key==='Enter')searchSocial('region', this.value)">
+                        <button class="btn-primary" onclick="searchSocial('region', document.getElementById('social-region-search').value)" style="flex-shrink:0;"><i class="ph ph-magnifying-glass"></i> Explore</button>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button onclick="searchSocial('region','United States')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇺🇸 United States</button>
+                        <button onclick="searchSocial('region','United Kingdom')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇬🇧 United Kingdom</button>
+                        <button onclick="searchSocial('region','France')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇫🇷 France</button>
+                        <button onclick="searchSocial('region','Germany')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇩🇪 Germany</button>
+                        <button onclick="searchSocial('region','Russia')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇷🇺 Russia</button>
+                        <button onclick="searchSocial('region','China')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇨🇳 China</button>
+                        <button onclick="searchSocial('region','Japan')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇯🇵 Japan</button>
+                        <button onclick="searchSocial('region','India')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇮🇳 India</button>
+                        <button onclick="searchSocial('region','Brazil')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇧🇷 Brazil</button>
+                        <button onclick="searchSocial('region','Egypt')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇪🇬 Egypt</button>
+                        <button onclick="searchSocial('region','South Africa')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇿🇦 South Africa</button>
+                        <button onclick="searchSocial('region','Mexico')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇲🇽 Mexico</button>
+                    </div>
+                    <div id="social-region-output" class="hidden" style="margin-top:14px;padding:14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;line-height:1.6;color:#e8eef8;"></div>
                 </div>
 
                 <div class="eng-tabs" style="margin-bottom: 24px;">

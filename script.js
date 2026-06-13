@@ -2519,6 +2519,54 @@ function _replayTutorSession(history) {
     chat.scrollTop = chat.scrollHeight;
 }
 
+// v17.0 — Voice input (Web Speech API). Dictates speech into any target input/textarea.
+let _nexusRecognition = null;
+function nexusToggleDictation(targetId, btn) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showToast('Voice input isn\'t supported in this browser — try Chrome or Edge.', 'warning', 4000); return; }
+    if (_nexusRecognition) { try { _nexusRecognition.stop(); } catch (_) {} return; }
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    const rec = new SR();
+    const lang = localStorage.getItem('app_lang');
+    rec.lang = lang === 'es' ? 'es-ES' : lang === 'fr' ? 'fr-FR' : 'en-US';
+    rec.interimResults = true;
+    rec.continuous = false;
+    const baseText = target.value ? target.value.replace(/\s+$/, '') + ' ' : '';
+    let finalText = '';
+    rec.onstart = function () {
+        _nexusRecognition = rec;
+        if (btn) { btn.style.color = '#ff5e5e'; btn.innerHTML = '<i class="ph ph-microphone-slash"></i>'; btn.title = 'Stop dictation'; }
+        showToast('🎤 Listening… speak now.', 'info', 1800);
+    };
+    rec.onresult = function (e) {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalText += t; else interim += t;
+        }
+        target.value = baseText + finalText + interim;
+        try { target.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+        if (target.tagName === 'TEXTAREA') { target.style.height = 'auto'; target.style.height = Math.min(target.scrollHeight, 160) + 'px'; }
+    };
+    rec.onerror = function (ev) {
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') showToast('Microphone permission denied. Enable it in your browser to use voice input.', 'error', 4500);
+        else if (ev.error !== 'aborted' && ev.error !== 'no-speech') showToast('Voice input error: ' + ev.error, 'error', 3000);
+    };
+    rec.onend = function () {
+        _nexusRecognition = null;
+        if (btn) { btn.style.color = ''; btn.innerHTML = '<i class="ph ph-microphone"></i>'; btn.title = 'Voice input'; }
+        if (target && target.focus) target.focus();
+    };
+    try { rec.start(); } catch (_) {}
+}
+
+// v17.0 — Math/STEM step-by-step tutoring toggle
+function toggleTutorStepwise(el) {
+    localStorage.setItem('tutor_stepwise', el.checked ? '1' : '0');
+    if (typeof showToast === 'function') showToast(el.checked ? '🪜 Step-by-step on — I\'ll reveal one step at a time and wait for you.' : 'Step-by-step off.', 'info', 2400);
+}
+
 function openUniversalTutor(options) {
     options = options || {};
     const subject  = options.subject  || 'General';
@@ -2564,11 +2612,20 @@ function openUniversalTutor(options) {
         <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.08);">
             <div style="display:flex;gap:10px;align-items:flex-end;">
                 <textarea id="univ-tutor-input" class="input-field" style="flex:1;height:60px;resize:none;padding:10px 12px;font-size:0.9rem;" placeholder="Ask a question…">${escapeHtmlSafe(preQ)}</textarea>
+                <button class="btn-secondary" onclick="nexusToggleDictation('univ-tutor-input', this)" title="Voice input" style="padding:10px 14px;flex-shrink:0;height:60px;">
+                    <i class="ph ph-microphone"></i>
+                </button>
                 <button class="btn-primary" onclick="sendUniversalTutorMessage('${escapeHtmlSafe(subject)}','${escapeHtmlSafe(topic)}','${escapeHtmlSafe(context)}')" style="padding:10px 16px;flex-shrink:0;height:60px;">
                     <i class="ph ph-paper-plane-tilt"></i>
                 </button>
             </div>
-            <div style="font-size:0.9rem;color:var(--text-muted);margin-top:6px;">Enter to send &bull; Shift+Enter for new line</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--text-muted);cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="tutor-stepwise-toggle" onchange="toggleTutorStepwise(this)" style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;">
+                    <i class="ph ph-steps"></i> Step-by-step (one step at a time)
+                </label>
+                <span style="font-size:0.82rem;color:var(--text-muted);">Enter to send &bull; Shift+Enter = new line</span>
+            </div>
         </div>
     </div>`;
 
@@ -2592,6 +2649,9 @@ function openUniversalTutor(options) {
             }
         });
     }
+    // v17.0 — reflect saved step-by-step preference
+    var _sw = document.getElementById('tutor-stepwise-toggle');
+    if (_sw) _sw.checked = localStorage.getItem('tutor_stepwise') === '1';
 }
 
 async function sendUniversalTutorMessage(subject, topic, context) {
@@ -2627,10 +2687,12 @@ async function sendUniversalTutorMessage(subject, topic, context) {
     const resolvedContext = _meta.context || context;
 
     const tutorMode = localStorage.getItem('tutor_mode') === 'tutor';
+    const stepwise = localStorage.getItem('tutor_stepwise') === '1';
     const systemPrompt = `You are NEXUS — an encouraging, patient AI tutor.
 Subject: ${resolvedSubject}${resolvedTopic ? '\nTopic: ' + resolvedTopic : ''}${resolvedContext ? '\nContext: ' + resolvedContext : ''}
 
 ${tutorMode ? 'TUTOR MODE: Guide the student with Socratic hints. Do NOT give the final answer. Ask one guiding question at the end.' : 'HELPER MODE: Explain clearly and completely. Use examples.'}
+${stepwise ? '\nSTEP-BY-STEP MODE (IMPORTANT): Reveal the solution ONE step at a time. Show only the single next step, briefly explain why, then STOP and invite the student to attempt the following step (e.g. "Your turn — what comes next?"). Never dump multiple steps or the final answer at once. When the student replies, confirm or gently correct, then give the next single step. End with the final answer only after the last step.' : ''}
 
 Format: clean HTML only (<strong>, <ul><li>, <br>, etc.). No markdown asterisks. Keep it concise and encouraging.`;
 
@@ -2890,6 +2952,97 @@ async function checkNotebookGrammar() {
     } catch (e) {
         out.innerHTML = '<p style="color:#ff6b6b;">Grammar check failed: ' + escapeHtmlSafe(e.message || String(e)) + '</p>';
     }
+}
+
+// v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
+function openConceptMap() {
+    if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
+    var seed = '';
+    var area = document.getElementById('notebook-area');
+    if (area) {
+        var sel = window.getSelection ? String(window.getSelection()) : '';
+        seed = (sel && sel.trim()) ? sel.trim().slice(0, 80) : (area.innerText || '').trim().split('\n')[0].slice(0, 80);
+    }
+    var existing = document.getElementById('concept-map-modal'); if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'concept-map-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:860px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-tree-structure" style="color:#a29bfe;"></i> Concept Map</h3><button class="btn-icon" onclick="document.getElementById(\'concept-map-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;display:flex;gap:10px;flex-shrink:0;border-bottom:1px solid var(--glass-border);">'
+        + '<input id="concept-map-topic" class="input-field" placeholder="Enter a topic (e.g. Photosynthesis, The French Revolution)" value="' + escapeHtmlSafe(seed) + '" style="flex:1;" onkeydown="if(event.key===\'Enter\')generateConceptMap()">'
+        + '<button class="btn-primary" onclick="generateConceptMap()" style="flex-shrink:0;"><i class="ph ph-sparkle"></i> Generate</button></div>'
+        + '<div id="concept-map-output" style="padding:18px;overflow:auto;flex:1;"><p style="color:var(--text-muted);text-align:center;padding:30px;">Enter a topic and tap Generate — I\'ll map out the key branches and sub-ideas.</p></div>'
+        + '</div>';
+    document.body.appendChild(modal);
+    var ti = document.getElementById('concept-map-topic'); if (ti) ti.focus();
+}
+async function generateConceptMap() {
+    var topicEl = document.getElementById('concept-map-topic');
+    var topic = (topicEl && topicEl.value || '').trim();
+    if (!topic) { showToast('Enter a topic first.', 'warning'); return; }
+    var apiKey = getApiKey();
+    if (!apiKey) { showToast('Add your OpenAI API key in Settings.', 'error'); return; }
+    var out = document.getElementById('concept-map-output');
+    out.innerHTML = '<p style="color:var(--accent);text-align:center;padding:30px;"><i class="ph ph-spinner ph-spin"></i> Mapping "' + escapeHtmlSafe(topic) + '"…</p>';
+    var prompt = 'You are a study concept-map builder. For the given topic, output ONLY valid JSON in this exact shape: {"topic":"<short topic>","branches":[{"label":"<key idea>","children":["<sub-point>","<sub-point>"]}]}. Provide 4 to 6 branches, each with 2 to 4 short children (max ~6 words each). No prose, no code fence.';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: prompt }, { role: 'user', content: 'Topic: ' + topic }], temperature: 0.4, response_format: { type: 'json_object' } })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error((data.error && data.error.message) || 'API error');
+        var content = data.choices[0].message.content || '{}';
+        var parsed;
+        try { parsed = JSON.parse(content); } catch (e) { parsed = JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)); }
+        renderConceptMapData(parsed);
+    } catch (e) {
+        out.innerHTML = '<p style="color:#ff6b6b;text-align:center;padding:24px;">Couldn\'t build the map: ' + escapeHtmlSafe(e.message || String(e)) + '</p>';
+    }
+}
+function renderConceptMapData(d) {
+    var out = document.getElementById('concept-map-output');
+    if (!out) return;
+    if (!d || !Array.isArray(d.branches) || !d.branches.length) { out.innerHTML = '<p style="color:#ff6b6b;text-align:center;padding:24px;">No map data — try again.</p>'; return; }
+    window._lastConceptMap = d;
+    var n = d.branches.length;
+    var W = 780, H = Math.max(520, 200 + n * 64), cx = W / 2, cy = H / 2, Rx = W * 0.36, Ry = H * 0.34;
+    var pts = d.branches.map(function (b, i) {
+        var ang = (-Math.PI / 2) + (i * (2 * Math.PI / n));
+        return { x: cx + Rx * Math.cos(ang), y: cy + Ry * Math.sin(ang), b: b };
+    });
+    var lines = pts.map(function (p) { return '<line x1="' + cx + '" y1="' + cy + '" x2="' + p.x + '" y2="' + p.y + '" stroke="rgba(162,155,254,0.5)" stroke-width="2"/>'; }).join('');
+    var palette = ['#a29bfe', '#00CEC9', '#ff9ec4', '#ffd166', '#74c8ff', '#55efc4'];
+    var cards = pts.map(function (p, i) {
+        var col = palette[i % palette.length];
+        var kids = (p.b.children || []).map(function (c) { return '<div style="font-size:0.74rem;color:#cdd2e0;margin-top:3px;">• ' + escapeHtmlSafe(String(c)) + '</div>'; }).join('');
+        return '<div style="position:absolute;left:' + (p.x - 80) + 'px;top:' + (p.y - 28) + 'px;width:160px;background:rgba(20,22,40,0.92);border:1.5px solid ' + col + ';border-radius:10px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,0.4);">'
+            + '<div style="font-size:0.82rem;font-weight:700;color:' + col + ';">' + escapeHtmlSafe(String(p.b.label || '')) + '</div>' + kids + '</div>';
+    }).join('');
+    out.innerHTML = '<div style="text-align:right;margin-bottom:8px;"><button class="btn-secondary" onclick="insertConceptMapOutline()" style="font-size:0.82rem;"><i class="ph ph-arrow-line-down"></i> Insert outline into notes</button></div>'
+        + '<div style="position:relative;width:' + W + 'px;height:' + H + 'px;margin:0 auto;max-width:100%;">'
+        + '<svg width="' + W + '" height="' + H + '" style="position:absolute;inset:0;">' + lines + '</svg>'
+        + '<div style="position:absolute;left:' + (cx - 90) + 'px;top:' + (cy - 26) + 'px;width:180px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border-radius:12px;padding:10px 12px;text-align:center;box-shadow:0 6px 20px rgba(108,92,231,0.5);"><div style="font-size:0.92rem;font-weight:800;color:#fff;">' + escapeHtmlSafe(String(d.topic || '')) + '</div></div>'
+        + cards + '</div>';
+}
+function insertConceptMapOutline() {
+    var d = window._lastConceptMap; if (!d) return;
+    var area = document.getElementById('notebook-area');
+    if (!area) { showToast('Open the Notebook to insert the outline.', 'warning'); return; }
+    var html = '<p><strong>' + escapeHtmlSafe(String(d.topic || 'Concept Map')) + '</strong></p><ul>';
+    (d.branches || []).forEach(function (b) {
+        html += '<li><strong>' + escapeHtmlSafe(String(b.label || '')) + '</strong>';
+        if (b.children && b.children.length) html += '<ul>' + b.children.map(function (c) { return '<li>' + escapeHtmlSafe(String(c)) + '</li>'; }).join('') + '</ul>';
+        html += '</li>';
+    });
+    html += '</ul>';
+    area.innerHTML += html;
+    try { area.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+    showToast('🧩 Concept-map outline added to your notes.', 'success', 2500);
+    var m = document.getElementById('concept-map-modal'); if (m) m.remove();
+    if (typeof switchTab === 'function') switchTab('notebook');
 }
 
 async function englishAction(type) {
@@ -11924,13 +12077,18 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(rotateSocialDidYouKnow, 700);
 });
 
-async function searchSocial(type) {
+async function searchSocial(type, directQuery) {
     if (!hasPaid()) { openPaymentModal('access'); return; }
     let query = '';
     let promptRef = '';
     let outElem = null;
 
-    if (type === 'character') {
+    if (type === 'region') {
+        // v17.0 — Region Explorer: history / government / economy of a place
+        query = (directQuery || '').trim();
+        outElem = document.getElementById('social-region-output');
+        promptRef = `Provide a structured country/region profile for "${query}" aimed at a high-school social-studies student. Format as clean HTML with these exact <h3> sections: <h3>Overview</h3> (region, capital, rough population), <h3>History</h3> (~90 words of key eras/turning points with dates), <h3>Government</h3> (~80 words: system of government, key institutions, current structure), <h3>Economy</h3> (~80 words: main industries, currency, economic model), and <h3>Why It Matters</h3> (~50 words on global/regional significance today). Bold key names, dates, and terms.`;
+    } else if (type === 'character') {
         query = document.getElementById('social-char-search').value.trim();
         outElem = document.getElementById('social-char-output');
         promptRef = `Provide historical information on the person "${query}". Format as HTML: 1. A short markdown-styled <h3> for their name and dates. 2. A <p> (~100 words) explaining who they were and why they are famous. 3. A <p> (~100 words) explaining their lasting legacy.`;
