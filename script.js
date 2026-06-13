@@ -4439,7 +4439,9 @@ const SHOP_ITEMS = {
         { id: 'cursor_pixel_sword', name: 'Pixel Sword', price: 120, desc: '⚔️ Diagonal silver pixel sword/blade', rarity: 'rare' },
         { id: 'cursor_pixel_heart', name: 'Pixel Heart', price: 120, desc: '💗 Pink pixel heart cursor', rarity: 'rare' },
         // v16.5 — Sakura cursor: a cherry-blossom pointer that leaves a falling-petal trail
-        { id: 'sakura-cursor', name: 'Sakura Petal', price: 150, desc: '🌸 A cherry-blossom pointer that drifts a trail of falling petals as you move', rarity: 'epic' }
+        { id: 'sakura-cursor', name: 'Sakura Petal', price: 150, desc: '🌸 A cherry-blossom pointer that drifts a trail of falling petals as you move', rarity: 'epic' },
+        // v17.0 — Compass cursor
+        { id: 'compass-cursor', name: 'Compass Rose', price: 110, desc: '🧭 A vintage compass — red north needle on a brass ring', rarity: 'rare' }
         // v12.1 — Chidori cursor removed from the shop. SVG + click VFX kept
         // for legacy inventory holders, but no surface in the app mentions it.
     ],
@@ -4465,6 +4467,10 @@ const SHOP_ITEMS = {
         { id: 'gradient2', name: 'Sunset Fade', price: 40, desc: 'Orange to pink', rarity: 'common' },
         { id: 'underwater', name: 'Underwater', price: 100, desc: '🦈 Reef with sharks, divers, and bubbles', rarity: 'rare' },
         { id: 'ocean-deep', name: 'Ocean Deep', price: 160, desc: '🪼 Bioluminescent abyss — glowing jellyfish, drifting motes, god rays, and distant fish', rarity: 'epic' },
+        // v17.0 — three new animated wallpapers
+        { id: 'neon-city', name: 'Neon City', price: 170, desc: '🌃 Rainy cyberpunk skyline — glowing signs, traffic streaks, and blinking aircraft', rarity: 'epic' },
+        { id: 'space-station', name: 'Space Station', price: 180, desc: '🛰️ ISS window view — Earth turning below, drifting stars, and a passing satellite', rarity: 'epic' },
+        { id: 'anime-library', name: 'Anime Library', price: 200, desc: '📚 A towering candlelit library — floating books, dust motes, and a stained-glass moon', rarity: 'legendary' },
         { id: 'matrix', name: 'Matrix Rain', price: 120, desc: '💚 Falling katakana, glyphs, and binary streams', rarity: 'rare' },
         { id: 'starfield', name: 'Starfield', price: 150, desc: '🚀 Drifting stars, planets, and iconic ships', rarity: 'epic' },
         { id: 'aurora-bg', name: 'Aurora Lights', price: 180, desc: '🌌 Northern lights', rarity: 'epic' },
@@ -4541,7 +4547,10 @@ const SHOP_ITEMS = {
         { id: 'nexus-orb-aurora', name: 'Sprite — Aurora', price: 140, desc: '🌌 Aurora green/teal palette. Same Sprite, northern-lights glow.', rarity: 'rare', outfit: 'nexus-orb' },
         { id: 'nexus-orb-rose',   name: 'Sprite — Rose',   price: 140, desc: '🌸 Soft rose/magenta palette. Same Sprite, sakura glow.', rarity: 'rare', outfit: 'nexus-orb' },
         // v16.5 — Scientist outfit: lab coat, safety goggles, clipboard + a STEM-focused, scientific-method voice
-        { id: 'nexus-orb-scientist', name: 'Sprite — Scientist', price: 200, desc: '🥼 Lab coat, safety goggles, and a clipboard. Switches to a STEM-focused, scientific-method voice.', rarity: 'epic', outfit: 'nexus-orb' }
+        { id: 'nexus-orb-scientist', name: 'Sprite — Scientist', price: 200, desc: '🥼 Lab coat, safety goggles, and a clipboard. Switches to a STEM-focused, scientific-method voice.', rarity: 'epic', outfit: 'nexus-orb' },
+        // v17.0 — Wizard + Athlete outfits
+        { id: 'nexus-orb-wizard', name: 'Sprite — Wizard', price: 200, desc: '🧙 Star robe, pointy hat, and a glowing staff. Speaks as a mystical mentor who turns problems into quests.', rarity: 'epic', outfit: 'nexus-orb' },
+        { id: 'nexus-orb-athlete', name: 'Sprite — Athlete', price: 180, desc: '🏃 Headband and stopwatch. Short, focused, training-style coaching — treats studying like reps.', rarity: 'rare', outfit: 'nexus-orb' }
     ]
 };
 
@@ -5403,6 +5412,32 @@ function renderMiniWallpaper(canvas, id) {
             mg.addColorStop(0, `hsla(${hue},100%,78%,${a})`); mg.addColorStop(1, 'transparent');
             ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
         }
+    } else if (id === 'neon-city') {
+        var ng = ctx.createLinearGradient(0, 0, 0, H); ng.addColorStop(0, '#1a0b2e'); ng.addColorStop(1, '#05030f'); ctx.fillStyle = ng; ctx.fillRect(0, 0, W, H);
+        var ncCols = ['#0b1530', '#0e1838', '#0a1226'];
+        for (var nci = 0; nci < 9; nci++) {
+            var nbw = W / 9, nbh = H * (0.3 + Math.random() * 0.5);
+            ctx.fillStyle = ncCols[nci % 3]; ctx.fillRect(nci * nbw, H - nbh, nbw - 2, nbh);
+            for (var nwy = H - nbh + 4; nwy < H - 3; nwy += 7) for (var nwx = nci * nbw + 3; nwx < nci * nbw + nbw - 4; nwx += 6) if (Math.random() > 0.45) { ctx.fillStyle = 'rgba(255,' + (180 + Math.random() * 60 | 0) + ',120,' + (Math.random() * 0.6 + 0.3) + ')'; ctx.fillRect(nwx, nwy, 2, 3); }
+        }
+        ctx.fillStyle = '#ff3df0'; ctx.fillRect(W * 0.15, H * 0.42, 18, 5); ctx.fillStyle = '#3df0ff'; ctx.fillRect(W * 0.62, H * 0.3, 14, 4);
+        ctx.strokeStyle = 'rgba(150,200,255,0.25)'; ctx.lineWidth = 0.6;
+        for (var nr = 0; nr < 30; nr++) { var nrx = Math.random() * W, nry = Math.random() * H; ctx.beginPath(); ctx.moveTo(nrx, nry); ctx.lineTo(nrx - 2, nry + 8); ctx.stroke(); }
+    } else if (id === 'space-station') {
+        ctx.fillStyle = '#02030a'; ctx.fillRect(0, 0, W, H);
+        for (var ssi = 0; ssi < 60; ssi++) { ctx.fillStyle = 'rgba(255,255,255,' + Math.random() + ')'; ctx.beginPath(); ctx.arc(Math.random() * W, Math.random() * H * 0.85, Math.random() * 1.1 + 0.2, 0, Math.PI * 2); ctx.fill(); }
+        var eg = ctx.createRadialGradient(W * 0.5, H * 1.25, H * 0.4, W * 0.5, H * 1.25, H * 0.95); eg.addColorStop(0, '#4aa3ff'); eg.addColorStop(0.6, '#1d5fae'); eg.addColorStop(1, '#0a2a55');
+        ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(W * 0.5, H * 1.25, H * 0.9, Math.PI, 2 * Math.PI); ctx.fill();
+        ctx.strokeStyle = 'rgba(120,200,255,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(W * 0.5, H * 1.25, H * 0.9, Math.PI, 2 * Math.PI); ctx.stroke();
+        ctx.fillStyle = '#cfd8e3'; ctx.fillRect(W * 0.7, H * 0.25, 6, 3); ctx.fillStyle = '#3df0ff'; ctx.fillRect(W * 0.7 - 5, H * 0.24, 4, 5); ctx.fillRect(W * 0.7 + 7, H * 0.24, 4, 5);
+    } else if (id === 'anime-library') {
+        var lg = ctx.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#2a1c0e'); lg.addColorStop(1, '#120a04'); ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+        var moong = ctx.createRadialGradient(W * 0.5, H * 0.24, 2, W * 0.5, H * 0.24, 22); moong.addColorStop(0, '#ffe9a8'); moong.addColorStop(1, 'rgba(255,200,120,0.1)'); ctx.fillStyle = moong; ctx.beginPath(); ctx.arc(W * 0.5, H * 0.24, 20, 0, Math.PI * 2); ctx.fill();
+        for (var lc = 0; lc < W; lc += 22) {
+            ctx.fillStyle = '#3a2614'; ctx.fillRect(lc, H * 0.45, 20, H * 0.55);
+            for (var lby = H * 0.46; lby < H - 2; lby += 10) { ctx.fillStyle = 'hsl(' + (Math.random() * 60 + 10) + ',50%,' + (30 + Math.random() * 25) + '%)'; ctx.fillRect(lc + 1, lby, 18, 8); }
+        }
+        for (var lk = 0; lk < 4; lk++) { var lcx = W * (0.2 + lk * 0.2); var cg = ctx.createRadialGradient(lcx, H * 0.4, 0, lcx, H * 0.4, 10); cg.addColorStop(0, 'rgba(255,200,120,0.6)'); cg.addColorStop(1, 'transparent'); ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(lcx, H * 0.4, 10, 0, Math.PI * 2); ctx.fill(); }
     } else if (id === 'matrix') {
         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
         ctx.font = '8px monospace';
@@ -5781,7 +5816,14 @@ function getCursorPreviewSVG(id, size) {
 <ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(216)'/>
 <ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(288)'/>
 </g>
-<circle r='2.6' fill='#fff3b0'/></g></svg>`
+<circle r='2.6' fill='#fff3b0'/></g></svg>`,
+        'compass-cursor': `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 32 32'>
+<circle cx='16' cy='16' r='13' fill='#1a2433' stroke='#d4a843' stroke-width='2'/>
+<circle cx='16' cy='16' r='13' fill='none' stroke='#74c8ff' stroke-width='0.6' opacity='0.5'/>
+<polygon points='16,4 13,16 19,16' fill='#ff5e5e'/>
+<polygon points='16,28 13,16 19,16' fill='#e8edf3'/>
+<circle cx='16' cy='16' r='2.4' fill='#ffd166' stroke='#7a4a1f' stroke-width='0.6'/>
+<circle cx='16' cy='6' r='1' fill='#ffd166'/></svg>`
     };
     return MAP[id] || MAP.default;
 }
@@ -5820,7 +5862,7 @@ function renderShopContent(tab, targetContainer) {
     // v11.0 — Companions tab in shop only shows Nexus Sprite. Naruto/Kratos/Gilgamesh stay
     // in the user's inventory once granted, but they're no longer publicly buyable.
     if (tab === 'companions') {
-        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist']);
+        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist', 'nexus-orb-wizard', 'nexus-orb-athlete']);
         visibleItems = visibleItems.filter(item => SHOP_VISIBLE_COMPANIONS.has(item.id));
     }
 
@@ -5881,7 +5923,7 @@ function renderShopContent(tab, targetContainer) {
         if (tab === 'themes') {
             previewSection = `<div style="height:60px;border-radius:8px;background:linear-gradient(135deg, ${item.accent}, ${item.grad});margin-bottom:12px;"></div>`;
         } else if (tab === 'cursors') {
-            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸' }[item.id] || '↖️';
+            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸', 'compass-cursor': '🧭' }[item.id] || '↖️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
         } else if (tab === 'fonts') {
             const fontFamily = {
@@ -5896,7 +5938,8 @@ function renderShopContent(tab, targetContainer) {
         } else if (tab === 'wallpapers') {
             const wallpaperEmoji = {
                 none: '⬛', gradient1: '🟣', gradient2: '🌅', underwater: '🦈', 'ocean-deep': '🪼', matrix: '💚', starfield: '⭐',
-                'aurora-bg': '🌌', nebula: '✨', sakura: '🌸', 'sakura-day': '🌸', 'sunny-meadow': '🌾', 'beach-day': '🏖️', 'spring-sky': '✈️', 'nexus-void': '🔮', 'custom-wallpaper': '🖼️'
+                'aurora-bg': '🌌', nebula: '✨', sakura: '🌸', 'sakura-day': '🌸', 'sunny-meadow': '🌾', 'beach-day': '🏖️', 'spring-sky': '✈️', 'nexus-void': '🔮', 'custom-wallpaper': '🖼️',
+                'neon-city': '🌃', 'space-station': '🛰️', 'anime-library': '📚'
             }[item.id] || '🖼️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
         } else if (tab === 'badges') {
@@ -8150,6 +8193,16 @@ function applyCursor(type) {
 </g>
 <circle r='2.6' fill='#fff3b0'/></g></svg>`, 14, 14, 'auto');
         if (typeof setSakuraCursorTrail === 'function') setSakuraCursorTrail(true);
+    } else if (type === 'compass-cursor') {
+        // v17.0 — vintage compass rose
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+<circle cx='16' cy='16' r='13' fill='#1a2433' stroke='#d4a843' stroke-width='2'/>
+<circle cx='16' cy='16' r='13' fill='none' stroke='#74c8ff' stroke-width='0.6' opacity='0.5'/>
+<polygon points='16,4 13,16 19,16' fill='#ff5e5e'/>
+<polygon points='16,28 13,16 19,16' fill='#e8edf3'/>
+<circle cx='16' cy='16' r='2.4' fill='#ffd166' stroke='#7a4a1f' stroke-width='0.6'/>
+<circle cx='16' cy='6' r='1' fill='#ffd166'/>
+</svg>`, 16, 16, 'auto');
     } else {
         document.body.style.cursor = 'default';
     }
@@ -8963,6 +9016,102 @@ function applyWallpaper(type) {
                 ctx.beginPath(); ctx.arc(mx, m.y, m.r, 0, Math.PI * 2); ctx.fill();
             });
             wallpaperAnimFrame = requestAnimationFrame(animateOcean);
+        })();
+    } else if (type === 'neon-city') {
+        // v17.0 — rainy cyberpunk skyline: lit windows, pulsing neon, rain, blinking aircraft
+        const buildings = [];
+        let _bx = 0;
+        while (_bx < canvas.width) {
+            const bw = 40 + Math.random() * 70, bh = canvas.height * (0.25 + Math.random() * 0.5), wins = [];
+            for (let wy = 0; wy < bh - 14; wy += 16) for (let wx = 6; wx < bw - 8; wx += 14) wins.push({ x: wx, y: wy, on: Math.random() > 0.35, hue: Math.random() > 0.5 ? '255,200,120' : '120,200,255' });
+            buildings.push({ x: _bx, w: bw, h: bh, c: ['#0b1530', '#0e1838', '#0a1226'][Math.floor(Math.random() * 3)], wins: wins });
+            _bx += bw + 2;
+        }
+        const signs = [];
+        for (let si = 0; si < 6; si++) signs.push({ x: Math.random() * canvas.width, y: canvas.height * (0.18 + Math.random() * 0.5), w: 28 + Math.random() * 40, h: 7 + Math.random() * 10, c: ['#ff3df0', '#3df0ff', '#ffe14d', '#7cff5e'][Math.floor(Math.random() * 4)], ph: Math.random() * Math.PI * 2 });
+        const rain = Array.from({ length: 150 }, function () { return { x: Math.random() * canvas.width, y: Math.random() * canvas.height, len: 8 + Math.random() * 12, sp: 6 + Math.random() * 6 }; });
+        const plane = { x: -50, y: canvas.height * 0.12 };
+        let t = 0;
+        ctx.fillStyle = '#05030f'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        (function animateNeon() {
+            t += 0.02;
+            const g = ctx.createLinearGradient(0, 0, 0, canvas.height); g.addColorStop(0, '#1a0b2e'); g.addColorStop(0.6, '#0a0618'); g.addColorStop(1, '#05030f');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const haze = ctx.createLinearGradient(0, canvas.height * 0.5, 0, canvas.height); haze.addColorStop(0, 'transparent'); haze.addColorStop(1, 'rgba(255,60,200,0.06)');
+            ctx.fillStyle = haze; ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.5);
+            buildings.forEach(function (b) {
+                ctx.fillStyle = b.c; ctx.fillRect(b.x, canvas.height - b.h, b.w, b.h);
+                b.wins.forEach(function (w) { if (w.on) { ctx.fillStyle = 'rgba(' + w.hue + ',' + (0.45 + Math.sin(t + w.x) * 0.15) + ')'; ctx.fillRect(b.x + w.x, canvas.height - b.h + w.y + 6, 5, 8); } });
+            });
+            signs.forEach(function (s) {
+                ctx.shadowColor = s.c; ctx.shadowBlur = 14; ctx.fillStyle = s.c; ctx.globalAlpha = 0.5 + Math.sin(t * 2 + s.ph) * 0.3;
+                ctx.fillRect(s.x, s.y, s.w, s.h); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+            });
+            ctx.strokeStyle = 'rgba(150,200,255,0.25)'; ctx.lineWidth = 1;
+            rain.forEach(function (d) { d.y += d.sp; if (d.y > canvas.height) { d.y = -d.len; d.x = Math.random() * canvas.width; } ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 2, d.y + d.len); ctx.stroke(); });
+            plane.x += 0.8; if (plane.x > canvas.width + 50) { plane.x = -50; plane.y = canvas.height * (0.08 + Math.random() * 0.12); }
+            if (Math.floor(t * 3) % 2 === 0) { ctx.fillStyle = '#ff5555'; ctx.beginPath(); ctx.arc(plane.x, plane.y, 2, 0, Math.PI * 2); ctx.fill(); }
+            wallpaperAnimFrame = requestAnimationFrame(animateNeon);
+        })();
+    } else if (type === 'space-station') {
+        // v17.0 — ISS window view: drifting stars, rotating Earth, a passing satellite
+        const stars = Array.from({ length: 200 }, function () { return { x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.2 + 0.3, tw: Math.random() * Math.PI * 2 }; });
+        const sat = { x: canvas.width + 60, y: canvas.height * 0.2, sp: -0.5 };
+        const ecx = canvas.width * 0.5, ecy = canvas.height * 1.35, er = canvas.height * 0.95;
+        let t = 0;
+        ctx.fillStyle = '#02030a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        (function animateStation() {
+            t += 0.005;
+            ctx.fillStyle = '#02030a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(function (s) { s.tw += 0.03; ctx.fillStyle = 'rgba(255,255,255,' + ((Math.sin(s.tw) + 1) * 0.35 + 0.3) + ')'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); });
+            const eg = ctx.createRadialGradient(ecx - er * 0.2, ecy - er * 0.2, er * 0.2, ecx, ecy, er);
+            eg.addColorStop(0, '#7ec8ff'); eg.addColorStop(0.5, '#2b7fd0'); eg.addColorStop(0.85, '#13396e'); eg.addColorStop(1, '#0a2247');
+            ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ecx, ecy, er, 0, Math.PI * 2); ctx.fill();
+            ctx.save(); ctx.beginPath(); ctx.arc(ecx, ecy, er, 0, Math.PI * 2); ctx.clip();
+            ctx.fillStyle = 'rgba(255,255,255,0.10)';
+            for (let c = 0; c < 5; c++) { const cyy = ecy - er * 0.6 + c * er * 0.28, off = Math.sin(t + c) * 40; ctx.beginPath(); ctx.ellipse(ecx + off, cyy, er * 0.8, er * 0.06, 0, 0, Math.PI * 2); ctx.fill(); }
+            ctx.fillStyle = 'rgba(60,160,90,0.25)'; ctx.beginPath(); ctx.ellipse(ecx - er * 0.3 + Math.sin(t) * 30, ecy - er * 0.3, er * 0.3, er * 0.18, 0.4, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.strokeStyle = 'rgba(120,200,255,0.5)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(ecx, ecy, er, 0, Math.PI * 2); ctx.stroke();
+            sat.x += sat.sp; if (sat.x < -60) { sat.x = canvas.width + 60; sat.y = canvas.height * (0.1 + Math.random() * 0.3); }
+            ctx.save(); ctx.translate(sat.x, sat.y);
+            ctx.fillStyle = '#cfd8e3'; ctx.fillRect(-6, -3, 12, 6);
+            ctx.fillStyle = '#1a3a6b'; ctx.fillRect(-22, -5, 12, 10); ctx.fillRect(10, -5, 12, 10);
+            ctx.strokeStyle = '#74c8ff'; ctx.lineWidth = 0.6; ctx.strokeRect(-22, -5, 12, 10); ctx.strokeRect(10, -5, 12, 10);
+            ctx.fillStyle = '#ff5555'; ctx.beginPath(); ctx.arc(6, 0, 1.4, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            wallpaperAnimFrame = requestAnimationFrame(animateStation);
+        })();
+    } else if (type === 'anime-library') {
+        // v17.0 — candlelit library: stained-glass moon, bookshelves, floating books, dust motes
+        const motes = Array.from({ length: 50 }, function () { return { x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5 + 0.4, sp: Math.random() * 0.3 + 0.05, dr: Math.random() * Math.PI * 2 }; });
+        const books = Array.from({ length: 7 }, function () { return { x: Math.random() * canvas.width, y: canvas.height * (0.2 + Math.random() * 0.45), vx: (Math.random() * 0.4 + 0.1) * (Math.random() > 0.5 ? 1 : -1), bob: Math.random() * Math.PI * 2, hue: Math.random() * 60 + 10, w: 18 + Math.random() * 10 }; });
+        let t = 0;
+        ctx.fillStyle = '#120a04'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        (function animateLibrary() {
+            t += 0.01;
+            const g = ctx.createLinearGradient(0, 0, 0, canvas.height); g.addColorStop(0, '#2a1c0e'); g.addColorStop(1, '#0e0703'); ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const mx = canvas.width * 0.5, my = canvas.height * 0.28, mr = Math.min(canvas.width, canvas.height) * 0.16;
+            const glow = ctx.createRadialGradient(mx, my, 0, mx, my, mr * 2.4); glow.addColorStop(0, 'rgba(255,220,150,0.35)'); glow.addColorStop(1, 'transparent'); ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(mx, my, mr * 2.4, 0, Math.PI * 2); ctx.fill();
+            const mg = ctx.createRadialGradient(mx, my, mr * 0.2, mx, my, mr); mg.addColorStop(0, '#fff0c0'); mg.addColorStop(1, '#e0a850'); ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(60,40,20,0.7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.moveTo(mx - mr, my); ctx.lineTo(mx + mr, my); ctx.moveTo(mx, my - mr); ctx.lineTo(mx, my + mr); ctx.stroke();
+            const shelf = function (x0, w) {
+                ctx.fillStyle = '#3a2614'; ctx.fillRect(x0, canvas.height * 0.4, w, canvas.height * 0.6);
+                const rowH = Math.max(14, canvas.height * 0.05);
+                for (let by = canvas.height * 0.42; by < canvas.height - 4; by += rowH) for (let bx2 = x0 + 4; bx2 < x0 + w - 6; bx2 += 12) { ctx.fillStyle = 'hsl(' + ((bx2 + by | 0) % 60 + 10) + ',45%,' + (28 + (bx2 | 0) % 25) + '%)'; ctx.fillRect(bx2, by, 9, rowH - 4); }
+            };
+            shelf(0, canvas.width * 0.16); shelf(canvas.width * 0.84, canvas.width * 0.16);
+            books.forEach(function (b) {
+                b.x += b.vx; b.bob += 0.03; if (b.x > canvas.width + 20) b.x = -20; if (b.x < -20) b.x = canvas.width + 20;
+                const yy = b.y + Math.sin(b.bob) * 8;
+                ctx.save(); ctx.translate(b.x, yy); ctx.rotate(Math.sin(b.bob) * 0.15);
+                ctx.fillStyle = 'hsl(' + b.hue + ',55%,45%)'; ctx.fillRect(-b.w / 2, -6, b.w, 12);
+                ctx.fillStyle = '#f0e6c8'; ctx.fillRect(-1, -6, 2, 12);
+                ctx.fillStyle = 'hsl(' + b.hue + ',55%,38%)'; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(b.w * 0.7, -9); ctx.lineTo(b.w * 0.7, 3); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+                ctx.restore();
+            });
+            motes.forEach(function (m) { m.y -= m.sp; m.dr += 0.02; const mxx = m.x + Math.sin(m.dr) * 6; if (m.y < -4) { m.y = canvas.height + 4; m.x = Math.random() * canvas.width; } ctx.fillStyle = 'rgba(255,220,150,' + (0.25 + Math.sin(m.dr) * 0.15) + ')'; ctx.beginPath(); ctx.arc(mxx, m.y, m.r, 0, Math.PI * 2); ctx.fill(); });
+            wallpaperAnimFrame = requestAnimationFrame(animateLibrary);
         })();
     } else if (type === 'aurora-bg') {
         // EPIC Aurora — vivid multi-color bands with stars and shimmer
@@ -16383,6 +16532,57 @@ function openFormulaSheet() {
     win.document.close();
 }
 
+// v17.0 — Rain + thunder ambiance overlay (suggestion dp_38). Sits over any wallpaper,
+// behind the UI, with occasional lightning flashes and a soft synthesized thunder roll.
+let _rainAnim = null;
+function setRainAmbiance(on) {
+    localStorage.setItem('rain_ambiance', on ? '1' : '0');
+    if (_rainAnim) { cancelAnimationFrame(_rainAnim); _rainAnim = null; }
+    var existing = document.getElementById('rain-ambiance-overlay');
+    if (existing) existing.remove();
+    if (!on) return;
+    var cv = document.createElement('canvas');
+    cv.id = 'rain-ambiance-overlay';
+    cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;';
+    document.body.appendChild(cv);
+    var ctx = cv.getContext('2d');
+    cv.width = window.innerWidth; cv.height = window.innerHeight;
+    var drops = Array.from({ length: 240 }, function () { return { x: Math.random() * cv.width, y: Math.random() * cv.height, len: 10 + Math.random() * 16, sp: 9 + Math.random() * 8, a: 0.1 + Math.random() * 0.25 }; });
+    var flash = 0, nextBolt = Date.now() + 4000 + Math.random() * 6000;
+    (function loop() {
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        if (flash > 0) { ctx.fillStyle = 'rgba(200,220,255,' + (flash * 0.25) + ')'; ctx.fillRect(0, 0, cv.width, cv.height); flash -= 0.04; }
+        ctx.strokeStyle = 'rgba(170,200,255,0.4)'; ctx.lineWidth = 1;
+        drops.forEach(function (d) {
+            d.y += d.sp; d.x -= d.sp * 0.2;
+            if (d.y > cv.height) { d.y = -d.len; d.x = Math.random() * cv.width; }
+            ctx.globalAlpha = d.a; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 2, d.y + d.len); ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+        if (Date.now() > nextBolt) { flash = 1; nextBolt = Date.now() + 6000 + Math.random() * 9000; _playThunder(); }
+        _rainAnim = requestAnimationFrame(loop);
+    })();
+}
+function toggleRainAmbiance() {
+    var on = localStorage.getItem('rain_ambiance') !== '1';
+    setRainAmbiance(on);
+    showToast(on ? '🌧️ Rain ambiance on.' : 'Rain ambiance off.', 'info', 1800);
+}
+function _playThunder() {
+    try {
+        var ac = window._nexusAudioCtx || (window._nexusAudioCtx = new (window.AudioContext || window.webkitAudioContext)());
+        var dur = 1.3, buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate), data = buf.getChannelData(0);
+        for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2);
+        var src = ac.createBufferSource(); src.buffer = buf;
+        var f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380;
+        var g = ac.createGain(); g.gain.setValueAtTime(0.0001, ac.currentTime); g.gain.linearRampToValueAtTime(0.4, ac.currentTime + 0.06); g.gain.exponentialRampToValueAtTime(0.0008, ac.currentTime + dur);
+        src.connect(f); f.connect(g); g.connect(ac.destination); src.start();
+    } catch (_) {}
+}
+document.addEventListener('DOMContentLoaded', function () {
+    if (localStorage.getItem('rain_ambiance') === '1') setTimeout(function () { setRainAmbiance(true); }, 500);
+});
+
 // v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
@@ -18835,6 +19035,52 @@ const COMPANIONS_DATA = {
 - Use light lab flavor ("let's run the numbers", "hypothesis", "reproducible") but stay clear and warm — never condescending.
 - For non-STEM topics, still help fully — just with a methodical, evidence-first mindset.`
     },
+    'nexus-orb-wizard': {
+        name: 'NEXUS Sprite — Wizard',
+        accent: '#b388ff',
+        glow: '#7c4dff',
+        greeting: "Ah, a seeker of knowledge approaches. Name your quest, apprentice — and we shall unravel it together.",
+        emotes: [
+            "Knowledge is the truest magic.",
+            "Every problem is a riddle in disguise.",
+            "Patience, apprentice.",
+            "The answer reveals itself to the prepared mind.",
+            "A spell is just a well-followed procedure.",
+            "Cast your focus like a spell.",
+            "Mistakes are the spellbook's footnotes.",
+            "Let us conjure understanding.",
+            "The library is the deepest dungeon.",
+            "Wisdom favors the curious."
+        ],
+        persona: `VOICE OVERLAY — NEXUS SPRITE (WIZARD OUTFIT)
+- You are the Nexus sprite as a wise, warm wizard-mentor in a star robe with a glowing staff.
+- Frame learning as a quest or spell: "let us unravel this", "the next incantation", "your trial". Use gentle archaic flavor ("ah", "indeed", "apprentice") sparingly — keep it charming, not corny.
+- Stay genuinely helpful and clear: the mystique is seasoning, never a substitute for a real explanation.
+- Encourage curiosity and persistence ("a true mage rereads the riddle"). Celebrate breakthroughs like unlocked spells.`
+    },
+    'nexus-orb-athlete': {
+        name: 'NEXUS Sprite — Athlete',
+        accent: '#ff7675',
+        glow: '#e17055',
+        greeting: "Alright, let's train. What are we working on? One rep at a time — let's go.",
+        emotes: [
+            "One more rep. Do the problem.",
+            "No days off.",
+            "Form first, speed later.",
+            "You've got one more in you.",
+            "Push the pace.",
+            "Champions review the tape.",
+            "Warm up, then go hard.",
+            "Discipline beats motivation.",
+            "Finish strong.",
+            "Reset. Breathe. Next set."
+        ],
+        persona: `VOICE OVERLAY — NEXUS SPRITE (ATHLETE OUTFIT)
+- You are the Nexus sprite as a focused, high-energy coach in a headband with a stopwatch.
+- Keep answers SHORT, punchy, and action-oriented. Treat studying like training: "reps", "sets", "the next drill", "finish strong".
+- Push the student to attempt before you explain ("give me one rep first"). Be encouraging and intense, never mean.
+- Default to concise steps and quick wins; expand only if the student asks for more depth.`
+    },
     naruto: {
         name: 'Naruto Uzumaki',
         accent: '#ff8c00',
@@ -19497,6 +19743,47 @@ function getCompanionAvatarSVG(id, size = 96) {
             </g>
             <!-- molecule sparks -->
             <circle cx="22" cy="34" r="2" fill="#9be7ff"/><circle cx="82" cy="62" r="2" fill="#38bdf8"/>
+        </svg>`,
+
+        'nexus-orb-wizard': `<svg width="${s}" height="${s}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="nxw-core" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#d6b8ff"/><stop offset="45%" stop-color="#9b6bff"/><stop offset="100%" stop-color="#5b2bc4"/></radialGradient>
+                <radialGradient id="nxw-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#b388ff" stop-opacity="0.55"/><stop offset="100%" stop-color="#b388ff" stop-opacity="0"/></radialGradient>
+            </defs>
+            <circle cx="50" cy="54" r="44" fill="url(#nxw-glow)"/>
+            <!-- staff with glowing tip -->
+            <line x1="78" y1="36" x2="66" y2="76" stroke="#7a4a1f" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="79" cy="33" r="9" fill="#ffe98a" opacity="0.25"/><circle cx="79" cy="33" r="4.5" fill="#ffe98a"/>
+            <!-- orb body -->
+            <circle cx="50" cy="54" r="29" fill="url(#nxw-core)" stroke="#d6b8ff" stroke-width="1.5"/>
+            <circle cx="50" cy="54" r="16" fill="rgba(10,0,30,0.45)"/>
+            <circle cx="43" cy="53" r="2.4" fill="#fff"/><circle cx="57" cy="53" r="2.4" fill="#fff"/>
+            <!-- wizard hat -->
+            <ellipse cx="50" cy="30" rx="23" ry="5.5" fill="#3b1d7a"/>
+            <path d="M33 30 L52 -3 L71 30 Z" fill="#4a249c" stroke="#7c4dff" stroke-width="1"/>
+            <path d="M46 13 l1.4 3 3 .3 -2.2 2 .7 3 -2.9-1.6 -2.9 1.6 .7-3 -2.2-2 3-.3 z" fill="#ffe98a"/>
+            <circle cx="55" cy="7" r="1.4" fill="#ffe98a"/><circle cx="42" cy="22" r="1.2" fill="#ffe98a"/>
+        </svg>`,
+
+        'nexus-orb-athlete': `<svg width="${s}" height="${s}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="nxa-core" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#ffd0c2"/><stop offset="45%" stop-color="#ff8c7a"/><stop offset="100%" stop-color="#e0492f"/></radialGradient>
+                <radialGradient id="nxa-glow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ff7675" stop-opacity="0.5"/><stop offset="100%" stop-color="#ff7675" stop-opacity="0"/></radialGradient>
+            </defs>
+            <circle cx="50" cy="52" r="44" fill="url(#nxa-glow)"/>
+            <!-- stopwatch on a lanyard -->
+            <line x1="62" y1="32" x2="74" y2="58" stroke="#cfd8e3" stroke-width="1.6"/>
+            <circle cx="76" cy="64" r="8" fill="#e8edf3" stroke="#9fb2c4" stroke-width="1.5"/>
+            <rect x="74" y="54" width="4" height="3" rx="1" fill="#9fb2c4"/>
+            <line x1="76" y1="64" x2="76" y2="59" stroke="#e0492f" stroke-width="1.4"/><line x1="76" y1="64" x2="80" y2="66" stroke="#333" stroke-width="1.2"/>
+            <!-- orb body -->
+            <circle cx="50" cy="52" r="29" fill="url(#nxa-core)" stroke="#ffd0c2" stroke-width="1.5"/>
+            <circle cx="50" cy="52" r="16" fill="rgba(30,0,0,0.4)"/>
+            <circle cx="43" cy="51" r="2.4" fill="#fff"/><circle cx="57" cy="51" r="2.4" fill="#fff"/>
+            <!-- headband -->
+            <path d="M24 40 Q50 30 76 40 L76 46 Q50 36 24 46 Z" fill="#ff5e5e"/>
+            <line x1="25" y1="43" x2="75" y2="43" stroke="#fff" stroke-width="1" opacity="0.5"/>
+            <rect x="46" y="33" width="8" height="6" rx="1" fill="#ff3b3b"/>
         </svg>`
     };
     return svgs[id] || svgs['nexus-orb'];
