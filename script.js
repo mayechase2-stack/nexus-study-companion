@@ -4305,6 +4305,7 @@ const SHOP_ITEMS = {
         { id: 'gradient1', name: 'Purple Fade', price: 40, desc: 'Smooth gradient', rarity: 'common' },
         { id: 'gradient2', name: 'Sunset Fade', price: 40, desc: 'Orange to pink', rarity: 'common' },
         { id: 'underwater', name: 'Underwater', price: 100, desc: '🦈 Reef with sharks, divers, and bubbles', rarity: 'rare' },
+        { id: 'ocean-deep', name: 'Ocean Deep', price: 160, desc: '🪼 Bioluminescent abyss — glowing jellyfish, drifting motes, god rays, and distant fish', rarity: 'epic' },
         { id: 'matrix', name: 'Matrix Rain', price: 120, desc: '💚 Falling katakana, glyphs, and binary streams', rarity: 'rare' },
         { id: 'starfield', name: 'Starfield', price: 150, desc: '🚀 Drifting stars, planets, and iconic ships', rarity: 'epic' },
         { id: 'aurora-bg', name: 'Aurora Lights', price: 180, desc: '🌌 Northern lights', rarity: 'epic' },
@@ -4379,7 +4380,9 @@ const SHOP_ITEMS = {
         // companion matches your wallpaper / theme / mood.
         { id: 'nexus-orb-ember',  name: 'Sprite — Ember',  price: 140, desc: '🔥 Warm ember-orange palette. Same Sprite, hotter glow.', rarity: 'rare', outfit: 'nexus-orb' },
         { id: 'nexus-orb-aurora', name: 'Sprite — Aurora', price: 140, desc: '🌌 Aurora green/teal palette. Same Sprite, northern-lights glow.', rarity: 'rare', outfit: 'nexus-orb' },
-        { id: 'nexus-orb-rose',   name: 'Sprite — Rose',   price: 140, desc: '🌸 Soft rose/magenta palette. Same Sprite, sakura glow.', rarity: 'rare', outfit: 'nexus-orb' }
+        { id: 'nexus-orb-rose',   name: 'Sprite — Rose',   price: 140, desc: '🌸 Soft rose/magenta palette. Same Sprite, sakura glow.', rarity: 'rare', outfit: 'nexus-orb' },
+        // v16.5 — Scientist outfit: lab coat, safety goggles, clipboard + a STEM-focused, scientific-method voice
+        { id: 'nexus-orb-scientist', name: 'Sprite — Scientist', price: 200, desc: '🥼 Lab coat, safety goggles, and a clipboard. Switches to a STEM-focused, scientific-method voice.', rarity: 'epic', outfit: 'nexus-orb' }
     ]
 };
 
@@ -5210,6 +5213,37 @@ function renderMiniWallpaper(canvas, id) {
         });
         // bubbles
         for (let i = 0; i < 18; i++) { ctx.fillStyle = `rgba(150,220,255,${Math.random() * 0.5 + 0.2})`; ctx.beginPath(); ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 2.5 + 0.8, 0, Math.PI * 2); ctx.fill(); }
+    } else if (id === 'ocean-deep') {
+        // v16.5 — deep abyss: dark gradient, a god ray, a glowing jellyfish, bioluminescent motes
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#062a4a'); g.addColorStop(0.4, '#03162e'); g.addColorStop(1, '#00040c');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        // god ray
+        const rg = ctx.createLinearGradient(0, 0, 0, H * 0.7); rg.addColorStop(0, 'rgba(90,180,230,0.14)'); rg.addColorStop(1, 'transparent');
+        ctx.fillStyle = rg;
+        ctx.beginPath(); ctx.moveTo(W * 0.32, 0); ctx.lineTo(W * 0.42, 0); ctx.lineTo(W * 0.5, H * 0.7); ctx.lineTo(W * 0.3, H * 0.7); ctx.closePath(); ctx.fill();
+        // jellyfish
+        const jx = W * 0.66, jy = H * 0.42, js = 16;
+        const jg = ctx.createRadialGradient(jx, jy, 0, jx, jy, js * 2);
+        jg.addColorStop(0, 'hsla(280,90%,70%,0.30)'); jg.addColorStop(1, 'transparent');
+        ctx.fillStyle = jg; ctx.beginPath(); ctx.arc(jx, jy, js * 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'hsla(280,90%,78%,0.55)';
+        ctx.beginPath(); ctx.ellipse(jx, jy, js, js * 0.8, 0, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = 'hsla(280,80%,75%,0.5)'; ctx.lineWidth = 1;
+        for (let k = -2; k <= 2; k++) {
+            ctx.beginPath(); ctx.moveTo(jx + k * 3, jy + js * 0.4);
+            for (let s = 1; s <= 3; s++) ctx.lineTo(jx + k * 3 + Math.sin(k + s) * 3, jy + js * 0.4 + s * 6);
+            ctx.stroke();
+        }
+        // bioluminescent motes
+        for (let i = 0; i < 26; i++) {
+            const mx = Math.random() * W, my = Math.random() * H, mr = Math.random() * 1.4 + 0.5;
+            const hue = [180, 190, 200, 160][i % 4];
+            const a = Math.random() * 0.5 + 0.3;
+            const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr * 4);
+            mg.addColorStop(0, `hsla(${hue},100%,78%,${a})`); mg.addColorStop(1, 'transparent');
+            ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
+        }
     } else if (id === 'matrix') {
         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
         ctx.font = '8px monospace';
@@ -5627,7 +5661,7 @@ function renderShopContent(tab, targetContainer) {
     // v11.0 — Companions tab in shop only shows Nexus Sprite. Naruto/Kratos/Gilgamesh stay
     // in the user's inventory once granted, but they're no longer publicly buyable.
     if (tab === 'companions') {
-        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb']);
+        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist']);
         visibleItems = visibleItems.filter(item => SHOP_VISIBLE_COMPANIONS.has(item.id));
     }
 
@@ -5701,7 +5735,7 @@ function renderShopContent(tab, targetContainer) {
             const _fsz = item.id === 'pixel' ? '0.8rem' : (item.id === 'comic-pro' ? '1.7rem' : '1.5rem');
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:${fontFamily};font-size:${_fsz};color:#fff;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
         } else if (tab === 'wallpapers') {
-            const wallpaperEmoji = { none: '⬛', starfield: '⭐', matrix: '💚', waves: '🌊', particles: '✨', gradient: '🌈', constellation: '🌌', sakura: '🌸' }[item.id] || '🖼️';
+            const wallpaperEmoji = { none: '⬛', starfield: '⭐', matrix: '💚', waves: '🌊', particles: '✨', gradient: '🌈', constellation: '🌌', sakura: '🌸', 'ocean-deep': '🪼', underwater: '🦈' }[item.id] || '🖼️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
         } else if (tab === 'badges') {
             const badgeEmoji = { none: '⚪', scholar: '📚', ace: '🏆', streak: '🔥', night: '🌙', speedster: '⚡', champion: '👑' }[item.id] || '🏅';
@@ -7244,7 +7278,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v16.5';
+const NEXUS_CURRENT_VERSION = 'v16.6';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -8664,6 +8698,105 @@ function applyWallpaper(type) {
                 ctx.restore();
             });
             wallpaperAnimFrame = requestAnimationFrame(animateUnderwater);
+        })();
+    } else if (type === 'ocean-deep') {
+        // v16.5 — Deep ocean abyss: bioluminescent motes, drifting glowing jellyfish, god rays, distant fish
+        const motes = Array.from({ length: 60 }, () => ({
+            x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+            r: Math.random() * 1.8 + 0.6, speed: Math.random() * 0.4 + 0.1,
+            drift: Math.random() * Math.PI * 2, hue: [180, 190, 200, 160][Math.floor(Math.random() * 4)],
+            glow: Math.random() * Math.PI * 2
+        }));
+        const jellies = Array.from({ length: 3 }, (_, i) => ({
+            x: canvas.width * (0.2 + i * 0.3), y: canvas.height * (0.3 + Math.random() * 0.4),
+            vx: (Math.random() * 0.3 + 0.1) * (Math.random() > 0.5 ? 1 : -1),
+            size: 26 + Math.random() * 22, pulse: Math.random() * Math.PI * 2,
+            hue: [190, 280, 200][i % 3], bob: Math.random() * Math.PI * 2
+        }));
+        const fish = Array.from({ length: 5 }, () => ({
+            x: Math.random() * canvas.width, y: canvas.height * (0.55 + Math.random() * 0.4),
+            speed: (Math.random() * 0.6 + 0.2) * (Math.random() > 0.5 ? 1 : -1),
+            size: Math.random() * 5 + 4, wob: Math.random() * Math.PI * 2
+        }));
+        let t = 0;
+        ctx.fillStyle = '#00060f'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        (function animateOcean() {
+            t += 0.01;
+            // Deep abyss gradient (opaque, so no body bleed-through)
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#062a4a'); grad.addColorStop(0.35, '#03162e');
+            grad.addColorStop(0.7, '#010a1c'); grad.addColorStop(1, '#00040c');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // God rays from the surface
+            for (let i = 0; i < 4; i++) {
+                const rx = canvas.width * (0.2 + i * 0.22) + Math.sin(t * 0.4 + i * 2) * 50;
+                const g = ctx.createLinearGradient(rx, 0, rx, canvas.height * 0.7);
+                g.addColorStop(0, 'rgba(90,180,230,0.10)'); g.addColorStop(1, 'transparent');
+                ctx.beginPath(); ctx.moveTo(rx - 8, 0); ctx.lineTo(rx + 8, 0);
+                ctx.lineTo(rx + 50 + Math.sin(t + i) * 20, canvas.height * 0.7);
+                ctx.lineTo(rx - 50 + Math.sin(t + i) * 20, canvas.height * 0.7); ctx.closePath();
+                ctx.fillStyle = g; ctx.fill();
+            }
+            // Distant fish silhouettes
+            fish.forEach(f => {
+                f.x += f.speed; f.wob += 0.05;
+                if (f.speed > 0 && f.x > canvas.width + 20) { f.x = -20; f.y = canvas.height * (0.55 + Math.random() * 0.4); }
+                if (f.speed < 0 && f.x < -20) { f.x = canvas.width + 20; f.y = canvas.height * (0.55 + Math.random() * 0.4); }
+                const dir = f.speed > 0 ? 1 : -1;
+                const fy = f.y + Math.sin(f.wob) * 2;
+                ctx.save(); ctx.translate(f.x, fy); ctx.scale(dir, 1);
+                ctx.fillStyle = 'rgba(120,170,200,0.22)';
+                ctx.beginPath(); ctx.ellipse(0, 0, f.size, f.size * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-f.size, 0); ctx.lineTo(-f.size * 1.6, -f.size * 0.4); ctx.lineTo(-f.size * 1.6, f.size * 0.4); ctx.closePath(); ctx.fill();
+                ctx.restore();
+            });
+            // Jellyfish — glowing, pulsing bell + wavy tentacles
+            jellies.forEach(j => {
+                j.x += j.vx; j.pulse += 0.04; j.bob += 0.02;
+                if (j.x > canvas.width + j.size) j.x = -j.size;
+                if (j.x < -j.size) j.x = canvas.width + j.size;
+                const jy = j.y + Math.sin(j.bob) * 12;
+                const squash = 1 + Math.sin(j.pulse) * 0.12;
+                ctx.save(); ctx.translate(j.x, jy);
+                // glow halo
+                const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, j.size * 2.2);
+                gl.addColorStop(0, `hsla(${j.hue},90%,65%,0.22)`); gl.addColorStop(1, 'transparent');
+                ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, j.size * 2.2, 0, Math.PI * 2); ctx.fill();
+                // tentacles
+                ctx.strokeStyle = `hsla(${j.hue},80%,72%,0.5)`; ctx.lineWidth = 1.5;
+                for (let k = -3; k <= 3; k++) {
+                    ctx.beginPath();
+                    const sx = k * (j.size * 0.18);
+                    ctx.moveTo(sx, (j.size * 0.4) / squash);
+                    for (let s = 1; s <= 5; s++) {
+                        const ty = j.size * 0.4 + s * j.size * 0.32;
+                        const tx = sx + Math.sin(t * 2 + k + s * 0.6) * (4 + s);
+                        ctx.lineTo(tx, ty);
+                    }
+                    ctx.stroke();
+                }
+                // bell
+                const bg = ctx.createRadialGradient(0, -j.size * 0.2, j.size * 0.2, 0, 0, j.size);
+                bg.addColorStop(0, `hsla(${j.hue},90%,82%,0.6)`); bg.addColorStop(1, `hsla(${j.hue},80%,55%,0.25)`);
+                ctx.fillStyle = bg;
+                ctx.beginPath(); ctx.ellipse(0, 0, j.size, j.size * 0.8 * squash, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = `hsla(${j.hue},90%,88%,0.6)`; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.ellipse(0, 0, j.size, j.size * 0.8 * squash, 0, Math.PI, 0); ctx.stroke();
+                ctx.restore();
+            });
+            // Bioluminescent motes — drift up, twinkle
+            motes.forEach(m => {
+                m.y -= m.speed; m.drift += 0.01; m.glow += 0.05;
+                const mx = m.x + Math.sin(m.drift) * 8;
+                if (m.y < -5) { m.y = canvas.height + 5; m.x = Math.random() * canvas.width; }
+                const a = (Math.sin(m.glow) + 1) * 0.3 + 0.25;
+                const gg = ctx.createRadialGradient(mx, m.y, 0, mx, m.y, m.r * 4);
+                gg.addColorStop(0, `hsla(${m.hue},100%,78%,${a})`); gg.addColorStop(1, 'transparent');
+                ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(mx, m.y, m.r * 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = `hsla(${m.hue},100%,90%,${a})`;
+                ctx.beginPath(); ctx.arc(mx, m.y, m.r, 0, Math.PI * 2); ctx.fill();
+            });
+            wallpaperAnimFrame = requestAnimationFrame(animateOcean);
         })();
     } else if (type === 'aurora-bg') {
         // EPIC Aurora — vivid multi-color bands with stars and shimmer
@@ -16230,6 +16363,24 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v16.6',
+        date: 'June 13, 2026',
+        tag: 'UPDATE 16.6 — PINNED FEATURES DROP',
+        tagColor: '#a78bfa',
+        changes: [
+            'WORD OF THE DAY — A new vocabulary widget on the Home tab: a curated word each day with its definition, origin, and an example sentence.',
+            'NOTEBOOK GRAMMAR CHECK — A "Check Grammar" button in the Notebook. Select text to check just that part, or check the whole page; AI returns a corrected version plus what it changed.',
+            'COMPANION MEMORY CARD — Settings → Companion → "What does my companion know?" shows everything your Sprite remembers from past chats, with a one-tap clear.',
+            'STREAK FREEZE — A spendable item (Shop → Daily, 150 credits, max 1 active) that automatically protects your streak the next time you miss a day.',
+            'SAKURA CURSOR — A new cherry-blossom pointer (Shop → Cursors) that drifts a soft trail of falling petals as you move.',
+            'OCEAN DEEP WALLPAPER — A new animated abyss wallpaper (Shop → Wallpapers): glowing jellyfish, bioluminescent motes, god rays, and distant fish.',
+            'SCIENTIST COMPANION OUTFIT — A new Sprite outfit (Shop → Companions) with a lab coat, safety goggles, and clipboard. It switches your companion to a STEM-focused, scientific-method voice.',
+            'RIVAL PERSONALITY — A friendly-but-competitive companion personality that pushes you to beat your own scores (Settings → Companion).',
+            'MIDNIGHT VIOLET THEME — A deeper, richer purple theme (Shop → Themes).',
+            'ESSAY OUTLINE + ORIGINALITY CHECK — Two new English Aid tools: build a full essay outline from a thesis, and run a heuristic originality / AI-writing review.',
+        ]
+    },
+    {
         version: 'v16.5',
         date: 'June 10, 2026',
         tag: 'UPDATE 16.5 — STRUCTURE & POLISH',
@@ -18328,6 +18479,30 @@ const COMPANIONS_DATA = {
 - Tone: helpful, neutral, quietly confident — the default Nexus voice.
 - No catchphrases at the end of every reply. Stay natural.`
     },
+    'nexus-orb-scientist': {
+        name: 'NEXUS Sprite — Scientist',
+        accent: '#38bdf8',
+        glow: '#3b82f6',
+        greeting: "Lab coat on, goggles down. I'm in research mode — bring me a problem and we'll work the method.",
+        emotes: [
+            "Hypothesis logged.",
+            "Let's run the experiment.",
+            "Show your work — the method matters.",
+            "Reproducible results only.",
+            "Measure twice, solve once.",
+            "Plotting the data in my head.",
+            "That's a testable claim — let's check it.",
+            "Mind your significant figures.",
+            "Curiosity is the best reagent.",
+            "Peer-reviewing your reasoning…"
+        ],
+        persona: `VOICE OVERLAY — NEXUS SPRITE (SCIENTIST OUTFIT)
+- You are the Nexus sprite wearing a lab coat and safety goggles: a precise, curious research mentor.
+- For STEM questions (math, physics, chemistry, biology, computer science), lean into the scientific method: define the variables, state assumptions, reason step by step, and check units / significant figures.
+- Encourage hypotheses and testing ("what would you expect if…?"). Reward curiosity and rigor, not just the final answer.
+- Use light lab flavor ("let's run the numbers", "hypothesis", "reproducible") but stay clear and warm — never condescending.
+- For non-STEM topics, still help fully — just with a methodical, evidence-first mindset.`
+    },
     naruto: {
         name: 'Naruto Uzumaki',
         accent: '#ff8c00',
@@ -18951,6 +19126,45 @@ function getCompanionAvatarSVG(id, size = 96) {
                      Q40 64 28 58 Z"
                   fill="#fdd54f" stroke="#a07810" stroke-width="0.4"/>
             <path d="M32 60 L32 67 M36 61 L36 70 M40 62 L40 71 M44 61 L44 70 M48 60 L48 67" stroke="#a07810" stroke-width="0.3" opacity="0.6"/>
+        </svg>`,
+
+        'nexus-orb-scientist': `<svg width="${s}" height="${s}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="nxs-core" cx="50%" cy="40%" r="60%">
+                    <stop offset="0%" stop-color="#9be7ff"/><stop offset="40%" stop-color="#00CEC9"/><stop offset="100%" stop-color="#3b82f6"/>
+                </radialGradient>
+                <radialGradient id="nxs-glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.6"/><stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+            <circle cx="50" cy="50" r="46" fill="url(#nxs-glow)"/>
+            <!-- lab-coat collar -->
+            <path d="M30 78 L50 70 L70 78 L66 93 L34 93 Z" fill="#f4f7fb" stroke="#c7d2de" stroke-width="1"/>
+            <path d="M50 70 L46 85 L50 89 L54 85 Z" fill="#dde6ef"/>
+            <circle cx="50" cy="80" r="1.4" fill="#9fb2c4"/><circle cx="50" cy="86" r="1.4" fill="#9fb2c4"/>
+            <!-- orb body -->
+            <circle cx="50" cy="48" r="30" fill="url(#nxs-core)" stroke="#9be7ff" stroke-width="1.5"/>
+            <circle cx="50" cy="48" r="17" fill="rgba(0,10,30,0.5)"/>
+            <!-- safety goggles -->
+            <rect x="24" y="40" width="52" height="6" rx="3" fill="#1f2a37" opacity="0.85"/>
+            <g stroke="#cfd8e3" stroke-width="2" fill="rgba(155,231,255,0.35)">
+                <circle cx="40" cy="46" r="9"/>
+                <circle cx="60" cy="46" r="9"/>
+            </g>
+            <line x1="49" y1="46" x2="51" y2="46" stroke="#cfd8e3" stroke-width="2.5"/>
+            <circle cx="37" cy="43" r="2" fill="#ffffff" opacity="0.85"/>
+            <circle cx="57" cy="43" r="2" fill="#ffffff" opacity="0.85"/>
+            <!-- floating clipboard -->
+            <g transform="translate(72,28) rotate(12)">
+                <rect x="0" y="0" width="16" height="20" rx="2" fill="#e7c590" stroke="#b9925a" stroke-width="0.8"/>
+                <rect x="3" y="3" width="10" height="14" rx="1" fill="#fffdf5"/>
+                <rect x="5" y="-2" width="6" height="3" rx="1" fill="#8a8f98"/>
+                <line x1="5" y1="6" x2="11" y2="6" stroke="#9fb2c4" stroke-width="0.8"/>
+                <line x1="5" y1="9" x2="11" y2="9" stroke="#9fb2c4" stroke-width="0.8"/>
+                <line x1="5" y1="12" x2="9" y2="12" stroke="#9fb2c4" stroke-width="0.8"/>
+            </g>
+            <!-- molecule sparks -->
+            <circle cx="22" cy="34" r="2" fill="#9be7ff"/><circle cx="82" cy="62" r="2" fill="#38bdf8"/>
         </svg>`
     };
     return svgs[id] || svgs['nexus-orb'];
