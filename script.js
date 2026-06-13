@@ -1301,6 +1301,7 @@ const PER_USER_KEYS = [
     'study_stats', 'study_sessions_v2', 'recent_activities',
     'quest_state', 'daily_claims_total', 'last_daily_claim',
     'last_app_open_day', 'difficulty_mode', 'notebook_notes',
+    'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
     'starter_gold_granted'    // prefix key — cleared by username suffix at signup
 ];
 
@@ -4277,7 +4278,9 @@ const SHOP_ITEMS = {
         // v15.0 — Pixel Art cursor pack
         { id: 'cursor_pixel_arrow', name: 'Pixel Arrow', price: 120, desc: '🕹️ Classic pixel art arrow — white with black outline', rarity: 'rare' },
         { id: 'cursor_pixel_sword', name: 'Pixel Sword', price: 120, desc: '⚔️ Diagonal silver pixel sword/blade', rarity: 'rare' },
-        { id: 'cursor_pixel_heart', name: 'Pixel Heart', price: 120, desc: '💗 Pink pixel heart cursor', rarity: 'rare' }
+        { id: 'cursor_pixel_heart', name: 'Pixel Heart', price: 120, desc: '💗 Pink pixel heart cursor', rarity: 'rare' },
+        // v16.5 — Sakura cursor: a cherry-blossom pointer that leaves a falling-petal trail
+        { id: 'sakura-cursor', name: 'Sakura Petal', price: 150, desc: '🌸 A cherry-blossom pointer that drifts a trail of falling petals as you move', rarity: 'epic' }
         // v12.1 — Chidori cursor removed from the shop. SVG + click VFX kept
         // for legacy inventory holders, but no surface in the app mentions it.
     ],
@@ -5575,7 +5578,17 @@ function getCursorPreviewSVG(id, size) {
 <circle cx='24' cy='24' r='12' fill='none' stroke='#bb1818' stroke-width='0.6' opacity='0.5'/>
 <circle cx='30' cy='17' r='1.5' fill='#bb1818'/><circle cx='17' cy='17' r='1.5' fill='#bb1818'/><circle cx='24' cy='32' r='1.5' fill='#bb1818'/>
 <circle cx='24' cy='24' r='9' fill='url(#chCore)' filter='url(#gG)'/>
-<circle cx='24' cy='24' r='5' fill='#ffffff'/></svg>`
+<circle cx='24' cy='24' r='5' fill='#ffffff'/></svg>`,
+        'sakura-cursor': `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 28 28'>
+<g transform='translate(14,14)'>
+<g fill='#ff9ec4' stroke='#ff5e9c' stroke-width='0.7'>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(72)'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(144)'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(216)'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(288)'/>
+</g>
+<circle r='2.6' fill='#fff3b0'/></g></svg>`
     };
     return MAP[id] || MAP.default;
 }
@@ -5675,7 +5688,7 @@ function renderShopContent(tab, targetContainer) {
         if (tab === 'themes') {
             previewSection = `<div style="height:60px;border-radius:8px;background:linear-gradient(135deg, ${item.accent}, ${item.grad});margin-bottom:12px;"></div>`;
         } else if (tab === 'cursors') {
-            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈' }[item.id] || '↖️';
+            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸' }[item.id] || '↖️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
         } else if (tab === 'fonts') {
             const fontFamily = {
@@ -5727,11 +5740,36 @@ function renderShopContent(tab, targetContainer) {
     container.appendChild(gridContainer);
 }
 
+// v16.5 — Streak Freeze (suggestion dp_14): a spendable item, max 1 active, that
+// auto-protects the streak the next time the user misses a day.
+function getStreakFreezeCount() {
+    return parseInt(localStorage.getItem('streak_freeze_count') || '0', 10) || 0;
+}
+function buyStreakFreeze() {
+    if (!hasPro()) { showProUpgradePrompt('Streak Freeze'); return; }
+    if (getStreakFreezeCount() > 0) { showToast('You already have a Streak Freeze ready (limit 1).', 'info'); return; }
+    const COST = 150;
+    if (isOwner()) {
+        localStorage.setItem('streak_freeze_count', '1');
+        showToast('🧊 Streak Freeze granted (owner). Your streak is protected.', 'success');
+        renderShopContent('daily'); return;
+    }
+    if (userCredits < COST) { showToast('Not enough credits (need 150).', 'error'); return; }
+    showConfirm('Buy Streak Freeze', 'Spend 150 credits for a Streak Freeze? It auto-protects your streak the next time you miss a day.', () => {
+        updateCredits(-COST);
+        localStorage.setItem('streak_freeze_count', '1');
+        logActivity('shop', 'Purchased a Streak Freeze (150 credits)');
+        showToast('🧊 Streak Freeze active — your streak is protected.', 'success');
+        renderShopContent('daily');
+    });
+}
+
 function renderDailyTab(container) {
     const today = new Date().toISOString().split('T')[0];
     const lastClaim = localStorage.getItem('last_daily_claim');
     const canClaim = lastClaim !== today;
     const stats = getStudyStats();
+    const freezeCount = getStreakFreezeCount();
 
     const baseReward = 50;
     const streakBonus = Math.min(stats.currentStreak * 10, 200);
@@ -5786,6 +5824,14 @@ function renderDailyTab(container) {
                 <p style="margin-top:16px;font-size:0.85rem;color:var(--text-muted);">
                     <i class="ph ph-info"></i> Your current streak: <strong style="color:var(--accent);">${stats.currentStreak} day${stats.currentStreak !== 1 ? 's' : ''}</strong>
                 </p>
+            </div>
+
+            <div style="margin-top:24px;padding:16px;background:rgba(116,200,255,0.08);border:1px solid rgba(116,200,255,0.3);border-radius:12px;text-align:left;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font-size:1.3rem;">🧊</span><strong style="color:#74c8ff;">Streak Freeze</strong>${freezeCount > 0 ? '<span style="margin-left:auto;font-size:0.7rem;background:rgba(116,200,255,0.2);color:#74c8ff;padding:3px 9px;border-radius:999px;font-weight:700;letter-spacing:0.4px;">ACTIVE</span>' : ''}</div>
+                <p style="font-size:0.84rem;color:var(--text-muted);margin:0 0 12px;line-height:1.5;">Miss a day? A Streak Freeze automatically protects your streak the moment you'd otherwise lose it. Limit 1 active at a time.</p>
+                ${freezeCount > 0
+                    ? '<div style="font-size:0.84rem;color:#74c8ff;"><i class="ph ph-shield-check"></i> You\'re protected — 1 freeze ready to save your streak.</div>'
+                    : `<button class="btn-secondary" onclick="buyStreakFreeze()" style="font-size:0.88rem;border-color:rgba(116,200,255,0.4);color:#74c8ff;"><i class="ph ph-snowflake"></i> Buy Streak Freeze — 150 credits</button>`}
             </div>
         </div>
     `;
@@ -7320,6 +7366,40 @@ function endLivePreview() {
     } catch (_) {}
 }
 
+// v16.5 — Sakura cursor petal trail. Spawns soft falling petals behind the cursor.
+let _sakuraTrailHandler = null;
+let _sakuraTrailLast = 0;
+function setSakuraCursorTrail(on) {
+    if (_sakuraTrailHandler) {
+        document.removeEventListener('mousemove', _sakuraTrailHandler);
+        _sakuraTrailHandler = null;
+    }
+    if (!on) return;
+    _sakuraTrailHandler = function (e) {
+        const now = Date.now();
+        if (now - _sakuraTrailLast < 70) return; // throttle so it stays light
+        _sakuraTrailLast = now;
+        const p = document.createElement('div');
+        const size = 7 + Math.random() * 6;
+        const drift = (Math.random() * 36 - 18);
+        const colors = ['#ffd6e8', '#ff9ec4', '#ffc0d8'];
+        const c = colors[Math.floor(Math.random() * colors.length)];
+        p.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;width:' + size + 'px;height:' + size + 'px;'
+            + 'pointer-events:none;z-index:999998;background:radial-gradient(circle at 30% 30%, #fff, ' + c + ');'
+            + 'border-radius:0 100% 0 100%;opacity:0.9;transform:rotate(' + (Math.random() * 360) + 'deg);'
+            + 'transition:transform 1.4s ease-in, opacity 1.4s ease-in, top 1.4s ease-in, left 1.4s ease-in;will-change:transform,top,left,opacity;';
+        document.body.appendChild(p);
+        requestAnimationFrame(function () {
+            p.style.top = (e.clientY + 55 + Math.random() * 30) + 'px';
+            p.style.left = (e.clientX + drift) + 'px';
+            p.style.opacity = '0';
+            p.style.transform = 'rotate(' + (Math.random() * 360) + 'deg) scale(0.55)';
+        });
+        setTimeout(function () { p.remove(); }, 1500);
+    };
+    document.addEventListener('mousemove', _sakuraTrailHandler);
+}
+
 function applyCursor(type) {
     // Helper: builds cursor CSS from raw SVG (uses # for colors, encodeURIComponent handles encoding)
     function setCur(svg, hx, hy, fb) {
@@ -7328,6 +7408,8 @@ function applyCursor(type) {
     // v10.8 — clear any animated-cursor follower div from a previous cursor (e.g. Galaxy Orb)
     const oldFollower = document.getElementById('animated-cursor-follower');
     if (oldFollower) oldFollower.remove();
+    // v16.5 — turn off the Sakura petal trail unless we re-enable it below
+    if (typeof setSakuraCursorTrail === 'function') setSakuraCursorTrail(false);
 
     if (type === 'default') {
         // v10.8 REDO — sleek modern pointer, brand-tinted (cyan accent), with crisp edges
@@ -7855,6 +7937,19 @@ function applyCursor(type) {
 <rect x='2' y='5' width='1' height='1' fill='#ffb6d9'/>
 <rect x='7' y='5' width='1' height='1' fill='#ffb6d9'/>
 </svg>`, 6, 6, 'auto');
+    } else if (type === 'sakura-cursor') {
+        // v16.5 — cherry-blossom pointer + falling-petal trail
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>
+<g transform='translate(14,14)'>
+<g fill='#ff9ec4' stroke='#ff5e9c' stroke-width='0.7'>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(72)'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(144)'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(216)'/>
+<ellipse cx='0' cy='-7' rx='3.4' ry='6' transform='rotate(288)'/>
+</g>
+<circle r='2.6' fill='#fff3b0'/></g></svg>`, 14, 14, 'auto');
+        if (typeof setSakuraCursorTrail === 'function') setSakuraCursorTrail(true);
     } else {
         document.body.style.cursor = 'default';
     }
@@ -15247,7 +15342,16 @@ function getStudyStats() {
         if (stats.lastStudyDate === yesterday) {
             stats.currentStreak++;
         } else if (stats.lastStudyDate !== null) {
-            stats.currentStreak = 1;
+            // v16.5 — Streak Freeze: a gap would normally reset the streak. If the
+            // user has a freeze banked, consume it to protect (and continue) the streak.
+            const freezes = parseInt(localStorage.getItem('streak_freeze_count') || '0', 10) || 0;
+            if (freezes > 0 && stats.currentStreak > 0) {
+                localStorage.setItem('streak_freeze_count', String(freezes - 1));
+                localStorage.setItem('streak_freeze_pending_toast', '1');
+                stats.currentStreak++; // saved — today still counts toward the streak
+            } else {
+                stats.currentStreak = 1;
+            }
         }
 
         stats.lastStudyDate = today;
@@ -15803,7 +15907,16 @@ function renderWordOfDay() {
         + '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;font-style:italic;">"' + w.ex + '"</div>'
         + '</div>';
 }
-document.addEventListener('DOMContentLoaded', function () { setTimeout(renderWordOfDay, 300); });
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(renderWordOfDay, 300);
+    // v16.5 — tell the user if a Streak Freeze just saved their streak
+    setTimeout(function () {
+        if (localStorage.getItem('streak_freeze_pending_toast') === '1') {
+            localStorage.removeItem('streak_freeze_pending_toast');
+            if (typeof showToast === 'function') showToast('🧊 Your Streak Freeze saved your streak! Grab another in Shop → Daily.', 'info', 6000);
+        }
+    }, 1500);
+});
 
 // v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
 document.addEventListener('DOMContentLoaded', function () {
