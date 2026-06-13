@@ -5862,7 +5862,8 @@ function renderShopContent(tab, targetContainer) {
     // v11.0 — Companions tab in shop only shows Nexus Sprite. Naruto/Kratos/Gilgamesh stay
     // in the user's inventory once granted, but they're no longer publicly buyable.
     if (tab === 'companions') {
-        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist', 'nexus-orb-wizard', 'nexus-orb-athlete']);
+        // v17.0 — Outfits hub: surface every Sprite outfit variant in one browsable place
+        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist', 'nexus-orb-wizard', 'nexus-orb-athlete', 'nexus-orb-ember', 'nexus-orb-aurora', 'nexus-orb-rose']);
         visibleItems = visibleItems.filter(item => SHOP_VISIBLE_COMPANIONS.has(item.id));
     }
 
@@ -5870,6 +5871,23 @@ function renderShopContent(tab, targetContainer) {
         container.innerHTML = '<p style="padding:30px;text-align:center;color:#888;">No items available in this category.</p>';
         return;
     }
+
+    // v17.0 — Shop search / owned filter / rarity & price sort
+    var sf = window._shopFilter = window._shopFilter || { q: '', owned: 'all', sort: 'default' };
+    if (sf.owned === 'owned') visibleItems = visibleItems.filter(function (it) { return userInventory.includes(it.id); });
+    else if (sf.owned === 'unowned') visibleItems = visibleItems.filter(function (it) { return !userInventory.includes(it.id); });
+    var _rank = { common: 0, rare: 1, epic: 2, legendary: 3, nexus: 4, mythic: 5 };
+    if (sf.sort === 'rarity') visibleItems = visibleItems.slice().sort(function (a, b) { return (_rank[b.rarity] || 0) - (_rank[a.rarity] || 0); });
+    else if (sf.sort === 'price-low') visibleItems = visibleItems.slice().sort(function (a, b) { return (a.price || 0) - (b.price || 0); });
+    else if (sf.sort === 'price-high') visibleItems = visibleItems.slice().sort(function (a, b) { return (b.price || 0) - (a.price || 0); });
+
+    var controls = document.createElement('div');
+    controls.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;';
+    var selStyle = 'background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.82rem;cursor:pointer;';
+    controls.innerHTML = '<input id="shop-search-input" placeholder="Search items…" value="' + escapeHtmlSafe(sf.q) + '" oninput="_shopSearchInput(this)" aria-label="Search shop items" style="flex:1;min-width:160px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 12px;font-size:0.85rem;">'
+        + '<select onchange="_shopSetOwned(this.value,\'' + tab + '\')" aria-label="Filter by owned" style="' + selStyle + '"><option value="all"' + (sf.owned === 'all' ? ' selected' : '') + '>All items</option><option value="owned"' + (sf.owned === 'owned' ? ' selected' : '') + '>Owned</option><option value="unowned"' + (sf.owned === 'unowned' ? ' selected' : '') + '>Not owned</option></select>'
+        + '<select onchange="_shopSetSort(this.value,\'' + tab + '\')" aria-label="Sort items" style="' + selStyle + '"><option value="default"' + (sf.sort === 'default' ? ' selected' : '') + '>Sort: Default</option><option value="rarity"' + (sf.sort === 'rarity' ? ' selected' : '') + '>Rarity</option><option value="price-low"' + (sf.sort === 'price-low' ? ' selected' : '') + '>Price: Low→High</option><option value="price-high"' + (sf.sort === 'price-high' ? ' selected' : '') + '>Price: High→Low</option></select>';
+    container.appendChild(controls);
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -5892,6 +5910,7 @@ function renderShopContent(tab, targetContainer) {
 
         const card = document.createElement('div');
         card.className = 'shop-item-card';
+        card.dataset.searchtext = ((item.name || '') + ' ' + (item.desc || '')).toLowerCase();
         card.style.cssText = `
             background:rgba(255,255,255,0.03);
             border:2px solid ${(item.rarity === 'legendary' || item.rarity === 'nexus' || item.rarity === 'mythic') ? 'transparent' : rarityColor};
@@ -5981,6 +6000,18 @@ function renderShopContent(tab, targetContainer) {
     });
 
     container.appendChild(gridContainer);
+    _shopApplyClientFilter(); // honor any active search term
+}
+
+// v17.0 — shop search/filter/sort helpers
+function _shopSetOwned(v, tab) { window._shopFilter = window._shopFilter || {}; window._shopFilter.owned = v; renderShopContent(tab); }
+function _shopSetSort(v, tab) { window._shopFilter = window._shopFilter || {}; window._shopFilter.sort = v; renderShopContent(tab); }
+function _shopSearchInput(el) { window._shopFilter = window._shopFilter || {}; window._shopFilter.q = el.value; _shopApplyClientFilter(); }
+function _shopApplyClientFilter() {
+    var q = ((window._shopFilter && window._shopFilter.q) || '').toLowerCase().trim();
+    document.querySelectorAll('.shop-item-card[data-searchtext]').forEach(function (c) {
+        c.style.display = (!q || c.dataset.searchtext.indexOf(q) >= 0) ? '' : 'none';
+    });
 }
 
 // v16.5 — Streak Freeze (suggestion dp_14): a spendable item, max 1 active, that
@@ -7487,7 +7518,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v16.6';
+const NEXUS_CURRENT_VERSION = 'v17.0';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -7618,6 +7649,8 @@ function setSakuraCursorTrail(on) {
         _sakuraTrailHandler = null;
     }
     if (!on) return;
+    // v17.0 — respect reduced-motion: keep the cursor art, drop the moving petal trail
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     _sakuraTrailHandler = function (e) {
         const now = Date.now();
         if (now - _sakuraTrailLast < 70) return; // throttle so it stays light
@@ -16296,9 +16329,25 @@ document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
     function _v165MoveToHome() {
         var home = document.getElementById('view-home');
         if (!home) return;
-        ['daily-challenge-panel', 'command-debate-section', 'home-study-history'].forEach(function (id) {
+        // v17.0 — give each relocated panel a tidy section header
+        var meta = {
+            'daily-challenge-panel': '🎯 Daily Challenge',
+            'command-debate-section': '🗣️ Debate Practice',
+            'home-study-history': '📊 Study History'
+        };
+        Object.keys(meta).forEach(function (id) {
             var el = document.getElementById(id);
-            if (el && el.parentElement && el.parentElement.id !== 'view-home') home.appendChild(el);
+            if (el && el.parentElement && el.parentElement.id !== 'view-home') {
+                if (!document.getElementById('home-label-' + id)) {
+                    var h = document.createElement('h3');
+                    h.id = 'home-label-' + id;
+                    h.className = 'home-section-label';
+                    h.style.cssText = 'margin:22px 0 10px;font-size:1rem;color:#fff;font-weight:700;letter-spacing:0.3px;border-left:3px solid var(--accent);padding-left:10px;';
+                    h.textContent = meta[id];
+                    home.appendChild(h);
+                }
+                home.appendChild(el);
+            }
         });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _v165MoveToHome);
@@ -16581,6 +16630,42 @@ function _playThunder() {
 }
 document.addEventListener('DOMContentLoaded', function () {
     if (localStorage.getItem('rain_ambiance') === '1') setTimeout(function () { setRainAmbiance(true); }, 500);
+});
+
+// v17.0 — Settings: reset all equipped cosmetics back to defaults (items stay owned).
+function resetCosmetics() {
+    showConfirm('Reset cosmetics', 'Reset your theme, cursor, font, wallpaper, badge, and click effect back to defaults? Your purchased items stay in your inventory.', function () {
+        ['theme', 'cursor', 'font', 'wallpaper', 'badge', 'effect'].forEach(function (t) {
+            var def = (t === 'wallpaper' || t === 'badge' || t === 'effect') ? 'none' : 'default';
+            if (typeof equipItem === 'function') equipItem(t, def);
+        });
+        if (localStorage.getItem('rain_ambiance') === '1' && typeof setRainAmbiance === 'function') setRainAmbiance(false);
+        showToast('✨ Cosmetics reset to default.', 'success', 2500);
+    });
+}
+
+// v17.0 — Battery saver: pause canvas animations while the tab is hidden, resume on return.
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+        if (typeof wallpaperAnimFrame !== 'undefined' && wallpaperAnimFrame) { cancelAnimationFrame(wallpaperAnimFrame); wallpaperAnimFrame = null; }
+        if (_rainAnim) { cancelAnimationFrame(_rainAnim); _rainAnim = null; }
+    } else {
+        if (typeof applyWallpaper === 'function' && typeof _activeWallpaperType !== 'undefined' && _activeWallpaperType && _activeWallpaperType !== 'none') applyWallpaper(_activeWallpaperType);
+        if (localStorage.getItem('rain_ambiance') === '1' && typeof setRainAmbiance === 'function') setRainAmbiance(true);
+    }
+});
+
+// v17.0 — Onboarding nudge: gently point new users without an API key to Settings (once).
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+        try {
+            var hasKey = (typeof getApiKey === 'function') && getApiKey();
+            if (!hasKey && !localStorage.getItem('api_key_nudge_dismissed')) {
+                localStorage.setItem('api_key_nudge_dismissed', '1');
+                if (typeof showToast === 'function') showToast('👋 Welcome! Add your OpenAI API key in Settings to unlock AI tutoring, Live Vision, and more.', 'info', 7000);
+            }
+        } catch (_) {}
+    }, 2200);
 });
 
 // v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
@@ -16894,6 +16979,27 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.0',
+        date: 'June 13, 2026',
+        tag: 'UPDATE 17 — BIG FEATURE DROP',
+        tagColor: '#00CEC9',
+        changes: [
+            'VOICE INPUT — A mic button on the Universal Tutor lets you speak your question instead of typing (Web Speech API).',
+            'STEP-BY-STEP TUTORING — Toggle "Step-by-step" in the tutor and it reveals one solution step at a time, waiting for you between steps.',
+            'CONCEPT MAP GENERATOR — In the Notebook, type any topic and get a visual radial concept map of branches and sub-ideas, with one-tap "insert outline into notes."',
+            'REGION EXPLORER — Social Studies now has a Region Explorer: tap a country (or type any place) for its history, government, and economy.',
+            'WEEKLY STUDY PLANNER — Plan your week on the Home tab: per-day tasks with checkable progress that saves automatically.',
+            'FORMULA CHEAT SHEET — One-click printable / save-as-PDF sheet of the whole formula library, in a clean two-column layout.',
+            'WORD OF THE DAY+ — Now you can hear it pronounced, save words to a personal vocab list, and self-quiz on the words you\'ve saved.',
+            'NEW COMPANION OUTFITS — Wizard (mystical mentor voice) and Athlete (short, training-style coaching), each with its own look. Plus an Outfits hub so every Sprite variant is browsable in one place.',
+            'NEW WALLPAPERS — Neon City (rainy cyberpunk skyline), Space Station (Earth from orbit), and Anime Library (candlelit, floating books) — all animated.',
+            'COMPASS CURSOR + RAIN AMBIANCE — A new compass-rose cursor, and a toggleable rain-and-thunder overlay you can run over any wallpaper.',
+            'SHOP SEARCH & SORT — Search any shop tab, filter by owned / not owned, and sort by rarity or price.',
+            'POLISH — Tidier Home sections, a Reset Cosmetics button in Settings, keyboard focus outlines, reduced-motion support, an onboarding nudge for new users, and animations now pause when the tab is in the background to save battery.',
+            'BUG FIX — Shop badge, effect, and wallpaper thumbnails were showing a generic icon because of outdated IDs; every category now shows the right preview.',
+        ]
+    },
     {
         version: 'v16.6',
         date: 'June 13, 2026',
