@@ -1307,6 +1307,7 @@ const PER_USER_KEYS = [
     'quest_state', 'daily_claims_total', 'last_daily_claim',
     'last_app_open_day', 'difficulty_mode', 'notebook_notes',
     'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
+    'study_planner', 'wod_saved_vocab', // v17.0
     'starter_gold_granted'    // prefix key — cleared by username suffix at signup
 ];
 
@@ -16198,17 +16199,93 @@ const NEXUS_WORDS = [
     { word: 'Pensive',     def: 'Deeply or seriously thoughtful.', ety: 'French penser, "to think."', ex: 'She grew pensive over the tricky proof.' },
     { word: 'Resilient',   def: 'Able to recover quickly from difficulty.', ety: 'Latin resilire, "to leap back."', ex: 'A resilient student bounces back from a bad grade.' }
 ];
+function _wodLoad() { try { return JSON.parse(localStorage.getItem('wod_saved_vocab') || '[]'); } catch (_) { return []; } }
+function _wodSaveList(a) { localStorage.setItem('wod_saved_vocab', JSON.stringify(a)); }
 function renderWordOfDay() {
     var el = document.getElementById('word-of-day-widget');
     if (!el) return;
     var w = NEXUS_WORDS[Math.floor(Date.now() / 86400000) % NEXUS_WORDS.length];
+    window._wodToday = w;
+    var saved = _wodLoad();
+    var isSaved = saved.some(function (s) { return s.word === w.word; });
     el.innerHTML = '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(0,206,201,0.12),rgba(108,92,231,0.08));border:1px solid rgba(0,206,201,0.3);border-radius:12px;">'
-        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span style="font-size:1rem;">📖</span><span style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:0.5px;">WORD OF THE DAY</span></div>'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span style="font-size:1rem;">📖</span><span style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:0.5px;">WORD OF THE DAY</span>'
+        + '<div style="margin-left:auto;display:flex;gap:6px;">'
+        + '<button onclick="wodSpeak()" title="Pronounce" aria-label="Pronounce the word" style="background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:7px;color:#fff;cursor:pointer;padding:3px 8px;font-size:0.8rem;"><i class="ph ph-speaker-high"></i></button>'
+        + '<button onclick="wodSaveToday()" title="Save to my vocab" aria-label="Save word to vocab" style="background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:7px;color:' + (isSaved ? '#00b894' : '#fff') + ';cursor:pointer;padding:3px 8px;font-size:0.8rem;"><i class="ph ph-' + (isSaved ? 'check' : 'bookmark-simple') + '"></i></button>'
+        + '<button onclick="openVocabList()" title="My vocab list" aria-label="Open vocab list" style="background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:7px;color:#fff;cursor:pointer;padding:3px 8px;font-size:0.8rem;"><i class="ph ph-books"></i> ' + saved.length + '</button>'
+        + '</div></div>'
         + '<div style="font-size:1.05rem;font-weight:800;color:#fff;">' + w.word + '</div>'
         + '<div style="font-size:0.86rem;color:#d8dce5;margin-top:3px;">' + w.def + '</div>'
         + '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;"><strong>Origin:</strong> ' + w.ety + '</div>'
         + '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;font-style:italic;">"' + w.ex + '"</div>'
         + '</div>';
+}
+function wodSpeak() {
+    var w = window._wodToday; if (!w) return;
+    if (!('speechSynthesis' in window)) { showToast('Speech isn\'t supported in this browser.', 'warning'); return; }
+    try { window.speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(w.word + '. ' + w.def); u.rate = 0.95; window.speechSynthesis.speak(u); } catch (_) {}
+}
+function wodSaveToday() {
+    var w = window._wodToday; if (!w) return;
+    var a = _wodLoad();
+    if (a.some(function (s) { return s.word === w.word; })) { showToast('Already in your vocab list.', 'info'); return; }
+    a.push({ word: w.word, def: w.def, ex: w.ex, ts: Date.now() });
+    _wodSaveList(a);
+    showToast('📚 "' + w.word + '" saved to your vocab.', 'success', 2200);
+    renderWordOfDay();
+}
+function wodRemove(word) {
+    _wodSaveList(_wodLoad().filter(function (s) { return s.word !== word; }));
+    openVocabList(); renderWordOfDay();
+}
+function openVocabList() {
+    var a = _wodLoad();
+    var existing = document.getElementById('vocab-modal'); if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'vocab-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    var rows = a.length ? a.slice().reverse().map(function (s) {
+        return '<div style="border:1px solid var(--glass-border);border-radius:10px;padding:10px 12px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><strong style="color:#fff;">' + escapeHtmlSafe(s.word) + '</strong><button onclick="wodRemove(' + JSON.stringify(s.word).replace(/"/g, '&quot;') + ')" title="Remove" style="background:none;border:none;color:#ff6b6b;cursor:pointer;"><i class="ph ph-trash"></i></button></div><div style="font-size:0.84rem;color:#cdd2e0;margin-top:2px;">' + escapeHtmlSafe(s.def) + '</div></div>';
+    }).join('') : '<p style="color:var(--text-muted);text-align:center;padding:24px;">No saved words yet. Tap the bookmark on the Word of the Day to start your list.</p>';
+    modal.innerHTML = '<div class="glass-panel" style="max-width:480px;width:94%;max-height:84vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(0,206,201,0.4);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-books" style="color:#00CEC9;"></i> My Vocabulary</h3><button class="btn-icon" onclick="document.getElementById(\'vocab-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + (a.length >= 4 ? '<div style="padding:12px 20px 0;"><button class="btn-primary" onclick="wodStartQuiz()" style="width:100%;"><i class="ph ph-exam"></i> Quiz me (' + a.length + ' words)</button></div>' : '')
+        + '<div style="padding:14px 20px 16px;overflow-y:auto;">' + rows + '</div></div>';
+    document.body.appendChild(modal);
+}
+function wodStartQuiz() {
+    var a = _wodLoad(); if (a.length < 4) { showToast('Save at least 4 words to start a quiz.', 'info'); return; }
+    var order = a.map(function (_, i) { return i; }).sort(function () { return Math.random() - 0.5; });
+    window._wodQuiz = { pool: a, order: order, pos: 0, score: 0 };
+    wodRenderQuestion();
+}
+function wodRenderQuestion() {
+    var q = window._wodQuiz; var modal = document.getElementById('vocab-modal'); if (!q || !modal) return;
+    var panel = modal.querySelector('.glass-panel'); if (!panel) return;
+    if (q.pos >= q.order.length) {
+        var perfect = q.score === q.order.length;
+        panel.innerHTML = '<div style="padding:32px 24px;text-align:center;"><div style="font-size:2.2rem;">' + (perfect ? '🏆' : '🎉') + '</div><h3 style="color:#fff;margin:8px 0;">Quiz complete!</h3><p style="color:var(--accent);font-size:1.2rem;font-weight:800;">' + q.score + ' / ' + q.order.length + '</p><button class="btn-primary" onclick="openVocabList()" style="margin-top:14px;">Back to list</button></div>';
+        if (perfect && typeof updateCredits === 'function') { updateCredits(15); showToast('Perfect score! +15 credits', 'success', 2500); }
+        return;
+    }
+    var word = q.pool[q.order[q.pos]];
+    var others = q.pool.filter(function (s) { return s.word !== word.word; }).sort(function () { return Math.random() - 0.5; }).slice(0, 3).map(function (s) { return s.def; });
+    var opts = others.concat([word.def]).sort(function () { return Math.random() - 0.5; });
+    panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);"><h3 style="margin:0;color:#fff;font-size:1.02rem;">Vocab Quiz <span style="font-size:0.8rem;color:var(--text-muted);">' + (q.pos + 1) + '/' + q.order.length + '</span></h3><button class="btn-icon" onclick="document.getElementById(\'vocab-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:20px;"><p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 6px;">What does this word mean?</p><div style="font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:16px;">' + escapeHtmlSafe(word.word) + '</div>'
+        + opts.map(function (o) { return '<button class="btn-secondary" style="display:block;width:100%;text-align:left;margin-bottom:8px;font-size:0.86rem;" onclick="wodAnswer(this,' + (o === word.def ? 'true' : 'false') + ')">' + escapeHtmlSafe(o) + '</button>'; }).join('')
+        + '</div>';
+}
+function wodAnswer(btn, correct) {
+    var q = window._wodQuiz; if (!q) return;
+    var parent = btn.parentNode;
+    var word = q.pool[q.order[q.pos]];
+    parent.querySelectorAll('button').forEach(function (b) { b.disabled = true; if (b.textContent === word.def) { b.style.background = '#00b894'; b.style.color = '#fff'; } });
+    if (correct) { q.score++; } else { btn.style.background = '#d63031'; btn.style.color = '#fff'; }
+    q.pos++;
+    setTimeout(wodRenderQuestion, 950);
 }
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(renderWordOfDay, 300);
@@ -16220,6 +16297,91 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 1500);
 });
+
+// ════════════════════════════════════════════════════════════════════
+// v17.0 — WEEKLY STUDY PLANNER (suggestion dp_01). Per-weekday task lists,
+// saved to localStorage, with checkable progress. Opens as a modal.
+// ════════════════════════════════════════════════════════════════════
+const SP_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+function _spLoad() { try { return JSON.parse(localStorage.getItem('study_planner') || '{}'); } catch (_) { return {}; } }
+function _spSave(d) { localStorage.setItem('study_planner', JSON.stringify(d)); }
+function openStudyPlanner() {
+    var existing = document.getElementById('study-planner-modal'); if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'study-planner-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:980px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(0,206,201,0.4);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-calendar-check" style="color:#00CEC9;"></i> Weekly Study Planner</h3><button class="btn-icon" onclick="document.getElementById(\'study-planner-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div id="study-planner-body" style="padding:16px;overflow:auto;"></div>'
+        + '</div>';
+    document.body.appendChild(modal);
+    spRender();
+}
+function spRender() {
+    var body = document.getElementById('study-planner-body'); if (!body) return;
+    var data = _spLoad();
+    var todayIdx = (new Date().getDay() + 6) % 7; // Mon=0
+    var cols = SP_DAYS.map(function (day, i) {
+        var tasks = data[day] || [];
+        var done = tasks.filter(function (t) { return t.done; }).length;
+        var rows = tasks.map(function (t) {
+            return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">'
+                + '<input type="checkbox" ' + (t.done ? 'checked' : '') + ' onchange="spToggle(\'' + day + '\',' + t.id + ')" style="accent-color:var(--accent);cursor:pointer;flex-shrink:0;">'
+                + '<span style="flex:1;font-size:0.8rem;color:' + (t.done ? '#6b7280' : '#dde0ee') + ';' + (t.done ? 'text-decoration:line-through;' : '') + '">' + escapeHtmlSafe(t.text) + '</span>'
+                + '<button onclick="spDelete(\'' + day + '\',' + t.id + ')" title="Remove" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:0.85rem;flex-shrink:0;"><i class="ph ph-x"></i></button></div>';
+        }).join('') || '<div style="font-size:0.74rem;color:var(--text-muted);padding:4px 0;">No tasks yet.</div>';
+        return '<div style="background:rgba(255,255,255,0.03);border:1px solid ' + (i === todayIdx ? 'var(--accent)' : 'var(--glass-border)') + ';border-radius:10px;padding:10px;">'
+            + '<div style="font-weight:700;color:' + (i === todayIdx ? 'var(--accent)' : '#fff') + ';font-size:0.82rem;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">' + day.slice(0, 3) + (i === todayIdx ? ' • today' : '') + '<span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">' + done + '/' + tasks.length + '</span></div>'
+            + rows
+            + '<input id="sp-input-' + i + '" placeholder="+ add task" style="width:100%;margin-top:8px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;color:#fff;padding:5px 8px;font-size:0.76rem;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')spAddTask(\'' + day + '\',' + i + ')">'
+            + '</div>';
+    }).join('');
+    body.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 12px;">Plan your week — tasks repeat weekly and progress saves automatically. Check items off as you finish them.</p>'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' + cols + '</div>';
+}
+function spAddTask(day, i) {
+    var inp = document.getElementById('sp-input-' + i); if (!inp) return;
+    var text = inp.value.trim(); if (!text) return;
+    var data = _spLoad(); if (!data[day]) data[day] = [];
+    data[day].push({ id: Date.now(), text: text.slice(0, 120), done: false });
+    _spSave(data); spRender();
+    setTimeout(function () { var n = document.getElementById('sp-input-' + i); if (n) n.focus(); }, 0);
+}
+function spToggle(day, id) {
+    var data = _spLoad(); (data[day] || []).forEach(function (t) { if (t.id === id) t.done = !t.done; }); _spSave(data); spRender();
+}
+function spDelete(day, id) {
+    var data = _spLoad(); data[day] = (data[day] || []).filter(function (t) { return t.id !== id; }); _spSave(data); spRender();
+}
+
+// v17.0 — Formula cheat-sheet printer (suggestion dp_25): clean two-column print/PDF
+// of the full FORMULA_DATA library in a new window.
+function openFormulaSheet() {
+    if (typeof FORMULA_DATA === 'undefined') { showToast('Formula library not loaded yet.', 'warning'); return; }
+    var win = window.open('', '_blank');
+    if (!win) { showToast('Allow pop-ups to open the printable formula sheet.', 'warning', 4000); return; }
+    var sections = Object.keys(FORMULA_DATA).map(function (cat) {
+        var rows = FORMULA_DATA[cat].map(function (f) {
+            return '<div class="f"><div class="fn">' + f.name + '</div><div class="ff">' + f.formula + '</div><div class="fu">' + f.use + '</div></div>';
+        }).join('');
+        return '<section><h2>' + cat + '</h2>' + rows + '</section>';
+    }).join('');
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>NEXUS Formula Cheat Sheet</title><style>'
+        + '*{box-sizing:border-box;} body{font-family:Georgia,"Times New Roman",serif;color:#111;margin:0;padding:24px;background:#fff;} '
+        + 'h1{text-align:center;font-size:20px;margin:0 0 4px;} .sub{text-align:center;color:#666;font-size:11px;margin:0 0 16px;} '
+        + '.cols{column-count:2;column-gap:22px;} section{break-inside:avoid;margin-bottom:14px;} '
+        + 'h2{font-size:13px;color:#1a3a6b;border-bottom:1.5px solid #1a3a6b;padding-bottom:2px;margin:0 0 6px;} '
+        + '.f{margin-bottom:7px;} .fn{font-weight:bold;font-size:11.5px;} .ff{font-family:"Courier New",monospace;font-size:11.5px;color:#000;margin:1px 0;} .fu{font-size:10px;color:#555;font-style:italic;} '
+        + '@media print{ body{padding:10px;} .noprint{display:none;} }'
+        + '</style></head><body>'
+        + '<h1>NEXUS — Formula Cheat Sheet</h1><p class="sub">Algebra · Geometry · Trigonometry · Calculus · Statistics · Physics</p>'
+        + '<div class="noprint" style="text-align:center;margin-bottom:14px;"><button onclick="window.print()" style="padding:8px 18px;font-family:sans-serif;font-size:13px;cursor:pointer;border-radius:6px;border:1px solid #1a3a6b;background:#1a3a6b;color:#fff;">🖨️ Print / Save as PDF</button></div>'
+        + '<div class="cols">' + sections + '</div>'
+        + '</body></html>';
+    win.document.write(html);
+    win.document.close();
+}
 
 // v16.0 — reflect saved tutor-session / memory-retention settings in their sliders
 document.addEventListener('DOMContentLoaded', function () {
