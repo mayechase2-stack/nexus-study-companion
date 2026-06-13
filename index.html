@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260611a">
+    <link rel="stylesheet" href="style.css?v=20260611b">
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
          (Press Start 2P, Orbitron, etc.) are deferred so they never block render. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2493,6 +2493,20 @@
                                 <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Get grade &amp; feedback</p>
                             </div>
                         </div>
+                        <div class="writing-tool-card" onclick="englishAction('essay-outline')">
+                            <div class="tool-icon"><i class="ph ph-list-numbers"></i></div>
+                            <div>
+                                <h4 style="margin:0 0 4px;">Essay Outline</h4>
+                                <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Thesis &rarr; full outline</p>
+                            </div>
+                        </div>
+                        <div class="writing-tool-card" onclick="englishAction('plagiarism')">
+                            <div class="tool-icon"><i class="ph ph-magnifying-glass"></i></div>
+                            <div>
+                                <h4 style="margin:0 0 4px;">Originality Check</h4>
+                                <p style="font-size:0.8rem;color:var(--text-muted);margin:0;">Flag &amp; rewrite weak lines</p>
+                            </div>
+                        </div>
                         <div class="writing-tool-card" onclick="openVocabularyBuilder()">
                             <div class="tool-icon"><i class="ph ph-bookmark-simple"></i></div>
                             <div>
@@ -4032,6 +4046,7 @@ if __name__ == '__main__':
                                 <option value="bestfriend" style="background:#14142a;color:white;">Best Friend (casual, encouraging, uses "dude")</option>
                                 <option value="sherlock" style="background:#14142a;color:white;">Sherlock (analytical, never gives direct answers)</option>
                                 <option value="sensei" style="background:#14142a;color:white;">Chill Sensei (calm, Zen, uses metaphors)</option>
+                                <option value="rival" style="background:#14142a;color:white;">Rival (competitive — pushes you to beat them)</option>
                             </select>
                         </div>
                     </div>
@@ -5026,7 +5041,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260611a"></script>
+    <script src="script.js?v=20260611b"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

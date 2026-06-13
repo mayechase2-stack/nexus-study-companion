@@ -2922,10 +2922,24 @@ FORMAT YOUR RESPONSE AS:
 <ul>[2-3 specific areas with actionable suggestions]</ul>
 
 <h3 style="color:var(--accent);">Final Comments</h3>
-<p>[Encouraging 2-3 sentence summary]</p>`
+<p>[Encouraging 2-3 sentence summary]</p>`,
+        'essay-outline': `You are an essay-planning coach. From the student's thesis, prompt, or topic, build a complete, organized essay OUTLINE (a scaffold — do NOT write the full essay). Detect the level (high school or college) from the topic and match it. Return clean HTML:
+<h3>Refined Thesis</h3><p>[a sharpened one-sentence thesis]</p>
+<h3>Introduction</h3><ul><li>Hook idea</li><li>Background/context to include</li><li>Thesis placement</li></ul>
+<h3>Body Paragraphs</h3> for EACH of 3 body paragraphs: a <strong>topic sentence</strong>, 2–3 <li>supporting points</li>, and an <li><em>[Evidence slot: add a quote, statistic, or example here]</em></li> placeholder.
+<h3>Counter-Argument & Rebuttal</h3><ul><li>The strongest opposing view</li><li>How to rebut it</li></ul>
+<h3>Conclusion</h3><ul><li>Restate thesis (reworded)</li><li>Closing/"so what" thought</li></ul>
+Use <h3>, <ul>, <li>, <strong>, <em>. Keep it skimmable.`,
+        plagiarism: `You are an academic-integrity assistant. IMPORTANT: you have NO internet or database access, so you CANNOT perform a true source-matching plagiarism scan — say this clearly in a short disclaimer at the very top. Then provide a heuristic review of the provided text in clean HTML:
+<div style="background:rgba(253,203,110,0.12);border:1px solid rgba(253,203,110,0.4);border-radius:8px;padding:10px 14px;margin-bottom:14px;color:#fdcb6e;font-size:0.85rem;">Heuristic guide only — this does not check against the internet or any plagiarism database. Use it to spot weak/derivative writing, not to certify originality.</div>
+<h3>Originality Feel: [0–100]</h3><p>[one sentence on overall voice/authenticity]</p>
+<h3>AI-Writing Likelihood: [Low / Medium / High]</h3><p>[brief why — note generic phrasing, low burstiness, templated structure if present]</p>
+<h3>Flagged Passages</h3> a list where each item quotes a clichéd/templated/likely-copied phrase in <blockquote>, says why it stands out, and gives an original rewrite in the student's own voice.
+<h3>Tips</h3><ul>[2–3 ways to make it more original + a reminder to cite sources]</ul>
+Use <h3>, <p>, <ul>, <li>, <blockquote>, <strong>.`
     };
 
-    const labels = { grammar: 'Grammar Fixed', summarize: 'Summary', analyze: 'Literary Analysis', rewrite: 'Rewritten', 'essay-score': 'Essay Score & Feedback' };
+    const labels = { grammar: 'Grammar Fixed', summarize: 'Summary', analyze: 'Literary Analysis', rewrite: 'Rewritten', 'essay-score': 'Essay Score & Feedback', 'essay-outline': 'Essay Outline', plagiarism: 'Originality Check' };
 
     output.classList.remove('hidden');
     output.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processing...';
@@ -4191,6 +4205,7 @@ const SHOP_ITEMS = {
         { id: 'neon', name: 'Neon City', price: 150, desc: 'Cyberpunk neon vibes', accent: '#ff00ff', grad: '#00ffff', rarity: 'rare' },
         { id: 'ocean', name: 'Deep Ocean', price: 140, desc: 'Abyssal blue depths', accent: '#0984e3', grad: '#00b894', rarity: 'rare' },
         { id: 'forest', name: 'Enchanted Forest', price: 160, desc: 'Emerald canopy', accent: '#00b894', grad: '#55efc4', rarity: 'rare' },
+        { id: 'midnight-violet', name: 'Midnight Violet', price: 120, desc: 'Deeper, richer purple — less blue, more midnight violet', accent: '#7c3aed', grad: '#4c1d95', rarity: 'rare' },
         { id: 'gold', name: 'Royal Gold', price: 200, desc: 'Luxury 24K shine', accent: '#fdcb6e', grad: '#f39c12', rarity: 'epic' },
         { id: 'sakura-theme', name: 'Sakura Blossom', price: 180, desc: 'Cherry blossom pink', accent: '#ff6b9d', grad: '#c44569', rarity: 'epic' },
         { id: 'crimson', name: 'Crimson Blaze', price: 200, desc: 'Inferno red aesthetic', accent: '#e84118', grad: '#c0392b', rarity: 'epic' },
@@ -6250,7 +6265,8 @@ function applyTheme(colorName) {
         crimson:      { accent: '#e84118', primary: '#c0392b', bg: '#0f0200', panel: 'rgba(40,8,5,0.6)', muted: '#d46b5a', border: 'rgba(232,65,24,0.15)' },
         void:         { accent: '#8c7ae6', primary: '#2c2c54', bg: '#030216', panel: 'rgba(10,5,30,0.7)', muted: '#6b5eaa', border: 'rgba(140,122,230,0.12)' },
         aurora:       { accent: '#74e8c8', primary: '#a29bfe', bg: '#020a0f', panel: 'rgba(8,25,35,0.6)', muted: '#8cd4c0', border: 'rgba(116,232,200,0.12)' },
-        'nexus-prime': { accent: '#00fff5', primary: '#7c4dff', bg: '#000510', panel: 'rgba(5,0,25,0.7)', muted: '#88ccff', border: 'rgba(0,255,245,0.15)' }
+        'nexus-prime': { accent: '#00fff5', primary: '#7c4dff', bg: '#000510', panel: 'rgba(5,0,25,0.7)', muted: '#88ccff', border: 'rgba(0,255,245,0.15)' },
+        'midnight-violet': { accent: '#a78bfa', primary: '#7c3aed', bg: '#0b0518', panel: 'rgba(30,16,55,0.6)', muted: '#b9a8e6', border: 'rgba(124,58,237,0.18)' }
     };
     const t = themes[colorName] || themes.default;
     root.style.setProperty('--accent', t.accent);
@@ -20059,7 +20075,8 @@ async function sendCompanionMessage() {
             drill:      '\n\nPERSONALITY OVERRIDE — DRILL SERGEANT: You are tough-love, blunt, and demanding. Short sharp responses only. No coddling. Push the student hard. Use commands. No filler.',
             bestfriend: '\n\nPERSONALITY OVERRIDE — BEST FRIEND: Super casual and encouraging. Use "dude", "you got this", "no cap", "fr fr". High energy, hype them up, keep it chill.',
             sherlock:   '\n\nPERSONALITY OVERRIDE — SHERLOCK: Analytical and deductive. Never give the direct answer. Ask probing questions to lead the student to discover it themselves. Speak with precise, clinical observation.',
-            sensei:     '\n\nPERSONALITY OVERRIDE — CHILL SENSEI: Calm, Zen, and wise. Use metaphors and analogies. Speak slowly (in text). Never rush. Always find the deeper lesson.'
+            sensei:     '\n\nPERSONALITY OVERRIDE — CHILL SENSEI: Calm, Zen, and wise. Use metaphors and analogies. Speak slowly (in text). Never rush. Always find the deeper lesson.',
+            rival:      '\n\nPERSONALITY OVERRIDE — ACADEMIC RIVAL: You are the student\'s friendly-but-competitive academic rival. Treat studying like a contest you\'re both in — gently taunt and challenge them ("I already nailed this one, bet you can\'t beat my time"), hype it up when they win, and push them to outdo you. Confident and a little cocky, but never mean and never withhold real help.'
         };
         const personalityPrefix = _cpersonalityPrefixes[_cpersonality] || '';
         const systemPrompt = NEXUS_COMPANION_PROMPT + personalityPrefix + '\n\n' + personaData.persona + sessionContext + memoryContext;
