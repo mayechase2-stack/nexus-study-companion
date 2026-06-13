@@ -214,6 +214,11 @@ function switchTab(tabId) {
     localStorage.setItem('last_tab', tabId);
     // v12.7 — tab-switch click sound
     if (typeof playSfx === 'function') playSfx('tab');
+    // v17.0 — re-apply the chosen language after navigation so re-rendered nav/labels stay translated
+    var _lang = localStorage.getItem('app_lang');
+    if (_lang && _lang !== 'en' && typeof setAppLanguage === 'function') setAppLanguage(_lang);
+    // v17.0 — keep the Word of the Day fresh when returning Home
+    if ((tabId === 'home' || tabId === 'dashboard') && typeof renderWordOfDay === 'function') renderWordOfDay();
 }
 
 function updateHomeStats() {
@@ -5735,13 +5740,20 @@ function renderShopContent(tab, targetContainer) {
             const _fsz = item.id === 'pixel' ? '0.8rem' : (item.id === 'comic-pro' ? '1.7rem' : '1.5rem');
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:${fontFamily};font-size:${_fsz};color:#fff;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
         } else if (tab === 'wallpapers') {
-            const wallpaperEmoji = { none: '⬛', starfield: '⭐', matrix: '💚', waves: '🌊', particles: '✨', gradient: '🌈', constellation: '🌌', sakura: '🌸', 'ocean-deep': '🪼', underwater: '🦈' }[item.id] || '🖼️';
+            const wallpaperEmoji = {
+                none: '⬛', gradient1: '🟣', gradient2: '🌅', underwater: '🦈', 'ocean-deep': '🪼', matrix: '💚', starfield: '⭐',
+                'aurora-bg': '🌌', nebula: '✨', sakura: '🌸', 'sakura-day': '🌸', 'sunny-meadow': '🌾', 'beach-day': '🏖️', 'spring-sky': '✈️', 'nexus-void': '🔮', 'custom-wallpaper': '🖼️'
+            }[item.id] || '🖼️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
         } else if (tab === 'badges') {
-            const badgeEmoji = { none: '⚪', scholar: '📚', ace: '🏆', streak: '🔥', night: '🌙', speedster: '⚡', champion: '👑' }[item.id] || '🏅';
+            const badgeEmoji = { none: '⚪', 'night-owl': '🌙', speedster: '⚡', 'quiz-master': '🏆', 'streak-king': '🔥', scholar: '🎓', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮' }[item.id] || '🏅';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${badgeEmoji}</div>`;
         } else if (tab === 'effects') {
-            const effectEmoji = { none: '⚪', sparkle: '✨', confetti: '🎉', ripple: '💧', glow: '💫', trail: '🌟' }[item.id] || '✨';
+            const effectEmoji = {
+                none: '⚪', sparkle: '✨', confetti: '🎉', particles: '🌠', bubbles: '🫧', 'cherry-blossom': '🌸', lightning: '⚡',
+                'sparkle-trail': '✨', 'petal-trail': '🌸', 'bubble-trail': '🫧', 'fire-trail': '🔥', 'ink-trail': '🖋️', 'confetti-trail': '🎉', 'lightning-trail': '⚡', 'galaxy-trail': '🌌', 'phoenix-trail': '🔥',
+                'ink-splatter': '🖋️', starburst: '⭐', shockwave: '💥', butterflies: '🦋', 'butterfly-trail': '🦋', 'aurora-veil': '🌌', 'galaxy-burst': '🌠', 'phoenix-flame': '🔥', 'nexus-aura': '🔮'
+            }[item.id] || '✨';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${effectEmoji}</div>`;
         } else if (tab === 'companions') {
             const svg = (typeof getCompanionAvatarSVG === 'function') ? getCompanionAvatarSVG(item.id, 84) : '';
