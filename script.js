@@ -1308,6 +1308,7 @@ const PER_USER_KEYS = [
     'last_app_open_day', 'difficulty_mode', 'notebook_notes',
     'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
     'study_planner', 'wod_saved_vocab', // v17.0
+    'last_mystery_box', 'nexus_waitlist', // v17.1
     'starter_gold_granted'    // prefix key — cleared by username suffix at signup
 ];
 
@@ -1429,12 +1430,12 @@ function selectPlan(plan) {
         if (sumName) sumName.textContent = 'NEXUS Pro Monthly';
         if (sumPrice) sumPrice.textContent = '$' + PRO_PRICE.toFixed(2);
         if (sumGold) sumGold.textContent = `Includes ${PRO_STARTER_GOLD} starter gold + every premium feature unlocked!`;
-        if (submitBtn) submitBtn.innerHTML = `<i class="ph ph-credit-card"></i> Subscribe to NEXUS Pro — $${PRO_PRICE.toFixed(2)}/mo`;
+        if (submitBtn) submitBtn.innerHTML = `<i class="ph ph-envelope-simple"></i> Notify me at launch — start free beta`;
     } else {
         if (sumName) sumName.textContent = 'NEXUS Access Monthly';
         if (sumPrice) sumPrice.textContent = '$' + ACCESS_PRICE.toFixed(2);
         if (sumGold) sumGold.textContent = `Math, Science, English, Social Studies — with Tutor Mode + Live Vision. The four-subject plan.`;
-        if (submitBtn) submitBtn.innerHTML = `<i class="ph ph-credit-card"></i> Subscribe to NEXUS Access — $${ACCESS_PRICE.toFixed(2)}/mo`;
+        if (submitBtn) submitBtn.innerHTML = `<i class="ph ph-envelope-simple"></i> Notify me at launch — start free beta`;
     }
 }
 
@@ -1586,83 +1587,53 @@ function _sendNexusReceipt(email, planLabel, price) {
     } catch (e) {}
 }
 
+// v17.1 — Waitlist signup (no card collected). Real billing waits on a backend + Stripe.
+// During beta the app is free: a valid email joins the launch list and unlocks beta access.
 function submitPayment(event) {
     if (event && event.preventDefault) event.preventDefault();
-    const fields = {
-        name: document.getElementById('pay-name'),
-        email: document.getElementById('pay-email'),
-        card: document.getElementById('pay-card'),
-        exp: document.getElementById('pay-exp'),
-        cvv: document.getElementById('pay-cvv'),
-        zip: document.getElementById('pay-zip'),
-        address: document.getElementById('pay-address')
-    };
-    // Basic validation (email is optional — your choice)
-    for (const k in fields) {
-        if (k === 'email') continue;
-        if (!fields[k] || !fields[k].value.trim()) {
-            showToast(`Please fill in all fields (${k}).`, 'error', 3500);
-            if (fields[k]) fields[k].focus();
-            return;
-        }
-    }
-    // Card number basic format check (any 13-19 digits)
-    const cardDigits = fields.card.value.replace(/\D/g, '');
-    if (cardDigits.length < 13 || cardDigits.length > 19) {
-        showToast('Please enter a valid card number.', 'error', 3500);
-        fields.card.focus();
+    const nameEl = document.getElementById('pay-name');
+    const emailEl = document.getElementById('pay-email');
+    const email = emailEl ? emailEl.value.trim() : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Please enter a valid email so we can notify you at launch.', 'error', 3500);
+        if (emailEl) emailEl.focus();
         return;
     }
-    // CVV check
-    if (!/^\d{3,4}$/.test(fields.cvv.value)) {
-        showToast('Please enter a valid CVV (3 or 4 digits).', 'error', 3500);
-        fields.cvv.focus();
-        return;
-    }
-    // Expiry MM/YY check
-    if (!/^(0[1-9]|1[0-2])\/?\d{2}$/.test(fields.exp.value.replace(/\s/g, ''))) {
-        showToast('Please enter expiry as MM/YY.', 'error', 3500);
-        fields.exp.focus();
-        return;
-    }
-    // Email check — only if the (optional) email was provided
-    if (fields.email.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.value.trim())) {
-        showToast('Please enter a valid email address (or leave it blank).', 'error', 3500);
-        fields.email.focus();
-        return;
-    }
-    // "Process" the payment (mock)
     const submitBtn = document.getElementById('pay-submit-btn');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation:spin 1s linear infinite;"></i> Processing...';
+        submitBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation:spin 1s linear infinite;"></i> Saving…';
     }
     setTimeout(() => {
         const plan = _selectedPlan === 'pro' ? 'pro' : 'access';
-        const price = plan === 'pro' ? PRO_PRICE : ACCESS_PRICE;
         const planLabel = plan === 'pro' ? 'NEXUS Pro' : 'NEXUS Access';
-        const receiptEmail = (fields.email && fields.email.value) ? fields.email.value.trim() : '';
+        // Record the waitlist signup locally — no card data is ever collected.
+        try {
+            const list = JSON.parse(localStorage.getItem('nexus_waitlist') || '[]');
+            list.push({ email: email, name: nameEl ? nameEl.value.trim() : '', interestedPlan: planLabel, ts: new Date().toISOString() });
+            localStorage.setItem('nexus_waitlist', JSON.stringify(list));
+        } catch (_) {}
+        localStorage.setItem('auth_email', email);
+        // Free beta: unlock the app so testers can use it (no payment taken).
         setUserTier(plan);
         const granted = grantStarterGold(plan);
         localStorage.setItem('nexus_subscription', JSON.stringify({
-            name: fields.name.value,
-            email: fields.email.value,
-            cardLast4: cardDigits.slice(-4),
+            name: nameEl ? nameEl.value : '',
+            email: email,
             startDate: new Date().toISOString(),
-            plan: `${planLabel} Monthly $${price.toFixed(2)}`
+            plan: planLabel + ' (free beta)'
         }));
         closePaymentModal();
-        // v11.0 — release the signup-flow lock so the app becomes usable
         document.body.classList.remove('payment-required-lock');
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `<i class="ph ph-credit-card"></i> Subscribe — $${price.toFixed(2)}/mo`;
+            submitBtn.innerHTML = '<i class="ph ph-envelope-simple"></i> Notify me at launch — start free beta';
         }
-        const goldMsg = granted > 0 ? ` +${granted} starter gold added!` : '';
-        showToast(`Welcome to ${planLabel}!${goldMsg}`, 'success', 5000);
-        _sendNexusReceipt(receiptEmail, planLabel + ' Monthly', price);   // optional receipt
-        for (const k in fields) { if (fields[k]) fields[k].value = ''; }
-    }, 1500);
+        const goldMsg = granted > 0 ? ` +${granted} starter gold to explore with.` : '';
+        showToast(`You're on the launch list! NEXUS is free during beta — enjoy full access.${goldMsg}`, 'success', 6000);
+        if (emailEl) emailEl.value = '';
+        if (nameEl) nameEl.value = '';
+    }, 900);
 }
 
 function validatePasswordStrict(pass) {
@@ -3164,7 +3135,7 @@ Use <h3>, <p>, <ul>, <li>, <blockquote>, <strong>.`
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: prompts[type] + getModeSystemPrompt('English') },
                     { role: 'user', content: userContent }
@@ -3354,7 +3325,7 @@ async function summarizeBook(mode) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: sysPrompt },
                     { role: "user", content: haveDesc ? openBookData.description : `Summarize "${openBookData.title}" by ${openBookData.author || 'unknown'}.` }
@@ -3392,7 +3363,7 @@ async function _analyzeBookPassage(passage) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: `Analyze this passage from "${openBookData?.title || 'this book'}". Explain the tone, any literary devices, and the meaning of this specific text. Use clean HTML with <h4> headers.` },
                     { role: "user", content: passage }
@@ -3434,7 +3405,7 @@ async function analyzeBook(mode) {
     try {
         await streamChat({
             apiKey,
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: sysPrompt },
                 { role: 'user', content: `Provide the ${labels[mode]} for "${openBookData.title}".` }
@@ -3885,7 +3856,7 @@ async function _lookupWordOpenAI(word) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: `You are a dictionary. Return STRICT JSON with this exact schema:
@@ -4298,7 +4269,7 @@ async function generateQuiz() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: `Generate a 3-question multiple-choice math quiz for Grade ${diff}.
@@ -6210,161 +6181,62 @@ function renderInventoryTab(container) {
     container.appendChild(refundInfo);
 }
 
+// v17.1 — Reworked from "Lucky Spin" (a credits-for-chance gambling/loot-box mechanic)
+// into a free Daily Mystery Box: no cost to open, no risk of loss, once per day.
 function renderGambleTab(container) {
-    const SPIN_COST = 50;
-    const canSpin = userCredits >= SPIN_COST;
-
-    // Get secret items user already owns
-    const secretItems = [
-        SHOP_ITEMS.themes.find(i => i.id === 'aurora'),
-        SHOP_ITEMS.cursors.find(i => i.id === 'rainbow'),
-        SHOP_ITEMS.wallpapers.find(i => i.id === 'sakura'),
-        SHOP_ITEMS.badges.find(i => i.id === 'champion')
-    ].filter(Boolean);
-
-    const ownedSecrets = secretItems.filter(item => userInventory.includes(item.id));
-    const remainingSecrets = secretItems.filter(item => !userInventory.includes(item.id));
-
+    const today = new Date().toISOString().split('T')[0];
+    const canOpen = localStorage.getItem('last_mystery_box') !== today;
     container.innerHTML = `
-        <div style="text-align:center; padding: 30px 20px;">
-            <div style="font-size:5rem;margin-bottom:16px;filter:drop-shadow(0 0 20px gold);">🎰</div>
-            <h2 style="margin-bottom:8px;background:linear-gradient(135deg, #FFD700, #FF6B6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.35rem;">Lucky Spin</h2>
-            <p style="color:var(--text-muted);margin-bottom:24px;font-size:0.95rem;">Spin the wheel for a chance to win <strong style="color:#fbbf24;">credits</strong> or <strong style="color:#fbbf24;">legendary items</strong>!</p>
-
-            <!-- Prize Showcase -->
-            <div style="background:linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,107,107,0.1));border:2px solid #fbbf24;border-radius:16px;padding:20px;margin-bottom:24px;">
-                <h3 style="color:#fbbf24;margin-bottom:12px;font-size:1.1rem;">🎁 Possible Rewards</h3>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">
-                    <div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;">
-                        <div style="font-size:1.35rem;margin-bottom:4px;">💰</div>
-                        <div style="font-size:0.85rem;color:var(--text-muted);">50-200 Credits</div>
-                    </div>
-                    ${remainingSecrets.map(item => `
-                        <div style="background:${item.nexus ? 'rgba(124,77,255,0.15)' : 'rgba(251,191,36,0.15)'};padding:12px;border-radius:8px;border:1px solid ${item.nexus ? '#7c4dff' : '#fbbf24'};">
-                            <div style="font-size:1.35rem;margin-bottom:4px;">${item.nexus ? '🔮' : ({aurora:'✨',rainbow:'🌈',sakura:'🌸',champion:'👑'}[item.id] || '🎁')}</div>
-                            <div style="font-size:0.85rem;color:${item.nexus ? '#bb99ff' : '#fbbf24'};font-weight:600;">${item.name}</div>
-                        </div>
-                    `).join('')}
-                </div>
-                ${ownedSecrets.length > 0 ? `<p style="font-size:0.9rem;color:#00b894;margin-top:12px;">✓ You own ${ownedSecrets.length}/${secretItems.length} legendary items!</p>` : ''}
+        <div style="text-align:center;padding:30px 20px;">
+            <div style="font-size:4.5rem;margin-bottom:16px;filter:drop-shadow(0 0 18px #00CEC9);">🎁</div>
+            <h2 style="margin-bottom:8px;background:linear-gradient(135deg,#00CEC9,#6C5CE7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.35rem;">Daily Mystery Box</h2>
+            <p style="color:var(--text-muted);margin-bottom:24px;font-size:0.95rem;">A free gift every day — guaranteed credits, sometimes a bonus cosmetic. No cost, no catch.</p>
+            <div style="max-width:340px;margin:0 auto 24px;background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.1));border:2px solid var(--accent);border-radius:16px;padding:24px;">
+                ${canOpen ? `
+                    <div style="font-size:3rem;margin-bottom:14px;">📦</div>
+                    <button class="btn-primary" onclick="openMysteryBox()" style="font-size:1.1rem;padding:14px 32px;"><i class="ph ph-gift"></i> Open today's box</button>
+                ` : `
+                    <div style="font-size:3rem;margin-bottom:14px;">✅</div>
+                    <h3 style="color:#00b894;margin-bottom:6px;">Opened today!</h3>
+                    <p style="color:var(--text-muted);font-size:0.9rem;margin:0;">Come back tomorrow for another free box.</p>
+                `}
             </div>
-
-            <!-- Spin Wheel Container -->
-            <div style="position:relative;width:280px;height:280px;margin:0 auto 24px;background:radial-gradient(circle, rgba(255,215,0,0.2), transparent);border-radius:50%;display:flex;align-items:center;justify-content:center;">
-                <div id="spin-wheel" style="width:260px;height:260px;border-radius:50%;background:conic-gradient(from 0deg, #ff6b6b 0deg 72deg, #fbbf24 72deg 144deg, #00cec9 144deg 216deg, #a855f7 216deg 288deg, #00b894 288deg 360deg);border:4px solid #fbbf24;position:relative;transition:transform 3s cubic-bezier(0.25, 0.1, 0.25, 1);display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(255,215,0,0.4);">
-                    <div style="position:absolute;width:80px;height:80px;background:rgba(0,0,0,0.9);border-radius:50%;border:3px solid #fbbf24;display:flex;align-items:center;justify-content:center;font-size:1.35rem;">🎯</div>
-                </div>
-                <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:15px solid transparent;border-right:15px solid transparent;border-top:25px solid #ff6b6b;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>
-            </div>
-
-            <!-- Spin Button -->
-            <div style="margin-bottom:20px;">
-                <button class="btn-primary" onclick="spinLuckyWheel()" ${!canSpin ? 'disabled' : ''}
-                    style="background:linear-gradient(135deg, #FFD700, #FFA500);color:#000;font-weight:700;font-size:1.2rem;padding:16px 40px;border:none;border-radius:12px;cursor:pointer;transition:all 0.3s;box-shadow:0 4px 15px rgba(255,215,0,0.4);${!canSpin ? 'opacity:0.5;cursor:not-allowed;' : ''}">
-                    <i class="ph ph-dice-three"></i> SPIN (${SPIN_COST} Credits)
-                </button>
-            </div>
-
-            ${!canSpin ? `<p style="color:#ff6b6b;font-size:0.9rem;">⚠️ You need at least ${SPIN_COST} credits to spin!</p>` : ''}
-
-            <!-- Result Display -->
-            <div id="spin-result" style="min-height:60px;font-size:1.1rem;font-weight:600;margin-top:16px;"></div>
-
-            <!-- Info -->
-            <div style="margin-top:24px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);">
-                <h4 style="color:var(--text-muted);font-size:0.9rem;margin-bottom:8px;">How It Works</h4>
-                <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;">
-                    • Each spin costs ${SPIN_COST} credits<br>
-                    • 70% chance to win 50-200 credits<br>
-                    • 30% chance to win a legendary item (if not owned)<br>
-                    • Legendary items are <strong>exclusive</strong> to Lucky Spin!
-                </p>
+            <div id="spin-result" style="min-height:50px;font-size:1.05rem;font-weight:600;"></div>
+            <div style="margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.1);max-width:430px;margin-left:auto;margin-right:auto;">
+                <p style="font-size:0.84rem;color:var(--text-muted);line-height:1.6;">Open one free box per day for <strong style="color:#fff;">75–175 credits</strong>, plus an occasional bonus cosmetic you don't already own. It never costs credits and you can't lose anything — just a daily thank-you for studying.</p>
             </div>
         </div>
     `;
 }
 
-function spinLuckyWheel() {
-    const SPIN_COST = 50;
-
-    if (userCredits < SPIN_COST) {
-        showToast("Not enough credits to spin!", "error");
-        return;
-    }
-
-    updateCredits(-SPIN_COST);
-
-    const wheel = document.getElementById('spin-wheel');
+function openMysteryBox() {
+    const today = new Date().toISOString().split('T')[0];
+    if (localStorage.getItem('last_mystery_box') === today) { showToast("You already opened today's box — back tomorrow!", 'info'); return; }
+    localStorage.setItem('last_mystery_box', today);
     const resultDiv = document.getElementById('spin-result');
-    const btn = document.querySelector('button[onclick="spinLuckyWheel()"]');
-
-    btn.disabled = true;
-    resultDiv.innerHTML = '<div style="color:var(--text-muted);">🎰 Spinning...</div>';
-
-    const spins = 5 + Math.random() * 3;
-    const degrees = spins * 360 + Math.random() * 360;
-    wheel.style.transform = `rotate(${degrees}deg)`;
-
-    setTimeout(() => {
-        const r = Math.random();
-        // All legendary + nexus items are eligible for the wheel
-        const allItems = Object.values(SHOP_ITEMS).flat();
-        const legendaryItems = allItems.filter(i => i.rarity === 'legendary' || i.rarity === 'nexus');
-        const remainingLegendaries = legendaryItems.filter(item => !userInventory.includes(item.id));
-        const ownedLegendaries = legendaryItems.filter(item => userInventory.includes(item.id));
-
-        // 30% chance for a legendary item
-        if (r < 0.30 && legendaryItems.length > 0) {
-            if (remainingLegendaries.length > 0) {
-                // Win a new legendary!
-                const wonItem = remainingLegendaries[Math.floor(Math.random() * remainingLegendaries.length)];
-                userInventory.push(wonItem.id);
-                localStorage.setItem('user_inventory', JSON.stringify(userInventory));
-                const itemEmoji = wonItem.rarity === 'nexus' ? '🔮' : {
-                    aurora:'✨', rainbow:'🌈', sakura:'🌸', champion:'👑',
-                    diamond:'💎', 'spirited-away':'🚉', 'nexus-void':'🌌'
-                }[wonItem.id] || '🎁';
-                resultDiv.innerHTML = `
-                    <div style="animation:pulse 0.5s ease-in-out;">
-                        <div style="font-size:1.25rem;margin-bottom:8px;">${itemEmoji}</div>
-                        <div style="color:#fbbf24;font-size:1.3rem;margin-bottom:4px;">🎉 LEGENDARY! 🎉</div>
-                        <div style="color:white;font-size:1.1rem;">${wonItem.name}</div>
-                        <div style="color:var(--text-muted);font-size:0.9rem;margin-top:4px;">${wonItem.desc}</div>
-                    </div>`;
-                showToast(`🎉 WON LEGENDARY: ${wonItem.name}!`, "success", 5000);
-                createConfetti();
-            } else if (ownedLegendaries.length > 0) {
-                // Dupe legendary = 500 coins
-                const DUPE_REWARD = 500;
-                updateCredits(DUPE_REWARD);
-                resultDiv.innerHTML = `
-                    <div style="animation:pulse 0.5s ease-in-out;">
-                        <div style="font-size:1.25rem;margin-bottom:8px;">💎</div>
-                        <div style="color:#fbbf24;font-size:1.3rem;margin-bottom:4px;">Duplicate Legendary!</div>
-                        <div style="color:#00b894;font-size:1.1rem;">Converted to <strong style="color:#fbbf24;">${DUPE_REWARD} Credits</strong></div>
-                        <div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">You already own all legendaries!</div>
-                    </div>`;
-                showToast(`💎 Dupe legendary → +${DUPE_REWARD} credits!`, "success", 4000);
-                createConfetti();
-            }
-        } else {
-            // Win credits (50-250)
-            const creditsWon = Math.floor(Math.random() * 201) + 50;
-            updateCredits(creditsWon);
-            resultDiv.innerHTML = `
-                <div style="animation:pulse 0.5s ease-in-out;">
-                    <div style="font-size:1.25rem;margin-bottom:8px;">💰</div>
-                    <div style="color:#00b894;font-size:1.2rem;">You won <strong style="color:#fbbf24;">${creditsWon} Credits</strong>!</div>
-                </div>`;
-            showToast(`Won ${creditsWon} credits!`, "success", 3000);
+    const creditsWon = Math.floor(Math.random() * 101) + 75; // 75–175, guaranteed
+    updateCredits(creditsWon);
+    let bonusHtml = '';
+    if (Math.random() < 0.25) {
+        const pool = Object.values(SHOP_ITEMS).flat().filter(i => i && !i.secret && !i.nexus && i.price > 0 && !userInventory.includes(i.id));
+        if (pool.length) {
+            const gift = pool[Math.floor(Math.random() * pool.length)];
+            userInventory.push(gift.id);
+            localStorage.setItem('user_inventory', JSON.stringify(userInventory));
+            bonusHtml = `<div style="color:#fbbf24;margin-top:8px;">🎁 Bonus cosmetic: <strong>${gift.name}</strong>!</div>`;
+            showToast(`🎁 Bonus: ${gift.name} added to your inventory!`, 'success', 4000);
         }
-
-        setTimeout(() => {
-            const container = document.getElementById('shop-page-content') || document.getElementById('shop-content');
-            if (container) renderGambleTab(container);
-        }, 3000);
-    }, 3000);
+    }
+    if (resultDiv) resultDiv.innerHTML = `<div style="animation:pulse 0.5s ease-in-out;"><div style="font-size:1.5rem;">💰</div><div style="color:#00b894;font-size:1.15rem;">+${creditsWon} credits!</div>${bonusHtml}</div>`;
+    if (typeof createConfetti === 'function') createConfetti();
+    if (typeof logActivity === 'function') logActivity('shop', `Opened daily mystery box: +${creditsWon} credits`);
+    setTimeout(() => {
+        const container = document.getElementById('shop-page-content') || document.getElementById('shop-content');
+        if (container) renderGambleTab(container);
+    }, 2600);
 }
+// Back-compat: any lingering reference to the old name opens the box.
+function spinLuckyWheel() { openMysteryBox(); }
 
 // ── v12.8: NEXUS Secret Word Detection ──
 // Typing "NEXUS" in all caps anywhere (not in an input/textarea) awards
@@ -7518,7 +7390,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.0';
+const NEXUS_CURRENT_VERSION = 'v17.1';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -11362,7 +11234,7 @@ async function makeFlashcardsFromHistory(id) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: `Extract the 6-10 most important study flashcards from this material. Return STRICT JSON:
@@ -11526,7 +11398,7 @@ async function runFlashcardAIGenerate() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: sysPrompt },
@@ -12306,7 +12178,7 @@ async function searchSocial(type, directQuery) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [{ role: 'system', content: `You are a doctorate-level historian and social-studies educator who writes like the best Microsoft Copilot research answers — sourced, balanced, contextualized, and richly detailed.
 
 ROLE & CAPABILITIES:
@@ -13140,7 +13012,7 @@ async function genericAiCall(role, query, outputEl) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [{ role: 'system', content: `You are an expert ${role}.` }, { role: 'user', content: query }]
             })
         });
@@ -15151,7 +15023,7 @@ CRITICAL RULES:
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [{ role: 'system', content: sys }, { role: 'user', content: `Tell me what happened in the year ${yearLabel}.` }],
                 max_tokens: 2200,
                 temperature: 0.4
@@ -16979,6 +16851,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.1',
+        date: 'June 14, 2026',
+        tag: 'UPDATE 17.1 — HONESTY & SAFETY PASS',
+        tagColor: '#fdcb6e',
+        changes: [
+            'NO MORE CARD COLLECTION — The checkout no longer asks for card details. Until real billing is ready, it\'s an email waitlist: NEXUS is free during beta and we\'ll notify you when paid plans launch.',
+            'HONEST AI WORDING — Corrected the "hosted AI — no key needed" copy to reflect today\'s reality: during beta you use your own OpenAI key (managed hosted AI is on the roadmap). Fixed the old Help text that wrongly said the AI was "simulated."',
+            'LUCKY SPIN → DAILY MYSTERY BOX — Replaced the credits-for-chance gambling/loot-box mechanic with a free Daily Mystery Box: one free gift a day, guaranteed credits, no cost and nothing to lose.',
+            'LEANER AI COSTS — Routine text features (English tools, history/social lookups, quizzes, flashcards, dictionary, study tools) now use a faster, far cheaper model; the Tutor, Live Vision, and code help stay on the premium model for quality.',
+        ]
+    },
     {
         version: 'v17.0',
         date: 'June 13, 2026',
@@ -21629,7 +21513,7 @@ Each question must be answerable from the passage alone. Distractors must be pla
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: sys },
@@ -24172,7 +24056,7 @@ Use HTML formatting (not markdown): <strong>, <em>, <ul><li>, <br>, etc.`;
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: question || `Please help me with: ${title}` }
@@ -24524,7 +24408,7 @@ async function openGradeAiAnalysis(courseId) {
             method:'POST',
             headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
             body: JSON.stringify({
-                model:'gpt-4o',
+                model:'gpt-4o-mini',
                 messages:[
                     {role:'system', content:`You are NEXUS academic advisor. Analyze a student's grade data and give actionable, encouraging advice.
 Format your response as clean HTML (no markdown). Use <strong>, <ul><li>, <br>.
@@ -24743,7 +24627,7 @@ where "correct" is the 0-based index of the right answer. No commentary, just JS
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o',
+                model: 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: text.length > 3000 ? text.substring(0, 3000) : text }
@@ -25436,7 +25320,7 @@ async function sendDebateMsg() {
         var res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-            body: JSON.stringify({ model: 'gpt-4o', messages: messages, max_tokens: 300, temperature: 0.8 })
+            body: JSON.stringify({ model: 'gpt-4o-mini', messages: messages, max_tokens: 300, temperature: 0.8 })
         });
         var data = await res.json();
         if (data.error) throw new Error(data.error.message);
@@ -25496,7 +25380,7 @@ function generatePracticeTest() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
         body: JSON.stringify({
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
             max_tokens: 2000,

@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260613c">
+    <link rel="stylesheet" href="style.css?v=20260614a">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -239,7 +239,7 @@
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
-                v17.0 NOW LIVE
+                v17.1 NOW LIVE
             </div>
             <h1 style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;margin-bottom:20px;font-weight:900;letter-spacing:-1.5px;">
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
@@ -322,7 +322,7 @@
         (function() {
             const items = [
                 '🧮 Algebra &amp; Calculus', '🔬 Chemistry &amp; Physics', '📚 English Essays', '🌍 World History',
-                '🎰 Lucky Spin', '🖼️ Custom Wallpapers', '🌙 Dark / Grey / Onyx Themes', '📊 Study Heatmap',
+                '🎁 Daily Mystery Box', '🖼️ Custom Wallpapers', '🌙 Dark / Grey / Onyx Themes', '📊 Study Heatmap',
                 '⚡ Live Screen Vision', '🃏 Spaced Repetition Flashcards', '🎤 Voice Dictation', '🏆 Achievements',
                 '🌸 Animated Wallpapers', '🎵 Ambient Soundscapes', '📝 Smart Notebook', '🍅 Pomodoro Timer',
                 '🔮 NEXUS Rarity Items', '📖 Knowledge Library Hub', '📐 GPA Tracker', '💬 AI Companion',
@@ -707,7 +707,7 @@
                 </details>
                 <details class="glass-panel" style="padding:16px 20px;cursor:pointer;border:1px solid var(--glass-border);">
                     <summary style="color:white;font-weight:600;font-size:1rem;outline:none;list-style:none;display:flex;justify-content:space-between;align-items:center;"><span>Do I need my own OpenAI key?</span><svg width="16" height="16" style="color:currentColor;flex-shrink:0;"><use href="#ic-caret-down"/></svg></summary>
-                    <p style="margin:14px 0 0;color:#d8dce5;font-size:0.9rem;line-height:1.6;">No. Both Access and Pro include hosted AI — no key setup, no separate OpenAI bill, no surprise charges. Sign up, pay your subscription, use the app. (If you'd rather route through your own OpenAI account, you can flip a switch in Settings → Account & API.)</p>
+                    <p style="margin:14px 0 0;color:#d8dce5;font-size:0.9rem;line-height:1.6;">During our free beta, yes — you connect your own OpenAI API key (a quick one-time paste in Settings → Account &amp; API). Your prompts then go straight to OpenAI, so they stay private and you only pay OpenAI for what you use. Fully managed "hosted AI — no key needed" is on our roadmap for the paid launch.</p>
                 </details>
                 <details class="glass-panel" style="padding:16px 20px;cursor:pointer;border:1px solid var(--glass-border);">
                     <summary style="color:white;font-weight:600;font-size:1rem;outline:none;list-style:none;display:flex;justify-content:space-between;align-items:center;"><span>Can I cancel? What if I clear my browser?</span><svg width="16" height="16" style="color:currentColor;flex-shrink:0;"><use href="#ic-caret-down"/></svg></summary>
@@ -1124,8 +1124,8 @@
                         <button class="tab-btn" onclick="switchShopTab('badges')"><i class="ph ph-medal"></i> Badges</button>
                         <button class="tab-btn" onclick="switchShopTab('effects')"><i class="ph ph-sparkle"></i> Effects</button>
                         <button class="tab-btn" onclick="switchShopTab('inventory')"><i class="ph ph-package"></i> Inventory</button>
-                        <button class="tab-btn" style="background:linear-gradient(135deg, #FFD700, #FF6B6B); color:#000; font-weight:600;" onclick="switchShopTab('gamble')"><i
-                                class="ph ph-dice-three"></i> Lucky Spin</button>
+                        <button class="tab-btn" style="background:linear-gradient(135deg, #00CEC9, #6C5CE7); color:#fff; font-weight:600;" onclick="switchShopTab('gamble')"><i
+                                class="ph ph-gift"></i> Mystery Box</button>
                     </div>
 
                     <!-- Credit Display in Shop -->
@@ -1233,7 +1233,7 @@
                                     </div>
                                     <div style="flex:1;min-width:0;">
                                         <h4 style="margin:0 0 2px;color:#fff;font-size:0.96rem;font-weight:700;">Customization Shop</h4>
-                                        <p style="font-size:0.82rem;color:#b8bcd0;margin:0;">Themes, wallpapers, cursors, companions &amp; Lucky Spin</p>
+                                        <p style="font-size:0.82rem;color:#b8bcd0;margin:0;">Themes, wallpapers, cursors, companions &amp; a daily Mystery Box</p>
                                     </div>
                                     <i class="ph ph-caret-right" style="color:rgba(255,255,255,0.25);"></i>
                                 </div>
@@ -3294,7 +3294,7 @@
                     <button class="tab-btn" onclick="switchShopPageTab('badges')"><i class="ph ph-medal"></i> Badges</button>
                     <button class="tab-btn" onclick="switchShopPageTab('effects')"><i class="ph ph-sparkle"></i> Effects</button>
                     <button class="tab-btn" style="background:linear-gradient(135deg, rgba(108,92,231,0.4), rgba(0,206,201,0.4));border:1px solid rgba(108,92,231,0.6);" onclick="switchShopPageTab('companions')"><i class="ph ph-user-circle-plus"></i> Companions</button>
-                    <button class="tab-btn" style="background:linear-gradient(135deg, #FFD700, #FF6B6B);color:#000;font-weight:600;" onclick="switchShopPageTab('gamble')"><i class="ph ph-dice-three"></i> Lucky Spin</button>
+                    <button class="tab-btn" style="background:linear-gradient(135deg, #00CEC9, #6C5CE7);color:#fff;font-weight:600;" onclick="switchShopPageTab('gamble')"><i class="ph ph-gift"></i> Mystery Box</button>
                 </div>
 
                 <!-- Shop Items Container -->
@@ -3820,10 +3820,10 @@ if __name__ == '__main__':
                         <div class="glass-panel" style="padding:18px;margin-bottom:14px;background:rgba(0,184,148,0.06);border:1px solid rgba(0,184,148,0.25);">
                             <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                                 <i class="ph ph-shield-check" style="font-size:1.2rem;color:#00b894;"></i>
-                                <strong style="color:white;font-size:0.95rem;">AI Access (Hosted)</strong>
+                                <strong style="color:white;font-size:0.95rem;">AI Access (beta)</strong>
                             </div>
                             <p style="margin:4px 0 0;font-size:0.82rem;color:var(--text-muted);line-height:1.55;">
-                                Your subscription includes managed AI access — no API key setup, no extra OpenAI bill. Just sign in and use the app.
+                                During the free beta, NEXUS runs on your own OpenAI API key — paste it once below and you're set. Fully managed hosted AI (no key needed) is coming with the paid launch.
                             </p>
                             <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;">
                                 <input type="checkbox" id="byok-toggle" onchange="document.getElementById('byok-panel').style.display=this.checked?'block':'none'" style="accent-color:var(--accent);">
@@ -4499,9 +4499,9 @@ if __name__ == '__main__':
                         </div>
 
                         <div class="faq-item" style="margin-bottom:20px;">
-                            <h4 style="color:white; margin-bottom:8px;">What is Lucky Spin?</h4>
+                            <h4 style="color:white; margin-bottom:8px;">What is the Mystery Box?</h4>
                             <p style="color:var(--text-muted); line-height:1.6; margin:0;">
-                                Lucky Spin is a gambling feature where you can spend credits for a chance to win rare or legendary items! Some items are <em>only</em> available through Lucky Spin. Cost: 500 credits per spin.
+                                The Daily Mystery Box is a free gift you can open once a day in the Shop. It always gives you credits (75–175), and sometimes a bonus cosmetic you don't already own. It never costs credits and you can't lose anything — it's just a thank-you for studying.
                             </p>
                         </div>
 
@@ -4605,7 +4605,7 @@ if __name__ == '__main__':
                         <div class="faq-item">
                             <h4 style="color:white; margin-bottom:8px;">The AI isn't responding to my questions</h4>
                             <p style="color:var(--text-muted); line-height:1.6; margin:0;">
-                                This app uses simulated AI responses for demonstration purposes. In a production version, this would connect to a real AI API like OpenAI or Anthropic's Claude.
+                                NEXUS uses real OpenAI models, powered by your own API key during the beta. If the AI isn't responding, check that you've added a valid key in <strong style="color:#fff;">Settings → Account &amp; API</strong>, that the key has available credit, and that you're online. Still stuck? Re-paste the key and try again.
                             </p>
                         </div>
                     </div>
@@ -4642,7 +4642,7 @@ if __name__ == '__main__':
                         <i class="ph ph-credit-card" style="color:#00CEC9;font-size:1.4rem;"></i>
                         <h2 style="margin:0;font-size:1.5rem;color:white;">Choose Your Plan</h2>
                     </div>
-                    <p style="margin:0;color:var(--text-muted);font-size:0.9rem;">Pick a plan, then complete checkout.</p>
+                    <p style="margin:0;color:var(--text-muted);font-size:0.9rem;">Free during beta. Join the waitlist and we'll email you when paid plans launch — no card needed.</p>
                 </div>
                 <button onclick="closePaymentModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:0;">
                     <i class="ph ph-x"></i>
@@ -4676,65 +4676,28 @@ if __name__ == '__main__':
                     <span id="pay-summary-name" style="color:white;font-weight:600;">NEXUS Access Monthly</span>
                     <span id="pay-summary-price" style="color:white;font-weight:600;">$4.50</span>
                 </div>
-                <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Billed monthly. Cancel anytime.</div>
+                <div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">Free during beta — this is the price when paid plans launch.</div>
                 <div style="color:#00CEC9;font-size:0.82rem;display:flex;align-items:center;gap:6px;">
                     <i class="ph ph-gift"></i> <span id="pay-summary-gold">Includes Math, Science, English, Social Studies (Tutor Mode).</span>
                 </div>
             </div>
 
-            <!-- Form -->
+            <!-- Form (v17.1 — waitlist; no card collected until real billing exists) -->
             <form onsubmit="submitPayment(event)" style="padding:24px 32px 28px;">
-                <div style="font-size:0.75rem;color:var(--text-muted);font-weight:600;letter-spacing:1px;margin-bottom:14px;">CONTACT INFORMATION</div>
+                <div style="background:rgba(0,206,201,0.08);border:1px solid rgba(0,206,201,0.3);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><i class="ph ph-rocket-launch" style="color:#00CEC9;"></i><strong style="color:#fff;">Paid plans are launching soon</strong></div>
+                    <p style="margin:0;font-size:0.85rem;color:#d8dce5;line-height:1.5;">NEXUS isn't taking payments yet — we're building secure accounts and billing first. Right now the app is <strong style="color:#fff;">free to use in beta</strong>. Leave your email and we'll tell you the moment subscriptions go live. <strong style="color:#fff;">No card needed.</strong></p>
+                </div>
                 <div style="display:grid;gap:12px;margin-bottom:20px;">
                     <div>
-                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Full Name</label>
-                        <input type="text" id="pay-name" placeholder="Jane Student" required
+                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Name <span style="opacity:0.7;">(optional)</span></label>
+                        <input type="text" id="pay-name" placeholder="Jane Student"
                             style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;"
                             onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
                     </div>
                     <div>
-                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Email Address <span style="opacity:0.7;">(optional — get a receipt + your login emailed)</span></label>
-                        <input type="email" id="pay-email" placeholder="you@example.com (optional)"
-                            style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;"
-                            onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
-                    </div>
-                </div>
-
-                <div style="font-size:0.75rem;color:var(--text-muted);font-weight:600;letter-spacing:1px;margin-bottom:14px;">PAYMENT DETAILS</div>
-                <div style="display:grid;gap:12px;margin-bottom:20px;">
-                    <div>
-                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Card Number</label>
-                        <input type="text" id="pay-card" placeholder="1234 5678 9012 3456" required maxlength="19"
-                            style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;font-family:var(--font-mono);box-sizing:border-box;"
-                            onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div>
-                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Expiry (MM/YY)</label>
-                            <input type="text" id="pay-exp" placeholder="12/28" required maxlength="5"
-                                style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;font-family:var(--font-mono);box-sizing:border-box;"
-                                onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
-                        </div>
-                        <div>
-                            <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">CVV</label>
-                            <input type="text" id="pay-cvv" placeholder="123" required maxlength="4"
-                                style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;font-family:var(--font-mono);box-sizing:border-box;"
-                                onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
-                        </div>
-                    </div>
-                </div>
-
-                <div style="font-size:0.75rem;color:var(--text-muted);font-weight:600;letter-spacing:1px;margin-bottom:14px;">BILLING ADDRESS</div>
-                <div style="display:grid;gap:12px;margin-bottom:24px;">
-                    <div>
-                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Address</label>
-                        <input type="text" id="pay-address" placeholder="123 Main St" required
-                            style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;"
-                            onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
-                    </div>
-                    <div>
-                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">ZIP / Postal Code</label>
-                        <input type="text" id="pay-zip" placeholder="A1B 2C3" required
+                        <label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:5px;">Email Address</label>
+                        <input type="email" id="pay-email" placeholder="you@example.com" required
                             style="width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;"
                             onfocus="this.style.borderColor='#6C5CE7'" onblur="this.style.borderColor='var(--glass-border)'">
                     </div>
@@ -4742,11 +4705,11 @@ if __name__ == '__main__':
 
                 <button type="submit" id="pay-submit-btn"
                     style="width:100%;padding:14px;background:linear-gradient(135deg, #6C5CE7, #00CEC9);border:none;border-radius:10px;color:white;font-size:1rem;font-weight:700;cursor:pointer;transition:all 0.3s;box-shadow:0 4px 16px rgba(108,92,231,0.3);">
-                    <i class="ph ph-credit-card"></i> Subscribe to NEXUS Access — $4.50/mo
+                    <i class="ph ph-envelope-simple"></i> Notify me at launch — start free beta
                 </button>
 
                 <div style="margin-top:14px;text-align:center;color:var(--text-muted);font-size:0.75rem;display:flex;align-items:center;justify-content:center;gap:6px;">
-                    <i class="ph ph-lock-key"></i> Demo checkout — no real payment is processed
+                    <i class="ph ph-shield-check"></i> No payment is collected. We'll only email you about launch.
                 </div>
             </form>
         </div>
@@ -5104,7 +5067,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260613c"></script>
+    <script src="script.js?v=20260614a"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
