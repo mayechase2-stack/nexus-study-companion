@@ -975,10 +975,12 @@ function openSignUpFlow() {
     m.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     _signupShowStep(1);
-    ['signup-username','auth-email','signup-password','signup-pay-name','signup-pay-card','signup-pay-exp','signup-pay-cvv','signup-pay-zip'].forEach(id => {
+    ['signup-username','auth-email','signup-password','signup-dob','signup-parent-email'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    ['signup-parent-consent','signup-terms-agree'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
+    const _cb = document.getElementById('signup-consent-block'); if (_cb) _cb.style.display = 'none';
     const accessRadio = document.getElementById('plan-radio-access');
     if (accessRadio) accessRadio.checked = true;
     _signupUpdatePlanCards();
@@ -1028,6 +1030,16 @@ function signupGoToStep(n) {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr("That email doesn't look right."); return; }
             if (!pass) { showErr('Pick a password.'); return; }
             if (!validatePasswordStrict(pass)) { showErr('Password needs 1 lowercase, 1 uppercase, and 1 number.'); return; }
+            // v17.2 — age gate (children's-privacy)
+            const _age = _ageFromDob((document.getElementById('signup-dob') || {}).value);
+            if (_age === null) { showErr('Please enter your date of birth.'); return; }
+            if (_age < 0 || _age > 120) { showErr('Please enter a valid date of birth.'); return; }
+            if (_age < 13) {
+                const pEmail = ((document.getElementById('signup-parent-email') || {}).value || '').trim();
+                const pConsent = (document.getElementById('signup-parent-consent') || {}).checked;
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pEmail)) { showErr('A parent/guardian email is required for users under 13.'); return; }
+                if (!pConsent) { showErr('A parent/guardian must check the consent box to continue.'); return; }
+            }
             const reg = getAuthRegistry();
             if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in instead.'); return; }
             if (err) err.style.display = 'none';
@@ -1039,10 +1051,26 @@ function signupGoToStep(n) {
 function _updateSignupPaymentSummary() {
     const plan = (document.querySelector('input[name="signup-plan"]:checked') || {}).value || 'access';
     const price = plan === 'pro' ? PRO_PRICE : ACCESS_PRICE;
+    const planLabel = plan === 'pro' ? 'Pro' : 'Access';
     const label = document.getElementById('signup-pay-submit-label');
-    if (label) label.textContent = `Create account & pay $${price.toFixed(2)}`;
+    if (label) label.textContent = 'Create my free account';
     const summary = document.getElementById('signup-payment-summary');
-    if (summary) summary.textContent = `$${price.toFixed(2)}/mo billed monthly. Cancel anytime.`;
+    if (summary) summary.textContent = `Free during beta — NEXUS ${planLabel} ($${price.toFixed(2)}/mo) is the price when paid plans launch.`;
+}
+// v17.2 — age gate helpers
+function _ageFromDob(v) {
+    if (!v) return null;
+    var d = new Date(v); if (isNaN(d.getTime())) return null;
+    var t = new Date(), a = t.getFullYear() - d.getFullYear(), m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--;
+    return a;
+}
+function _signupCheckAge() {
+    var dob = document.getElementById('signup-dob');
+    var block = document.getElementById('signup-consent-block');
+    if (!dob || !block) return;
+    var age = _ageFromDob(dob.value);
+    block.style.display = (age !== null && age < 13) ? 'block' : 'none';
 }
 
 function _signupUpdatePlanCards() {
@@ -1123,17 +1151,19 @@ async function completeSignUpFlow() {
     const reg = getAuthRegistry();
     if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in.'); return; }
 
-    const payName = (document.getElementById('signup-pay-name').value || '').trim();
-    const cardDigits = (document.getElementById('signup-pay-card').value || '').replace(/\D/g, '');
-    const expVal = (document.getElementById('signup-pay-exp').value || '').replace(/\s/g, '');
-    const cvvVal = (document.getElementById('signup-pay-cvv').value || '').trim();
-    const zipVal = (document.getElementById('signup-pay-zip').value || '').trim();
+    // v17.2 — must accept Terms + Privacy; no card is collected (free beta).
+    if (!(document.getElementById('signup-terms-agree') || {}).checked) { showErr('Please agree to the Terms and Privacy Policy to continue.'); return; }
 
-    if (!payName) { showErr('Enter the name on the card.'); return; }
-    if (cardDigits.length < 13 || cardDigits.length > 19) { showErr('Card number looks wrong (13–19 digits).'); return; }
-    if (!/^(0[1-9]|1[0-2])\/?\d{2}$/.test(expVal)) { showErr('Expiry must look like MM/YY.'); return; }
-    if (!/^\d{3,4}$/.test(cvvVal)) { showErr('CVV must be 3 or 4 digits.'); return; }
-    if (!zipVal) { showErr('Enter your ZIP.'); return; }
+    // v17.2 — age / parental-consent (validated again here as a safety net)
+    const dobVal = (document.getElementById('signup-dob') || {}).value || '';
+    const age = _ageFromDob(dobVal);
+    if (age === null || age < 0 || age > 120) { showErr('Please enter a valid date of birth in step 1.'); return; }
+    const isMinorU13 = age < 13;
+    const parentEmail = ((document.getElementById('signup-parent-email') || {}).value || '').trim();
+    if (isMinorU13) {
+        const pConsent = (document.getElementById('signup-parent-consent') || {}).checked;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail) || !pConsent) { showErr('Parent/guardian email and consent are required (step 1).'); return; }
+    }
 
     hideErr();
 
@@ -1163,6 +1193,13 @@ async function completeSignUpFlow() {
     localStorage.setItem('auth_pass', hashedPass);
     registerAuthAccount(userName, hashedPass);
     if (email) localStorage.setItem('auth_email_' + userName, email);
+    // v17.2 — store age-gate result (for consent records); no card data is stored
+    localStorage.setItem('user_dob_' + userName, dobVal);
+    if (isMinorU13) {
+        localStorage.setItem('parental_consent_' + userName, JSON.stringify({ parentEmail: parentEmail, consentedAt: new Date().toISOString() }));
+    }
+    // join the launch waitlist so they hear about paid plans
+    try { const wl = JSON.parse(localStorage.getItem('nexus_waitlist') || '[]'); wl.push({ email: email, name: userName, interestedPlan: planLabel, ts: new Date().toISOString() }); localStorage.setItem('nexus_waitlist', JSON.stringify(wl)); } catch (_) {}
     rememberAuthIfChecked();
 
     setTimeout(() => {
@@ -1170,11 +1207,10 @@ async function completeSignUpFlow() {
         const granted = (typeof grantStarterGold === 'function') ? grantStarterGold(plan) : 0;
         localStorage.setItem('has_paid', '1');
         localStorage.setItem('nexus_subscription', JSON.stringify({
-            name: payName,
+            name: userName,
             email: email,
-            cardLast4: cardDigits.slice(-4),
             startDate: new Date().toISOString(),
-            plan: `${planLabel} Monthly $${price.toFixed(2)}`
+            plan: `${planLabel} (free beta)`
         }));
         // v12.0 — fire the welcome email (username-only; never the password)
         if (typeof sendWelcomeEmail === 'function') sendWelcomeEmail(userName, email, planLabel);
@@ -2598,6 +2634,7 @@ function openUniversalTutor(options) {
                 </label>
                 <span style="font-size:0.82rem;color:var(--text-muted);">Enter to send &bull; Shift+Enter = new line</span>
             </div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;text-align:center;opacity:0.85;"><i class="ph ph-warning-circle"></i> NEXUS can make mistakes — double-check important answers. Use it to learn, not to cheat.</div>
         </div>
     </div>`;
 
@@ -7390,7 +7427,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.1';
+const NEXUS_CURRENT_VERSION = 'v17.2';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -16516,6 +16553,25 @@ function resetCosmetics() {
     });
 }
 
+// v17.2 — full data deletion (children's-privacy / data-rights): erases the account
+// and every trace of it from this browser, then reloads to the signed-out state.
+function deleteAllMyData() {
+    showConfirm('Delete all my data', 'This permanently erases your NEXUS account and ALL data stored in this browser — history, notes, decks, grades, credits, inventory, vocab, planner, and settings. This cannot be undone. Continue?', function () {
+        try {
+            var user = localStorage.getItem('auth_user');
+            if (typeof clearCurrentAccountState === 'function') clearCurrentAccountState();
+            // remove this account from the registry
+            try { var reg = getAuthRegistry(); if (user && reg[user]) { delete reg[user]; localStorage.setItem('auth_users', JSON.stringify(reg)); } } catch (_) {}
+            // remove any username-suffixed keys (email, dob, consent, per-user snapshots)
+            if (user) Object.keys(localStorage).forEach(function (k) { if (k.indexOf(user) !== -1) localStorage.removeItem(k); });
+            // app-level keys + the v17 additions
+            ['auth_user', 'auth_pass', 'has_paid', 'user_tier', 'nexus_subscription', 'auth_email', 'study_planner', 'wod_saved_vocab', 'last_mystery_box', 'nexus_waitlist', 'companion_memory', 'streak_freeze_count'].forEach(function (k) { localStorage.removeItem(k); });
+        } catch (_) {}
+        showToast('Your data has been permanently deleted.', 'info', 3000);
+        setTimeout(function () { location.reload(); }, 1200);
+    });
+}
+
 // v17.0 — Battery saver: pause canvas animations while the tab is hidden, resume on return.
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
@@ -16851,6 +16907,20 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.2',
+        date: 'June 14, 2026',
+        tag: 'UPDATE 17.2 — TRUST & COMPLIANCE',
+        tagColor: '#55efc4',
+        changes: [
+            'AGE GATE + PARENTAL CONSENT — Sign-up now asks for date of birth. Users under 13 must provide a parent/guardian email and explicit consent before an account is created.',
+            'NO CARDS ANYWHERE — The sign-up flow no longer collects card details either; it\'s a free-beta account with a Terms & Privacy agreement. (The standalone checkout was already converted in v17.1.)',
+            'REAL POLICIES — Privacy Policy now has a Children\'s Privacy section and a clear AI-data-flow + consent explanation; Terms note the free beta. A real support/contact email is in place, and there\'s a "Delete My Account & All Data" button in Settings → Data.',
+            'HONEST MARKETING — Removed fabricated testimonials and specific outcome claims; replaced with an honest "what NEXUS does / reviews coming in beta" section.',
+            'LIVE VISION REPOSITIONED — Now framed around understanding your work (not harvesting answers), with a clear academic-integrity note to follow your school\'s rules.',
+            'ACCURACY DISCLAIMER — The AI tutor now reminds you it can make mistakes and to use it to learn, not to cheat.',
+        ]
+    },
     {
         version: 'v17.1',
         date: 'June 14, 2026',
@@ -21951,15 +22021,17 @@ const LEGAL_TEXT = {
         <h4 style="color:white;margin-top:14px;">What we don't do</h4>
         <ul style="padding-left:20px;"><li>We do not sell your data.</li><li>We do not run analytics on your prompts.</li><li>We do not share your information with advertisers.</li><li>We do not store images you paste — they live only on your device.</li></ul>
         <h4 style="color:white;margin-top:14px;">Third-party services</h4>
-        <p>When you use AI features, your prompts are sent directly from your browser to OpenAI under your own API key (or, if you have a hosted-key subscription, through our minimal proxy that only verifies your subscription). OpenAI's privacy practices are governed by their own policy.</p>
+        <p>When you use AI features during the beta, your prompts are sent directly from your browser to OpenAI under <strong>your own API key</strong> — we never receive or store them. OpenAI processes them under its own privacy policy. (If we add fully managed "hosted AI" at the paid launch, prompts will pass through a minimal server proxy that only verifies your subscription; we will update this policy before that goes live.)</p>
         <h4 style="color:white;margin-top:14px;">Your data, your control</h4>
-        <p>Settings → Data → Export gives you a complete JSON backup of everything we hold about you. Settings → Data → Clear deletes all of it.</p>
+        <p>Settings → Data → Export gives you a complete JSON backup of everything stored on your device. Settings → Data → Clear permanently deletes all of it from your browser.</p>
+        <h4 style="color:white;margin-top:14px;">Children's privacy</h4>
+        <p>NEXUS is intended for students aged 13 and older. At sign-up we ask for date of birth to confirm age. If a user is under 13, we require a parent or guardian's email and explicit consent before the account is created — including consent for AI features that send prompts to OpenAI. A parent or guardian may request access to, or deletion of, their child's data at the contact email below. We do not knowingly collect personal information from children under 13 without verifiable parental consent.</p>
         <h4 style="color:white;margin-top:14px;">Contact</h4>
-        <p>For privacy questions: <em>(your support email goes here before launch)</em>.</p>`,
+        <p>For privacy questions, data access, or deletion requests: <a href="mailto:mayechase2@gmail.com" style="color:var(--accent);">mayechase2@gmail.com</a>.</p>`,
     tos: `<h3 style="color:var(--accent);">NEXUS Terms of Service</h3>
         <p><em>Last updated: ${new Date().toLocaleDateString()}</em></p>
         <p><strong>1. Eligibility.</strong> You must be at least 13 years old to use NEXUS. If you're under 18, a parent or guardian must agree to these terms on your behalf.</p>
-        <p><strong>2. Subscription.</strong> NEXUS Access ($4.50/month) and NEXUS Pro ($6/month) are billed monthly. You may cancel anytime; your subscription continues until the end of the current billing period. There are no refunds for partial months unless required by law.</p>
+        <p><strong>2. Subscription.</strong> <em>During the current free beta, NEXUS collects no payment and these subscription terms are not yet in effect.</em> When paid plans launch, NEXUS Access ($4.50/month) and NEXUS Pro ($6/month) will be billed monthly; you may cancel anytime and your subscription continues until the end of the current billing period. There are no refunds for partial months unless required by law.</p>
         <p><strong>3. Acceptable use.</strong> NEXUS is for studying and tutoring. Don't use it to cheat on assessments where AI assistance is prohibited by your school. Don't try to extract harmful, illegal, or otherwise prohibited content from the AI.</p>
         <p><strong>4. Your account.</strong> Keep your password safe. Your account stays on the device you signed up on. Use Settings → Data → Export to back up your data.</p>
         <p><strong>5. AI output.</strong> NEXUS uses third-party AI models (OpenAI). AI can be wrong. Always verify critical answers. We are not liable for academic, professional, or personal decisions you make based on AI output.</p>
@@ -21967,7 +22039,7 @@ const LEGAL_TEXT = {
         <p><strong>7. Limitation of liability.</strong> Our total liability is limited to the amount you paid in the last 12 months.</p>
         <p><strong>8. Changes.</strong> We may update these terms. Material changes will be announced in-app at least 14 days before they take effect.</p>
         <p><strong>9. Governing law.</strong> These terms are governed by the laws of your jurisdiction.</p>
-        <p><strong>10. Contact.</strong> For questions: <em>(your support email goes here before launch)</em>.</p>`
+        <p><strong>10. Contact.</strong> For questions or support: <a href="mailto:mayechase2@gmail.com" style="color:var(--accent);">mayechase2@gmail.com</a>.</p>`
 };
 function openLegalModal(which) {
     const m = document.getElementById('legal-modal');

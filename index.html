@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260614a">
+    <link rel="stylesheet" href="style.css?v=20260614b">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -239,7 +239,7 @@
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
-                v17.1 NOW LIVE
+                v17.2 NOW LIVE
             </div>
             <h1 style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;margin-bottom:20px;font-weight:900;letter-spacing:-1.5px;">
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
@@ -541,57 +541,33 @@
             </div>
         </section>
 
-        <!-- v11.0 — TESTIMONIALS -->
+        <!-- v17.2 — Honest "what it does" section (fabricated testimonials removed pending real, permissioned reviews) -->
         <section style="max-width:1200px;margin:0 auto;padding:44px 40px;">
             <div style="text-align:center;margin-bottom:40px;">
-                <div style="font-size:0.8rem;color:#FFD700;font-weight:600;letter-spacing:2px;margin-bottom:12px;">STUDENTS LOVE IT</div>
-                <h2 style="font-size:2.2rem;color:white;margin-bottom:12px;">Stories from real students</h2>
-                <p style="color:var(--text-muted);max-width:600px;margin:0 auto;">Names changed for privacy. Reviews from beta testers across high school and college.</p>
+                <div style="font-size:0.8rem;color:#00CEC9;font-weight:600;letter-spacing:2px;margin-bottom:12px;">IN BETA</div>
+                <h2 style="font-size:2.2rem;color:white;margin-bottom:12px;">What NEXUS does for you</h2>
+                <p style="color:var(--text-muted);max-width:640px;margin:0 auto;">We're a new app in open beta, so we're not posting reviews yet — we'd rather show you exactly what's inside and let you judge. Real, permissioned student reviews will go here as our first users share them.</p>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">
                 <div class="glass-panel" style="padding:20px;border:1px solid rgba(108,92,231,0.25);">
-                    <div style="display:flex;gap:2px;margin-bottom:10px;color:#FFD700;">★★★★★</div>
-                    <p style="color:#e8eef8;font-size:0.92rem;line-height:1.55;margin:0 0 12px;">"Live Vision changed how I study. I just share my screen during Acellus and NEXUS reads the problem and walks me through it. Saved me genuinely 4 hours last week."</p>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6C5CE7,#00CEC9);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">M</div>
-                        <div>
-                            <div style="color:white;font-size:0.86rem;font-weight:600;">Maya R.</div>
-                            <div style="color:var(--text-muted);font-size:0.74rem;">11th grade · biology</div>
-                        </div>
-                    </div>
+                    <div style="font-size:1.6rem;margin-bottom:10px;">🧠</div>
+                    <h3 style="color:#fff;font-size:1rem;margin:0 0 6px;">A tutor that teaches</h3>
+                    <p style="color:#cdd2e0;font-size:0.9rem;line-height:1.55;margin:0;">Tutor Mode is Socratic — it guides you to the next step instead of just handing over the answer, so the work actually sticks.</p>
                 </div>
                 <div class="glass-panel" style="padding:20px;border:1px solid rgba(0,206,201,0.25);">
-                    <div style="display:flex;gap:2px;margin-bottom:10px;color:#FFD700;">★★★★★</div>
-                    <p style="color:#e8eef8;font-size:0.92rem;line-height:1.55;margin:0 0 12px;">"The Socratic tutor mode actually teaches. ChatGPT just gives me the answer, but NEXUS makes me figure out the next step myself. Sounds annoying — actually makes problems stick."</p>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#00CEC9,#00b894);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">J</div>
-                        <div>
-                            <div style="color:white;font-size:0.86rem;font-weight:600;">Jordan K.</div>
-                            <div style="color:var(--text-muted);font-size:0.74rem;">freshman · cs major</div>
-                        </div>
-                    </div>
+                    <div style="font-size:1.6rem;margin-bottom:10px;">📚</div>
+                    <h3 style="color:#fff;font-size:1rem;margin:0 0 6px;">Everything in one place</h3>
+                    <p style="color:#cdd2e0;font-size:0.9rem;line-height:1.55;margin:0;">Tutoring, flashcards, quizzes, a notebook, a grade calculator, and focus tools — bundled, so you're not juggling five apps.</p>
                 </div>
                 <div class="glass-panel" style="padding:20px;border:1px solid rgba(255,107,157,0.25);">
-                    <div style="display:flex;gap:2px;margin-bottom:10px;color:#FFD700;">★★★★★</div>
-                    <p style="color:#e8eef8;font-size:0.92rem;line-height:1.55;margin:0 0 12px;">"I bought it for the AI tutoring but stayed for the companion + quests. My NEXUS Sprite has been keeping me on track for weeks. It works."</p>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff6b9d,#c44569);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">A</div>
-                        <div>
-                            <div style="color:white;font-size:0.86rem;font-weight:600;">Alex T.</div>
-                            <div style="color:var(--text-muted);font-size:0.74rem;">10th grade · world history</div>
-                        </div>
-                    </div>
+                    <div style="font-size:1.6rem;margin-bottom:10px;">🤝</div>
+                    <h3 style="color:#fff;font-size:1rem;margin:0 0 6px;">Made to keep you going</h3>
+                    <p style="color:#cdd2e0;font-size:0.9rem;line-height:1.55;margin:0;">A companion, daily challenges, streaks, and quests turn studying into a habit you actually come back to.</p>
                 </div>
                 <div class="glass-panel" style="padding:20px;border:1px solid rgba(253,203,110,0.25);">
-                    <div style="display:flex;gap:2px;margin-bottom:10px;color:#FFD700;">★★★★★</div>
-                    <p style="color:#e8eef8;font-size:0.92rem;line-height:1.55;margin:0 0 12px;">"Reading Sprint is the feature I didn't know I needed. Paste an article, get quizzed in 60 seconds. My reading comp scores jumped 12 points in a month."</p>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#fdcb6e,#f39c12);display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;">S</div>
-                        <div>
-                            <div style="color:white;font-size:0.86rem;font-weight:600;">Sam D.</div>
-                            <div style="color:var(--text-muted);font-size:0.74rem;">12th grade · SAT prep</div>
-                        </div>
-                    </div>
+                    <div style="font-size:1.6rem;margin-bottom:10px;">🔒</div>
+                    <h3 style="color:#fff;font-size:1rem;margin:0 0 6px;">Private by design</h3>
+                    <p style="color:#cdd2e0;font-size:0.9rem;line-height:1.55;margin:0;">No tracking, no analytics on your prompts. Your work stays in your browser, and your AI key talks only to OpenAI.</p>
                 </div>
             </div>
         </section>
@@ -702,8 +678,8 @@
                     <p style="margin:14px 0 0;color:#d8dce5;font-size:0.9rem;line-height:1.6;">Tutor Mode never just hands you the answer. It first explains the concept behind the problem — what's going on, why this kind of problem exists, what tool you'd reach for — then asks you to take the first step yourself. One step at a time, with feedback after each one. By the time you've worked through 2–3 problems together, the pattern actually sticks. Pro subscribers can flip to Casual Mode (instant answers) for quick checks.</p>
                 </details>
                 <details class="glass-panel" style="padding:16px 20px;cursor:pointer;border:1px solid var(--glass-border);">
-                    <summary style="color:white;font-weight:600;font-size:1rem;outline:none;list-style:none;display:flex;justify-content:space-between;align-items:center;"><span>What platforms does Live Vision work on?</span><svg width="16" height="16" style="color:currentColor;flex-shrink:0;"><use href="#ic-caret-down"/></svg></summary>
-                    <p style="margin:14px 0 0;color:#d8dce5;font-size:0.9rem;line-height:1.6;">All of them. Acellus, Edgenuity, Apex, FLVS, Khan Academy, IXL, Albert, Canvas, Schoology, Edmentum, ALEKS, WebAssign, Mastering Physics/Chem/Bio, MyMathLab — and anything else web-based. Live Vision reads what's on your screen, not the platform behind it, so as long as you can see the problem, NEXUS can read it.</p>
+                    <summary style="color:white;font-weight:600;font-size:1rem;outline:none;list-style:none;display:flex;justify-content:space-between;align-items:center;"><span>How does Live Vision work — and is it allowed?</span><svg width="16" height="16" style="color:currentColor;flex-shrink:0;"><use href="#ic-caret-down"/></svg></summary>
+                    <p style="margin:14px 0 0;color:#d8dce5;font-size:0.9rem;line-height:1.6;">Live Vision reads whatever's on your screen — a textbook PDF, a worksheet, a graph, your own notes — and helps you <strong>understand</strong> it: it explains the concept and walks you through the steps so you can solve it yourself. It works with any web-based material because it reads the screen, not a specific platform.<br><br><strong style="color:#fdcb6e;">Use it honestly.</strong> Live Vision is a study aid, not an answer key. Always follow your school's rules on AI assistance, and don't use it on graded tests or quizzes where outside help isn't allowed.</p>
                 </details>
                 <details class="glass-panel" style="padding:16px 20px;cursor:pointer;border:1px solid var(--glass-border);">
                     <summary style="color:white;font-weight:600;font-size:1rem;outline:none;list-style:none;display:flex;justify-content:space-between;align-items:center;"><span>Do I need my own OpenAI key?</span><svg width="16" height="16" style="color:currentColor;flex-shrink:0;"><use href="#ic-caret-down"/></svg></summary>
@@ -818,6 +794,22 @@
                             </ul>
                         </div>
                     </div>
+                    <!-- v17.2 — age gate (children's-privacy) -->
+                    <div style="margin-bottom:14px;">
+                        <label style="color:var(--text-muted);font-size:0.82rem;display:block;margin-bottom:6px;">Date of birth <span style="color:#ff6b6b;font-size:0.72rem;">required</span></label>
+                        <input type="date" id="signup-dob" oninput="_signupCheckAge()"
+                            style="width:100%;padding:13px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:white;outline:none;font-size:1rem;box-sizing:border-box;">
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">Used only to confirm your age. NEXUS is for ages 13+; under 13 needs a parent or guardian's consent.</div>
+                    </div>
+                    <div id="signup-consent-block" style="display:none;margin-bottom:14px;background:rgba(253,203,110,0.08);border:1px solid rgba(253,203,110,0.3);border-radius:10px;padding:12px 14px;">
+                        <div style="font-size:0.84rem;color:#fdcb6e;font-weight:600;margin-bottom:8px;"><i class="ph ph-user-check"></i> Parent or guardian consent required</div>
+                        <p style="font-size:0.78rem;color:#d8dce5;margin:0 0 10px;line-height:1.5;">Because you're under 13, a parent or guardian must enter their email and agree on your behalf before the account is created.</p>
+                        <input type="email" id="signup-parent-email" placeholder="parent@example.com" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:9px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;margin-bottom:8px;">
+                        <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#d8dce5;cursor:pointer;">
+                            <input type="checkbox" id="signup-parent-consent" style="accent-color:var(--accent);margin-top:2px;flex-shrink:0;">
+                            <span>I am the parent/guardian and I consent to my child using NEXUS, including AI features that send prompts to OpenAI.</span>
+                        </label>
+                    </div>
                     <div id="signup-step-1-error" style="display:none;color:#ff6b6b;font-size:0.82rem;margin-bottom:12px;"></div>
                     <button class="btn-primary" style="width:100%;padding:13px;font-size:1rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;font-weight:600;border-radius:10px;cursor:pointer;color:white;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
                         onclick="signupGoToStep(2)">
@@ -881,39 +873,23 @@
                         </button>
                         <button class="btn-primary" style="flex:2;padding:13px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:10px;color:white;cursor:pointer;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
                             onclick="signupGoToStep(3)">
-                            Continue to payment <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
+                            Continue <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
                         </button>
                     </div>
                 </div>
 
                 <!-- STEP 3: Payment (reuses the inline payment fields, but inside the same modal flow) -->
                 <div id="signup-step-3" style="display:none;">
-                    <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">Payment details</h2>
-                    <p style="margin:0 0 22px;color:var(--text-muted);font-size:0.9rem;"><span id="signup-payment-summary">$4.50/mo billed monthly. Cancel anytime.</span></p>
-                    <div style="display:grid;gap:12px;">
-                        <div>
-                            <label style="color:var(--text-muted);font-size:0.78rem;display:block;margin-bottom:4px;">Name on card</label>
-                            <input type="text" id="signup-pay-name" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:9px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;" placeholder="Full name">
-                        </div>
-                        <div>
-                            <label style="color:var(--text-muted);font-size:0.78rem;display:block;margin-bottom:4px;">Card number</label>
-                            <input type="text" id="signup-pay-card" maxlength="19" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:9px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;font-family:'Fira Code',monospace;" placeholder="0000 0000 0000 0000">
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-                            <div>
-                                <label style="color:var(--text-muted);font-size:0.78rem;display:block;margin-bottom:4px;">Expiry</label>
-                                <input type="text" id="signup-pay-exp" maxlength="5" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:9px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;" placeholder="MM/YY">
-                            </div>
-                            <div>
-                                <label style="color:var(--text-muted);font-size:0.78rem;display:block;margin-bottom:4px;">CVV</label>
-                                <input type="text" id="signup-pay-cvv" maxlength="4" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:9px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;" placeholder="123">
-                            </div>
-                            <div>
-                                <label style="color:var(--text-muted);font-size:0.78rem;display:block;margin-bottom:4px;">ZIP</label>
-                                <input type="text" id="signup-pay-zip" maxlength="10" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:9px;color:white;outline:none;font-size:0.95rem;box-sizing:border-box;" placeholder="12345">
-                            </div>
-                        </div>
+                    <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">You're almost in</h2>
+                    <p style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem;"><span id="signup-payment-summary">NEXUS is free during beta.</span></p>
+                    <div style="background:rgba(0,206,201,0.08);border:1px solid rgba(0,206,201,0.3);border-radius:12px;padding:16px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="ph ph-rocket-launch" style="color:#00CEC9;font-size:1.2rem;"></i><strong style="color:#fff;">Free beta — no payment needed</strong></div>
+                        <p style="margin:0;font-size:0.86rem;color:#d8dce5;line-height:1.55;">NEXUS isn't charging yet — we're finishing secure accounts and billing first. Create your account and use everything free. When paid plans launch we'll email you first. <strong style="color:#fff;">No card is collected today.</strong></p>
                     </div>
+                    <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#d8dce5;cursor:pointer;margin-top:14px;">
+                        <input type="checkbox" id="signup-terms-agree" style="accent-color:var(--accent);margin-top:2px;flex-shrink:0;">
+                        <span>I agree to the <a href="#" onclick="event.preventDefault();openLegalModal('tos')" style="color:var(--accent);">Terms</a> and <a href="#" onclick="event.preventDefault();openLegalModal('privacy')" style="color:var(--accent);">Privacy Policy</a>.</span>
+                    </label>
                     <div id="signup-step-3-error" style="display:none;color:#ff6b6b;font-size:0.82rem;margin-top:12px;"></div>
                     <div style="display:flex;gap:10px;margin-top:18px;">
                         <button onclick="signupGoToStep(2)" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
@@ -1661,7 +1637,7 @@
                             <div id="ocr-result" style="display:none;"></div>
                             <!-- v12.1 — Universal online-school banner -->
                             <div style="font-size:0.74rem;color:var(--text-muted);background:rgba(0,206,201,0.06);border:1px solid rgba(0,206,201,0.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;line-height:1.4;">
-                                <i class="ph ph-globe" style="color:#00CEC9;"></i> Works on any web-based platform — Acellus, Edgenuity, Apex, FLVS, Khan, IXL, Canvas, Schoology, ALEKS, WebAssign, MyMathLab, and more.
+                                <i class="ph ph-book-open" style="color:#00CEC9;"></i> Reads any on-screen material to help you <strong>understand</strong> it. A study aid — follow your school's rules on AI help and don't use it on graded tests.
                             </div>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                 <button id="solve-btn" class="btn-secondary" style="flex:1;min-width:140px;" onclick="analyzeText()">
@@ -4278,7 +4254,9 @@ if __name__ == '__main__':
                         </div>
                         <div class="glass-panel" style="padding:18px;">
                             <strong style="color:white;display:block;margin-bottom:10px;">Reset</strong>
-                            <button class="btn-secondary" onclick="toggleSettings();clearHistory();" style="width:100%;color:#ff6b6b;border-color:rgba(255,107,107,0.3);"><i class="ph ph-trash"></i> Clear All Activity History</button>
+                            <button class="btn-secondary" onclick="toggleSettings();clearHistory();" style="width:100%;color:#ff6b6b;border-color:rgba(255,107,107,0.3);margin-bottom:8px;"><i class="ph ph-trash"></i> Clear All Activity History</button>
+                            <button class="btn-secondary" onclick="toggleSettings();deleteAllMyData();" style="width:100%;color:#ff6b6b;border-color:rgba(255,107,107,0.45);background:rgba(255,107,107,0.06);"><i class="ph ph-warning-octagon"></i> Delete My Account &amp; All Data</button>
+                            <p style="margin:8px 0 0;font-size:0.72rem;color:var(--text-muted);">Permanently erases everything stored in this browser. Cannot be undone.</p>
                         </div>
                     </div>
                     <!-- SOUND (v12.4) -->
@@ -5067,7 +5045,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260614a"></script>
+    <script src="script.js?v=20260614b"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
