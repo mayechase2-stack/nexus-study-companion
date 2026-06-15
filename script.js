@@ -7457,7 +7457,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.2';
+const NEXUS_CURRENT_VERSION = 'v17.3';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -17073,6 +17073,20 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.3',
+        date: 'June 15, 2026',
+        tag: 'UPDATE 17.3 — SHOP & WALLPAPER POLISH',
+        tagColor: '#a78bfa',
+        changes: [
+            'CURSOR PREVIEWS FIXED — Pixel-art cursors now show a proper magnified preview (no more wrong/blank), and the equipped pixel cursors are bigger and crisper.',
+            'SPRITE COLORS — Ember, Aurora, and Rose companion variants now display in their actual colors on shop cards and previews (not just the live sprite).',
+            'EFFECTS TIDIED + MYTHIC TIER — Click and trail effects that were duplicates are now single "does both" effects. Butterfly, Phoenix, and Galaxy are now the first MYTHIC effects — they burst on click AND trail your cursor.',
+            'OCEAN MERGED — Ocean Deep and Underwater are now one richer scene: fish, sharks, scuba divers, bubbles, glowing jellyfish, and bioluminescence together.',
+            'WALLPAPERS LEVELLED UP — Neon City (parallax skyline, moon, wet-street reflections, traffic, rain splashes), Space Station (window frame, atmosphere, city lights, shooting stars), Anime Library (god rays, candles, reading desk), and Beach Day (clouds, palm tree, umbrella, sandcastle, beach ball, foam) all got much more detail and VFX.',
+            'FONTS BIGGER & AIRIER — Display and script fonts now render larger with more letter/word spacing and line height, so text no longer looks small or cramped.',
+        ]
+    },
     {
         version: 'v17.2',
         date: 'June 14, 2026',
