@@ -15546,54 +15546,11 @@ security: []
     }
 ];
 
+// v17.2 — unified on UPDATE_LOG (single source of truth). This used to render the
+// separate, stale UPDATE_LOGS array into the same container, which could clobber the
+// real changelog depending on load order. Now it just delegates.
 function renderUpdateLogs() {
-    const container = document.getElementById('update-log-container');
-    if (!container) return;
-
-    let html = '';
-    UPDATE_LOGS.forEach(log => {
-        // Use the date field from the log entry
-        const timestamp = log.date || 'Recent';
-
-        html += `<div class="log-entry">
-            <span class="log-date">${log.version} - ${timestamp}</span>`;
-
-        // Features
-        if (log.features && log.features.length > 0) {
-            html += `<div style="margin-top:10px;">
-                <span style="color:#00CEC9;font-weight:600;font-size:0.85rem;"><i class="ph ph-sparkle"></i> NEW FEATURES</span>
-                ${log.features.map(f => `<p style="margin:5px 0 5px 20px;">${f}</p>`).join('')}
-            </div>`;
-        }
-
-        // Improvements
-        if (log.improvements && log.improvements.length > 0) {
-            html += `<div style="margin-top:10px;">
-                <span style="color:#74B9FF;font-weight:600;font-size:0.85rem;"><i class="ph ph-arrow-up-right"></i> IMPROVEMENTS</span>
-                ${log.improvements.map(f => `<p style="margin:5px 0 5px 20px;">${f}</p>`).join('')}
-            </div>`;
-        }
-
-        // Bug Fixes
-        if (log.bugFixes && log.bugFixes.length > 0) {
-            html += `<div style="margin-top:10px;">
-                <span style="color:#00B894;font-weight:600;font-size:0.85rem;"><i class="ph ph-wrench"></i> BUG FIXES</span>
-                ${log.bugFixes.map(f => `<p style="margin:5px 0 5px 20px;">${f}</p>`).join('')}
-            </div>`;
-        }
-
-        // Security
-        if (log.security && log.security.length > 0) {
-            html += `<div style="margin-top:10px;">
-                <span style="color:#FD79A8;font-weight:600;font-size:0.85rem;"><i class="ph ph-shield-check"></i> SECURITY</span>
-                ${log.security.map(f => `<p style="margin:5px 0 5px 20px;">${f}</p>`).join('')}
-            </div>`;
-        }
-
-        html += `</div>`;
-    });
-
-container.innerHTML = html;
+    if (typeof renderUpdateLog === 'function') renderUpdateLog();
 }
 
 // Automatic activity tracking
