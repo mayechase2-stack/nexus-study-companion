@@ -5990,7 +5990,7 @@ function renderShopContent(tab, targetContainer) {
                 futuristic: "'Orbitron',sans-serif", gothic: "'UnifrakturMaguntia',serif", elegant: "'Playfair Display',serif",
                 chalk: "'Caveat',cursive", 'comic-pro': "'Bangers',cursive"
             }[item.id] || "'Inter',sans-serif";
-            const _fsz = item.id === 'pixel' ? '0.8rem' : (item.id === 'comic-pro' ? '1.7rem' : '1.5rem');
+            const _fsz = item.id === 'pixel' ? '1.05rem' : (item.id === 'comic-pro' ? '1.9rem' : '1.65rem');
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:${fontFamily};font-size:${_fsz};color:#fff;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
         } else if (tab === 'wallpapers') {
             const wallpaperEmoji = {
@@ -8206,21 +8206,29 @@ function applyFont(type) {
     // v16.5 — per-font sizing fixes. Several display/script fonts render small
     // and/or cramped at the default size, so bump size + letter-spacing + line-height
     // for those. Sans fonts use the responsive default (empty = no override).
+    // v17.3 — bigger + airier. Size is bumped, and letter/word-spacing + line-height
+    // (which inherit even where an element sets its own font-size) open up the cramped
+    // display/script fonts so text no longer reads small and tightly packed.
     const tweaks = {
-        pixel:       { size: '12px',   ls: '0.5px', lh: '2.0'  }, // Press Start 2P — blocky & compact
-        gothic:      { size: '17px',   ls: '0.5px', lh: '1.75' }, // UnifrakturMaguntia — dense
-        'comic-pro': { size: '17px',   ls: '0.6px', lh: '1.7'  }, // Bangers
-        chalk:       { size: '18px',   ls: '0.3px', lh: '1.7'  }, // Caveat — small x-height
-        handwriting: { size: '18px',   ls: '0.3px', lh: '1.75' }, // Dancing Script
-        serif:       { size: '16.5px', ls: '0.2px', lh: '1.7'  }, // Cormorant Garamond — small x-height
-        elegant:     { size: '',       ls: '0.2px', lh: '1.7'  }, // Playfair
-        newspaper:   { size: '',       ls: '0.2px', lh: '1.7'  },
-        condensed:   { size: '',       ls: '0.5px', lh: ''     }  // Oswald — narrow/tight
+        pixel:       { size: '13px',   ls: '1px',   lh: '2.1',  ws: '2px'   }, // Press Start 2P
+        gothic:      { size: '20px',   ls: '0.8px', lh: '1.85', ws: '1px'   }, // UnifrakturMaguntia
+        'comic-pro': { size: '20px',   ls: '1px',   lh: '1.8',  ws: '1.5px' }, // Bangers
+        chalk:       { size: '21px',   ls: '0.5px', lh: '1.8',  ws: '1px'   }, // Caveat
+        handwriting: { size: '21px',   ls: '0.5px', lh: '1.85', ws: '1px'   }, // Dancing Script
+        serif:       { size: '18px',   ls: '0.3px', lh: '1.75', ws: '0.5px' }, // Cormorant Garamond
+        elegant:     { size: '17px',   ls: '0.3px', lh: '1.75', ws: '0.5px' }, // Playfair
+        newspaper:   { size: '16.5px', ls: '0.3px', lh: '1.75', ws: '0.5px' },
+        condensed:   { size: '16.5px', ls: '0.8px', lh: '1.6',  ws: '1px'   }, // Oswald — narrow
+        rounded:     { size: '',       ls: '0.2px', lh: '1.65', ws: ''      },
+        typewriter:  { size: '',       ls: '0.3px', lh: '1.7',  ws: ''      },
+        futuristic:  { size: '15.5px', ls: '0.5px', lh: '1.7',  ws: '0.5px' }, // Orbitron — wide
+        mono:        { size: '',       ls: '',      lh: '1.6',  ws: ''      }
     };
-    const t = tweaks[type] || { size: '', ls: '', lh: '' };
+    const t = tweaks[type] || { size: '', ls: '', lh: '', ws: '' };
     document.body.style.fontSize = t.size;
     document.body.style.letterSpacing = t.ls;
     document.body.style.lineHeight = t.lh;
+    document.body.style.wordSpacing = t.ws || '';
 }
 
 let wallpaperAnimFrame = null;
