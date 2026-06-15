@@ -4511,32 +4511,32 @@ const SHOP_ITEMS = {
         // applyEffect + effectClickHandler keep the removed ids as no-ops for
         // anyone who already has them in inventory.
         { id: 'none', name: 'No Effect', price: 0, desc: 'Standard interactions', rarity: 'common' },
-        { id: 'sparkle', name: 'Sparkle Click', price: 80, desc: '✨ Tiny stars burst from every click', rarity: 'common' },
-        { id: 'confetti', name: 'Confetti Burst', price: 100, desc: '🎉 Festive paper burst on click', rarity: 'rare' },
+        { id: 'sparkle', name: 'Sparkle', price: 80, desc: '✨ Stars burst on every click AND sparkle behind your cursor', rarity: 'common' },
+        { id: 'confetti', name: 'Confetti', price: 100, desc: '🎉 Confetti bursts on click AND drifts behind your cursor', rarity: 'rare' },
         { id: 'particles', name: 'Particle Trail', price: 120, desc: '🌠 Cyan particles follow your cursor', rarity: 'rare' },
-        { id: 'bubbles', name: 'Bubble Pop', price: 130, desc: '🫧 Floating bubbles rise from click point', rarity: 'rare' },
-        { id: 'cherry-blossom', name: 'Cherry Bloom', price: 140, desc: '🌸 Pink petals scatter from clicks', rarity: 'rare' },
-        { id: 'lightning', name: 'Lightning Strike', price: 150, desc: '⚡ Electric arc zaps to your click', rarity: 'rare' },
+        { id: 'bubbles', name: 'Bubbles', price: 130, desc: '🫧 Bubbles pop on click AND rise behind your cursor', rarity: 'rare' },
+        { id: 'cherry-blossom', name: 'Cherry Bloom', price: 140, desc: '🌸 Petals scatter on click AND drift behind your cursor', rarity: 'rare' },
+        { id: 'lightning', name: 'Lightning', price: 150, desc: '⚡ Electric arc on click AND crackling bolts along your cursor', rarity: 'rare' },
         // v12.2 — Mouse-trail variants (movement-triggered). Each click effect that
         // makes sense as a trail now has a matching trail version.
-        { id: 'sparkle-trail', name: 'Sparkle Trail', price: 150, desc: '✨ A continuous ribbon of sparkles follows your cursor', rarity: 'rare' },
-        { id: 'petal-trail', name: 'Petal Trail', price: 170, desc: '🌸 Cherry-blossom petals drift behind your cursor', rarity: 'rare' },
-        { id: 'bubble-trail', name: 'Bubble Trail', price: 170, desc: '🫧 Floating bubbles rise from behind your cursor', rarity: 'rare' },
+        { id: 'sparkle-trail', name: 'Sparkle Trail', price: 150, desc: '✨ Merged into Sparkle (now click + trail)', rarity: 'rare', secret: true },
+        { id: 'petal-trail', name: 'Petal Trail', price: 170, desc: '🌸 Merged into Cherry Bloom (now click + trail)', rarity: 'rare', secret: true },
+        { id: 'bubble-trail', name: 'Bubble Trail', price: 170, desc: '🫧 Merged into Bubbles (now click + trail)', rarity: 'rare', secret: true },
         { id: 'fire-trail', name: 'Fire Trail', price: 180, desc: '🔥 Hot blazing trail behind the cursor', rarity: 'epic' },
-        { id: 'ink-trail', name: 'Ink Trail', price: 180, desc: '🖋️ Black ink dots trail behind your cursor like calligraphy', rarity: 'epic' },
-        { id: 'confetti-trail', name: 'Confetti Trail', price: 200, desc: '🎉 Festive paper drifts behind your cursor', rarity: 'epic' },
-        { id: 'lightning-trail', name: 'Lightning Trail', price: 220, desc: '⚡ Electric bolts crackle along your cursor path', rarity: 'epic' },
-        { id: 'galaxy-trail', name: 'Galaxy Trail', price: 280, desc: '🌌 LEGENDARY Spiral nebula particles trail behind your cursor', rarity: 'legendary' },
-        { id: 'phoenix-trail', name: 'Phoenix Trail', price: 300, desc: '🔥 LEGENDARY Embers + feathers drift behind your cursor', rarity: 'legendary' },
+        { id: 'ink-trail', name: 'Ink Trail', price: 180, desc: '🖋️ Merged into Ink Splatter (now click + trail)', rarity: 'epic', secret: true },
+        { id: 'confetti-trail', name: 'Confetti Trail', price: 200, desc: '🎉 Merged into Confetti (now click + trail)', rarity: 'epic', secret: true },
+        { id: 'lightning-trail', name: 'Lightning Trail', price: 220, desc: '⚡ Merged into Lightning (now click + trail)', rarity: 'epic', secret: true },
+        { id: 'galaxy-trail', name: 'Galaxy Trail', price: 280, desc: '🌌 Merged into Galaxy Aura (mythic, click + trail)', rarity: 'legendary', secret: true },
+        { id: 'phoenix-trail', name: 'Phoenix Trail', price: 300, desc: '🔥 Merged into Phoenix Aura (mythic, click + trail)', rarity: 'legendary', secret: true },
         // Click bursts (dramatic)
-        { id: 'ink-splatter', name: 'Ink Splatter', price: 190, desc: '🖋️ Black ink splash on click', rarity: 'epic' },
+        { id: 'ink-splatter', name: 'Ink Splatter', price: 190, desc: '🖋️ Ink splashes on click AND dots trail behind your cursor', rarity: 'epic' },
         { id: 'starburst', name: 'Starburst', price: 200, desc: '⭐ 8-point radial flash on every click', rarity: 'epic' },
         { id: 'shockwave', name: 'Shockwave', price: 220, desc: '💥 Expanding ring pulse on click', rarity: 'epic' },
-        { id: 'butterflies', name: 'Butterflies', price: 240, desc: '🦋 Butterflies flutter out from clicks', rarity: 'epic' },
-        { id: 'butterfly-trail', name: 'Butterfly Trail', price: 260, desc: '🦋 EPIC Butterflies trail behind your cursor like a flock', rarity: 'epic' },
+        { id: 'butterflies', name: 'Butterfly Aura', price: 350, desc: '🦋 MYTHIC — butterflies burst from every click AND flutter behind your cursor', rarity: 'mythic' },
+        { id: 'butterfly-trail', name: 'Butterfly Trail', price: 260, desc: '🦋 Merged into Butterfly Aura (mythic, click + trail)', rarity: 'epic', secret: true },
         { id: 'aurora-veil', name: 'Aurora Veil', price: 260, desc: '🌌 LEGENDARY Northern-lights ribbon trail', rarity: 'legendary' },
-        { id: 'galaxy-burst', name: 'Galaxy Burst', price: 280, desc: '🌠 LEGENDARY Spiral nebula bursts on click', rarity: 'legendary' },
-        { id: 'phoenix-flame', name: 'Phoenix Flame', price: 300, desc: '🔥 LEGENDARY Embers + feathers swirl behind cursor', rarity: 'legendary' },
+        { id: 'galaxy-burst', name: 'Galaxy Aura', price: 350, desc: '🌠 MYTHIC — nebula bursts on every click AND spirals behind your cursor', rarity: 'mythic' },
+        { id: 'phoenix-flame', name: 'Phoenix Aura', price: 350, desc: '🔥 MYTHIC — embers burst on every click AND blaze a trail behind your cursor', rarity: 'mythic' },
         { id: 'nexus-aura', name: 'Nexus Aura', price: 0, desc: '🔮 NEXUS Dimensional energy field', rarity: 'nexus', secret: true, nexus: true }
     ],
     companions: [
@@ -5831,7 +5831,36 @@ function getCursorPreviewSVG(id, size) {
 <polygon points='16,4 13,16 19,16' fill='#ff5e5e'/>
 <polygon points='16,28 13,16 19,16' fill='#e8edf3'/>
 <circle cx='16' cy='16' r='2.4' fill='#ffd166' stroke='#7a4a1f' stroke-width='0.6'/>
-<circle cx='16' cy='6' r='1' fill='#ffd166'/></svg>`
+<circle cx='16' cy='6' r='1' fill='#ffd166'/></svg>`,
+        // v17.3 — pixel cursors scaled up crisp for the preview (16px viewBox -> magnified)
+        'cursor_pixel_arrow': `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+<rect x='1' y='1' width='1' height='12' fill='black'/><rect x='2' y='1' width='1' height='1' fill='black'/>
+<rect x='2' y='2' width='1' height='10' fill='white'/><rect x='2' y='12' width='1' height='1' fill='black'/>
+<rect x='3' y='2' width='1' height='1' fill='black'/><rect x='3' y='3' width='1' height='7' fill='white'/><rect x='3' y='10' width='1' height='2' fill='black'/>
+<rect x='4' y='3' width='1' height='1' fill='black'/><rect x='4' y='4' width='1' height='5' fill='white'/><rect x='4' y='9' width='1' height='1' fill='black'/>
+<rect x='5' y='4' width='1' height='1' fill='black'/><rect x='5' y='5' width='1' height='3' fill='white'/><rect x='5' y='8' width='1' height='3' fill='black'/>
+<rect x='6' y='5' width='1' height='1' fill='black'/><rect x='6' y='6' width='1' height='1' fill='white'/><rect x='6' y='7' width='1' height='1' fill='black'/><rect x='6' y='8' width='1' height='2' fill='white'/><rect x='6' y='10' width='1' height='1' fill='black'/>
+<rect x='7' y='6' width='1' height='3' fill='black'/><rect x='7' y='9' width='1' height='2' fill='white'/><rect x='7' y='11' width='1' height='1' fill='black'/>
+<rect x='8' y='9' width='1' height='1' fill='black'/><rect x='8' y='10' width='1' height='2' fill='white'/><rect x='8' y='12' width='1' height='1' fill='black'/>
+<rect x='9' y='10' width='1' height='1' fill='black'/><rect x='9' y='11' width='1' height='1' fill='white'/><rect x='9' y='12' width='1' height='1' fill='black'/>
+<rect x='10' y='11' width='1' height='2' fill='black'/>
+</svg>`,
+        'cursor_pixel_sword': `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+<rect x='13' y='1' width='1' height='1' fill='#c0c0c0'/><rect x='12' y='2' width='1' height='1' fill='#d8d8d8'/><rect x='11' y='3' width='1' height='1' fill='#e8e8e8'/>
+<rect x='10' y='4' width='1' height='1' fill='#d0d0d0'/><rect x='9' y='5' width='1' height='1' fill='#c0c0c0'/><rect x='8' y='6' width='1' height='1' fill='#b8b8b8'/>
+<rect x='7' y='7' width='1' height='1' fill='#a8a8a8'/><rect x='6' y='8' width='1' height='1' fill='#989898'/><rect x='5' y='9' width='1' height='1' fill='#888888'/>
+<rect x='4' y='10' width='1' height='1' fill='#787878'/><rect x='3' y='11' width='2' height='1' fill='#606060'/><rect x='2' y='12' width='2' height='1' fill='#505050'/>
+<rect x='12' y='3' width='1' height='1' fill='#909090'/><rect x='11' y='4' width='1' height='1' fill='#909090'/>
+<rect x='3' y='12' width='1' height='1' fill='#FFD700'/><rect x='2' y='13' width='1' height='1' fill='#FFD700'/><rect x='1' y='14' width='2' height='1' fill='#804000'/>
+</svg>`,
+        'cursor_pixel_heart': `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+<rect x='2' y='4' width='2' height='1' fill='#ff69b4'/><rect x='7' y='4' width='2' height='1' fill='#ff69b4'/>
+<rect x='1' y='5' width='4' height='1' fill='#ff69b4'/><rect x='6' y='5' width='4' height='1' fill='#ff69b4'/>
+<rect x='1' y='6' width='10' height='2' fill='#ff69b4'/><rect x='2' y='8' width='9' height='1' fill='#ff69b4'/>
+<rect x='3' y='9' width='7' height='1' fill='#ff69b4'/><rect x='4' y='10' width='5' height='1' fill='#ff69b4'/>
+<rect x='5' y='11' width='3' height='1' fill='#ff69b4'/><rect x='6' y='12' width='1' height='1' fill='#ff69b4'/>
+<rect x='2' y='5' width='1' height='1' fill='#ffb6d9'/><rect x='7' y='5' width='1' height='1' fill='#ffb6d9'/>
+</svg>`
     };
     return MAP[id] || MAP.default;
 }
@@ -5950,7 +5979,7 @@ function renderShopContent(tab, targetContainer) {
         if (tab === 'themes') {
             previewSection = `<div style="height:60px;border-radius:8px;background:linear-gradient(135deg, ${item.accent}, ${item.grad});margin-bottom:12px;"></div>`;
         } else if (tab === 'cursors') {
-            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸', 'compass-cursor': '🧭' }[item.id] || '↖️';
+            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸', 'compass-cursor': '🧭', 'cursor_pixel_arrow': '🕹️', 'cursor_pixel_sword': '⚔️', 'cursor_pixel_heart': '💗' }[item.id] || '↖️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
         } else if (tab === 'fonts') {
             const fontFamily = {
@@ -8051,7 +8080,7 @@ function applyCursor(type) {
 </svg>`, 24, 24);
     } else if (type === 'cursor_pixel_arrow') {
         // v15.0 — Pixel Art arrow: classic 16x16 pixel arrow, white fill + black outline
-        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16' shape-rendering='crispEdges'>
 <rect x='1' y='1' width='1' height='12' fill='black'/><rect x='2' y='1' width='1' height='1' fill='black'/>
 <rect x='2' y='2' width='1' height='1' fill='white'/><rect x='2' y='3' width='1' height='1' fill='white'/>
 <rect x='2' y='4' width='1' height='1' fill='white'/><rect x='2' y='5' width='1' height='1' fill='white'/>
@@ -8086,7 +8115,7 @@ function applyCursor(type) {
 </svg>`, 0, 0, 'auto');
     } else if (type === 'cursor_pixel_sword') {
         // v15.0 — Pixel sword: diagonal silver blade
-        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16' shape-rendering='crispEdges'>
 <rect x='13' y='1' width='1' height='1' fill='#c0c0c0'/>
 <rect x='12' y='2' width='1' height='1' fill='#d8d8d8'/>
 <rect x='11' y='3' width='1' height='1' fill='#e8e8e8'/>
@@ -8107,7 +8136,7 @@ function applyCursor(type) {
 </svg>`, 0, 0, 'auto');
     } else if (type === 'cursor_pixel_heart') {
         // v15.0 — Pixel heart: pink heart cursor
-        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'>
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16' shape-rendering='crispEdges'>
 <rect x='2' y='4' width='2' height='1' fill='#ff69b4'/>
 <rect x='7' y='4' width='2' height='1' fill='#ff69b4'/>
 <rect x='1' y='5' width='4' height='1' fill='#ff69b4'/>
@@ -8121,7 +8150,7 @@ function applyCursor(type) {
 <rect x='6' y='12' width='1' height='1' fill='#ff69b4'/>
 <rect x='2' y='5' width='1' height='1' fill='#ffb6d9'/>
 <rect x='7' y='5' width='1' height='1' fill='#ffb6d9'/>
-</svg>`, 6, 6, 'auto');
+</svg>`, 12, 12, 'auto');
     } else if (type === 'sakura-cursor') {
         // v16.5 — cherry-blossom pointer + falling-petal trail
         setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>
@@ -10554,6 +10583,9 @@ function applyBadge(type) {
 }
 
 function applyEffect(type) {
+    // v17.3 — merged click+trail effects: legacy "-trail" ids remap to their unified base id
+    const EFFECT_MERGE = { 'sparkle-trail': 'sparkle', 'confetti-trail': 'confetti', 'lightning-trail': 'lightning', 'bubble-trail': 'bubbles', 'petal-trail': 'cherry-blossom', 'ink-trail': 'ink-splatter', 'butterfly-trail': 'butterflies', 'phoenix-trail': 'phoenix-flame', 'galaxy-trail': 'galaxy-burst' };
+    if (EFFECT_MERGE[type]) type = EFFECT_MERGE[type];
     localStorage.setItem('equipped_effect', type);
     // Remove any existing effect listeners
     document.removeEventListener('click', effectClickHandler);
@@ -10575,11 +10607,9 @@ function applyEffect(type) {
     if (type === 'glow' || type === 'snowfall' || type === 'ripple') return;
     if (clickEffects.has(type)) document.addEventListener('click', effectClickHandler);
     // v12.0 — added 3 mouse-trail variants: sparkle-trail, petal-trail, butterfly-trail
-    if (type === 'particles' || type === 'fire-trail' || type === 'nexus-aura'
-        || type === 'sparkle-trail' || type === 'petal-trail' || type === 'butterfly-trail'
-        || type === 'ink-trail' || type === 'confetti-trail'
-        || type === 'bubble-trail' || type === 'lightning-trail'
-        || type === 'galaxy-trail' || type === 'phoenix-trail') {
+    // v17.3 — attach the trail listener for pure-trail effects AND the unified click+trail effects
+    const TRAIL_LISTENER = new Set(['particles', 'fire-trail', 'nexus-aura', 'sparkle', 'confetti', 'lightning', 'bubbles', 'cherry-blossom', 'ink-splatter', 'butterflies', 'phoenix-flame', 'galaxy-burst']);
+    if (TRAIL_LISTENER.has(type)) {
         document.addEventListener('mousemove', effectMoveHandler);
     }
     // v11.0 — snowfall: continuous ambient effect (not click-triggered)
@@ -10806,7 +10836,10 @@ function effectClickHandler(e) {
 }
 
 function effectMoveHandler(e) {
-    const type = localStorage.getItem('equipped_effect');
+    let type = localStorage.getItem('equipped_effect');
+    // v17.3 — unified click+trail effects render their trail via the existing "-trail" branches
+    const TRAIL_RENDER = { sparkle: 'sparkle-trail', confetti: 'confetti-trail', lightning: 'lightning-trail', bubbles: 'bubble-trail', 'cherry-blossom': 'petal-trail', 'ink-splatter': 'ink-trail', butterflies: 'butterfly-trail', 'phoenix-flame': 'phoenix-trail', 'galaxy-burst': 'galaxy-trail' };
+    if (TRAIL_RENDER[type]) type = TRAIL_RENDER[type];
     if (type === 'fire-trail') {
         // Spawn 3 particles per move for a thick blazing trail
         for (let i = 0; i < 3; i++) {
@@ -19803,6 +19836,12 @@ function getCompanionAvatarSVG(id, size = 96) {
             <rect x="46" y="33" width="8" height="6" rx="1" fill="#ff3b3b"/>
         </svg>`
     };
+    // v17.3 — Sprite palette variants (Ember/Aurora/Rose) reuse the base orb art but
+    // recolor it via a hue filter, so shop cards + previews show the right color (not just the live sprite).
+    var _outfitHue = { 'nexus-orb-ember': '180deg', 'nexus-orb-aurora': '-90deg', 'nexus-orb-rose': '-30deg' }[id];
+    if (_outfitHue) {
+        return svgs['nexus-orb'].replace('<svg ', '<svg style="filter:hue-rotate(' + _outfitHue + ') saturate(1.15);" ');
+    }
     return svgs[id] || svgs['nexus-orb'];
 }
 
