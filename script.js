@@ -7457,7 +7457,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.3';
+const NEXUS_CURRENT_VERSION = 'v17.4';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -16738,6 +16738,105 @@ function deleteAllMyData() {
     });
 }
 
+// ════════════════════════════════════════════════════════════════════
+// v17.4 — BUILT-IN DIAGNOSTICS / SELF-TEST
+// Runs read-only checks in the live browser using the real render
+// functions, so it catches runtime bugs that static review can't:
+// missing previews, non-rendering wallpapers, stale changelog, etc.
+// ════════════════════════════════════════════════════════════════════
+function runNexusDiagnostics() {
+    const r = [];
+    const pass = (name) => r.push({ s: 'pass', name });
+    const fail = (name, d) => r.push({ s: 'fail', name, d });
+    const warn = (name, d) => r.push({ s: 'warn', name, d });
+
+    // localStorage
+    try { localStorage.setItem('__diag__', '1'); localStorage.removeItem('__diag__'); pass('localStorage read/write'); }
+    catch (e) { fail('localStorage read/write', e.message); }
+
+    // core functions exist
+    ['switchTab', 'applyTheme', 'applyCursor', 'applyFont', 'applyWallpaper', 'applyEffect', 'applyCompanion', 'getStudyStats', 'openUniversalTutor', 'renderShopContent', 'renderUpdateLog', 'getCursorPreviewSVG', 'getCompanionAvatarSVG', 'renderMiniWallpaper', 'submitPayment', 'completeSignUpFlow', 'openStudyPlanner', 'openConceptMap', 'openMysteryBox'].forEach(fn => {
+        if (typeof window[fn] === 'function') pass('function: ' + fn); else fail('function: ' + fn, 'MISSING');
+    });
+
+    // main views present in DOM
+    ['view-home', 'view-math', 'view-science', 'view-english', 'view-social', 'view-notebook', 'view-shop', 'view-inventory', 'view-profile', 'view-leaderboard', 'view-suggestions', 'view-updates'].forEach(v => {
+        if (document.getElementById(v)) pass('view: ' + v); else warn('view: ' + v, 'not found in DOM');
+    });
+
+    // changelog freshness (the exact bug we hit earlier)
+    try {
+        if (UPDATE_LOG[0].version === NEXUS_CURRENT_VERSION) pass('changelog top matches current version (' + NEXUS_CURRENT_VERSION + ')');
+        else fail('changelog freshness', 'top entry is ' + UPDATE_LOG[0].version + ' but app version is ' + NEXUS_CURRENT_VERSION);
+    } catch (e) { fail('changelog', e.message); }
+
+    // shop item structure
+    try {
+        let bad = 0;
+        Object.keys(SHOP_ITEMS).forEach(cat => SHOP_ITEMS[cat].forEach(it => { if (!it.id || it.name === undefined) { bad++; fail('shop item fields (' + cat + ')', JSON.stringify(it)); } }));
+        if (!bad) pass('shop items valid (' + Object.keys(SHOP_ITEMS).length + ' categories)');
+    } catch (e) { fail('SHOP_ITEMS', e.message); }
+
+    // every wallpaper actually renders (offscreen, no side effects)
+    try {
+        const cv = document.createElement('canvas'); cv.width = 80; cv.height = 45; let bad = 0;
+        SHOP_ITEMS.wallpapers.forEach(w => { try { renderMiniWallpaper(cv, w.id); } catch (e) { bad++; fail('wallpaper renders: ' + w.id, e.message); } });
+        if (!bad) pass('all ' + SHOP_ITEMS.wallpapers.length + ' wallpapers render without error');
+    } catch (e) { fail('wallpaper render test', e.message); }
+
+    // every cursor has a custom preview (catches the pixel-cursor bug)
+    try {
+        const fb = getCursorPreviewSVG('__nope__', 40);
+        SHOP_ITEMS.cursors.forEach(c => {
+            const svg = getCursorPreviewSVG(c.id, 40);
+            if (!svg || svg.indexOf('<svg') < 0) fail('cursor preview: ' + c.id, 'no SVG');
+            else if (c.id !== 'default' && svg === fb) warn('cursor preview: ' + c.id, 'falls back to default (no custom art)');
+        });
+        pass('cursor previews checked (' + SHOP_ITEMS.cursors.length + ')');
+    } catch (e) { fail('cursor preview test', e.message); }
+
+    // every companion avatar renders
+    try {
+        let bad = 0;
+        SHOP_ITEMS.companions.forEach(c => { if (c.id === 'none') return; const svg = getCompanionAvatarSVG(c.id, 40); if (!svg || svg.indexOf('<svg') < 0) { bad++; fail('companion avatar: ' + c.id, 'no SVG'); } });
+        if (!bad) pass('companion avatars render');
+    } catch (e) { fail('companion avatar test', e.message); }
+
+    // API key (informational)
+    try { if (typeof getApiKey === 'function' && getApiKey()) pass('OpenAI API key is set'); else warn('OpenAI API key', 'not set — AI features need a key in Settings'); }
+    catch (e) { warn('API key', e.message); }
+
+    // per-user keys sanity
+    try { if (Array.isArray(PER_USER_KEYS) && PER_USER_KEYS.indexOf('user_inventory') >= 0) pass('PER_USER_KEYS registered'); else warn('PER_USER_KEYS', 'unexpected shape'); } catch (e) {}
+
+    return r;
+}
+function openDiagnostics() {
+    const results = runNexusDiagnostics();
+    const counts = { pass: 0, warn: 0, fail: 0 };
+    results.forEach(x => counts[x.s]++);
+    const color = { pass: '#00b894', warn: '#fdcb6e', fail: '#ff6b6b' };
+    const icon = { pass: 'ph-check-circle', warn: 'ph-warning', fail: 'ph-x-circle' };
+    var existing = document.getElementById('diag-modal'); if (existing) existing.remove();
+    var modal = document.createElement('div');
+    modal.id = 'diag-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    const rows = results.map(x => '<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">'
+        + '<i class="ph ' + icon[x.s] + '" style="color:' + color[x.s] + ';flex-shrink:0;margin-top:2px;"></i>'
+        + '<div style="flex:1;"><span style="font-size:0.85rem;color:#dde0ee;">' + escapeHtmlSafe(x.name) + '</span>'
+        + (x.d ? '<div style="font-size:0.74rem;color:' + color[x.s] + ';">' + escapeHtmlSafe(x.d) + '</div>' : '') + '</div></div>').join('');
+    modal.innerHTML = '<div class="glass-panel" style="max-width:600px;width:96%;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-stethoscope" style="color:#a29bfe;"></i> NEXUS Diagnostics</h3><button class="btn-icon" onclick="document.getElementById(\'diag-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="display:flex;gap:8px;padding:12px 20px;flex-shrink:0;border-bottom:1px solid var(--glass-border);">'
+        + '<span style="font-size:0.85rem;color:' + color.pass + ';font-weight:700;">✓ ' + counts.pass + ' passed</span>'
+        + '<span style="font-size:0.85rem;color:' + color.warn + ';font-weight:700;">⚠ ' + counts.warn + ' warnings</span>'
+        + '<span style="font-size:0.85rem;color:' + color.fail + ';font-weight:700;">✕ ' + counts.fail + ' failed</span>'
+        + '<button class="btn-secondary" style="margin-left:auto;font-size:0.78rem;padding:4px 10px;" onclick="openDiagnostics()"><i class="ph ph-arrow-clockwise"></i> Re-run</button></div>'
+        + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + '</div></div>';
+    document.body.appendChild(modal);
+}
+
 // v17.0 — Battery saver: pause canvas animations while the tab is hidden, resume on return.
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
@@ -17073,6 +17172,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.4',
+        date: 'June 15, 2026',
+        tag: 'UPDATE 17.4 — SELF-TEST',
+        tagColor: '#74c8ff',
+        changes: [
+            'BUILT-IN DIAGNOSTICS — Settings → Data → "Run Self-Test" checks every feature live in your browser (shop items, wallpapers, cursors, companions, core functions, and whether the changelog is current) and shows a pass/warning/fail report. A fast way to confirm everything works after an update.',
+        ]
+    },
     {
         version: 'v17.3',
         date: 'June 15, 2026',
