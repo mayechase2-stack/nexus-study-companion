@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260615e">
+    <link rel="stylesheet" href="style.css?v=20260616a">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -28,6 +28,19 @@
                 transition-duration: 0.001ms !important;
                 scroll-behavior: auto !important;
             }
+        }
+        /* v17.5 — mobile/responsive polish */
+        @media (max-width: 640px) {
+            /* shop & other auto-fill grids: let cards fit two-up instead of overflowing */
+            [style*="minmax(240px"] { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; }
+            [style*="minmax(280px"] { grid-template-columns: 1fr !important; }
+            /* bigger tap targets for touch */
+            button, .tab-btn, .nav-links li, select { min-height: 42px; }
+            /* keep floating panels inside the viewport */
+            #companion-chat { max-width: 94vw !important; }
+            #lofi-player-modal .glass-panel, [id$="-modal"] .glass-panel { max-height: 92vh !important; }
+            /* roomier scroll padding so the bottom isn't cut off */
+            .main-content { padding-bottom: 80px !important; }
         }
     </style>
     <!-- Google Fonts: Inter is the UI font (loaded eagerly). Shop cosmetic fonts
@@ -177,6 +190,8 @@
 </head>
 
 <body>
+    <!-- v17.5 — skip to content (accessibility) -->
+    <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;top:8px;z-index:1000080;background:#6C5CE7;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600;" onfocus="this.style.left='8px'" onblur="this.style.left='-9999px'">Skip to content</a>
 
     <!-- ── v12.5 Loading Screen ──────────────────────────────────────────── -->
     <div id="nexus-loading-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0B0E1A;z-index:9999999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.7s ease,visibility 0.7s ease;">
@@ -239,7 +254,7 @@
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
-                v17.4 NOW LIVE
+                v17.5 NOW LIVE
             </div>
             <h1 style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;margin-bottom:20px;font-weight:900;letter-spacing:-1.5px;">
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
@@ -948,7 +963,7 @@
                 <span>NEXUS</span>
             </div>
 
-            <ul class="nav-links">
+            <ul class="nav-links" role="navigation" aria-label="Main navigation">
                 <li class="active" onclick="switchTab('home')">
                     <i class="ph ph-house"></i>
                     <span>Home</span>
@@ -1060,7 +1075,7 @@
         </nav>
 
         <!-- Main Content Area -->
-        <main class="main-content">
+        <main class="main-content" id="main-content" role="main" tabindex="-1">
 
 <!-- Shop Modal -->
             <div id="shop-modal" class="modal hidden">
@@ -5051,7 +5066,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260615e"></script>
+    <script src="script.js?v=20260616a"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

@@ -217,6 +217,8 @@ function switchTab(tabId) {
     // v17.0 — re-apply the chosen language after navigation so re-rendered nav/labels stay translated
     var _lang = localStorage.getItem('app_lang');
     if (_lang && _lang !== 'en' && typeof setAppLanguage === 'function') setAppLanguage(_lang);
+    // v17.5 — re-label any freshly rendered icon controls for screen readers
+    if (typeof _a11yAriaSweep === 'function') setTimeout(_a11yAriaSweep, 60);
     // v17.0 — keep the Word of the Day fresh when returning Home
     if ((tabId === 'home' || tabId === 'dashboard') && typeof renderWordOfDay === 'function') renderWordOfDay();
 }
@@ -7457,7 +7459,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.4';
+const NEXUS_CURRENT_VERSION = 'v17.5';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -11012,6 +11014,10 @@ function effectClickHandler(e) {
 }
 
 function effectMoveHandler(e) {
+    // v17.5 — perf: cap trail spawns to ~40/s regardless of how fast mousemove fires
+    var _now = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (_now - (window._lastEffMove || 0) < 24) return;
+    window._lastEffMove = _now;
     let type = localStorage.getItem('equipped_effect');
     // v17.3 — unified click+trail effects render their trail via the existing "-trail" branches
     const TRAIL_RENDER = { sparkle: 'sparkle-trail', confetti: 'confetti-trail', lightning: 'lightning-trail', bubbles: 'bubble-trail', 'cherry-blossom': 'petal-trail', 'ink-splatter': 'ink-trail', butterflies: 'butterfly-trail', 'phoenix-flame': 'phoenix-trail', 'galaxy-burst': 'galaxy-trail' };
@@ -16432,8 +16438,8 @@ document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
 // v16.5 — lightweight UI language switcher (navigation + footer labels). Full-app
 // and AI-response translation is out of scope; this covers the app's chrome.
 const NEXUS_I18N = {
-    es: { 'Home':'Inicio','Command Center':'Centro de Mando','Math':'Matemáticas','Science':'Ciencias','English Aid':'Ayuda de Inglés','Social Studies':'Estudios Sociales','Notebook':'Cuaderno','Profile':'Perfil','Leaderboard':'Clasificación','Shop':'Tienda','Inventory':'Inventario','Suggestions':'Sugerencias','Updates':'Novedades','Grade Calc':'Notas','Practice Test':'Examen de Práctica','Lo-fi Music':'Música Lo-fi','Settings':'Ajustes','Sign Out':'Cerrar sesión','Light Mode':'Modo Claro','Dark Mode':'Modo Oscuro','Upgrade to Pro':'Mejorar a Pro' },
-    fr: { 'Home':'Accueil','Command Center':'Centre de Commande','Math':'Maths','Science':'Sciences','English Aid':'Aide en Anglais','Social Studies':'Études Sociales','Notebook':'Carnet','Profile':'Profil','Leaderboard':'Classement','Shop':'Boutique','Inventory':'Inventaire','Suggestions':'Suggestions','Updates':'Mises à jour','Grade Calc':'Notes','Practice Test':'Test Pratique','Lo-fi Music':'Musique Lo-fi','Settings':'Paramètres','Sign Out':'Déconnexion','Light Mode':'Mode Clair','Dark Mode':'Mode Sombre','Upgrade to Pro':'Passer à Pro' }
+    es: { 'Home':'Inicio','Command Center':'Centro de Mando','Math':'Matemáticas','Science':'Ciencias','English Aid':'Ayuda de Inglés','Social Studies':'Estudios Sociales','Notebook':'Cuaderno','Profile':'Perfil','Leaderboard':'Clasificación','Shop':'Tienda','Inventory':'Inventario','Suggestions':'Sugerencias','Updates':'Novedades','Grade Calc':'Notas','Practice Test':'Examen de Práctica','Lo-fi Music':'Música Lo-fi','Settings':'Ajustes','Sign Out':'Cerrar sesión','Light Mode':'Modo Claro','Dark Mode':'Modo Oscuro','Upgrade to Pro':'Mejorar a Pro','Open Shop':'Abrir Tienda','My Inventory':'Mi Inventario','Study Planner':'Planificador','Formula Cheat Sheet':'Hoja de Fórmulas','Rain Ambiance':'Ambiente de Lluvia','Run Self-Test':'Ejecutar Diagnóstico','Daily Challenge':'Reto Diario','Word of the Day':'Palabra del Día','Achievements':'Logros' },
+    fr: { 'Home':'Accueil','Command Center':'Centre de Commande','Math':'Maths','Science':'Sciences','English Aid':'Aide en Anglais','Social Studies':'Études Sociales','Notebook':'Carnet','Profile':'Profil','Leaderboard':'Classement','Shop':'Boutique','Inventory':'Inventaire','Suggestions':'Suggestions','Updates':'Mises à jour','Grade Calc':'Notes','Practice Test':'Test Pratique','Lo-fi Music':'Musique Lo-fi','Settings':'Paramètres','Sign Out':'Déconnexion','Light Mode':'Mode Clair','Dark Mode':'Mode Sombre','Upgrade to Pro':'Passer à Pro','Open Shop':'Ouvrir la Boutique','My Inventory':'Mon Inventaire','Study Planner':'Planificateur','Formula Cheat Sheet':'Fiche de Formules','Rain Ambiance':'Ambiance Pluie','Run Self-Test':'Lancer le Diagnostic','Daily Challenge':'Défi du Jour','Word of the Day':'Mot du Jour','Achievements':'Succès' }
 };
 function setAppLanguage(lang) {
     localStorage.setItem('app_lang', lang || 'en');
@@ -16441,6 +16447,11 @@ function setAppLanguage(lang) {
     document.querySelectorAll('.nav-links li span, .status-indicator span').forEach(function (el) {
         if (!el.dataset.en) el.dataset.en = el.textContent.trim();
         var en = el.dataset.en;
+        el.textContent = (dict && dict[en]) ? dict[en] : en;
+    });
+    // v17.5 — also translate any element explicitly tagged with data-i18n="<English>"
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+        var en = el.getAttribute('data-i18n');
         el.textContent = (dict && dict[en]) ? dict[en] : en;
     });
     document.documentElement.lang = lang || 'en';
@@ -16470,7 +16481,21 @@ const NEXUS_WORDS = [
     { word: 'Empathy',     def: 'The ability to understand another\'s feelings.', ety: 'Greek empatheia, "in-feeling."', ex: 'Her empathy made her a great study-group leader.' },
     { word: 'Innovate',    def: 'To introduce new methods or ideas.', ety: 'Latin novus, "new."', ex: 'They innovated a new way to memorize formulas.' },
     { word: 'Pensive',     def: 'Deeply or seriously thoughtful.', ety: 'French penser, "to think."', ex: 'She grew pensive over the tricky proof.' },
-    { word: 'Resilient',   def: 'Able to recover quickly from difficulty.', ety: 'Latin resilire, "to leap back."', ex: 'A resilient student bounces back from a bad grade.' }
+    { word: 'Resilient',   def: 'Able to recover quickly from difficulty.', ety: 'Latin resilire, "to leap back."', ex: 'A resilient student bounces back from a bad grade.' },
+    { word: 'Lucid',       def: 'Clear and easy to understand.', ety: 'Latin lucidus, "bright, clear."', ex: 'Her lucid explanation made calculus finally click.' },
+    { word: 'Astute',      def: 'Sharp, perceptive, and shrewd.', ety: 'Latin astutus, "crafty."', ex: 'An astute reader caught the author\'s hidden bias.' },
+    { word: 'Verbose',     def: 'Using more words than needed.', ety: 'Latin verbosus, "wordy."', ex: 'He trimmed his verbose intro to one sharp sentence.' },
+    { word: 'Cogent',      def: 'Clear, logical, and convincing.', ety: 'Latin cogere, "to compel."', ex: 'Her cogent argument won the debate.' },
+    { word: 'Prudent',     def: 'Acting with care and good judgment.', ety: 'Latin prudens, "foreseeing."', ex: 'A prudent student starts the essay early.' },
+    { word: 'Tangible',    def: 'Real and able to be touched or grasped.', ety: 'Latin tangere, "to touch."', ex: 'Daily review brought tangible gains on the test.' },
+    { word: 'Arduous',     def: 'Difficult and requiring great effort.', ety: 'Latin arduus, "steep."', ex: 'The arduous proof took three pages.' },
+    { word: 'Concise',     def: 'Brief but comprehensive.', ety: 'Latin concidere, "to cut up."', ex: 'A concise thesis states the point in one line.' },
+    { word: 'Profound',    def: 'Very deep in meaning or insight.', ety: 'Latin profundus, "deep."', ex: 'The novel ends on a profound note about memory.' },
+    { word: 'Scrutinize',  def: 'To examine closely and critically.', ety: 'Latin scrutari, "to search."', ex: 'Scrutinize each source before citing it.' },
+    { word: 'Coherent',    def: 'Logically connected and consistent.', ety: 'Latin cohaerere, "to stick together."', ex: 'A coherent paragraph follows one clear idea.' },
+    { word: 'Inevitable',  def: 'Certain to happen; unavoidable.', ety: 'Latin inevitabilis, "unavoidable."', ex: 'With steady practice, improvement felt inevitable.' },
+    { word: 'Novel',       def: 'New, original, or unusual.', ety: 'Latin novellus, "new."', ex: 'She took a novel approach to the lab.' },
+    { word: 'Succinct',    def: 'Expressed clearly in few words.', ety: 'Latin succinctus, "tucked up."', ex: 'Keep your conclusion succinct and strong.' }
 ];
 function _wodLoad() { try { return JSON.parse(localStorage.getItem('wod_saved_vocab') || '[]'); } catch (_) { return []; } }
 function _wodSaveList(a) { localStorage.setItem('wod_saved_vocab', JSON.stringify(a)); }
@@ -16837,6 +16862,21 @@ function openDiagnostics() {
     document.body.appendChild(modal);
 }
 
+// v17.5 — accessibility: give icon-only controls a screen-reader label by copying their
+// title to aria-label (and a generic fallback for unlabeled icon buttons). Runs on load
+// and after navigation so dynamically-rendered controls get labelled too.
+function _a11yAriaSweep() {
+    try {
+        document.querySelectorAll('button[title]:not([aria-label]), [onclick][title]:not([aria-label])').forEach(function (el) {
+            var t = el.getAttribute('title'); if (t && t.trim()) el.setAttribute('aria-label', t.trim());
+        });
+        document.querySelectorAll('button:not([aria-label]):not([title])').forEach(function (b) {
+            if (!b.textContent.trim() && b.querySelector('i')) b.setAttribute('aria-label', 'button');
+        });
+    } catch (_) {}
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_a11yAriaSweep, 900); });
+
 // v17.0 — Battery saver: pause canvas animations while the tab is hidden, resume on return.
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
@@ -17172,6 +17212,19 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.5',
+        date: 'June 16, 2026',
+        tag: 'UPDATE 17.5 — POLISH PASS',
+        tagColor: '#00b894',
+        changes: [
+            'ACCESSIBILITY — Added a "skip to content" link, proper navigation/main landmarks, keyboard focus rings, and automatic screen-reader labels on icon buttons across the app.',
+            'MOBILE — Shop and grids now fit phone screens instead of overflowing, bigger touch targets, floating panels stay on-screen, and more bottom padding so nothing gets cut off.',
+            'MORE CONTENT — Word of the Day grew from 16 to 30 words, and 10 fresh daily challenges were added across every subject.',
+            'PERFORMANCE — Cursor-trail effects are now frame-capped so they stay smooth, on top of pausing animations when the tab is in the background.',
+            'LOCALIZATION — Expanded the Spanish/French dictionary and added support for tagging more elements for translation (still scoped to the app\'s labels, not AI output).',
+        ]
+    },
     {
         version: 'v17.4',
         date: 'June 15, 2026',
@@ -25383,6 +25436,17 @@ var DAILY_CHALLENGES=[
     {subject:'Mixed',difficulty:'easy',  question:'Convert 5 km to meters.',answer:'5,000 meters',hint:'1 km = 1,000 m.'},
     {subject:'Mixed',difficulty:'easy',  question:'What does "protagonist" mean in a story?',answer:'The main character — typically the hero or central figure',hint:'From Greek "protos" (first) + "agonist" (actor/contestant).'},
     {subject:'Mixed',difficulty:'hard',  question:'What is the difference between weather and climate?',answer:'Weather is the short-term atmospheric conditions in a place; climate is the average pattern of weather over 30+ years.',hint:'"Climate is what you expect; weather is what you get."'},
+    // ── v17.5 — fresh batch ───────────────────────────────────────
+    {subject:'Math',difficulty:'easy',  question:'What is 9 × 12?',answer:'108',hint:'9 × 12 = 9 × 10 + 9 × 2.'},
+    {subject:'Math',difficulty:'medium',question:'Solve for x: 5(x − 2) = 35',answer:'x = 9',hint:'Divide both sides by 5 first, then add 2.'},
+    {subject:'Math',difficulty:'hard',  question:'What is the derivative of 3x² + 2x?',answer:'6x + 2',hint:'Power rule: d/dx[xⁿ] = n·xⁿ⁻¹.'},
+    {subject:'Science',difficulty:'easy',  question:'What gas do plants absorb for photosynthesis?',answer:'Carbon dioxide (CO₂)',hint:'They release oxygen in return.'},
+    {subject:'Science',difficulty:'medium',question:'State Newton\'s Second Law as a formula.',answer:'F = m × a',hint:'Force equals mass times acceleration.'},
+    {subject:'Science',difficulty:'hard',  question:'What is the pH of a neutral solution at 25°C?',answer:'7',hint:'Below 7 is acidic, above 7 is basic.'},
+    {subject:'English',difficulty:'easy',  question:'What is a synonym for "happy"?',answer:'Joyful, content, cheerful, or elated (any one)',hint:'Think of words that mean the same feeling.'},
+    {subject:'English',difficulty:'medium',question:'What is a metaphor?',answer:'A direct comparison of two unlike things without "like" or "as" (e.g., "time is a thief")',hint:'A simile uses like/as; a metaphor says one thing IS another.'},
+    {subject:'Social',difficulty:'easy',  question:'On what continent is Egypt located?',answer:'Africa',hint:'It sits in the northeast corner, along the Nile.'},
+    {subject:'Social',difficulty:'medium',question:'What document begins with "We the People"?',answer:'The U.S. Constitution',hint:'Its preamble opens with those three words.'}
 ];
 function getTodayChallenge(){var today=new Date().toISOString().slice(0,10),seed=today.replace(/-/g,''),idx=parseInt(seed)%DAILY_CHALLENGES.length;return Object.assign({},DAILY_CHALLENGES[idx],{index:idx});}
 function getDailyChallengeState(){try{return JSON.parse(localStorage.getItem('daily_challenge_state')||'{}');}catch{return{};}}
