@@ -18,6 +18,22 @@ const EMAILJS_PUBLIC_KEY  = '';
 const EMAILJS_SERVICE_ID  = '';
 const EMAILJS_TEMPLATE_ID = '';
 
+// v17.6 — Client-side error monitoring (privacy-respecting: stays in this browser).
+// Registered first so it catches errors anywhere in the app; surfaced in Diagnostics.
+(function () {
+    function _logNexusError(kind, msg, where) {
+        try {
+            var log = JSON.parse(localStorage.getItem('nexus_error_log') || '[]');
+            log.unshift({ ts: new Date().toISOString(), kind: kind, msg: String(msg == null ? 'unknown' : msg).slice(0, 300), where: where ? String(where).slice(0, 160) : '' });
+            if (log.length > 50) log.length = 50;
+            localStorage.setItem('nexus_error_log', JSON.stringify(log));
+        } catch (_) {}
+    }
+    window.addEventListener('error', function (e) { _logNexusError('error', e.message, (e.filename || '') + (e.lineno ? ':' + e.lineno : '')); });
+    window.addEventListener('unhandledrejection', function (e) { _logNexusError('promise', (e.reason && e.reason.message) || e.reason, ''); });
+    window._logNexusError = _logNexusError;
+})();
+
 function getApiKey() {
     // Personal key set → use it, no limit applies
     const personal = localStorage.getItem('openai_api_key');
@@ -1627,6 +1643,13 @@ function _sendNexusReceipt(email, planLabel, price) {
 
 // v17.1 — Waitlist signup (no card collected). Real billing waits on a backend + Stripe.
 // During beta the app is free: a valid email joins the launch list and unlocks beta access.
+function _paymentCheckAge() {
+    var dob = document.getElementById('pay-dob');
+    var block = document.getElementById('pay-consent-block');
+    if (!dob || !block) return;
+    var age = (typeof _ageFromDob === 'function') ? _ageFromDob(dob.value) : null;
+    block.style.display = (age !== null && age < 13) ? 'block' : 'none';
+}
 function submitPayment(event) {
     if (event && event.preventDefault) event.preventDefault();
     const nameEl = document.getElementById('pay-name');
@@ -1636,6 +1659,16 @@ function submitPayment(event) {
         showToast('Please enter a valid email so we can notify you at launch.', 'error', 3500);
         if (emailEl) emailEl.focus();
         return;
+    }
+    // v17.6 — age gate parity with the signup flow (children's-privacy)
+    const _dobVal = (document.getElementById('pay-dob') || {}).value || '';
+    const _age = (typeof _ageFromDob === 'function') ? _ageFromDob(_dobVal) : null;
+    if (_age === null || _age < 0 || _age > 120) { showToast('Please enter a valid date of birth.', 'error', 3500); var d = document.getElementById('pay-dob'); if (d) d.focus(); return; }
+    const _u13 = _age < 13;
+    const _parentEmail = ((document.getElementById('pay-parent-email') || {}).value || '').trim();
+    if (_u13) {
+        const _pc = (document.getElementById('pay-parent-consent') || {}).checked;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_parentEmail) || !_pc) { showToast('A parent/guardian email and consent are required for users under 13.', 'error', 4000); return; }
     }
     const submitBtn = document.getElementById('pay-submit-btn');
     if (submitBtn) {
@@ -1652,6 +1685,12 @@ function submitPayment(event) {
             localStorage.setItem('nexus_waitlist', JSON.stringify(list));
         } catch (_) {}
         localStorage.setItem('auth_email', email);
+        // v17.6 — persist age-gate result for the consent record
+        try {
+            var _u = localStorage.getItem('auth_user') || email;
+            if (_dobVal) localStorage.setItem('user_dob_' + _u, _dobVal);
+            if (_u13) localStorage.setItem('parental_consent_' + _u, JSON.stringify({ parentEmail: _parentEmail, consentedAt: new Date().toISOString() }));
+        } catch (_) {}
         // Free beta: unlock the app so testers can use it (no payment taken).
         setUserTier(plan);
         const granted = grantStarterGold(plan);
@@ -7459,7 +7498,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.5';
+const NEXUS_CURRENT_VERSION = 'v17.6';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -16834,6 +16873,9 @@ function runNexusDiagnostics() {
     // per-user keys sanity
     try { if (Array.isArray(PER_USER_KEYS) && PER_USER_KEYS.indexOf('user_inventory') >= 0) pass('PER_USER_KEYS registered'); else warn('PER_USER_KEYS', 'unexpected shape'); } catch (e) {}
 
+    // logged JS errors (from the error monitor)
+    try { var _el = JSON.parse(localStorage.getItem('nexus_error_log') || '[]'); if (_el.length) warn('JavaScript errors', _el.length + ' logged — see list below'); else pass('no JavaScript errors logged'); } catch (e) {}
+
     return r;
 }
 function openDiagnostics() {
@@ -16851,6 +16893,12 @@ function openDiagnostics() {
         + '<i class="ph ' + icon[x.s] + '" style="color:' + color[x.s] + ';flex-shrink:0;margin-top:2px;"></i>'
         + '<div style="flex:1;"><span style="font-size:0.85rem;color:#dde0ee;">' + escapeHtmlSafe(x.name) + '</span>'
         + (x.d ? '<div style="font-size:0.74rem;color:' + color[x.s] + ';">' + escapeHtmlSafe(x.d) + '</div>' : '') + '</div></div>').join('');
+    var errLog = []; try { errLog = JSON.parse(localStorage.getItem('nexus_error_log') || '[]'); } catch (_) {}
+    const errHtml = errLog.length
+        ? '<div style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong style="color:#ff6b6b;font-size:0.85rem;"><i class="ph ph-bug"></i> Recent errors (' + errLog.length + ')</strong><button class="btn-secondary" style="font-size:0.72rem;padding:3px 8px;" onclick="localStorage.removeItem(\'nexus_error_log\');openDiagnostics();">Clear</button></div>'
+            + errLog.slice(0, 15).map(function (x) { return '<div style="font-size:0.72rem;color:#cdd2e0;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><span style="color:#ff9a9a;">[' + x.kind + ']</span> ' + escapeHtmlSafe(x.msg) + (x.where ? '<span style="color:var(--text-muted);"> — ' + escapeHtmlSafe(x.where) + '</span>' : '') + '</div>'; }).join('')
+            + '</div>'
+        : '<div style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;font-size:0.8rem;color:#00b894;"><i class="ph ph-check-circle"></i> No JavaScript errors logged.</div>';
     modal.innerHTML = '<div class="glass-panel" style="max-width:600px;width:96%;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-stethoscope" style="color:#a29bfe;"></i> NEXUS Diagnostics</h3><button class="btn-icon" onclick="document.getElementById(\'diag-modal\').remove()"><i class="ph ph-x"></i></button></div>'
         + '<div style="display:flex;gap:8px;padding:12px 20px;flex-shrink:0;border-bottom:1px solid var(--glass-border);">'
@@ -16858,7 +16906,7 @@ function openDiagnostics() {
         + '<span style="font-size:0.85rem;color:' + color.warn + ';font-weight:700;">⚠ ' + counts.warn + ' warnings</span>'
         + '<span style="font-size:0.85rem;color:' + color.fail + ';font-weight:700;">✕ ' + counts.fail + ' failed</span>'
         + '<button class="btn-secondary" style="margin-left:auto;font-size:0.78rem;padding:4px 10px;" onclick="openDiagnostics()"><i class="ph ph-arrow-clockwise"></i> Re-run</button></div>'
-        + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + '</div></div>';
+        + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + errHtml + '</div></div>';
     document.body.appendChild(modal);
 }
 
@@ -16876,6 +16924,23 @@ function _a11yAriaSweep() {
     } catch (_) {}
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_a11yAriaSweep, 900); });
+
+// v17.6 — consistent AI accuracy/integrity disclaimer across every AI surface.
+// Added as a persistent sibling at the bottom of each AI view (survives output re-renders).
+function _injectAiDisclaimers() {
+    var note = 'NEXUS uses AI — it can make mistakes. Double-check important answers, and use it to learn, not to cheat.';
+    ['view-math', 'view-english', 'view-science', 'view-social', 'view-notebook', 'view-tools'].forEach(function (vid) {
+        var v = document.getElementById(vid);
+        if (v && !v.querySelector('.ai-disclaimer')) {
+            var d = document.createElement('div');
+            d.className = 'ai-disclaimer';
+            d.style.cssText = 'margin:20px auto 6px;max-width:680px;font-size:0.74rem;color:var(--text-muted);text-align:center;opacity:0.85;';
+            d.innerHTML = '<i class="ph ph-warning-circle"></i> ' + note;
+            v.appendChild(d);
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_injectAiDisclaimers, 1000); });
 
 // v17.0 — Battery saver: pause canvas animations while the tab is hidden, resume on return.
 document.addEventListener('visibilitychange', function () {
@@ -17212,6 +17277,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v17.6',
+        date: 'June 16, 2026',
+        tag: 'UPDATE 17.6 — GA HARDENING',
+        tagColor: '#a29bfe',
+        changes: [
+            'ERROR MONITORING — NEXUS now quietly logs any JavaScript errors in your browser (privacy-respecting, stays local) and shows them in Settings → Data → Run Self-Test, so breakage is easy to spot.',
+            'AGE-GATE EVERYWHERE — The upgrade/checkout screen now asks for date of birth and under-13 parental consent too, matching the sign-up flow (no path skips it).',
+            'CLEAR AI DISCLAIMERS — Every AI area (Math, Science, English, Social Studies, Notebook, tools) now carries a short reminder that AI can be wrong and should be used to learn, not to cheat.',
+            'SHARPER POSITIONING — The "why NEXUS" comparison now leads with the teaching angle, and Live Vision is described as explaining problems (not harvesting answers).',
+        ]
+    },
     {
         version: 'v17.5',
         date: 'June 16, 2026',
