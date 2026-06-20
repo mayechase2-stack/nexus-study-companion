@@ -22451,7 +22451,7 @@ const LEGAL_TEXT = {
         <h4 style="color:white;margin-top:14px;">Children's privacy</h4>
         <p>NEXUS is intended for students aged 13 and older. At sign-up we ask for date of birth to confirm age. If a user is under 13, we require a parent or guardian's email and explicit consent before the account is created — including consent for AI features that send prompts to OpenAI. A parent or guardian may request access to, or deletion of, their child's data at the contact email below. We do not knowingly collect personal information from children under 13 without verifiable parental consent.</p>
         <h4 style="color:white;margin-top:14px;">Contact</h4>
-        <p>For privacy questions, data access, or deletion requests: <a href="mailto:nexusasc@gmail.com" style="color:var(--accent);">nexusasc@gmail.com</a>.</p>`,
+        <p>For privacy questions, data access, or deletion requests: <a href="mailto:support@nexusasc.com" style="color:var(--accent);">support@nexusasc.com</a>.</p>`,
     tos: `<h3 style="color:var(--accent);">NEXUS Terms of Service</h3>
         <p><em>Last updated: ${new Date().toLocaleDateString()}</em></p>
         <p><strong>1. Eligibility.</strong> You must be at least 13 years old to use NEXUS. If you're under 18, a parent or guardian must agree to these terms on your behalf.</p>
@@ -22463,7 +22463,7 @@ const LEGAL_TEXT = {
         <p><strong>7. Limitation of liability.</strong> Our total liability is limited to the amount you paid in the last 12 months.</p>
         <p><strong>8. Changes.</strong> We may update these terms. Material changes will be announced in-app at least 14 days before they take effect.</p>
         <p><strong>9. Governing law.</strong> These terms are governed by the laws of your jurisdiction.</p>
-        <p><strong>10. Contact.</strong> For questions or support: <a href="mailto:nexusasc@gmail.com" style="color:var(--accent);">nexusasc@gmail.com</a>.</p>`
+        <p><strong>10. Contact.</strong> For questions or support: <a href="mailto:support@nexusasc.com" style="color:var(--accent);">support@nexusasc.com</a>.</p>`
 };
 function openLegalModal(which) {
     const m = document.getElementById('legal-modal');
