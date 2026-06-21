@@ -34,6 +34,25 @@ const EMAILJS_TEMPLATE_ID = '';
     window._logNexusError = _logNexusError;
 })();
 
+// ════════════════════════════════════════════════════════════════════
+// Phase 2 — Supabase (real accounts + cross-device cloud sync).
+// The publishable/anon key is PUBLIC by design — your data is protected by
+// row-level security on the server, not by hiding this key. Safe to commit.
+// ════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://hmgouywiiqukisupqbsq.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_O_iCo_B5LbnDla_w5_nTmw_lmf7o14X';
+let nexusSB = null;
+function _initSupabase() {
+    try {
+        if (!nexusSB && window.supabase && typeof window.supabase.createClient === 'function' && SUPABASE_URL && SUPABASE_ANON_KEY) {
+            nexusSB = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            window.nexusSB = nexusSB;
+        }
+    } catch (e) { if (window._logNexusError) window._logNexusError('supabase-init', e && e.message); }
+    return nexusSB;
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_initSupabase, 200); });
+
 function getApiKey() {
     // Personal key set → use it, no limit applies
     const personal = localStorage.getItem('openai_api_key');
@@ -16869,6 +16888,13 @@ function runNexusDiagnostics() {
     // API key (informational)
     try { if (typeof getApiKey === 'function' && getApiKey()) pass('OpenAI API key is set'); else warn('OpenAI API key', 'not set — AI features need a key in Settings'); }
     catch (e) { warn('API key', e.message); }
+
+    // Supabase cloud (Phase 2)
+    try {
+        if (!window.supabase) warn('Supabase library', 'not loaded yet (CDN) — check your connection');
+        else if (window.nexusSB) pass('Supabase client connected');
+        else warn('Supabase client', 'library loaded but client not initialized');
+    } catch (e) { warn('Supabase', e.message); }
 
     // per-user keys sanity
     try { if (Array.isArray(PER_USER_KEYS) && PER_USER_KEYS.indexOf('user_inventory') >= 0) pass('PER_USER_KEYS registered'); else warn('PER_USER_KEYS', 'unexpected shape'); } catch (e) {}

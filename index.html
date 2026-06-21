@@ -11,6 +11,8 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- v16.5 — EmailJS (client-side receipt emails on purchase) -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- Phase 2 — Supabase client (real accounts + cloud sync) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <meta name="description" content="NEXUS — AI-powered study companion for high school students. Math, Science, English, Social Studies, GPA tracking, flashcards, and more.">
     <!-- v17.7 — social share / link-preview meta (used by Discord, iMessage, Twitter, etc.) -->
     <link rel="canonical" href="https://nexusasc.com/">
@@ -29,7 +31,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260620a">
+    <link rel="stylesheet" href="style.css?v=20260620b">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -5092,7 +5094,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260620a"></script>
+    <script src="script.js?v=20260620b"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
