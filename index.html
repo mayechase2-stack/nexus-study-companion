@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260620d">
+    <link rel="stylesheet" href="style.css?v=20260620e">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -4311,6 +4311,8 @@ if __name__ == '__main__':
                                     <button class="btn-primary" onclick="cloudUiBackup()" style="font-size:0.85rem;"><i class="ph ph-cloud-arrow-up"></i> Back up now</button>
                                     <button class="btn-secondary" onclick="cloudUiRestore()" style="font-size:0.85rem;"><i class="ph ph-cloud-arrow-down"></i> Restore</button>
                                 </div>
+                                <button class="btn-secondary" onclick="cloudUiTestAI()" style="width:100%;font-size:0.82rem;margin-bottom:8px;"><i class="ph ph-robot"></i> Test hosted AI</button>
+                                <div id="cloud-ai-test-out" style="display:none;font-size:0.8rem;color:#cdd2e0;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;padding:8px 10px;margin-bottom:8px;word-break:break-word;"></div>
                                 <button class="btn-secondary" onclick="cloudUiSignOut()" style="width:100%;font-size:0.82rem;">Sign out of cloud</button>
                             </div>
                         </div>
@@ -5121,7 +5123,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260620d"></script>
+    <script src="script.js?v=20260620e"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

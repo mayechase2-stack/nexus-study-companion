@@ -129,6 +129,37 @@ async function cloudUiRestore() {
         });
     } catch (e) { showToast('Restore failed: ' + (e.message || e), 'error', 5000); }
 }
+// Phase 2b — call the hosted AI proxy (Edge Function) using the signed-in cloud session.
+async function callHostedAI(opts) {
+    opts = opts || {};
+    if (!nexusSB) _initSupabase();
+    if (!nexusSB) throw new Error('Cloud not available');
+    const s = await nexusSB.auth.getSession();
+    const token = s && s.data && s.data.session && s.data.session.access_token;
+    if (!token) throw new Error('Sign in to Cloud first (Settings → Data → Cloud Sync).');
+    const resp = await fetch(SUPABASE_URL + '/functions/v1/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+            messages: opts.messages || [],
+            model: opts.model || 'gpt-4o-mini',
+            temperature: opts.temperature,
+            max_tokens: opts.max_tokens,
+            response_format: opts.response_format
+        })
+    });
+    const data = await resp.json().catch(function () { return {}; });
+    if (!resp.ok) throw new Error(data.error || ('Hosted AI error (' + resp.status + ')'));
+    return data; // { content, used, limit }
+}
+async function cloudUiTestAI() {
+    const out = document.getElementById('cloud-ai-test-out');
+    if (out) { out.style.display = 'block'; out.textContent = '⏳ Testing hosted AI…'; }
+    try {
+        const res = await callHostedAI({ messages: [{ role: 'user', content: 'Reply with exactly: Hosted AI is working!' }], model: 'gpt-4o-mini', max_tokens: 20 });
+        if (out) out.textContent = '✅ ' + (res.content || '(empty reply)') + '   (used ' + res.used + '/' + res.limit + ' this month)';
+    } catch (e) { if (out) out.textContent = '❌ ' + (e.message || e); }
+}
 async function _cloudRefreshUi() {
     const out = document.getElementById('cloud-signed-out'), inn = document.getElementById('cloud-signed-in'), status = document.getElementById('cloud-status');
     if (!out || !inn) return;
