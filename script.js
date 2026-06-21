@@ -16843,7 +16843,7 @@ function runNexusDiagnostics() {
     });
 
     // main views present in DOM
-    ['view-home', 'view-math', 'view-science', 'view-english', 'view-social', 'view-notebook', 'view-shop', 'view-inventory', 'view-profile', 'view-leaderboard', 'view-suggestions', 'view-updates'].forEach(v => {
+    ['view-home', 'view-math', 'view-science', 'view-english', 'view-social', 'view-notebook', 'view-shop', 'view-inventory', 'view-achievements', 'view-leaderboard', 'view-suggestions', 'view-updates'].forEach(v => {
         if (document.getElementById(v)) pass('view: ' + v); else warn('view: ' + v, 'not found in DOM');
     });
 
