@@ -1500,7 +1500,7 @@ const PER_USER_KEYS = [
     'last_app_open_day', 'difficulty_mode', 'notebook_notes',
     'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
     'study_planner', 'wod_saved_vocab', // v17.0
-    'last_mystery_box', 'nexus_waitlist', // v17.1
+    'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
     'starter_gold_granted'    // prefix key — cleared by username suffix at signup
 ];
 
@@ -16938,6 +16938,66 @@ function deleteAllMyData() {
         showToast('Your data has been permanently deleted.', 'info', 3000);
         setTimeout(function () { location.reload(); }, 1200);
     });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 3 — BUILD-YOUR-OWN PLAN (à la carte modules @ $2/mo, min 4)
+// Beta: selecting a plan is free + grants the modules locally. Real Stripe
+// checkout + per-module gating wire in next.
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_MODULES = [
+    { id: 'math', name: 'Math', tabs: ['math'] },
+    { id: 'science', name: 'Science', tabs: ['science'] },
+    { id: 'english', name: 'English Aid', tabs: ['english'] },
+    { id: 'social', name: 'Social Studies', tabs: ['social'] },
+    { id: 'notebook', name: 'Smart Notebook + Focus', desc: 'Notes, canvas, quiz-gen, flashcards, concept map, lo-fi & ambient, Pomodoro', tabs: ['notebook'] },
+    { id: 'command', name: 'AI Command Center', desc: 'Debate, daily challenge, prompt tools, practice tests', tabs: ['dashboard', 'tools'] },
+    { id: 'shop', name: 'Shop, Customization + Companion', desc: 'Themes, cursors, wallpapers, fonts, effects, inventory, and the NEXUS Sprite', tabs: ['shop', 'inventory'] },
+    { id: 'competition', name: 'Competition', desc: 'Leaderboard, achievements, quests, credits', tabs: ['leaderboard', 'achievements'] }
+];
+const MODULE_PRICE = 2;
+const MODULE_MIN = 4;
+function _getOwnedModules() { try { return JSON.parse(localStorage.getItem('nexus_modules') || '[]'); } catch (_) { return []; } }
+function _saveOwnedModules(a) { localStorage.setItem('nexus_modules', JSON.stringify(a)); }
+function hasModule(id) { if (typeof isOwner === 'function' && isOwner()) return true; return _getOwnedModules().indexOf(id) >= 0; }
+function _pbSelected() { return Array.prototype.map.call(document.querySelectorAll('.pb-mod:checked'), function (c) { return c.value; }); }
+function _pbRecount() {
+    const n = _pbSelected().length, total = n * MODULE_PRICE;
+    const t = document.getElementById('pb-total'), btn = document.getElementById('pb-confirm');
+    if (t) t.innerHTML = '$' + total + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span> · ' + n + ' module' + (n !== 1 ? 's' : '');
+    if (btn) {
+        if (n < MODULE_MIN) { btn.disabled = true; btn.textContent = 'Pick ' + (MODULE_MIN - n) + ' more'; btn.style.opacity = '0.5'; }
+        else { btn.disabled = false; btn.innerHTML = 'Subscribe — $' + total + '/mo'; btn.style.opacity = '1'; }
+    }
+}
+function _pbConfirm() {
+    const sel = _pbSelected();
+    if (sel.length < MODULE_MIN) { showToast('Pick at least ' + MODULE_MIN + ' modules.', 'warning'); return; }
+    _saveOwnedModules(sel);
+    showToast('🧩 Plan saved: ' + sel.length + ' modules ($' + (sel.length * MODULE_PRICE) + '/mo). Free during beta!', 'success', 5000);
+    const m = document.getElementById('plan-builder-modal'); if (m) m.remove();
+}
+function openPlanBuilder() {
+    const owned = _getOwnedModules();
+    const existing = document.getElementById('plan-builder-modal'); if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'plan-builder-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    const rows = NEXUS_MODULES.map(function (m) {
+        const checked = owned.indexOf(m.id) >= 0 ? 'checked' : '';
+        return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--glass-border);border-radius:10px;margin-bottom:8px;cursor:pointer;">'
+            + '<input type="checkbox" class="pb-mod" value="' + m.id + '" ' + checked + ' onchange="_pbRecount()" style="accent-color:var(--accent);margin-top:3px;width:16px;height:16px;flex-shrink:0;">'
+            + '<div style="flex:1;"><div style="font-weight:700;color:#fff;font-size:0.9rem;">' + m.name + ' <span style="color:var(--accent);font-weight:600;">$2/mo</span></div>'
+            + (m.desc ? '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:2px;">' + m.desc + '</div>' : '') + '</div></label>';
+    }).join('');
+    modal.innerHTML = '<div class="glass-panel" style="max-width:560px;width:96%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.1rem;"><i class="ph ph-puzzle-piece" style="color:#a29bfe;"></i> Build Your Plan</h3><button class="btn-icon" onclick="document.getElementById(\'plan-builder-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;"><p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 12px;">Pick the modules you want — <strong style="color:#fff;">$2/mo each</strong>, minimum <strong style="color:#fff;">' + MODULE_MIN + '</strong>. Want it all? Check everything.</p>' + rows + '</div>'
+        + '<div style="padding:14px 20px;border-top:1px solid var(--glass-border);flex-shrink:0;display:flex;align-items:center;gap:12px;"><div id="pb-total" style="font-weight:800;color:#fff;font-size:1.05rem;"></div><button id="pb-confirm" class="btn-primary" style="margin-left:auto;" onclick="_pbConfirm()">Subscribe</button></div>'
+        + '</div>';
+    document.body.appendChild(modal);
+    _pbRecount();
 }
 
 // ════════════════════════════════════════════════════════════════════
