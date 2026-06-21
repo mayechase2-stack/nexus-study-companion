@@ -18870,6 +18870,7 @@ let nexusUnlockCooldown = false;
 
 document.addEventListener('keydown', (e) => {
     if (nexusUnlockCooldown) return;
+    if (!e.key) return; // some events (autofill/IME) fire without a key — avoid toLowerCase on undefined
     const expected = NEXUS_SECRET_CODE[nexusCodeProgress.length];
     if (e.key.toLowerCase() === expected) {
         nexusCodeProgress.push(e.key.toLowerCase());
@@ -19035,6 +19036,7 @@ document.addEventListener('keydown', (e) => {
     // Only trigger inside the Command Center / dashboard
     const dashView = document.getElementById('view-dashboard');
     if (!dashView || !dashView.classList.contains('active')) return;
+    if (!e.key) return;
 
     const key = e.key.toLowerCase();
     const expected = SASUKE_KEY_SEQUENCE[sasukeKeyProgress.length];
