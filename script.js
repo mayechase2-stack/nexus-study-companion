@@ -53,6 +53,94 @@ function _initSupabase() {
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_initSupabase, 200); });
 
+// ════════════════════════════════════════════════════════════════════
+// Phase 2a — CLOUD SYNC (Supabase Auth + app_state table)
+// Additive layer: a real cloud account that backs up the user's data and
+// restores it on any device. Does not replace the existing local login.
+// ════════════════════════════════════════════════════════════════════
+async function _cloudUser() {
+    try { if (!nexusSB) _initSupabase(); if (!nexusSB) return null; const r = await nexusSB.auth.getUser(); return (r && r.data) ? r.data.user : null; } catch (_) { return null; }
+}
+function _collectSyncBlob() {
+    const blob = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || k.indexOf('sb-') === 0 || k.indexOf('cloud_') === 0) continue; // skip Supabase session + sync meta
+        blob[k] = localStorage.getItem(k);
+    }
+    return blob;
+}
+function _applySyncBlob(blob) {
+    if (!blob || typeof blob !== 'object') return;
+    Object.keys(blob).forEach(function (k) { try { localStorage.setItem(k, blob[k]); } catch (_) {} });
+}
+async function cloudUiSignUp() {
+    const email = ((document.getElementById('cloud-email') || {}).value || '').trim();
+    const pass = (document.getElementById('cloud-pass') || {}).value || '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid email.', 'error'); return; }
+    if (pass.length < 8) { showToast('Cloud password must be at least 8 characters.', 'error'); return; }
+    if (!nexusSB) _initSupabase();
+    if (!nexusSB) { showToast('Cloud not available right now.', 'error'); return; }
+    try {
+        const { data, error } = await nexusSB.auth.signUp({ email: email, password: pass });
+        if (error) throw error;
+        if (data && data.session) { showToast('☁️ Cloud account created — backing up your data…', 'success', 4000); await cloudUiBackup(true); }
+        else { showToast('Account created! Check your email to confirm, then Sign in.', 'info', 7000); }
+        _cloudRefreshUi();
+    } catch (e) { showToast('Sign-up failed: ' + (e.message || e), 'error', 5000); }
+}
+async function cloudUiSignIn() {
+    const email = ((document.getElementById('cloud-email') || {}).value || '').trim();
+    const pass = (document.getElementById('cloud-pass') || {}).value || '';
+    if (!email || !pass) { showToast('Enter your cloud email and password.', 'error'); return; }
+    if (!nexusSB) _initSupabase();
+    if (!nexusSB) { showToast('Cloud not available right now.', 'error'); return; }
+    try {
+        const { error } = await nexusSB.auth.signInWithPassword({ email: email, password: pass });
+        if (error) throw error;
+        showToast('☁️ Signed in to cloud. Use "Restore" to pull your data here.', 'success', 5000);
+        _cloudRefreshUi();
+    } catch (e) { showToast('Sign-in failed: ' + (e.message || e), 'error', 5000); }
+}
+async function cloudUiSignOut() {
+    try { if (nexusSB) await nexusSB.auth.signOut(); } catch (_) {}
+    showToast('Signed out of cloud.', 'info'); _cloudRefreshUi();
+}
+async function cloudUiBackup(silent) {
+    try {
+        const user = await _cloudUser(); if (!user) { showToast('Sign in to cloud first.', 'error'); return; }
+        const { error } = await nexusSB.from('app_state').upsert({ user_id: user.id, data: _collectSyncBlob(), updated_at: new Date().toISOString() });
+        if (error) throw error;
+        localStorage.setItem('cloud_last_sync', new Date().toISOString());
+        if (!silent) showToast('☁️ Backed up to the cloud.', 'success');
+        _cloudRefreshUi();
+    } catch (e) { showToast('Backup failed: ' + (e.message || e), 'error', 5000); }
+}
+async function cloudUiRestore() {
+    try {
+        const user = await _cloudUser(); if (!user) { showToast('Sign in to cloud first.', 'error'); return; }
+        const { data, error } = await nexusSB.from('app_state').select('data').eq('user_id', user.id).maybeSingle();
+        if (error) throw error;
+        if (!data || !data.data) { showToast('No cloud backup found for this account yet — Back up first.', 'info', 5000); return; }
+        showConfirm('Restore from cloud', 'This replaces the data on THIS device with your cloud backup, then reloads. Continue?', function () {
+            _applySyncBlob(data.data);
+            showToast('☁️ Restored from cloud. Reloading…', 'success', 2500);
+            setTimeout(function () { location.reload(); }, 1500);
+        });
+    } catch (e) { showToast('Restore failed: ' + (e.message || e), 'error', 5000); }
+}
+async function _cloudRefreshUi() {
+    const out = document.getElementById('cloud-signed-out'), inn = document.getElementById('cloud-signed-in'), status = document.getElementById('cloud-status');
+    if (!out || !inn) return;
+    const user = await _cloudUser();
+    if (user) {
+        out.style.display = 'none'; inn.style.display = 'block';
+        const last = localStorage.getItem('cloud_last_sync');
+        if (status) status.innerHTML = 'Signed in as <strong style="color:#fff;">' + escapeHtmlSafe(user.email || 'cloud user') + '</strong>' + (last ? '<br><span style="font-size:0.74rem;color:var(--text-muted);">Last backup: ' + new Date(last).toLocaleString() + '</span>' : '');
+    } else { out.style.display = 'block'; inn.style.display = 'none'; }
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_cloudRefreshUi, 700); });
+
 function getApiKey() {
     // Personal key set → use it, no limit applies
     const personal = localStorage.getItem('openai_api_key');
@@ -7517,7 +7605,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v17.6';
+const NEXUS_CURRENT_VERSION = 'v18.0';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -17303,6 +17391,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v18.0',
+        date: 'June 20, 2026',
+        tag: 'UPDATE 18 — CLOUD ACCOUNTS',
+        tagColor: '#00CEC9',
+        changes: [
+            'CLOUD SYNC (beta) — In Settings → Data → Cloud Sync, create a real cloud account, back up your data, and restore it on any device. Your progress now survives a cache-clear and follows you between phone and computer.',
+            'Runs on a secure backend (Supabase) with per-user data isolation (row-level security). This is the foundation for hosted AI and full real accounts coming next.',
+        ]
+    },
     {
         version: 'v17.6',
         date: 'June 16, 2026',
