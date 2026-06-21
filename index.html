@@ -4,6 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Force HTTPS on the live domain — http breaks login (crypto.subtle), the service worker, and Supabase -->
+    <script>
+        if (location.protocol === 'http:' && /(^|\.)nexusasc\.com$/.test(location.hostname)) {
+            location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+        }
+    </script>
     <!-- v17.8 — discoverable: allow search engines to index the live site -->
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#0B0E1A">
