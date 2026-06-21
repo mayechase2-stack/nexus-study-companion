@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621c">
+    <link rel="stylesheet" href="style.css?v=20260621d">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -858,55 +858,15 @@
 
                 <!-- STEP 2: Pick a plan -->
                 <div id="signup-step-2" style="display:none;">
-                    <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">Pick your plan</h2>
-                    <p style="margin:0 0 22px;color:var(--text-muted);font-size:0.9rem;">You can switch or cancel anytime from Settings.</p>
-                    <div style="display:grid;gap:12px;">
-                        <label for="plan-radio-access" id="plan-card-access-radio" style="display:block;padding:18px;background:rgba(0,206,201,0.06);border:2px solid rgba(0,206,201,0.4);border-radius:14px;cursor:pointer;transition:all 0.18s;">
-                            <input type="radio" name="signup-plan" id="plan-radio-access" value="access" checked style="display:none;">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-                                <div>
-                                    <div style="font-size:0.7rem;color:#00CEC9;font-weight:700;letter-spacing:1.5px;">NEXUS ACCESS</div>
-                                    <div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;">Just the four subjects, nothing else.</div>
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:1.5rem;font-weight:800;color:white;line-height:1;">$4.50<span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;">/mo</span></div>
-                                </div>
-                            </div>
-                            <ul style="margin:14px 0 0;padding-left:20px;color:#d0d0e0;font-size:0.82rem;line-height:1.8;">
-                                <li>Math, Science, Social Studies, English</li>
-                                <li>Tutor Mode (Socratic teaching)</li>
-                                <li>Live Vision on every platform</li>
-                                <li style="color:var(--text-muted);opacity:0.6;">No companions, no shop, no Command Center</li>
-                            </ul>
-                        </label>
-                        <label for="plan-radio-pro" id="plan-card-pro-radio" style="display:block;padding:18px;background:linear-gradient(135deg,rgba(108,92,231,0.10),rgba(0,206,201,0.06));border:2px solid rgba(108,92,231,0.4);border-radius:14px;cursor:pointer;transition:all 0.18s;position:relative;">
-                            <span style="position:absolute;top:-10px;right:18px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);color:white;font-size:0.65rem;font-weight:700;padding:3px 10px;border-radius:10px;letter-spacing:1px;box-shadow:0 3px 10px rgba(108,92,231,0.4);">★ RECOMMENDED</span>
-                            <input type="radio" name="signup-plan" id="plan-radio-pro" value="pro" style="display:none;">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-                                <div>
-                                    <div style="font-size:0.7rem;color:#a29bfe;font-weight:700;letter-spacing:1.5px;">NEXUS PRO</div>
-                                    <div style="font-size:0.78rem;color:#00CEC9;margin-top:3px;font-weight:600;">The whole NEXUS experience — $1.50 more.</div>
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:1.5rem;font-weight:800;color:white;line-height:1;">$6.00<span style="font-size:0.78rem;color:var(--text-muted);font-weight:400;">/mo</span></div>
-                                </div>
-                            </div>
-                            <ul style="margin:14px 0 0;padding-left:20px;color:#e8eef8;font-size:0.82rem;line-height:1.7;">
-                                <li>Everything in Access — <strong style="color:#fff;">plus</strong>:</li>
-                                <li>Casual Mode (instant answers when you just need one)</li>
-                                <li>NEXUS Sprite companion — links to your current session and chats in plain English</li>
-                                <li>Command Center, Smart Notebook, full history</li>
-                                <li>Shop with 50+ wallpapers, cursors, fonts, effects</li>
-                                <li>Quests, achievements, daily streaks, leaderboard</li>
-                                <li style="color:#fdcb6e;"><strong>+300 starter gold</strong> on signup</li>
-                            </ul>
-                        </label>
-                    </div>
-                    <div style="display:flex;gap:10px;margin-top:18px;">
+                    <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">Build your plan</h2>
+                    <p style="margin:0 0 16px;color:var(--text-muted);font-size:0.9rem;">Pick the modules you want — <strong style="color:#fff;">$2/mo each</strong>, minimum 4. Want it all? Check everything. <strong style="color:#00CEC9;">Free during beta.</strong></p>
+                    <div id="signup-modules" style="display:grid;gap:8px;max-height:42vh;overflow-y:auto;padding-right:4px;"></div>
+                    <div id="signup-plan-total" style="margin-top:14px;font-weight:800;color:#fff;font-size:1.05rem;"></div>
+                    <div style="display:flex;gap:10px;margin-top:14px;">
                         <button onclick="signupGoToStep(1)" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
                             <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-left"/></svg> Back
                         </button>
-                        <button class="btn-primary" style="flex:2;padding:13px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:10px;color:white;cursor:pointer;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
+                        <button id="signup-plan-continue" class="btn-primary" style="flex:2;padding:13px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:10px;color:white;cursor:pointer;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
                             onclick="signupGoToStep(3)">
                             Continue <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
                         </button>
@@ -5124,7 +5084,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621c"></script>
+    <script src="script.js?v=20260621d"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

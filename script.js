@@ -1140,11 +1140,8 @@ function openSignUpFlow() {
     });
     ['signup-parent-consent','signup-terms-agree'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
     const _cb = document.getElementById('signup-consent-block'); if (_cb) _cb.style.display = 'none';
-    const accessRadio = document.getElementById('plan-radio-access');
-    if (accessRadio) accessRadio.checked = true;
-    _signupUpdatePlanCards();
+    _signupRenderModules();
     _wireSignupPasswordReqs();
-    _wireSignupPlanSelect();
     _wireSignupPaymentFormat();
     const err1 = document.getElementById('signup-step-1-error');
     const err3 = document.getElementById('signup-step-3-error');
@@ -1203,18 +1200,45 @@ function signupGoToStep(n) {
             if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in instead.'); return; }
             if (err) err.style.display = 'none';
         }
+        if (_signupCurrentStep === 2 && n >= 3) {
+            if (_signupSelectedModules().length < MODULE_MIN) { _signupPlanRecount(); return; }
+        }
     }
     _signupShowStep(n);
 }
 
+function _signupSelectedModules() {
+    return Array.prototype.map.call(document.querySelectorAll('.signup-mod:checked'), function (c) { return c.value; });
+}
+function _signupRenderModules() {
+    const wrap = document.getElementById('signup-modules');
+    if (!wrap) return;
+    const owned = _getOwnedModules();
+    wrap.innerHTML = NEXUS_MODULES.map(function (m) {
+        const checked = owned.indexOf(m.id) >= 0 ? 'checked' : '';
+        return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;cursor:pointer;">'
+            + '<input type="checkbox" class="signup-mod" value="' + m.id + '" ' + checked + ' onchange="_signupPlanRecount()" style="accent-color:var(--accent);margin-top:3px;width:16px;height:16px;flex-shrink:0;">'
+            + '<div style="flex:1;"><div style="font-weight:700;color:#fff;font-size:0.9rem;">' + m.name + ' <span style="color:#a29bfe;font-weight:600;">$2/mo</span></div>'
+            + (m.desc ? '<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">' + m.desc + '</div>' : '') + '</div></label>';
+    }).join('');
+    _signupPlanRecount();
+}
+function _signupPlanRecount() {
+    const n = _signupSelectedModules().length, total = n * MODULE_PRICE;
+    const t = document.getElementById('signup-plan-total');
+    if (t) t.innerHTML = n
+        ? ('$' + total + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span> · ' + n + ' module' + (n !== 1 ? 's' : '') + (n < MODULE_MIN ? ' <span style="color:#fdcb6e;font-size:0.8rem;font-weight:600;">— pick ' + (MODULE_MIN - n) + ' more</span>' : ''))
+        : '<span style="color:var(--text-muted);font-size:0.85rem;font-weight:500;">Select at least ' + MODULE_MIN + ' modules</span>';
+    const btn = document.getElementById('signup-plan-continue');
+    if (btn) { const ok = n >= MODULE_MIN; btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.5'; btn.style.cursor = ok ? 'pointer' : 'not-allowed'; }
+    _updateSignupPaymentSummary();
+}
 function _updateSignupPaymentSummary() {
-    const plan = (document.querySelector('input[name="signup-plan"]:checked') || {}).value || 'access';
-    const price = plan === 'pro' ? PRO_PRICE : ACCESS_PRICE;
-    const planLabel = plan === 'pro' ? 'Pro' : 'Access';
+    const n = _signupSelectedModules().length, total = n * MODULE_PRICE;
     const label = document.getElementById('signup-pay-submit-label');
     if (label) label.textContent = 'Create my free account';
     const summary = document.getElementById('signup-payment-summary');
-    if (summary) summary.textContent = `Free during beta — NEXUS ${planLabel} ($${price.toFixed(2)}/mo) is the price when paid plans launch.`;
+    if (summary) summary.textContent = `Free during beta — your ${n}-module plan ($${total}/mo) is what you'd pay when paid plans launch.`;
 }
 // v17.2 — age gate helpers
 function _ageFromDob(v) {
@@ -1230,30 +1254,6 @@ function _signupCheckAge() {
     if (!dob || !block) return;
     var age = _ageFromDob(dob.value);
     block.style.display = (age !== null && age < 13) ? 'block' : 'none';
-}
-
-function _signupUpdatePlanCards() {
-    const accessSelected = !!document.getElementById('plan-radio-access')?.checked;
-    const accessCard = document.getElementById('plan-card-access-radio');
-    const proCard = document.getElementById('plan-card-pro-radio');
-    if (accessCard) {
-        accessCard.style.borderColor = accessSelected ? '#00CEC9' : 'rgba(0,206,201,0.2)';
-        accessCard.style.background = accessSelected ? 'rgba(0,206,201,0.12)' : 'rgba(255,255,255,0.02)';
-    }
-    if (proCard) {
-        proCard.style.borderColor = !accessSelected ? '#6C5CE7' : 'rgba(108,92,231,0.2)';
-        proCard.style.background = !accessSelected ? 'rgba(108,92,231,0.14)' : 'rgba(255,255,255,0.02)';
-    }
-}
-
-function _wireSignupPlanSelect() {
-    ['plan-radio-access', 'plan-radio-pro'].forEach(id => {
-        const r = document.getElementById(id);
-        if (r && !r._wiredV12) {
-            r.addEventListener('change', () => { _signupUpdatePlanCards(); _updateSignupPaymentSummary(); });
-            r._wiredV12 = true;
-        }
-    });
 }
 
 function _wireSignupPasswordReqs() {
@@ -1296,9 +1296,9 @@ async function completeSignUpFlow() {
     const userName = (document.getElementById('signup-username').value || '').trim();
     const pass = document.getElementById('signup-password').value || '';
     const email = (document.getElementById('auth-email').value || '').trim();
-    const plan = (document.querySelector('input[name="signup-plan"]:checked') || {}).value || 'access';
-    const price = plan === 'pro' ? PRO_PRICE : ACCESS_PRICE;
-    const planLabel = plan === 'pro' ? 'NEXUS Pro' : 'NEXUS Access';
+    const selModules = _signupSelectedModules();
+    const price = selModules.length * MODULE_PRICE;
+    const planLabel = selModules.length + '-module plan';
 
     const errEl = document.getElementById('signup-step-3-error');
     const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
@@ -1309,6 +1309,8 @@ async function completeSignUpFlow() {
     if (!validatePasswordStrict(pass)) { showErr('Password must include 1 lowercase, 1 uppercase, and 1 number.'); return; }
     const reg = getAuthRegistry();
     if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in.'); return; }
+
+    if (selModules.length < MODULE_MIN) { showErr('Go back to step 2 and pick at least ' + MODULE_MIN + ' modules.'); return; }
 
     // v17.2 — must accept Terms + Privacy; no card is collected (free beta).
     if (!(document.getElementById('signup-terms-agree') || {}).checked) { showErr('Please agree to the Terms and Privacy Policy to continue.'); return; }
@@ -1362,8 +1364,11 @@ async function completeSignUpFlow() {
     rememberAuthIfChecked();
 
     setTimeout(() => {
-        if (typeof setUserTier === 'function') setUserTier(plan);
-        const granted = (typeof grantStarterGold === 'function') ? grantStarterGold(plan) : 0;
+        // Beta: grant full access so nothing's locked, but record the chosen modules
+        // for when per-module gating + Stripe go live.
+        if (typeof _saveOwnedModules === 'function') _saveOwnedModules(selModules);
+        if (typeof setUserTier === 'function') setUserTier('pro');
+        const granted = (typeof grantStarterGold === 'function') ? grantStarterGold('pro') : 0;
         localStorage.setItem('has_paid', '1');
         localStorage.setItem('nexus_subscription', JSON.stringify({
             name: userName,
