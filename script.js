@@ -41,6 +41,9 @@ const EMAILJS_TEMPLATE_ID = '';
 // ════════════════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://hmgouywiiqukisupqbsq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_O_iCo_B5LbnDla_w5_nTmw_lmf7o14X';
+// Stripe (TEST) — publishable key + the $2/month "module" price. Both public/safe to commit.
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TkgVNF9D6VpsYOipPuRKLINuwZopdJMGKfnVTPb8qIi0vCgYFtFY0lxNfwncWOXuPNSG3v9UVJ0ucPb1Cp0U8Ge00u2USvo2W';
+const STRIPE_MODULE_PRICE_ID = 'price_1TktHcF9D6VpsYOis2M2tqub';
 let nexusSB = null;
 function _initSupabase() {
     try {
@@ -16970,13 +16973,50 @@ function _pbRecount() {
         else { btn.disabled = false; btn.innerHTML = 'Subscribe — $' + total + '/mo'; btn.style.opacity = '1'; }
     }
 }
-function _pbConfirm() {
+async function _pbConfirm() {
     const sel = _pbSelected();
     if (sel.length < MODULE_MIN) { showToast('Pick at least ' + MODULE_MIN + ' modules.', 'warning'); return; }
-    _saveOwnedModules(sel);
-    showToast('🧩 Plan saved: ' + sel.length + ' modules ($' + (sel.length * MODULE_PRICE) + '/mo). Free during beta!', 'success', 5000);
+    _saveOwnedModules(sel); // optimistic local save (beta)
+    const btn = document.getElementById('pb-confirm');
+    // If signed into Cloud, start a real (test-mode) Stripe checkout for $2 × modules.
+    const user = await _cloudUser().catch(function () { return null; });
+    if (user) {
+        try {
+            if (btn) { btn.disabled = true; btn.textContent = 'Opening checkout…'; }
+            const s = await nexusSB.auth.getSession();
+            const token = s && s.data && s.data.session && s.data.session.access_token;
+            const resp = await fetch(SUPABASE_URL + '/functions/v1/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({
+                    modules: sel,
+                    priceId: STRIPE_MODULE_PRICE_ID,
+                    successUrl: location.origin + '/?checkout=success',
+                    cancelUrl: location.origin + '/?checkout=cancel'
+                })
+            });
+            const data = await resp.json().catch(function () { return {}; });
+            if (resp.ok && data.url) { window.location.href = data.url; return; }
+            throw new Error(data.error || ('Checkout error (' + resp.status + ')'));
+        } catch (e) {
+            showToast('Checkout not ready (' + (e.message || e) + ') — plan saved locally for now.', 'info', 5000);
+            if (btn) { btn.disabled = false; _pbRecount(); }
+        }
+    } else {
+        showToast('🧩 Plan saved (free during beta). Sign in to Cloud to subscribe for real.', 'success', 5000);
+    }
     const m = document.getElementById('plan-builder-modal'); if (m) m.remove();
 }
+// Handle the return from Stripe Checkout.
+document.addEventListener('DOMContentLoaded', function () {
+    if (location.search.indexOf('checkout=success') >= 0) {
+        setTimeout(function () { showToast('✅ Subscription active (test mode)! Your modules are set.', 'success', 6000); }, 800);
+        try { history.replaceState({}, '', location.pathname); } catch (_) {}
+    } else if (location.search.indexOf('checkout=cancel') >= 0) {
+        setTimeout(function () { showToast('Checkout canceled — no charge.', 'info', 3500); }, 800);
+        try { history.replaceState({}, '', location.pathname); } catch (_) {}
+    }
+});
 function openPlanBuilder() {
     const owned = _getOwnedModules();
     const existing = document.getElementById('plan-builder-modal'); if (existing) existing.remove();
