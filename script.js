@@ -109,6 +109,30 @@ async function cloudUiSignOut() {
     try { if (nexusSB) await nexusSB.auth.signOut(); } catch (_) {}
     showToast('Signed out of cloud.', 'info'); _cloudRefreshUi();
 }
+// UNIFIED ACCOUNT — keep the local login in lockstep with a Supabase cloud
+// account so signing up / in automatically establishes the synced session
+// (no separate "Cloud Sync" step). Best-effort: never blocks local auth if the
+// network/cloud is down. Returns true if a cloud session is active afterward.
+async function _cloudLinkAccount(email, password, opts) {
+    opts = opts || {};
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB || !email || !password) return false;
+        const cur = await _cloudUser();
+        if (cur && cur.email && cur.email.toLowerCase() === String(email).toLowerCase()) return true; // already linked
+        // Try signing in first; if no cloud account exists yet, create one (migration / first run).
+        const si = await nexusSB.auth.signInWithPassword({ email: email, password: password });
+        if (!si.error) { _cloudRefreshUi(); return true; }
+        const su = await nexusSB.auth.signUp({ email: email, password: password });
+        if (su.error) { if (window._logNexusError) window._logNexusError('cloud-link', su.error.message); return false; }
+        if (su.data && su.data.session) {
+            if (opts.backup) { try { await cloudUiBackup(true); } catch (_) {} }
+            _cloudRefreshUi();
+            return true;
+        }
+        return false;
+    } catch (e) { if (window._logNexusError) window._logNexusError('cloud-link', e && e.message); return false; }
+}
 async function cloudUiBackup(silent) {
     try {
         const user = await _cloudUser(); if (!user) { showToast('Sign in to cloud first.', 'error'); return; }
@@ -139,7 +163,7 @@ async function callHostedAI(opts) {
     if (!nexusSB) throw new Error('Cloud not available');
     const s = await nexusSB.auth.getSession();
     const token = s && s.data && s.data.session && s.data.session.access_token;
-    if (!token) throw new Error('Sign in to Cloud first (Settings → Data → Cloud Sync).');
+    if (!token) throw new Error('Please sign in to your account first.');
     const resp = await fetch(SUPABASE_URL + '/functions/v1/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -889,6 +913,8 @@ async function handleAuthSubmit() {
     if (savedUser === user && savedPass === hashedInputPass) {
         // v12.0 — persist "remember me" preference
         rememberAuthIfChecked();
+        const _em1 = localStorage.getItem('auth_email_' + user) || '';
+        if (_em1) _cloudLinkAccount(_em1, pass); // unified account: restore cloud session
         closeSignInModal();
         completeLogin();
         return;
@@ -903,6 +929,8 @@ async function handleAuthSubmit() {
         localStorage.setItem('auth_pass', hashedInputPass);
         const restored = restoreAccountState(user);
         rememberAuthIfChecked();
+        const _em2 = localStorage.getItem('auth_email_' + user) || '';
+        if (_em2) _cloudLinkAccount(_em2, pass); // unified account: restore cloud session
         showToast(restored ? `Welcome back, ${user}.` : `Signed in as ${user}.`, 'success');
         closeSignInModal();
         completeLogin();
@@ -1362,6 +1390,8 @@ async function completeSignUpFlow() {
     // join the launch waitlist so they hear about paid plans
     try { const wl = JSON.parse(localStorage.getItem('nexus_waitlist') || '[]'); wl.push({ email: email, name: userName, interestedPlan: planLabel, ts: new Date().toISOString() }); localStorage.setItem('nexus_waitlist', JSON.stringify(wl)); } catch (_) {}
     rememberAuthIfChecked();
+    // UNIFIED ACCOUNT — create the synced cloud account behind the scenes (best-effort).
+    _cloudLinkAccount(email, pass, { backup: true });
 
     setTimeout(() => {
         // Beta: grant full access so nothing's locked, but record the chosen modules
@@ -17008,7 +17038,7 @@ async function _pbConfirm() {
             if (btn) { btn.disabled = false; _pbRecount(); }
         }
     } else {
-        showToast('🧩 Plan saved (free during beta). Sign in to Cloud to subscribe for real.', 'success', 5000);
+        showToast('🧩 Plan saved (free during beta). Sign in to subscribe for real.', 'success', 5000);
     }
     const m = document.getElementById('plan-builder-modal'); if (m) m.remove();
 }
