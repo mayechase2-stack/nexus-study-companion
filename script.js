@@ -1203,6 +1203,10 @@ function _signupShowStep(n) {
 function signupGoToStep(n) {
     if (n > _signupCurrentStep) {
         if (_signupCurrentStep === 1 && n >= 2) {
+            // Step 1 is now the plan picker — require the module minimum before continuing.
+            if (_signupSelectedModules().length < MODULE_MIN) { _signupPlanRecount(); return; }
+        }
+        if (_signupCurrentStep === 2 && n >= 3) {
             const userName = (document.getElementById('signup-username').value || '').trim();
             const email = (document.getElementById('auth-email').value || '').trim();
             const pass = document.getElementById('signup-password').value || '';
@@ -1227,9 +1231,6 @@ function signupGoToStep(n) {
             const reg = getAuthRegistry();
             if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in instead.'); return; }
             if (err) err.style.display = 'none';
-        }
-        if (_signupCurrentStep === 2 && n >= 3) {
-            if (_signupSelectedModules().length < MODULE_MIN) { _signupPlanRecount(); return; }
         }
     }
     _signupShowStep(n);

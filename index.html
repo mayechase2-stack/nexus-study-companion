@@ -785,9 +785,9 @@
                 <!-- Progress strip -->
                 <div style="padding:18px 28px 0;display:flex;justify-content:space-between;align-items:center;">
                     <div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-muted);">
-                        <span id="signup-step-1-label" style="color:#fff;font-weight:600;">1 · Account</span>
+                        <span id="signup-step-1-label" style="color:#fff;font-weight:600;">1 · Plan</span>
                         <span style="opacity:0.4;">›</span>
-                        <span id="signup-step-2-label">2 · Plan</span>
+                        <span id="signup-step-2-label">2 · Account</span>
                         <span style="opacity:0.4;">›</span>
                         <span id="signup-step-3-label">3 · Payment</span>
                     </div>
@@ -800,8 +800,8 @@
                 </div>
 
                 <div style="padding:8px 32px 28px;overflow-y:auto;">
-                <!-- STEP 1: Create your account -->
-                <div id="signup-step-1">
+                <!-- STEP 2: Create your account -->
+                <div id="signup-step-2" style="display:none;">
                     <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">Create your NEXUS account</h2>
                     <p style="margin:0 0 22px;color:var(--text-muted);font-size:0.9rem;">Pick a username and password. You'll need them every time you sign in.</p>
                     <div style="margin-bottom:14px;">
@@ -846,31 +846,31 @@
                         </label>
                     </div>
                     <div id="signup-step-1-error" style="display:none;color:#ff6b6b;font-size:0.82rem;margin-bottom:12px;"></div>
-                    <button class="btn-primary" style="width:100%;padding:13px;font-size:1rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;font-weight:600;border-radius:10px;cursor:pointer;color:white;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="signupGoToStep(1)" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                            <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-left"/></svg> Back
+                        </button>
+                        <button class="btn-primary" style="flex:2;padding:13px;font-size:1rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;font-weight:600;border-radius:10px;cursor:pointer;color:white;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
+                            onclick="signupGoToStep(3)">
+                            Continue <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STEP 1: Build your plan -->
+                <div id="signup-step-1">
+                    <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">Build your plan</h2>
+                    <p style="margin:0 0 16px;color:var(--text-muted);font-size:0.9rem;">Pick the modules you want — <strong style="color:#fff;">$2/mo each</strong>, minimum 4. Want it all? Check everything. <strong style="color:#00CEC9;">Free during beta.</strong></p>
+                    <div id="signup-modules" style="display:grid;gap:8px;max-height:42vh;overflow-y:auto;padding-right:4px;"></div>
+                    <div id="signup-plan-total" style="margin-top:14px;font-weight:800;color:#fff;font-size:1.05rem;"></div>
+                    <button id="signup-plan-continue" class="btn-primary" style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:10px;color:white;cursor:pointer;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
                         onclick="signupGoToStep(2)">
-                        Continue to plan <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
+                        Continue to account <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
                     </button>
                     <p style="text-align:center;margin:14px 0 0;color:var(--text-muted);font-size:0.82rem;">
                         Already have an account?
                         <a href="#" onclick="event.preventDefault();closeSignUpFlow();openSignInModal();" style="color:var(--accent);text-decoration:none;font-weight:600;">Sign in</a>
                     </p>
-                </div>
-
-                <!-- STEP 2: Pick a plan -->
-                <div id="signup-step-2" style="display:none;">
-                    <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">Build your plan</h2>
-                    <p style="margin:0 0 16px;color:var(--text-muted);font-size:0.9rem;">Pick the modules you want — <strong style="color:#fff;">$2/mo each</strong>, minimum 4. Want it all? Check everything. <strong style="color:#00CEC9;">Free during beta.</strong></p>
-                    <div id="signup-modules" style="display:grid;gap:8px;max-height:42vh;overflow-y:auto;padding-right:4px;"></div>
-                    <div id="signup-plan-total" style="margin-top:14px;font-weight:800;color:#fff;font-size:1.05rem;"></div>
-                    <div style="display:flex;gap:10px;margin-top:14px;">
-                        <button onclick="signupGoToStep(1)" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
-                            <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-left"/></svg> Back
-                        </button>
-                        <button id="signup-plan-continue" class="btn-primary" style="flex:2;padding:13px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:10px;color:white;cursor:pointer;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
-                            onclick="signupGoToStep(3)">
-                            Continue <svg width="16" height="16" style="color:#fff;"><use href="#ic-arrow-right"/></svg>
-                        </button>
-                    </div>
                 </div>
 
                 <!-- STEP 3: Payment (reuses the inline payment fields, but inside the same modal flow) -->
