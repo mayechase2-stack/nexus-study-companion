@@ -24,8 +24,8 @@ body {
         linear-gradient(180deg, #0B0E1A 0%, #0A0D17 60%, #080A12 100%);
     color: var(--text-main);
     font-family: var(--font-main);
-    font-size: clamp(14px, 1.6vw, 16px);
-    line-height: 1.6;
+    font-size: clamp(15.5px, 1.7vw, 17.5px); /* readability pass — bumped from 14–16px */
+    line-height: 1.62;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -979,7 +979,7 @@ details[open] summary i.ph-caret-down {
 }
 details summary::-webkit-details-marker { display: none; }
 /* Smooth scroll for in-page nav (Features / Pricing / About anchors) */
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; font-size: 17px; } /* readability: raise rem base from 16px so all rem-sized text scales up ~6% */
 
 /* v10.9 — Per-feature NEW dot on sidebar nav items */
 .nav-links li {
