@@ -179,6 +179,49 @@ async function callHostedAI(opts) {
     if (!resp.ok) throw new Error(data.error || ('Hosted AI error (' + resp.status + ')'));
     return data; // { content, used, limit }
 }
+
+// Phase 2b — AI PROXY INTERCEPTOR. Every feature already calls
+// fetch('https://api.openai.com/v1/chat/completions', …) directly with the user's
+// key. When the user has NO personal key (i.e. they're on hosted AI), reroute that
+// call to the Edge Function proxy and return an OpenAI-shaped response, so all ~20
+// AI features work through the proxy without editing each call site.
+(function installAIProxyInterceptor() {
+    if (window._aiProxyInstalled) return;
+    window._aiProxyInstalled = true;
+    const _origFetch = window.fetch.bind(window);
+    window._origFetch = _origFetch;
+    window.fetch = async function (url, opts) {
+        try {
+            const u = (typeof url === 'string') ? url : (url && url.url) || '';
+            const personal = localStorage.getItem('openai_api_key');
+            const hasPersonal = !!(personal && personal.indexOf('sk-') === 0);
+            if (u.indexOf('api.openai.com/v1/chat/completions') >= 0 && !hasPersonal) {
+                let body = {};
+                try { body = JSON.parse((opts && opts.body) || '{}'); } catch (_) {}
+                const res = await callHostedAI({
+                    messages: body.messages || [],
+                    model: body.model,
+                    temperature: body.temperature,
+                    max_tokens: body.max_tokens || body.max_completion_tokens,
+                    response_format: body.response_format
+                });
+                const norm = {
+                    choices: [{ index: 0, message: { role: 'assistant', content: res.content || '' }, finish_reason: 'stop' }],
+                    usage: {}, _nexusHosted: true, _used: res.used, _limit: res.limit
+                };
+                return new Response(JSON.stringify(norm), { status: 200, headers: { 'Content-Type': 'application/json' } });
+            }
+            if (u.indexOf('api.openai.com/v1/moderations') >= 0 && !hasPersonal) {
+                // Hosted proxy doesn't expose moderation — fail open (don't block input).
+                return new Response(JSON.stringify({ results: [{ flagged: false, categories: {} }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+            }
+        } catch (e) {
+            if (window._logNexusError) window._logNexusError('ai-proxy', e && e.message);
+            return new Response(JSON.stringify({ error: { message: (e && e.message) || 'Hosted AI error' } }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+        }
+        return _origFetch(url, opts);
+    };
+})();
 async function cloudUiTestAI() {
     const out = document.getElementById('cloud-ai-test-out');
     if (out) { out.style.display = 'block'; out.textContent = '⏳ Testing hosted AI…'; }
@@ -199,10 +242,29 @@ async function _cloudRefreshUi() {
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_cloudRefreshUi, 700); });
 
+// True if a Supabase cloud session exists (synchronous check of the stored token),
+// which means the hosted AI proxy is available to this signed-in user.
+function _hasCloudSession() {
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') >= 0) {
+                const v = localStorage.getItem(k);
+                if (v && v.length > 20) return true;
+            }
+        }
+    } catch (_) {}
+    return false;
+}
+
 function getApiKey() {
     // Personal key set → use it, no limit applies
     const personal = localStorage.getItem('openai_api_key');
     if (personal && personal.startsWith('sk-')) return personal;
+
+    // Signed into the cloud → the hosted AI proxy is available. Return a sentinel so
+    // feature gates pass; the fetch interceptor below reroutes the call to the proxy.
+    if (_hasCloudSession()) return 'nexus-hosted';
 
     // No host key configured → nothing to offer
     if (!NEXUS_API_KEY || NEXUS_API_KEY === 'YOUR_OPENAI_KEY_HERE') return '';
@@ -1921,8 +1983,10 @@ function switchSettingsTab(tab) {
 
 function toggleSettings() {
     const modal = document.getElementById('settings-modal');
-    if (getApiKey()) {
-        document.getElementById('api-key-input').value = getApiKey();
+    // Only show a real personal key here — never the hosted sentinel.
+    const _personalKey = localStorage.getItem('openai_api_key');
+    if (_personalKey && _personalKey.indexOf('sk-') === 0) {
+        document.getElementById('api-key-input').value = _personalKey;
     }
     // Prefill username field with current display name
     const usernameInput = document.getElementById('settings-username-input');
@@ -17140,9 +17204,13 @@ function runNexusDiagnostics() {
         if (!bad) pass('companion avatars render');
     } catch (e) { fail('companion avatar test', e.message); }
 
-    // API key (informational)
-    try { if (typeof getApiKey === 'function' && getApiKey()) pass('OpenAI API key is set'); else warn('OpenAI API key', 'not set — AI features need a key in Settings'); }
-    catch (e) { warn('API key', e.message); }
+    // AI access (informational)
+    try {
+        const _pk = localStorage.getItem('openai_api_key');
+        if (_pk && _pk.indexOf('sk-') === 0) pass('AI access — personal OpenAI key set');
+        else if (typeof _hasCloudSession === 'function' && _hasCloudSession()) pass('AI access — hosted AI (signed in)');
+        else warn('AI access', 'sign in (hosted AI) or add a personal key in Settings');
+    } catch (e) { warn('AI access', e.message); }
 
     // Supabase cloud (Phase 2)
     try {
