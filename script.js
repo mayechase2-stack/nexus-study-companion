@@ -7749,7 +7749,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v18.0';
+const NEXUS_CURRENT_VERSION = 'v18.2';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -17642,12 +17642,29 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v18.2',
+        date: 'June 24, 2026',
+        tag: 'UPDATE 18.2 — HOSTED AI, ACCOUNTS & A FRESH LANDING',
+        tagColor: '#6C5CE7',
+        changes: [
+            'HOSTED AI — NO KEY NEEDED: AI now works the moment you sign in. Tutor, Live Vision, Deep Dive, quizzes and every other AI feature run through NEXUS\'s own hosted AI — no OpenAI key, no setup. (Prefer your own key? You still can: Settings → AI.)',
+            'ONE UNIFIED ACCOUNT: Signing up or signing in now automatically creates and connects your cloud account — no separate "Cloud Sync" step. Your progress syncs across devices and survives a cache-clear.',
+            'BUILD YOUR OWN PLAN: New à la carte pricing — pick only the modules you want at $2/mo each (minimum 4). It\'s the first step of sign-up, and you can change it anytime in Settings → Manage My Plan. Everything is FREE during the open beta.',
+            'BRAND-NEW LANDING PAGE: Rebuilt flow (Hero → Subjects → See it in action → Features → Why NEXUS → Pricing → FAQ), updated pricing, a new call-to-action, and a proper footer.',
+            'DEBATE PRACTICE — GLOW-UP: The Command Center\'s Debate Practice was restyled into a clean, integrated panel.',
+            'BIGGER, CLEARER TEXT: App-wide readability pass — base font sizes bumped up so everything is easier to read.',
+            'COMPANION FIXES: Live Vision is now linkable to your companion (it can actually see the on-screen guidance for follow-ups), the chat header is slimmer, and the "open companion" hint only shows when you actually have one equipped.',
+            'LIVE SCREEN SHARE: More reliable start/stop — a stuck session is cleaned up automatically so the button always works.',
+            'BUG FIXES: Fixed a keyboard-shortcut crash, refreshed the changelog, and corrected FAQ/backup wording now that accounts sync to the cloud.',
+        ]
+    },
+    {
         version: 'v18.0',
         date: 'June 20, 2026',
         tag: 'UPDATE 18 — CLOUD ACCOUNTS',
         tagColor: '#00CEC9',
         changes: [
-            'CLOUD SYNC (beta) — In Settings → Data → Cloud Sync, create a real cloud account, back up your data, and restore it on any device. Your progress now survives a cache-clear and follows you between phone and computer.',
+            'CLOUD SYNC (beta) — In Settings → Data → Cloud Account, create a real cloud account, back up your data, and restore it on any device. Your progress now survives a cache-clear and follows you between phone and computer.',
             'Runs on a secure backend (Supabase) with per-user data isolation (row-level security). This is the foundation for hosted AI and full real accounts coming next.',
         ]
     },
