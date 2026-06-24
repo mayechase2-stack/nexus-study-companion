@@ -583,24 +583,34 @@ let visionInterval = null;
 
 async function startLiveVision() {
     try {
+        // Clean restart — if a session is somehow still active, tear it down first
+        // so a second click always works.
+        if (mediaStream) { try { stopLiveVision(); } catch (_) {} }
+
         const video = document.getElementById('screen-video');
         const panel = document.getElementById('live-vision-panel');
 
-        mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        const stream = await navigator.mediaDevices.getDisplayMedia({
             video: { cursor: "always" },
             audio: false
         });
+        mediaStream = stream;
 
-        video.srcObject = mediaStream;
-        panel.classList.remove('hidden');
+        if (video) video.srcObject = mediaStream;
+        if (panel) panel.classList.remove('hidden');
+        if (typeof refreshLiveVisionButtons === 'function') refreshLiveVisionButtons();
 
+        // Guard: only stop if THIS stream is the one that ended (a stale handler
+        // from a previous session must not kill a freshly-started one).
         mediaStream.getVideoTracks()[0].onended = () => {
-            stopLiveVision();
+            if (mediaStream === stream) stopLiveVision();
         };
 
     } catch (err) {
         console.error("Error starting screen share:", err);
-        showToast("Could not start screen share.", 'error');
+        // Don't nag if the user simply cancelled the screen-picker dialog.
+        if (err && err.name !== 'NotAllowedError') showToast("Could not start screen share.", 'error');
+        if (window._logNexusError) window._logNexusError('live-vision-start', err && err.message);
     }
 }
 
@@ -13685,13 +13695,18 @@ ABSOLUTE RULES:
         if (data.error) throw new Error(data.error.message);
         const guidance = data.choices[0].message.content || '';
         const cleaned = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(guidance) : guidance;
+        // Only mention the companion if one is actually equipped.
+        const _hasCompanion = (typeof userLoadout !== 'undefined' && userLoadout && userLoadout.companion && userLoadout.companion !== 'none');
         // Render the tutor-block cards in place of the regular straight-answer panel
         if (solutionPanel) {
+            const _compHint = _hasCompanion
+                ? '<span style="margin-left:auto;font-size:0.9rem;color:var(--text-muted);">Open the companion to ask follow-up questions about this problem.</span>'
+                : '';
             solutionPanel.innerHTML = `
                 <div style="padding:14px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.06));border-bottom:1px solid rgba(108,92,231,0.25);display:flex;align-items:center;gap:12px;">
                     <i class="ph ph-graduation-cap" style="color:#a29bfe;font-size:1.05rem;"></i>
                     <span style="color:#a29bfe;font-size:0.9rem;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;">Help Me — Tutor Mode</span>
-                    <span style="margin-left:auto;font-size:0.9rem;color:var(--text-muted);">Open the companion to ask follow-up questions about this problem.</span>
+                    ${_compHint}
                 </div>
                 <div style="padding:14px 16px;" id="live-vision-tutor-output">${cleaned}</div>
             `;
@@ -13699,7 +13714,7 @@ ABSOLUTE RULES:
         window._liveVisionLastGuidance = cleaned.replace(/<[^>]+>/g, ' ').trim().slice(0, 1000);
         logActivity('study', 'Live Vision — Help Me (tutor)');
         updateStudyStats('problem_solved');
-        showToast('✓ Tutor card ready. Ask the companion follow-ups via "Link" → Live Vision.', 'success', 4500);
+        showToast(_hasCompanion ? '✓ Tutor card ready. Ask the companion follow-ups via "Link" → Live Vision.' : '✓ Tutor card ready.', 'success', 4500);
     } catch (err) {
         if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         showToast('AI Error: ' + err.message, 'error');
@@ -21652,9 +21667,11 @@ function getActiveLinkableSessions() {
             : '(science topic with image)';
         out.push({ id: 'science', label: 'Science: ' + summary, icon: 'ph-flask' });
     }
-    // Live Vision — uses _liveVisionLastProblem (set in solveLiveVision)
-    if (typeof window._liveVisionLastProblem === 'string' && window._liveVisionLastProblem.length > 0) {
-        out.push({ id: 'live-vision', label: 'Live Vision: ' + window._liveVisionLastProblem.slice(0, 80), icon: 'ph-eye' });
+    // Live Vision — available once a guidance/answer card has been generated.
+    // (OCR is no longer used, so we key off the guidance, not the empty problem text.)
+    if (typeof window._liveVisionLastGuidance === 'string' && window._liveVisionLastGuidance.length > 0) {
+        const snip = window._liveVisionLastGuidance.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        out.push({ id: 'live-vision', label: 'Live Vision: ' + snip + '…', icon: 'ph-eye' });
     }
     return out;
 }
@@ -21932,9 +21949,10 @@ function buildLinkedSessionContext() {
             .map(m => `${m.role.toUpperCase()}: ${typeof m.content === 'string' ? m.content : '(image)'}`)
             .join('\n\n');
     } else if (linked.id === 'live-vision') {
-        const problem = window._liveVisionLastProblem || '';
-        const guidance = window._liveVisionLastGuidance || '';
-        transcript = `PROBLEM ON SCREEN:\n${problem}\n\nGUIDANCE PROVIDED:\n${guidance}`;
+        const problem = (window._liveVisionLastProblem || '').trim();
+        const guidance = (window._liveVisionLastGuidance || '').trim();
+        transcript = (problem ? `PROBLEM ON SCREEN:\n${problem}\n\n` : '') +
+            `WHAT NEXUS SHOWED THE STUDENT (read from their screen):\n${guidance}`;
     }
     if (!transcript) return '';
     return `\n\n=== LINKED SESSION CONTEXT (${linked.id.toUpperCase()}) ===\nYou are linked into the user's current ${linked.id} session. Use this transcript to answer follow-up questions with full context. Reference specific steps. Stay consistent with the guidance already given — don't reveal answers if the session was in Tutor mode.\n\n${transcript}\n=== END LINKED SESSION ===\n`;

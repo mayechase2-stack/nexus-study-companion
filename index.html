@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621l">
+    <link rel="stylesheet" href="style.css?v=20260621m">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -4734,11 +4734,11 @@ if __name__ == '__main__':
         <div id="companion-chat-resize-r" class="companion-resize-handle" style="position:absolute;top:14px;bottom:14px;right:0;width:6px;cursor:ew-resize;z-index:9;"></div>
         <div id="companion-chat-resize-t" class="companion-resize-handle" style="position:absolute;top:0;left:14px;right:14px;height:6px;cursor:ns-resize;z-index:9;"></div>
         <div id="companion-chat-resize-b" class="companion-resize-handle" style="position:absolute;bottom:0;left:14px;right:14px;height:6px;cursor:ns-resize;z-index:9;"></div>
-        <div id="companion-chat-header" style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.3), rgba(0,206,201,0.2));border-bottom:1px solid rgba(108,92,231,0.3);">
-            <div id="companion-chat-avatar" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,0.4);overflow:hidden;flex-shrink:0;"></div>
-            <div style="flex:1;min-width:0;">
-                <div id="companion-chat-name" style="color:white;font-weight:700;font-size:1rem;line-height:1.2;">Companion</div>
-                <div id="companion-chat-status" style="color:#a29bfe;font-size:0.72rem;margin-top:2px;">Online · Nexus Companion AI</div>
+        <div id="companion-chat-header" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:linear-gradient(135deg, rgba(108,92,231,0.3), rgba(0,206,201,0.2));border-bottom:1px solid rgba(108,92,231,0.3);">
+            <div id="companion-chat-avatar" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,0.4);overflow:hidden;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;overflow:hidden;">
+                <div id="companion-chat-name" style="color:white;font-weight:700;font-size:0.92rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Companion</div>
+                <div id="companion-chat-status" style="color:#a29bfe;font-size:0.7rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Online · Nexus Companion AI</div>
             </div>
             <!-- v12.1 — Link to session: companion can tap into a Math/Science/English/Live Vision session
                  v12.2 — visible Unlink button appears next to it when linked. -->
@@ -5009,7 +5009,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621l"></script>
+    <script src="script.js?v=20260621m"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
