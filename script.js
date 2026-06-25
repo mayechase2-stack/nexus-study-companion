@@ -589,6 +589,21 @@ function updateHomeStats() {
     if (el('home-xp-fill')) el('home-xp-fill').style.width = Math.round((_into / _XP_PER) * 100) + '%';
     if (el('home-rank-label') && typeof getRankTitle === 'function') el('home-rank-label').textContent = getRankTitle(_lvl);
 
+    // v18.3 — Daily reward chest state
+    const _drBtn = el('home-daily-reward-btn');
+    const _drSub = el('home-daily-reward-sub');
+    if (_drBtn) {
+        const _today = new Date().toISOString().split('T')[0];
+        const _claimedToday = localStorage.getItem('last_daily_claim') === _today;
+        if (_claimedToday) {
+            _drBtn.textContent = 'Claimed ✓'; _drBtn.disabled = true; _drBtn.style.opacity = '0.55'; _drBtn.style.cursor = 'default';
+            if (_drSub) _drSub.textContent = 'Come back tomorrow for more.';
+        } else {
+            _drBtn.textContent = 'Claim'; _drBtn.disabled = false; _drBtn.style.opacity = '1'; _drBtn.style.cursor = 'pointer';
+            if (_drSub) _drSub.textContent = 'Claim your gold + XP for today.';
+        }
+    }
+
     // v18.2 — Today's quests (daily) inline on the home hub
     const _qList = el('home-quests-list');
     if (_qList && typeof _ensureQuestPeriod === 'function') {
@@ -5183,6 +5198,11 @@ function checkDailyReward() {
 
 function claimDailyReward() {
     const today = new Date().toISOString().split('T')[0];
+    // Guard: one claim per day (the home button + banner both call this).
+    if (localStorage.getItem('last_daily_claim') === today) {
+        if (typeof showToast === 'function') showToast('Daily reward already claimed — come back tomorrow.', 'info');
+        return;
+    }
     const stats = getStudyStats();
 
     // Base reward + streak bonus
@@ -5196,7 +5216,8 @@ function claimDailyReward() {
     if (typeof awardXP === 'function') awardXP(40, 'daily'); // daily reward also grants XP
 
     // Update displays
-    document.getElementById('credit-display').innerText = `Credits: ${userCredits}`;
+    const _cd = document.getElementById('credit-display');
+    if (_cd) _cd.innerText = `Credits: ${userCredits}`;
     const shopCreditEl = document.getElementById('shop-credit-display');
     if (shopCreditEl) shopCreditEl.textContent = userCredits.toLocaleString();
     const shopPageCreditEl = document.getElementById('shop-page-credits');

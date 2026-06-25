@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621q">
+    <link rel="stylesheet" href="style.css?v=20260621r">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1094,6 +1094,16 @@
                             <button onclick="openQuestsModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:0.8rem;cursor:pointer;padding:0;font-weight:600;">All quests <i class="ph ph-arrow-right"></i></button>
                         </div>
                         <div id="home-quests-list" style="display:grid;gap:10px;"><div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:10px 0;">Loading quests…</div></div>
+                    </div>
+
+                    <!-- v18.3 — Daily Reward chest -->
+                    <div id="home-daily-reward" style="display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:18px;border-radius:14px;background:linear-gradient(135deg,rgba(255,215,0,0.12),rgba(253,121,168,0.08));border:1px solid rgba(255,215,0,0.3);">
+                        <span style="font-size:1.8rem;line-height:1;">🎁</span>
+                        <div style="flex:1;min-width:0;">
+                            <div style="color:#fff;font-weight:700;font-size:0.95rem;">Daily Reward</div>
+                            <div id="home-daily-reward-sub" style="color:var(--text-muted);font-size:0.82rem;">Claim your gold + XP for today.</div>
+                        </div>
+                        <button id="home-daily-reward-btn" onclick="claimDailyReward();updateHomeStats();" style="background:linear-gradient(135deg,#FFD700,#fdcb6e);border:none;color:#1a1a2e;font-weight:800;font-size:0.88rem;padding:10px 22px;border-radius:10px;cursor:pointer;white-space:nowrap;">Claim</button>
                     </div>
 
                     <!-- Continue Bar (shows last-used tab) -->
@@ -5030,7 +5040,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621q"></script>
+    <script src="script.js?v=20260621r"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
