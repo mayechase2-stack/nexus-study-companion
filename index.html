@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621p">
+    <link rel="stylesheet" href="style.css?v=20260621q">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1081,7 +1081,7 @@
                                 <span id="home-level-num" style="font-size:1.4rem;color:#fff;font-weight:800;line-height:1;">1</span>
                             </div>
                             <div style="flex:1;min-width:0;">
-                                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.74rem;color:var(--text-muted);margin-bottom:5px;"><span style="font-weight:600;">Level progress</span><span id="home-xp-label" style="color:#cdd2e0;">0 / 500 XP</span></div>
+                                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.74rem;color:var(--text-muted);margin-bottom:5px;"><span id="home-rank-label" style="font-weight:700;color:#a29bfe;">Novice</span><span id="home-xp-label" style="color:#cdd2e0;">0 / 500 XP</span></div>
                                 <div style="height:11px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;"><div id="home-xp-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:6px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1);box-shadow:0 0 12px rgba(0,206,201,0.5);"></div></div>
                             </div>
                         </div>
@@ -5030,7 +5030,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621p"></script>
+    <script src="script.js?v=20260621q"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

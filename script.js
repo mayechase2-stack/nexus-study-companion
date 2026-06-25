@@ -579,14 +579,15 @@ function updateHomeStats() {
     // v18.2 — gold pill mirrors credits
     if (el('home-gold-pill')) el('home-gold-pill').textContent = userCredits || 0;
 
-    // v18.2 — Level / XP bar
-    const _xp = parseInt(localStorage.getItem('total_xp') || '0', 10) || 0;
-    const _XP_PER = 500;
+    // v18.2/18.3 — Level / XP bar + rank
+    const _XP_PER = (typeof XP_PER_LEVEL !== 'undefined') ? XP_PER_LEVEL : 500;
+    const _xp = (typeof getTotalXP === 'function') ? getTotalXP() : (parseInt(localStorage.getItem('total_xp') || '0', 10) || 0);
     const _lvl = Math.floor(_xp / _XP_PER) + 1;
     const _into = _xp % _XP_PER;
     if (el('home-level-num')) el('home-level-num').textContent = _lvl;
     if (el('home-xp-label')) el('home-xp-label').textContent = _into + ' / ' + _XP_PER + ' XP';
     if (el('home-xp-fill')) el('home-xp-fill').style.width = Math.round((_into / _XP_PER) * 100) + '%';
+    if (el('home-rank-label') && typeof getRankTitle === 'function') el('home-rank-label').textContent = getRankTitle(_lvl);
 
     // v18.2 — Today's quests (daily) inline on the home hub
     const _qList = el('home-quests-list');
@@ -2764,6 +2765,53 @@ function updateCredits(amount) {
     if (shopPageCreds) shopPageCreds.textContent = userCredits.toLocaleString();
     const shopModalCreds = document.getElementById('shop-credit-display');
     if (shopModalCreds) shopModalCreds.textContent = userCredits.toLocaleString();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v18.3 — XP · LEVELS · RANKS  (The Progression Update)
+// `total_xp` (localStorage) is the single source of truth for the home Level
+// bar, the leaderboard, and XP achievements. awardXP() is the only writer.
+// Earlier, total_xp was never written, so levels never moved — this fixes it.
+// ════════════════════════════════════════════════════════════════════
+const XP_PER_LEVEL = 500;
+function getLevelFromXP(xp) { return Math.floor((xp || 0) / XP_PER_LEVEL) + 1; }
+function getTotalXP() {
+    let xp = parseInt(localStorage.getItem('total_xp') || '', 10);
+    if (isNaN(xp)) {
+        // Migrate: seed from the old study_stats.totalXP so existing users keep progress.
+        try { xp = (JSON.parse(localStorage.getItem('study_stats') || '{}').totalXP) || 0; } catch (_) { xp = 0; }
+        localStorage.setItem('total_xp', String(xp));
+    }
+    return xp;
+}
+function getRankTitle(level) {
+    if (level >= 40) return 'Legend';
+    if (level >= 30) return 'Sage';
+    if (level >= 22) return 'Master';
+    if (level >= 15) return 'Honor Roll';
+    if (level >= 10) return 'Scholar';
+    if (level >= 6) return 'Apprentice';
+    if (level >= 3) return 'Student';
+    return 'Novice';
+}
+function awardXP(amount, reason) {
+    amount = parseInt(amount, 10) || 0;
+    if (amount <= 0) return;
+    const before = getTotalXP();
+    const prevLevel = getLevelFromXP(before);
+    const after = before + amount;
+    localStorage.setItem('total_xp', String(after));
+    const newLevel = getLevelFromXP(after);
+    if (newLevel > prevLevel) {
+        for (let lvl = prevLevel + 1; lvl <= newLevel; lvl++) _onLevelUp(lvl);
+    }
+    if (typeof updateHomeStats === 'function') updateHomeStats();
+}
+function _onLevelUp(level) {
+    const reward = level * 50;
+    if (typeof updateCredits === 'function') updateCredits(reward);
+    if (typeof recordQuestProgress === 'function') recordQuestProgress('level_up');
+    if (typeof showToast === 'function') showToast('🎉 LEVEL UP! You\'re now Level ' + level + ' — ' + getRankTitle(level) + '! +' + reward + ' gold', 'success', 6000);
 }
 
 // ============================================================
@@ -5145,6 +5193,7 @@ function claimDailyReward() {
     userCredits += totalReward;
     localStorage.setItem('user_credits', userCredits);
     localStorage.setItem('last_daily_claim', today);
+    if (typeof awardXP === 'function') awardXP(40, 'daily'); // daily reward also grants XP
 
     // Update displays
     document.getElementById('credit-display').innerText = `Credits: ${userCredits}`;
@@ -16278,6 +16327,7 @@ function updateStudyStats(type, value = 1) {
         case 'problem_solved':
             stats.problemsSolved += value;
             stats.totalXP += 10;
+            if (typeof awardXP === 'function') awardXP(10 * value, 'problem');
             break;
         case 'daily_goal':
             stats.dailyGoalProgress = Math.min(100, stats.dailyGoalProgress + value);
@@ -22715,6 +22765,7 @@ function claimQuestReward(scope, questId) {
     q.claimed = true;
     _saveQuestState(state);
     if (typeof updateCredits === 'function') updateCredits(q.reward);
+    if (typeof awardXP === 'function') awardXP(q.reward, 'quest'); // quests grant XP toward your level
     if (typeof showToast === 'function') showToast(`+${q.reward}g — "${q.title}" complete!`, 'success');
     // Meta-progress: claiming counts toward "claim N quests" quests
     recordQuestProgress('quest_claimed');
