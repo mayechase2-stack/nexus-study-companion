@@ -13953,7 +13953,12 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
 
         // Special display for fill-in-the-blank: big box with the answer word highlighted
         const answerElFinal = document.getElementById('ai-answer-text');
-        if (qType === 'fill-in-the-blank') {
+        const _emptyAnsMsg = '<span style="color:var(--text-muted);font-weight:400;font-size:0.9rem;">Couldn\'t read a clear answer from the screen — check the explanation below, or re-capture so the question is fully visible.</span>';
+        const _hasAns = cleanedAnswer && cleanedAnswer.trim().length > 0;
+        if (!_hasAns) {
+            // Model returned an empty answer — show a helpful fallback instead of a blank box.
+            _typewriterHTML(answerElFinal, _emptyAnsMsg);
+        } else if (qType === 'fill-in-the-blank') {
             _typewriterHTML(answerElFinal, `<div style="font-size:0.9rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`);
         } else {
             _typewriterHTML(answerElFinal, cleanedAnswer);
