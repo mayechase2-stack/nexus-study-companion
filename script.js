@@ -575,6 +575,44 @@ function updateHomeStats() {
     } else if (continueBar) {
         continueBar.style.display = 'none';
     }
+
+    // v18.2 — gold pill mirrors credits
+    if (el('home-gold-pill')) el('home-gold-pill').textContent = userCredits || 0;
+
+    // v18.2 — Level / XP bar
+    const _xp = parseInt(localStorage.getItem('total_xp') || '0', 10) || 0;
+    const _XP_PER = 500;
+    const _lvl = Math.floor(_xp / _XP_PER) + 1;
+    const _into = _xp % _XP_PER;
+    if (el('home-level-num')) el('home-level-num').textContent = _lvl;
+    if (el('home-xp-label')) el('home-xp-label').textContent = _into + ' / ' + _XP_PER + ' XP';
+    if (el('home-xp-fill')) el('home-xp-fill').style.width = Math.round((_into / _XP_PER) * 100) + '%';
+
+    // v18.2 — Today's quests (daily) inline on the home hub
+    const _qList = el('home-quests-list');
+    if (_qList && typeof _ensureQuestPeriod === 'function') {
+        try {
+            const _block = _ensureQuestPeriod('daily');
+            const _quests = (_block && _block.quests) ? _block.quests.slice(0, 4) : [];
+            if (!_quests.length) {
+                _qList.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:8px 0;">No quests right now — check back soon.</div>';
+            } else {
+                _qList.innerHTML = _quests.map(function (q) {
+                    const pct = Math.round(Math.min(100, (q.progress / q.target) * 100));
+                    const done = q.progress >= q.target;
+                    const right = done && !q.claimed
+                        ? '<button onclick="claimQuestReward(\'daily\',\'' + q.id + '\');updateHomeStats();" style="background:linear-gradient(135deg,#00b894,#00CEC9);border:none;color:#fff;font-size:0.76rem;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;">Claim +' + q.reward + '</button>'
+                        : (q.claimed ? '<span style="color:#00b894;font-size:0.78rem;font-weight:700;white-space:nowrap;">✓ Claimed</span>' : '<span style="color:var(--text-muted);font-size:0.76rem;white-space:nowrap;">+' + q.reward + 'g</span>');
+                    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;">'
+                        + '<i class="ph ' + (q.icon || 'ph-target') + '" style="font-size:1.2rem;color:#a29bfe;flex-shrink:0;"></i>'
+                        + '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;color:#fff;font-weight:600;margin-bottom:5px;">' + q.title + '</div>'
+                        + '<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:4px;"></div></div></div>'
+                        + '<div style="text-align:right;min-width:72px;"><div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:3px;">' + q.progress + '/' + q.target + '</div>' + right + '</div>'
+                        + '</div>';
+                }).join('');
+            }
+        } catch (_) {}
+    }
 }
 
 // Live Vision / Screen Share Logic

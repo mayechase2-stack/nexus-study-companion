@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621n">
+    <link rel="stylesheet" href="style.css?v=20260621o">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1053,26 +1053,47 @@
                 <!-- v12.7 — Improved home: motivational header, continue bar, richer feature cards -->
                 <div style="max-width:1200px;margin:0 auto;">
 
-                    <!-- Hero Row: Logo + Welcome + Motivational strip -->
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px;animation:fadeIn 0.45s ease both;">
-                        <div>
-                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-                                <div style="font-size:1.3rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;letter-spacing:2px;line-height:1;">NEXUS</div>
-                                <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">v18.2</span>
+                    <!-- v18.2 — Gamified hero: greeting + Level/XP + streak + gold -->
+                    <div class="glass-panel" style="padding:22px 24px;margin-bottom:18px;border:1px solid rgba(108,92,231,0.4);background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.08));position:relative;overflow:hidden;animation:fadeIn 0.45s ease both;">
+                        <div style="position:absolute;top:-60%;right:-8%;width:42%;height:220%;background:radial-gradient(ellipse,rgba(0,206,201,0.22),transparent 70%);pointer-events:none;"></div>
+                        <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                            <div style="min-width:0;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                                    <span style="font-size:1.15rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;letter-spacing:2px;line-height:1;">NEXUS</span>
+                                    <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">v18.2</span>
+                                </div>
+                                <h1 style="font-size:clamp(1.3rem,2.4vw,1.7rem);margin:0 0 4px;color:#fff;font-weight:800;line-height:1.15;-webkit-text-fill-color:#fff;background:none;">Welcome back, <span id="home-username" style="color:#00ECE6;">Scholar</span></h1>
+                                <p id="home-motivational" style="font-size:0.95rem;color:#c8ccd8;margin:0;line-height:1.5;">Your AI-powered learning hub — pick up where you left off.</p>
                             </div>
-                            <h1 style="font-size:clamp(1.15rem,2.2vw,1.5rem);margin:0 0 4px;color:#fff;font-weight:700;line-height:1.2;-webkit-text-fill-color:#fff;background:none;">
-                                Welcome back, <span id="home-username" style="color:#00ECE6;">Scholar</span>
-                            </h1>
-                            <p id="home-motivational" style="font-size:0.96rem;color:#c8ccd8;margin:0;line-height:1.5;">Your AI-powered learning hub — pick up where you left off.</p>
-                        </div>
-                        <!-- Streak pill -->
-                        <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.1));border:1px solid rgba(255,215,0,0.3);border-radius:14px;padding:10px 18px;">
-                            <span style="font-size:1.2rem;line-height:1;">🔥</span>
-                            <div>
-                                <div style="font-size:1.1rem;font-weight:800;color:#FFD700;line-height:1;" id="home-streak-big">0</div>
-                                <div style="font-size:0.78rem;color:rgba(255,215,0,0.75);font-weight:500;">Day Streak</div>
+                            <div style="display:flex;gap:10px;flex-shrink:0;">
+                                <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,165,0,0.08));border:1px solid rgba(255,215,0,0.3);border-radius:13px;padding:9px 14px;">
+                                    <span style="font-size:1.2rem;line-height:1;">🔥</span><div><div style="font-size:1.05rem;font-weight:800;color:#FFD700;line-height:1;" id="home-streak-big">0</div><div style="font-size:0.66rem;color:rgba(255,215,0,0.75);font-weight:600;">streak</div></div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(0,206,201,0.15),rgba(0,184,148,0.08));border:1px solid rgba(0,206,201,0.3);border-radius:13px;padding:9px 14px;">
+                                    <span style="font-size:1.2rem;line-height:1;">💰</span><div><div style="font-size:1.05rem;font-weight:800;color:#00CEC9;line-height:1;" id="home-gold-pill">0</div><div style="font-size:0.66rem;color:rgba(0,206,201,0.75);font-weight:600;">gold</div></div>
+                                </div>
                             </div>
                         </div>
+                        <!-- Level / XP -->
+                        <div style="position:relative;margin-top:18px;display:flex;align-items:center;gap:14px;">
+                            <div style="width:54px;height:54px;border-radius:15px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(108,92,231,0.45);flex-shrink:0;">
+                                <span style="font-size:0.56rem;color:rgba(255,255,255,0.85);font-weight:700;letter-spacing:1.5px;">LVL</span>
+                                <span id="home-level-num" style="font-size:1.4rem;color:#fff;font-weight:800;line-height:1;">1</span>
+                            </div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.74rem;color:var(--text-muted);margin-bottom:5px;"><span style="font-weight:600;">Level progress</span><span id="home-xp-label" style="color:#cdd2e0;">0 / 500 XP</span></div>
+                                <div style="height:11px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;"><div id="home-xp-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:6px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1);box-shadow:0 0 12px rgba(0,206,201,0.5);"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- v18.2 — Today's Quests (gamified) -->
+                    <div class="glass-panel" style="padding:18px 20px;margin-bottom:18px;border:1px solid rgba(0,206,201,0.3);">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                            <h3 style="margin:0;color:#fff;font-size:1.02rem;font-weight:700;display:flex;align-items:center;gap:8px;"><span style="font-size:1.15rem;">🎯</span> Today's Quests</h3>
+                            <button onclick="openQuestsModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:0.8rem;cursor:pointer;padding:0;font-weight:600;">All quests <i class="ph ph-arrow-right"></i></button>
+                        </div>
+                        <div id="home-quests-list" style="display:grid;gap:10px;"><div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:10px 0;">Loading quests…</div></div>
                     </div>
 
                     <!-- Continue Bar (shows last-used tab) -->
@@ -5009,7 +5030,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621n"></script>
+    <script src="script.js?v=20260621o"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
