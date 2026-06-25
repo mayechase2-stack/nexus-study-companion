@@ -4894,6 +4894,8 @@ const SHOP_ITEMS = {
         { id: 'streak-king', name: 'Streak King', price: 180, desc: '🔥 Eternal flame', rarity: 'rare' },
         { id: 'scholar', name: 'Scholar Elite', price: 200, desc: '🎓 Gold cap', rarity: 'epic' },
         { id: 'diamond', name: 'Diamond Mind', price: 250, desc: '✨ LEGENDARY Brilliant intellect', rarity: 'legendary' },
+        { id: 'rising-star', name: 'Rising Star', price: 140, desc: '🌠 On the rise — for climbing scholars', rarity: 'rare' },
+        { id: 'level-master', name: 'Level Master', price: 230, desc: '🏅 EPIC Earned through the grind', rarity: 'epic' },
         { id: 'champion', name: 'Grand Champion', price: 0, desc: '👑 LEGENDARY Royal crown', rarity: 'legendary', secret: true },
         { id: 'nexus-emblem', name: 'Nexus Emblem', price: 0, desc: '🔮 NEXUS The founder seal', rarity: 'nexus', secret: true, nexus: true }
     ],
@@ -7857,7 +7859,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v18.2';
+const NEXUS_CURRENT_VERSION = 'v18.3';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -17756,6 +17758,21 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v18.3',
+        date: 'June 25, 2026',
+        tag: 'UPDATE 18.3 — THE PROGRESSION UPDATE',
+        tagColor: '#a29bfe',
+        changes: [
+            'XP & LEVELS THAT ACTUALLY LEVEL YOU UP — You now earn XP from solving problems, claiming quests, and daily logins, and your Level bar on the home hub fills as you go. (Previously XP never accrued — now it does.)',
+            'LEVEL-UP REWARDS — Every level you reach drops a bonus of gold and a celebration, scaling with your level. Keep grinding, keep cashing in.',
+            'RANK TITLES — Climb from Novice → Student → Apprentice → Scholar → Honor Roll → Master → Sage → Legend. Your rank shows on the home hub and your profile, with a "next rank at Lv X" tracker.',
+            'DAILY REWARD CHEST — A claimable chest right on the home hub gives you gold + XP every day, with a streak bonus. One tap, no digging through menus.',
+            'REVAMPED PROFILE — Your profile now shows your unified rank, next-rank progress, gold, and gamified stats alongside your level ring and 7-day activity chart.',
+            'NEW SHOP BADGES — Two new badges: Rising Star (🌠, rare) and Level Master (🏅, epic) to show off your grind.',
+            'BUG FIXES — Fixed XP/levels never progressing, the daily reward being claimable twice in one day, and Live Vision showing an empty "fill in the blank" box when the AI returned no answer.',
+        ]
+    },
+    {
         version: 'v18.2',
         date: 'June 24, 2026',
         tag: 'UPDATE 18.2 — HOSTED AI, ACCOUNTS & A FRESH LANDING',
@@ -26170,18 +26187,20 @@ function renderBetterProfile() {
     var subjCount={}; sessions.forEach(function(s){ if(s.subject) subjCount[s.subject]=(subjCount[s.subject]||0)+1; });
     var favSubject=Object.keys(subjCount).sort(function(a,b){return subjCount[b]-subjCount[a];})[0]||'—';
     var dcStreak=parseInt(localStorage.getItem('dc_streak')||'0');
-    var _titles=['Newcomer','Learner','Scholar','Honor Roll','Dean’s List','Valedictorian'];
-    var title=_titles[Math.min(_titles.length-1, Math.floor((level-1)/3))];
+    var title=(typeof getRankTitle==='function')?getRankTitle(level):'Novice';
+    var _rankLvls=[3,6,10,15,22,30,40];
+    var _nextRankLvl=_rankLvls.filter(function(l){return l>level;})[0]||null;
 
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
         +'<div style="text-align:center;"><div style="font-size:1.4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
         +'<div style="flex:1;min-width:200px;">'
         +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span><span style="background:rgba(168,85,247,0.18);color:#c89bff;font-size:0.82rem;font-weight:700;padding:3px 10px;border-radius:20px;">'+title+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
         +(bio?'<div style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"'+bio+'"</div>':'')
-        +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div></div>'
+        +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div>'+(_nextRankLvl?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;">Rank <strong style="color:#c89bff;">'+title+'</strong> · next rank at <strong style="color:#fff;">Lv.'+_nextRankLvl+'</strong></div>':'<div style="font-size:0.78rem;color:#c89bff;margin-top:6px;font-weight:700;">👑 Max rank reached: '+title+'</div>')+'</div>'
         +'<div style="display:flex;gap:12px;margin-top:12px;"><button class="btn-secondary" style="font-size:0.88rem;padding:6px 12px;" onclick="openEditProfile()"><i class="ph ph-pencil-simple"></i> Edit Profile</button></div>'
         +'</div></div>'
-        +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(98px,1fr));gap:10px;margin-bottom:16px;">'
+        +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#FFD700;">'+(typeof userCredits!=='undefined'?userCredits:0)+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Gold</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:var(--accent);">'+(stats.problemsSolved||0)+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Problems</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#ff6b6b;">'+(stats.currentStreak||0)+'🔥</div><div style="font-size:0.85rem;color:var(--text-muted);">Streak</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#a855f7;">'+completed.length+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Achievements</div></div>'
