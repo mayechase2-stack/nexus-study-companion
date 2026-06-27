@@ -2835,11 +2835,20 @@ function awardXP(amount, reason) {
     }
     if (typeof updateHomeStats === 'function') updateHomeStats();
 }
+// Milestone bonuses make leveling feel rewarding (one-time big gold drops at key levels).
+const LEVEL_MILESTONES = { 3: 200, 5: 400, 10: 1000, 15: 1800, 20: 2800, 25: 4000, 30: 6000, 40: 10000 };
+function nextMilestone(level) {
+    const keys = Object.keys(LEVEL_MILESTONES).map(Number).sort(function (a, b) { return a - b; });
+    const lvl = keys.filter(function (l) { return l > level; })[0];
+    return lvl ? { level: lvl, reward: LEVEL_MILESTONES[lvl] } : null;
+}
 function _onLevelUp(level) {
-    const reward = level * 50;
+    let reward = level * 50;
+    let bonusMsg = '';
+    if (LEVEL_MILESTONES[level]) { reward += LEVEL_MILESTONES[level]; bonusMsg = ' 🏆 Milestone bonus!'; }
     if (typeof updateCredits === 'function') updateCredits(reward);
     if (typeof recordQuestProgress === 'function') recordQuestProgress('level_up');
-    if (typeof showToast === 'function') showToast('🎉 LEVEL UP! You\'re now Level ' + level + ' — ' + getRankTitle(level) + '! +' + reward + ' gold', 'success', 6000);
+    if (typeof showToast === 'function') showToast('🎉 LEVEL UP! You\'re now Level ' + level + ' — ' + getRankTitle(level) + '! +' + reward + ' gold' + bonusMsg, 'success', 6500);
 }
 
 // ============================================================
@@ -26228,6 +26237,7 @@ function renderBetterProfile() {
     var title=(typeof getRankTitle==='function')?getRankTitle(level):'Novice';
     var _rankLvls=[3,6,10,15,22,30,40];
     var _nextRankLvl=_rankLvls.filter(function(l){return l>level;})[0]||null;
+    var _nm=(typeof nextMilestone==='function')?nextMilestone(level):null;
 
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
         +'<div style="text-align:center;"><div style="font-size:1.4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
@@ -26246,7 +26256,7 @@ function renderBetterProfile() {
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00b894;">'+sessions.length+'</div><div style="font-size:0.85rem;color:var(--text-muted);">Sessions</div></div>'
         +'<div class="glass-panel" style="padding:14px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#00CEC9;">'+gpaStr+'</div><div style="font-size:0.85rem;color:var(--text-muted);">GPA Avg</div></div>'
         +'</div>'
-        +'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;font-size:0.85rem;color:var(--text-muted);"><span><i class="ph ph-calendar-blank"></i> Member since <strong style="color:#fff;">'+joinedStr+'</strong></span><span><i class="ph ph-bookmark-simple"></i> Most studied: <strong style="color:#fff;">'+favSubject+'</strong></span><span><i class="ph ph-target"></i> Daily streak: <strong style="color:#fff;">'+dcStreak+'</strong></span></div>'
+        +'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;font-size:0.85rem;color:var(--text-muted);"><span><i class="ph ph-calendar-blank"></i> Member since <strong style="color:#fff;">'+joinedStr+'</strong></span><span><i class="ph ph-bookmark-simple"></i> Most studied: <strong style="color:#fff;">'+favSubject+'</strong></span><span><i class="ph ph-target"></i> Daily streak: <strong style="color:#fff;">'+dcStreak+'</strong></span>'+(_nm?'<span><i class="ph ph-gift" style="color:#fdcb6e;"></i> Next milestone: <strong style="color:#fff;">Lv.'+_nm.level+' → +'+_nm.reward.toLocaleString()+'g</strong></span>':'')+'</div>'
         +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'notebook\');setTimeout(function(){switchNotebookTab(\'cards\');},80)" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
         +'<div class="glass-panel" style="padding:16px;margin-bottom:14px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h4 style="margin:0;color:white;font-size:0.9rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> Today\'s Quests</h4><button onclick="openQuestsModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:0.78rem;cursor:pointer;padding:0;font-weight:600;">All quests</button></div><div id="profile-quests-list" style="display:grid;gap:10px;"></div></div>'
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
