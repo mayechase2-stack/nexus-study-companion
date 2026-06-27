@@ -24432,10 +24432,15 @@ function renderStudyHeatmap() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.offsetWidth || 600;
-    canvas.width = W * window.devicePixelRatio;
-    canvas.height = 88 * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    const CW = W, CH = 88;
+    const dpr = window.devicePixelRatio || 1;
+    const COLS = 16, ROWS = 7, gap = 3, oy = 8;
+    const cellSize = Math.max(8, Math.floor((W - 32) / COLS));
+    const CW = W;
+    const CH = oy + ROWS * (cellSize + gap) + 8; // grow to fit all 7 rows (was hard-capped at 88 → clipped)
+    canvas.width = W * dpr;
+    canvas.height = CH * dpr;
+    canvas.style.height = CH + 'px';
+    ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, CW, CH);
 
     // Build activity map: date string → count
@@ -24450,11 +24455,7 @@ function renderStudyHeatmap() {
         });
     } catch(_) {}
 
-    const COLS = 16, ROWS = 7;
-    const cellSize = Math.floor((CW - 32) / COLS);
-    const gap = 3;
     const ox = (CW - (COLS * (cellSize + gap) - gap)) / 2;
-    const oy = 8;
     const today = new Date(); today.setHours(0,0,0,0);
     const maxCount = Math.max(1, ...Object.values(actMap));
 
