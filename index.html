@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260622a">
+    <link rel="stylesheet" href="style.css?v=20260622b">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1733,18 +1733,19 @@
 
                 <!-- v18.3 — Daily Challenge moved to the home page -->
 
-                <!-- Debate Practice (Command Center feature) -->
-                <div id="command-debate-section" class="glass-panel" style="padding:24px;margin-top:20px;border:1px solid rgba(108,92,231,0.35);background:linear-gradient(135deg,rgba(108,92,231,0.08),rgba(0,206,201,0.04));">
-                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+                <!-- Debate Practice (Command Center feature) — collapsible node -->
+                <details id="command-debate-section" class="glass-panel" style="padding:20px 24px;margin-top:20px;border:1px solid rgba(108,92,231,0.35);background:linear-gradient(135deg,rgba(108,92,231,0.08),rgba(0,206,201,0.04));">
+                    <summary style="display:flex;align-items:center;gap:14px;cursor:pointer;list-style:none;outline:none;">
                         <div style="width:48px;height:48px;flex-shrink:0;border-radius:13px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(108,92,231,0.35);">
                             <i class="ph ph-swords" style="font-size:1.5rem;color:#fff;"></i>
                         </div>
-                        <div>
+                        <div style="flex:1;min-width:0;">
                             <h3 style="margin:0;color:white;font-size:1.15rem;font-weight:700;">Debate Practice</h3>
                             <p style="margin:3px 0 0;font-size:0.84rem;color:var(--text-muted);line-height:1.4;">Pick a topic and a side — the AI argues the opposite, then judges who made the stronger case.</p>
                         </div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:14px;">
+                        <i class="ph ph-caret-down" style="color:var(--text-muted);font-size:1.1rem;flex-shrink:0;"></i>
+                    </summary>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin:18px 0 14px;">
                         <input id="debate-topic-input" type="text" placeholder="Debate topic — e.g. Should school start later?" style="width:100%;padding:12px 16px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);border-radius:10px;color:white;outline:none;font-size:0.93rem;box-sizing:border-box;transition:border-color 0.2s;" onfocus="this.style.borderColor='rgba(108,92,231,0.6)'" onblur="this.style.borderColor='var(--glass-border)'">
                         <select id="debate-side-select" style="padding:12px 16px;background:rgba(0,0,0,0.45);border:1px solid var(--glass-border);border-radius:10px;color:white;outline:none;font-size:0.93rem;cursor:pointer;">
                             <option value="FOR">Argue FOR</option>
@@ -1760,14 +1761,19 @@
                         <input id="debate-user-input" type="text" placeholder="Make your argument..." onkeydown="if(event.key==='Enter')sendDebateMsg()" style="flex:1;padding:11px 16px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);border-radius:10px;color:white;outline:none;font-size:0.9rem;">
                         <button onclick="sendDebateMsg()" style="background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:white;padding:11px 18px;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;"><i class="ph ph-paper-plane-tilt"></i></button>
                     </div>
-                </div>
+                </details>
 
-                <!-- v16.5 — Study History (relocated to Home at runtime) -->
-                <div id="home-study-history" class="glass-panel" style="padding:20px;margin-top:20px;">
-                    <h3 style="margin:0 0 4px;color:white;"><i class="ph ph-chart-bar"></i> Study Session History</h3>
-                    <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted);">Your study time over the last 7 days, broken down by day.</p>
-                    <canvas id="study-history-canvas" style="width:100%;height:180px;display:block;border-radius:8px;"></canvas>
-                </div>
+                <!-- v18.3 — Study History collapsible node (re-renders chart on open) -->
+                <details id="home-study-history" class="glass-panel" style="padding:18px 20px;margin-top:20px;" ontoggle="if(this.open && typeof renderStudyHistoryChart==='function'){setTimeout(function(){renderStudyHistoryChart('study-history-canvas');},60);}">
+                    <summary style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;outline:none;gap:12px;">
+                        <div style="min-width:0;">
+                            <h3 style="margin:0;color:white;"><i class="ph ph-chart-bar" style="color:#a29bfe;"></i> Study Session History</h3>
+                            <p style="margin:3px 0 0;font-size:0.85rem;color:var(--text-muted);">Your study time over the last 7 days.</p>
+                        </div>
+                        <i class="ph ph-caret-down" style="color:var(--text-muted);font-size:1.1rem;flex-shrink:0;"></i>
+                    </summary>
+                    <canvas id="study-history-canvas" style="width:100%;height:180px;display:block;border-radius:8px;margin-top:14px;"></canvas>
+                </details>
             </div>
 
             <!-- Notebook View - v7.0 REWORK -->
@@ -5080,7 +5086,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260622a"></script>
+    <script src="script.js?v=20260622b"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
