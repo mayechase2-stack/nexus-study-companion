@@ -412,8 +412,9 @@ textarea:focus {
     border: 1px solid var(--accent);
     border-radius: 16px;
     background: rgba(0, 0, 0, 0.6);
-    overflow: hidden;
-    max-height: calc(100vh - 200px);
+    /* v18.3 — let the panel grow to fit the answer and let the PAGE scroll.
+       The old max-height + overflow:hidden was clipping the answer card. */
+    overflow: visible;
     display: flex;
     flex-direction: column;
 }
@@ -422,8 +423,7 @@ textarea:focus {
     min-height: 0;
 }
 #live-vision-panel .analysis-feed {
-    max-height: calc(100vh - 320px);
-    overflow-y: auto;
+    overflow: visible;
 }
 #live-vision-panel #solution-panel { max-height: none; }
 
