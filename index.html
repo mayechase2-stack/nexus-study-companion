@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621s">
+    <link rel="stylesheet" href="style.css?v=20260621t">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -270,7 +270,9 @@
         </nav>
 
         <!-- Hero Section -->
-        <section style="max-width:1300px;margin:0 auto;padding:64px 40px 48px;text-align:center;">
+        <section style="max-width:1300px;margin:0 auto;padding:56px 40px 48px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:48px;align-items:center;margin-bottom:46px;">
+            <div style="text-align:left;">
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
@@ -280,13 +282,13 @@
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
                 <span style="background:linear-gradient(135deg, #6C5CE7, #00CEC9 60%, #00b894);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Always ready. Never judging.</span>
             </h1>
-            <p style="font-size:1.08rem;color:#9a9db8;max-width:640px;margin:0 auto 32px;line-height:1.7;">
+            <p style="font-size:1.08rem;color:#9a9db8;max-width:540px;margin:0 0 26px;line-height:1.7;">
                 Ask anything. Get clear answers — not copy-paste dumps. NEXUS teaches you to think, not just to finish homework.
                 Math, Science, English, Social Studies. Grade 9 through College.
             </p>
 
             <!-- Trust micro-strip -->
-            <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:32px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;justify-content:flex-start;gap:16px;margin-bottom:28px;flex-wrap:wrap;">
                 <div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#9a9db8;">
                     <span style="color:#FFD700;">★★★★★</span> Built by a student, for students
                 </div>
@@ -300,7 +302,7 @@
                 </div>
             </div>
 
-            <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+            <div style="display:flex;gap:14px;justify-content:flex-start;flex-wrap:wrap;">
                 <button onclick="openSignUpFlow()"
                     style="background:linear-gradient(135deg, #6C5CE7, #00CEC9);border:none;color:white;padding:15px 40px;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;transition:all 0.3s;box-shadow:0 6px 24px rgba(108,92,231,0.38);display:inline-flex;align-items:center;gap:10px;letter-spacing:0.3px;"
                     onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 36px rgba(108,92,231,0.55)'"
@@ -314,6 +316,23 @@
                     <svg width="18" height="18"><use href="#ic-arrow-down"/></svg> Explore Features
                 </button>
             </div>
+            </div><!-- /hero left column -->
+
+            <!-- Animated live tutor demo (right column) -->
+            <div style="position:relative;">
+                <div style="position:absolute;inset:-14px;background:radial-gradient(ellipse at 60% 35%,rgba(108,92,231,0.28),transparent 70%);pointer-events:none;filter:blur(10px);"></div>
+                <div style="position:relative;background:rgba(10,12,24,0.72);border:1px solid rgba(108,92,231,0.4);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,0.55),0 0 50px rgba(108,92,231,0.15);overflow:hidden;backdrop-filter:blur(10px);">
+                    <div style="display:flex;align-items:center;gap:7px;padding:12px 16px;background:rgba(108,92,231,0.14);border-bottom:1px solid rgba(108,92,231,0.22);">
+                        <span style="width:10px;height:10px;border-radius:50%;background:#ff5f57;"></span>
+                        <span style="width:10px;height:10px;border-radius:50%;background:#febc2e;"></span>
+                        <span style="width:10px;height:10px;border-radius:50%;background:#28c840;"></span>
+                        <span style="margin-left:8px;color:#cdd2e0;font-size:0.82rem;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-graduation-cap" style="color:#a29bfe;"></i> NEXUS Tutor</span>
+                        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;color:#00b894;font-weight:600;"><span style="width:7px;height:7px;border-radius:50%;background:#00b894;box-shadow:0 0 8px #00b894;"></span>live</span>
+                    </div>
+                    <div id="hero-demo-chat" style="padding:18px;height:300px;overflow:hidden;display:flex;flex-direction:column;gap:11px;font-size:0.9rem;"></div>
+                </div>
+            </div>
+            </div><!-- /hero grid -->
 
             <!-- v12.8 — improved stats row -->
             <div style="margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;max-width:780px;margin-left:auto;margin-right:auto;">
@@ -369,6 +388,73 @@
                     `<div style="flex-shrink:0;padding:7px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;font-size:0.82rem;color:#9a9db8;white-space:nowrap;">${i}</div>`
                 ).join('');
             }
+        })();
+        </script>
+
+        <!-- Animated hero tutor-demo: types out a question + Socratic reply on a loop -->
+        <script>
+        (function heroDemo() {
+            const chat = document.getElementById('hero-demo-chat');
+            if (!chat) return;
+            const convos = [
+                [
+                    { who: 'user', text: 'Solve 2x + 3 = 9' },
+                    { who: 'nexus', text: "Let's not jump to the answer — what could you do to both sides to get 2x by itself?" },
+                    { who: 'user', text: 'Subtract 3?' },
+                    { who: 'nexus', text: 'Exactly. That leaves 2x = 6. So what is the last step to find x?' }
+                ],
+                [
+                    { who: 'user', text: 'What is photosynthesis?' },
+                    { who: 'nexus', text: 'In one line: plants turn sunlight + CO2 + water into glucose + oxygen. Want me to break the equation down?' },
+                    { who: 'user', text: 'yes please' },
+                    { who: 'nexus', text: '6CO2 + 6H2O + light -> C6H12O6 + 6O2. Which part should we unpack first?' }
+                ],
+                [
+                    { who: 'user', text: 'Why did the Civil War start?' },
+                    { who: 'nexus', text: 'Great question. Before causes — what split between the states do you already know about?' },
+                    { who: 'user', text: 'slavery?' },
+                    { who: 'nexus', text: "That's the core of it. How do you think that tied into states' rights and the economy?" }
+                ]
+            ];
+            function bubble(who) {
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'display:flex;' + (who === 'user' ? 'justify-content:flex-end;' : 'justify-content:flex-start;') + 'animation:fadeIn 0.25s ease both;';
+                const b = document.createElement('div');
+                b.style.cssText = 'max-width:84%;padding:9px 13px;border-radius:14px;line-height:1.45;' + (who === 'user'
+                    ? 'background:linear-gradient(135deg,#6C5CE7,#00CEC9);color:#fff;border-bottom-right-radius:4px;'
+                    : 'background:rgba(255,255,255,0.06);color:#e8eef8;border:1px solid rgba(255,255,255,0.08);border-bottom-left-radius:4px;');
+                wrap.appendChild(b);
+                chat.appendChild(wrap);
+                return b;
+            }
+            const wait = (ms) => new Promise(r => setTimeout(r, ms));
+            function type(el, text) {
+                return new Promise(res => {
+                    let i = 0;
+                    const iv = setInterval(() => {
+                        el.textContent = text.slice(0, ++i);
+                        chat.scrollTop = chat.scrollHeight;
+                        if (i >= text.length) { clearInterval(iv); res(); }
+                    }, 16);
+                });
+            }
+            async function run() {
+                let ci = 0;
+                // small initial delay so the page settles
+                await wait(600);
+                while (true) {
+                    chat.innerHTML = '';
+                    const convo = convos[ci % convos.length];
+                    for (const m of convo) {
+                        await wait(m.who === 'user' ? 280 : 520);
+                        await type(bubble(m.who), m.text);
+                        await wait(650);
+                    }
+                    await wait(2400);
+                    ci++;
+                }
+            }
+            run();
         })();
         </script>
 
@@ -5040,7 +5126,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621s"></script>
+    <script src="script.js?v=20260621t"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
