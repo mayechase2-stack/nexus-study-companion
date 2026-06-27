@@ -22807,6 +22807,29 @@ function recordQuestProgress(eventType, amount = 1) {
     if (updated) _saveQuestState(fresh);
 }
 
+// v18.3 — reusable daily-quest list renderer (used on the Profile page)
+function renderDailyQuestsInto(el) {
+    if (!el || typeof _ensureQuestPeriod !== 'function') return;
+    try {
+        const block = _ensureQuestPeriod('daily');
+        const quests = (block && block.quests) ? block.quests.slice(0, 5) : [];
+        if (!quests.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:8px 0;">No quests right now — check back soon.</div>'; return; }
+        el.innerHTML = quests.map(function (q) {
+            const pct = Math.round(Math.min(100, (q.progress / q.target) * 100));
+            const done = q.progress >= q.target;
+            const right = done && !q.claimed
+                ? '<button onclick="claimQuestReward(\'daily\',\'' + q.id + '\');renderBetterProfile();" style="background:linear-gradient(135deg,#00b894,#00CEC9);border:none;color:#fff;font-size:0.76rem;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;">Claim +' + q.reward + '</button>'
+                : (q.claimed ? '<span style="color:#00b894;font-size:0.78rem;font-weight:700;white-space:nowrap;">✓ Claimed</span>' : '<span style="color:var(--text-muted);font-size:0.76rem;white-space:nowrap;">+' + q.reward + 'g</span>');
+            return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;">'
+                + '<i class="ph ' + (q.icon || 'ph-target') + '" style="font-size:1.2rem;color:#a29bfe;flex-shrink:0;"></i>'
+                + '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;color:#fff;font-weight:600;margin-bottom:5px;">' + q.title + '</div>'
+                + '<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:4px;"></div></div></div>'
+                + '<div style="text-align:right;min-width:72px;"><div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:3px;">' + q.progress + '/' + q.target + '</div>' + right + '</div>'
+                + '</div>';
+        }).join('');
+    } catch (_) {}
+}
+
 function claimQuestReward(scope, questId) {
     const state = _getQuestState();
     const block = state[scope];
@@ -26225,11 +26248,14 @@ function renderBetterProfile() {
         +'</div>'
         +'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;font-size:0.85rem;color:var(--text-muted);"><span><i class="ph ph-calendar-blank"></i> Member since <strong style="color:#fff;">'+joinedStr+'</strong></span><span><i class="ph ph-bookmark-simple"></i> Most studied: <strong style="color:#fff;">'+favSubject+'</strong></span><span><i class="ph ph-target"></i> Daily streak: <strong style="color:#fff;">'+dcStreak+'</strong></span></div>'
         +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'notebook\');setTimeout(function(){switchNotebookTab(\'cards\');},80)" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
+        +'<div class="glass-panel" style="padding:16px;margin-bottom:14px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h4 style="margin:0;color:white;font-size:0.9rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> Today\'s Quests</h4><button onclick="openQuestsModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:0.78rem;cursor:pointer;padding:0;font-weight:600;">All quests</button></div><div id="profile-quests-list" style="display:grid;gap:10px;"></div></div>'
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
 
     setTimeout(function(){
         var cv=document.getElementById('profile-study-canvas');
         if(cv) renderStudyHistoryChart('profile-study-canvas');
+        var ql=document.getElementById('profile-quests-list');
+        if(ql && typeof renderDailyQuestsInto==='function') renderDailyQuestsInto(ql);
     },80);
 }
 
