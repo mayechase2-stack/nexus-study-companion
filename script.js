@@ -205,8 +205,21 @@ async function callHostedAI(opts) {
                     max_tokens: body.max_tokens || body.max_completion_tokens,
                     response_format: body.response_format
                 });
+                const content = res.content || '';
+                // Many features request stream:true and read the body as Server-Sent
+                // Events. The hosted proxy is non-streaming, so synthesize a valid SSE
+                // stream (one delta with the full content, then [DONE]) — otherwise the
+                // streamed output comes back empty.
+                if (body.stream) {
+                    const chunk = 'data: ' + JSON.stringify({ choices: [{ index: 0, delta: { role: 'assistant', content: content }, finish_reason: null }] }) + '\n\n';
+                    const done = 'data: ' + JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n';
+                    const stream = new ReadableStream({
+                        start(c) { const enc = new TextEncoder(); c.enqueue(enc.encode(chunk)); c.enqueue(enc.encode(done)); c.close(); }
+                    });
+                    return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } });
+                }
                 const norm = {
-                    choices: [{ index: 0, message: { role: 'assistant', content: res.content || '' }, finish_reason: 'stop' }],
+                    choices: [{ index: 0, message: { role: 'assistant', content: content }, finish_reason: 'stop' }],
                     usage: {}, _nexusHosted: true, _used: res.used, _limit: res.limit
                 };
                 return new Response(JSON.stringify(norm), { status: 200, headers: { 'Content-Type': 'application/json' } });
