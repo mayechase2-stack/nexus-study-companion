@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260621v">
+    <link rel="stylesheet" href="style.css?v=20260621w">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1262,43 +1262,16 @@
                                 </div>
                             </div>
 
-                            <!-- v13.0 — Daily Challenge quick card -->
-                            <div id="home-daily-challenge-card" onclick="var p=document.getElementById('daily-challenge-panel');if(p)p.scrollIntoView({behavior:'smooth',block:'center'})" style="padding:14px 16px;background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(108,92,231,0.5)'" onmouseout="this.style.borderColor='rgba(108,92,231,0.3)'">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-                                    <span style="font-size:1rem;">🎯</span>
-                                    <span style="font-size:0.72rem;color:var(--accent);font-weight:700;letter-spacing:0.5px;">DAILY CHALLENGE</span>
-                                </div>
-                                <div id="home-tip-text" style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Loading today's challenge…</div>
-                            </div>
-
                             <!-- v16.5 — Word of the Day -->
                             <div id="word-of-day-widget" style="margin-bottom:12px;"></div>
 
-                            <!-- v17.0 — quick tools -->
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            <!-- v17.0 — quick tools + actions (consolidated) -->
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                 <button class="btn-secondary" onclick="openStudyPlanner()" style="font-size:0.85rem;"><i class="ph ph-calendar-check"></i> Study Planner</button>
                                 <button class="btn-secondary" onclick="openFormulaSheet()" style="font-size:0.85rem;"><i class="ph ph-printer"></i> Formula Cheat Sheet</button>
                                 <button class="btn-secondary" onclick="toggleRainAmbiance()" style="font-size:0.85rem;"><i class="ph ph-cloud-rain"></i> Rain Ambiance</button>
-                            </div>
-
-                            <!-- Update banner — v13.0 -->
-                            <div style="padding:14px 16px;background:linear-gradient(135deg,rgba(253,121,168,0.12),rgba(108,92,231,0.08));border:1px solid rgba(253,121,168,0.3);border-radius:12px;margin-bottom:12px;cursor:pointer;" onclick="switchTab('updates')">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                                    <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.64rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">NEW</span>
-                                    <div style="font-size:0.78rem;color:#fd79a8;font-weight:700;letter-spacing:0.5px;">v13.0 — MEGA UPDATE</div>
-                                </div>
-                                <div style="font-size:0.84rem;color:#d8dce5;line-height:1.5;">Homework Tracker, Grade Calculator, Quiz Gen, Citations, SRS Flashcards, Daily Challenges, CSV Import &amp; more!</div>
-                                <button onclick="event.stopPropagation();switchTab('updates')" style="margin-top:8px;background:transparent;border:none;color:#fd79a8;font-size:0.78rem;font-weight:600;padding:0;cursor:pointer;"><i class="ph ph-arrow-right"></i> See full changelog</button>
-                            </div>
-
-                            <!-- Action row -->
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                <button class="btn-secondary" onclick="startOnboarding()" style="padding:10px;font-size:0.84rem;display:flex;align-items:center;justify-content:center;gap:6px;">
-                                    <i class="ph ph-compass"></i> Take the tour
-                                </button>
-                                <button class="btn-secondary" onclick="switchTab('suggestions')" style="padding:10px;font-size:0.84rem;display:flex;align-items:center;justify-content:center;gap:6px;">
-                                    <i class="ph ph-lightbulb"></i> Suggestions
-                                </button>
+                                <button class="btn-secondary" onclick="startOnboarding()" style="font-size:0.85rem;"><i class="ph ph-compass"></i> Take the tour</button>
+                                <button class="btn-secondary" onclick="switchTab('suggestions')" style="font-size:0.85rem;"><i class="ph ph-lightbulb"></i> Suggestions</button>
                             </div>
                         </div>
 
@@ -1341,28 +1314,6 @@
                                 </div>
                             </div>
 
-                            <!-- Quick Access grid -->
-                            <div class="glass-panel" style="padding:18px;border:1px solid rgba(0,206,201,0.18);">
-                                <h4 style="margin:0 0 12px;color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:1.2px;">Quick Access</h4>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                    <button class="btn-primary" onclick="switchTab('dashboard')" style="padding:11px 10px;font-size:0.83rem;display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-squares-four"></i> Command Center
-                                    </button>
-                                    <button class="btn-primary" onclick="switchTab('math')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00CEC9,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-function"></i> Math Lab
-                                    </button>
-                                    <!-- v16.5 — Homework quick button removed -->
-                                    <button class="btn-primary" onclick="switchTab('grades')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#00b894,#6C5CE7);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-chart-bar"></i> Grades
-                                    </button>
-                                    <button class="btn-primary" onclick="switchTab('notebook')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#a855f7,#00CEC9);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-wrench"></i> Study Tools
-                                    </button>
-                                    <button class="btn-primary" onclick="switchTab('achievements')" style="padding:11px 10px;font-size:0.83rem;background:linear-gradient(135deg,#fdcb6e,#e17055);display:flex;align-items:center;justify-content:center;gap:6px;">
-                                        <i class="ph ph-medal-military"></i> Achievements
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -5126,7 +5077,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260621v"></script>
+    <script src="script.js?v=20260621w"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
