@@ -41,11 +41,11 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 260px;
+    width: 264px;
     background: rgba(10, 10, 15, 0.92);
     backdrop-filter: blur(10px);
     border-right: 1px solid var(--glass-border);
-    padding: 2rem;
+    padding: 1.4rem 1.25rem;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -57,7 +57,7 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--accent);
-    margin-bottom: 3rem;
+    margin-bottom: 1.5rem;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -75,9 +75,9 @@ body {
 }
 
 .nav-links li {
-    padding: 13px 16px;
-    margin-bottom: 4px;
-    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 2px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
