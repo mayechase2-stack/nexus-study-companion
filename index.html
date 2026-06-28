@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260622d">
+    <link rel="stylesheet" href="style.css?v=20260622e">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -2854,15 +2854,6 @@
                         <span id="social-didyouknow-text" style="flex:1;">Loading a fact…</span>
                         <button onclick="rotateSocialDidYouKnow()" title="Next fact" style="background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);color:white;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:0.74rem;"><i class="ph ph-shuffle"></i></button>
                     </div>
-                    <!-- v12.1: era jumper chips, color-themed -->
-                    <div id="social-era-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;">
-                        <span style="font-size:0.72rem;color:var(--text-muted);font-weight:700;letter-spacing:1px;align-self:center;">JUMP TO ERA:</span>
-                        <button class="social-era-chip" data-era="ancient" style="padding:5px 12px;font-size:0.76rem;background:linear-gradient(135deg,rgba(218,165,32,0.18),rgba(218,165,32,0.06));border:1px solid rgba(218,165,32,0.4);border-radius:14px;color:#f0d090;cursor:pointer;font-weight:600;" onclick="socialEraPreset('ancient')">🏛️ Ancient<br><span style="font-size:0.66rem;opacity:0.75;">3000 BCE – 500 CE</span></button>
-                        <button class="social-era-chip" data-era="medieval" style="padding:5px 12px;font-size:0.76rem;background:linear-gradient(135deg,rgba(128,128,140,0.18),rgba(128,128,140,0.06));border:1px solid rgba(150,150,170,0.4);border-radius:14px;color:#c0c0d0;cursor:pointer;font-weight:600;" onclick="socialEraPreset('medieval')">⚔️ Medieval<br><span style="font-size:0.66rem;opacity:0.75;">500 – 1500</span></button>
-                        <button class="social-era-chip" data-era="early-modern" style="padding:5px 12px;font-size:0.76rem;background:linear-gradient(135deg,rgba(184,115,51,0.18),rgba(184,115,51,0.06));border:1px solid rgba(184,115,51,0.4);border-radius:14px;color:#e0b080;cursor:pointer;font-weight:600;" onclick="socialEraPreset('early-modern')">⚓ Early Modern<br><span style="font-size:0.66rem;opacity:0.75;">1500 – 1800</span></button>
-                        <button class="social-era-chip" data-era="modern" style="padding:5px 12px;font-size:0.76rem;background:linear-gradient(135deg,rgba(205,127,50,0.18),rgba(205,127,50,0.06));border:1px solid rgba(205,127,50,0.4);border-radius:14px;color:#e8b888;cursor:pointer;font-weight:600;" onclick="socialEraPreset('modern')">🏭 Modern<br><span style="font-size:0.66rem;opacity:0.75;">1800 – 1945</span></button>
-                        <button class="social-era-chip" data-era="contemporary" style="padding:5px 12px;font-size:0.76rem;background:linear-gradient(135deg,rgba(0,255,245,0.15),rgba(124,77,255,0.10));border:1px solid rgba(0,255,245,0.4);border-radius:14px;color:#a8fff8;cursor:pointer;font-weight:600;" onclick="socialEraPreset('contemporary')">📡 Contemporary<br><span style="font-size:0.66rem;opacity:0.75;">1945 – Today</span></button>
-                    </div>
                 </header>
 
                 <!-- Quick Study Tools bar -->
@@ -2872,9 +2863,10 @@
                     <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
-                <!-- v17.0 — Region Explorer -->
-                <div style="background:rgba(253,121,168,0.06);border:1px solid rgba(253,121,168,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><i class="ph ph-globe-hemisphere-west" style="color:#fd79a8;font-size:1.2rem;"></i><strong style="color:white;">Region Explorer</strong><span style="font-size:0.78rem;color:var(--text-muted);">— history, government &amp; economy of any place</span></div>
+                <!-- v18.3 — Region Explorer (collapsible node) -->
+                <details style="background:rgba(253,121,168,0.06);border:1px solid rgba(253,121,168,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
+                    <summary style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;list-style:none;outline:none;"><i class="ph ph-globe-hemisphere-west" style="color:#fd79a8;font-size:1.2rem;"></i><strong style="color:white;">Region Explorer</strong><span style="font-size:0.78rem;color:var(--text-muted);">— history, government &amp; economy of any place</span><i class="ph ph-caret-down" style="margin-left:auto;color:var(--text-muted);"></i></summary>
+                    <div style="margin-top:12px;">
                     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
                         <input id="social-region-search" class="input-field" placeholder="Type a country or region (e.g. Brazil, Ancient Egypt, Southeast Asia)" style="flex:1;min-width:220px;" onkeydown="if(event.key==='Enter')searchSocial('region', this.value)">
                         <button class="btn-primary" onclick="searchSocial('region', document.getElementById('social-region-search').value)" style="flex-shrink:0;"><i class="ph ph-magnifying-glass"></i> Explore</button>
@@ -2894,7 +2886,8 @@
                         <button onclick="searchSocial('region','Mexico')" class="region-chip" style="padding:5px 11px;font-size:0.76rem;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:14px;color:#e8eef8;cursor:pointer;">🇲🇽 Mexico</button>
                     </div>
                     <div id="social-region-output" class="hidden" style="margin-top:14px;padding:14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;line-height:1.6;color:#e8eef8;"></div>
-                </div>
+                    </div>
+                </details>
 
                 <div class="eng-tabs" style="margin-bottom: 24px;">
                     <button class="eng-tab-btn active" onclick="switchSocialTab('character')">
@@ -5086,7 +5079,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260622d"></script>
+    <script src="script.js?v=20260622e"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
