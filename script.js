@@ -24476,16 +24476,21 @@ function renderStudyHeatmap() {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, CW, CH);
 
-    // Build activity map: date string → count
+    // Build activity map: date string → minutes studied (real study time).
     const actMap = {};
     try {
-        const hist = JSON.parse(localStorage.getItem('studyHistory') || localStorage.getItem('study_history') || '[]');
-        hist.forEach(entry => {
-            const d = new Date(entry.timestamp || entry.date || entry.t || 0);
-            if (isNaN(d)) return;
-            const key = d.toISOString().slice(0, 10);
-            actMap[key] = (actMap[key] || 0) + 1;
-        });
+        // Primary source: tracked study sessions (minutes per day).
+        const sessions = JSON.parse(localStorage.getItem('study_sessions_v2') || '[]');
+        sessions.forEach(s => { if (s && s.date) actMap[s.date] = (actMap[s.date] || 0) + (s.duration || 1); });
+        // Fallback: legacy activity log (count as ~1 min each) if no sessions yet.
+        if (Object.keys(actMap).length === 0) {
+            const hist = JSON.parse(localStorage.getItem('studyHistory') || localStorage.getItem('study_history') || '[]');
+            hist.forEach(entry => {
+                const d = new Date(entry.timestamp || entry.date || entry.t || 0);
+                if (isNaN(d)) return;
+                actMap[d.toISOString().slice(0, 10)] = (actMap[d.toISOString().slice(0, 10)] || 0) + 1;
+            });
+        }
     } catch(_) {}
 
     const ox = (CW - (COLS * (cellSize + gap) - gap)) / 2;
@@ -24531,10 +24536,13 @@ function renderStudyHeatmap() {
             }
         }
     }
-    // Total count label
+    // Total label — show real minutes studied across the window
     const total = Object.values(actMap).reduce((s, v) => s + v, 0);
     const label = document.getElementById('heatmap-total-label');
-    if (label) label.textContent = total + ' sessions logged';
+    if (label) {
+        const h = Math.floor(total / 60), m = total % 60;
+        label.textContent = (h > 0 ? h + 'h ' + m + 'm' : total + ' min') + ' studied';
+    }
 }
 
 // Hook heatmap into history tab
@@ -25972,6 +25980,27 @@ function endStudySession() {
 }
 function getStudySessions(){ try{return JSON.parse(localStorage.getItem('study_sessions_v2')||'[]');}catch{return[];} }
 function trackStudySession(subject,duration){ if(duration<1)duration=1; var s=getStudySessions(); s.push({date:new Date().toISOString().slice(0,10),duration:duration,subject:subject||'General'}); if(s.length>200)s.splice(0,s.length-200); localStorage.setItem('study_sessions_v2',JSON.stringify(s)); }
+
+// v18.3 — REAL study-time tracker. Counts one minute only when the tab is
+// visible, the user is signed in, and there was activity in the last 3 minutes.
+// Previously study time/sessions were never recorded, so the profile + heatmap
+// always showed zero.
+(function studyTimeTracker(){
+    var lastActivity = Date.now();
+    ['mousemove','keydown','click','scroll','touchstart'].forEach(function(ev){
+        window.addEventListener(ev, function(){ lastActivity = Date.now(); }, { passive: true });
+    });
+    setInterval(function(){
+        try {
+            if (document.visibilityState && document.visibilityState !== 'visible') return; // tab hidden
+            if (Date.now() - lastActivity > 180000) return;        // idle > 3 min
+            if (!localStorage.getItem('auth_user')) return;        // only while signed in
+            if (typeof updateStudyStats === 'function') updateStudyStats('study_time', 1);
+            var subj = localStorage.getItem('last_tab') || 'General';
+            if (typeof trackStudySession === 'function') trackStudySession(subj, 1);
+        } catch (_) {}
+    }, 60000);
+})();
 
 function renderStudyHistoryChart(canvasId) {
     var canvas=document.getElementById(canvasId||'study-history-canvas');
