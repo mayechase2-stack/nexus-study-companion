@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260622e">
+    <link rel="stylesheet" href="style.css?v=20260622f">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -2929,11 +2929,11 @@
                             </button>
                         </div>
 
-                        <div style="margin-bottom: 24px;">
-                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                        <details style="margin-bottom: 24px;">
+                            <summary style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; cursor:pointer; list-style:none; outline:none;">
                                 <i class="ph ph-star"></i> Popular Searches
-                            </p>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            </summary>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
                                 <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;"
                                     onclick="document.getElementById('social-char-search').value='Julius Caesar'; searchSocial('character')">
                                     Julius Caesar
@@ -2955,7 +2955,7 @@
                                     Napoleon
                                 </button>
                             </div>
-                        </div>
+                        </details>
 
                         <div id="social-char-output" class="hidden"
                             style="background:rgba(0, 206, 201, 0.05); padding:24px; border-radius:12px; border:1px solid rgba(0, 206, 201, 0.2); line-height: 1.8;">
@@ -5079,7 +5079,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260622e"></script>
+    <script src="script.js?v=20260622f"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
