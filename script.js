@@ -2282,7 +2282,6 @@ function saveSettings() {
     sset('setting-response-length', 'ai_response_length');
     sset('setting-tone', 'ai_tone');
     sset('setting-temp', 'ai_temperature');
-    sset('setting-model', 'ai_model');
     sset('setting-math-notation', 'math_notation');
     sset('setting-streaming', 'ai_streaming');
     sset('setting-notify-toasts', 'notify_toasts');
@@ -2339,7 +2338,6 @@ function loadExpandedSettings() {
     lget('setting-response-length', 'ai_response_length', 'medium');
     lget('setting-tone', 'ai_tone', 'neutral');
     lget('setting-temp', 'ai_temperature', '50');
-    lget('setting-model', 'ai_model', 'gpt-4o');
     lget('setting-math-notation', 'math_notation', 'plain');
     lget('setting-streaming', 'ai_streaming', true);
     lget('setting-notify-toasts', 'notify_toasts', true);

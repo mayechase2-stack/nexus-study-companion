@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260622i">
+    <link rel="stylesheet" href="style.css?v=20260622j">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1264,7 +1264,6 @@
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                 <button class="btn-secondary" onclick="openStudyPlanner()" style="font-size:0.85rem;"><i class="ph ph-calendar-check"></i> Study Planner</button>
                                 <button class="btn-secondary" onclick="openFormulaSheet()" style="font-size:0.85rem;"><i class="ph ph-printer"></i> Formula Cheat Sheet</button>
-                                <button class="btn-secondary" onclick="toggleRainAmbiance()" style="font-size:0.85rem;"><i class="ph ph-cloud-rain"></i> Rain Ambiance</button>
                                 <button class="btn-secondary" onclick="startOnboarding()" style="font-size:0.85rem;"><i class="ph ph-compass"></i> Take the tour</button>
                                 <button class="btn-secondary" onclick="switchTab('suggestions')" style="font-size:0.85rem;"><i class="ph ph-lightbulb"></i> Suggestions</button>
                             </div>
@@ -3928,14 +3927,6 @@ if __name__ == '__main__':
                             <p style="margin:6px 0 0;font-size:0.75rem;color:var(--text-muted);">Lower = focused. Higher = creative. Default 0.5.</p>
                         </div>
                         <div class="glass-panel" style="padding:18px;margin-bottom:12px;">
-                            <strong style="color:white;display:block;margin-bottom:10px;">Preferred model</strong>
-                            <select id="setting-model" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;">
-                                <option value="gpt-4o" selected>gpt-4o (default)</option>
-                                <option value="gpt-4o-mini">gpt-4o-mini (faster, cheaper)</option>
-                                <option value="gpt-4-turbo">gpt-4-turbo</option>
-                            </select>
-                        </div>
-                        <div class="glass-panel" style="padding:18px;margin-bottom:12px;">
                             <strong style="color:white;display:block;margin-bottom:10px;">Math notation preference</strong>
                             <select id="setting-math-notation" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;">
                                 <option value="plain" selected>Plain text (e.g. x^2)</option>
@@ -4098,11 +4089,8 @@ if __name__ == '__main__':
                             <button class="btn-secondary" onclick="toggleSettings();switchTab('inventory');"><i class="ph ph-package"></i> My Inventory</button>
                         </div>
                         <button class="btn-primary" onclick="toggleSettings();openPlanBuilder();" style="width:100%;margin-bottom:10px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);"><i class="ph ph-puzzle-piece"></i> Manage My Plan</button>
-                        <!-- v17.0 — quick cosmetic controls -->
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-                            <button class="btn-secondary" onclick="toggleRainAmbiance()"><i class="ph ph-cloud-rain"></i> Toggle Rain Ambiance</button>
-                            <button class="btn-secondary" onclick="resetCosmetics()" style="color:#ff9a9a;border-color:rgba(255,107,107,0.3);"><i class="ph ph-arrow-counter-clockwise"></i> Reset Cosmetics</button>
-                        </div>
+                        <!-- v17.0 — quick cosmetic controls (rain lives in Focus Sounds now) -->
+                        <button class="btn-secondary" onclick="resetCosmetics()" style="width:100%;margin-bottom:14px;color:#ff9a9a;border-color:rgba(255,107,107,0.3);"><i class="ph ph-arrow-counter-clockwise"></i> Reset Cosmetics</button>
                         <!-- v12.8 — Multi-theme picker (like Discord) -->
                         <div class="glass-panel" style="padding:16px;margin-bottom:10px;">
                             <div style="font-weight:600;color:white;margin-bottom:12px;font-size:0.95rem;">Theme Mode</div>
@@ -5084,7 +5072,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260622i"></script>
+    <script src="script.js?v=20260622j"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
