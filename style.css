@@ -51,7 +51,25 @@ body {
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
 }
+/* v18.4 — draggable sidebar resize handle */
+#sidebar-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 60;
+    transition: background 0.15s;
+}
+#sidebar-resize-handle:hover,
+#sidebar-resize-handle.dragging {
+    background: linear-gradient(90deg, transparent, rgba(108, 92, 231, 0.5));
+}
+@media (max-width: 900px) { #sidebar-resize-handle { display: none; } }
 
 .logo {
     font-size: 1.5rem;

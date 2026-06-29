@@ -235,6 +235,44 @@ async function callHostedAI(opts) {
         return _origFetch(url, opts);
     };
 })();
+
+// v18.4 — Draggable, persistent sidebar width (desktop). Drag the right edge;
+// double-click the handle to reset.
+(function sidebarResize() {
+    function init() {
+        if (window.innerWidth <= 900) return; // mobile uses a top bar, not a side column
+        var sidebar = document.querySelector('.sidebar');
+        var handle = document.getElementById('sidebar-resize-handle');
+        if (!sidebar || !handle) return;
+        var MIN = 200, MAX = 460;
+        try { var saved = parseInt(localStorage.getItem('sidebar_width') || '', 10); if (!isNaN(saved)) sidebar.style.width = Math.min(MAX, Math.max(MIN, saved)) + 'px'; } catch (_) {}
+        var dragging = false;
+        function onMove(e) {
+            if (!dragging) return;
+            var x = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+            sidebar.style.width = Math.min(MAX, Math.max(MIN, x)) + 'px';
+        }
+        function stop() {
+            if (!dragging) return;
+            dragging = false; handle.classList.remove('dragging');
+            document.body.style.userSelect = ''; document.body.style.cursor = '';
+            try { localStorage.setItem('sidebar_width', String(parseInt(sidebar.style.width, 10) || 264)); } catch (_) {}
+            window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', stop);
+            window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', stop);
+        }
+        function startDrag(e) {
+            dragging = true; handle.classList.add('dragging');
+            document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize';
+            window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', stop);
+            window.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', stop);
+            if (e.cancelable) e.preventDefault();
+        }
+        handle.addEventListener('mousedown', startDrag);
+        handle.addEventListener('touchstart', startDrag, { passive: false });
+        handle.addEventListener('dblclick', function () { sidebar.style.width = '264px'; try { localStorage.setItem('sidebar_width', '264'); } catch (_) {} });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 async function cloudUiTestAI() {
     const out = document.getElementById('cloud-ai-test-out');
     if (out) { out.style.display = 'block'; out.textContent = '⏳ Testing hosted AI…'; }
