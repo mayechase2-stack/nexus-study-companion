@@ -7582,11 +7582,13 @@ function promoteSuggestionToPlan(suggestionId) {
 
 // v11.0 — Owner deletes a community suggestion
 function ownerDeleteSuggestion(suggestionId) {
-    if (typeof isOwner !== 'function' || !isOwner()) return;
+    if (typeof isOwner !== 'function' || !isOwner()) { if (typeof showToast === 'function') showToast('Only the owner can delete suggestions.', 'error'); return; }
     if (!confirm('Delete this suggestion permanently?')) return;
-    const list = _readSuggestions().filter(s => s.id !== suggestionId);
+    const list = _readSuggestions().filter(s => String(s.id) !== String(suggestionId));
     _writeSuggestions(list);
-    renderSuggestions();
+    // Refresh whichever suggestions UI is currently rendered.
+    if (typeof renderSuggestions === 'function') renderSuggestions();
+    if (typeof renderSuggestionsPage === 'function') renderSuggestionsPage();
     showToast('Suggestion deleted.', 'info');
 }
 
@@ -22441,6 +22443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
 
     document.addEventListener('keydown', (e) => {
+        return; // v19 — keyboard shortcuts removed app-wide
         if (localStorage.getItem('shortcuts_enabled') === '0') return;
         if (_rebindActive) return; // handled above
         const t = e.target;
@@ -24811,6 +24814,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Active only when flashcard content is visible (deck has been opened).
 // Space = flip card   ←/→ = Prev/Next   1/2/3/4 = SM-2 Again/Hard/Good/Easy
 document.addEventListener('keydown', function _fcKeyNav(e) {
+    return; // v19 — keyboard shortcuts removed app-wide
     // Only active when the flashcards tab is showing review content
     const content = document.getElementById('flashcards-content');
     if (!content || !content.closest('.view.active')) return;
