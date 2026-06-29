@@ -1,7 +1,7 @@
 // NEXUS service worker — v16.5
 // Network-FIRST: online users always get the freshest files (no stale-cache
 // surprises), and a cached copy is kept only as an offline fallback.
-const CACHE = 'nexus-v18.3.1';
+const CACHE = 'nexus-v18.4';
 
 self.addEventListener('install', function (e) {
     self.skipWaiting();

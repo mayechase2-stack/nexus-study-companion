@@ -7881,7 +7881,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v18.3';
+const NEXUS_CURRENT_VERSION = 'v18.4';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -17779,6 +17779,22 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v18.4',
+        date: 'June 27, 2026',
+        tag: 'UPDATE 18.4 — POLISH & TRUE TRACKING',
+        tagColor: '#00CEC9',
+        changes: [
+            'REAL STUDY-TIME TRACKING — NEXUS now actually counts the minutes you study (active, signed-in time). Your Study Activity heatmap and profile show true hours/minutes instead of always reading zero.',
+            'LIVE VISION "WORK IT OUT" BOARD — the empty space under the screen-share is now a scratch board so you can try the steps yourself before peeking at the answer.',
+            'HOME, REORGANIZED — Daily Challenge is back on the home page; Today\'s Quests moved to your Profile (with claimable rewards); less clutter overall.',
+            'PROFILE + REWARDING LEVELS — Today\'s Quests live on the profile, plus milestone gold bonuses at key levels and a "next milestone" tracker so leveling actually pays off.',
+            'TIDIER COMMAND CENTER & SOCIAL STUDIES — Debate and Study History are now collapsible cards; Social Studies lost its noisy era chips and got a collapsible Region Explorer + collapsible example lists on every tab.',
+            'ROOMIER SIDEBAR + animated tutor demo on the landing page.',
+            'ACCURATE PRIVACY COPY — corrected wording that wrongly said data never leaves your browser, now that cloud accounts + hosted AI exist.',
+            'BUG FIXES — hosted-AI streaming (blank answers across Math/Science/English/Concept Board/companion), Live Vision answer cut-off, heatmap clipping, scratchpad sizing, double-claimable daily reward, and an empty "fill in the blank" box.',
+        ]
+    },
     {
         version: 'v18.3',
         date: 'June 25, 2026',

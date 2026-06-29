@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260622f">
+    <link rel="stylesheet" href="style.css?v=20260622g">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -276,7 +276,7 @@
             <!-- v12.8 — version badge with pulse -->
             <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(135deg, rgba(0,255,245,0.15), rgba(124,77,255,0.15));border:1px solid rgba(0,255,245,0.35);border-radius:20px;font-size:0.78rem;color:#a8fff8;margin-bottom:20px;letter-spacing:1.2px;font-weight:700;">
                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00fff5;box-shadow:0 0 10px #00fff5;animation:pulse 1.8s ease-in-out infinite;"></span>
-                v18.3 NOW LIVE
+                v18.4 NOW LIVE
             </div>
             <h1 style="font-size:clamp(2.4rem,5vw,4rem);line-height:1.08;margin-bottom:20px;font-weight:900;letter-spacing:-1.5px;">
                 <span style="background:linear-gradient(135deg, #ffffff 0%, #e0e0f0 40%, #b0b0d8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Your AI tutor.</span><br>
@@ -1139,14 +1139,14 @@
                 <!-- v12.7 — Improved home: motivational header, continue bar, richer feature cards -->
                 <div style="max-width:1200px;margin:0 auto;">
 
-                    <!-- v18.3 — Gamified hero: greeting + Level/XP + streak + gold -->
+                    <!-- v18.4 — Gamified hero: greeting + Level/XP + streak + gold -->
                     <div class="glass-panel" style="padding:22px 24px;margin-bottom:18px;border:1px solid rgba(108,92,231,0.4);background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.08));position:relative;overflow:hidden;animation:fadeIn 0.45s ease both;">
                         <div style="position:absolute;top:-60%;right:-8%;width:42%;height:220%;background:radial-gradient(ellipse,rgba(0,206,201,0.22),transparent 70%);pointer-events:none;"></div>
                         <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
                             <div style="min-width:0;">
                                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                                     <span style="font-size:1.15rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;letter-spacing:2px;line-height:1;">NEXUS</span>
-                                    <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">v18.3</span>
+                                    <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">v18.4</span>
                                 </div>
                                 <h1 style="font-size:clamp(1.3rem,2.4vw,1.7rem);margin:0 0 4px;color:#fff;font-weight:800;line-height:1.15;-webkit-text-fill-color:#fff;background:none;">Welcome back, <span id="home-username" style="color:#00ECE6;">Scholar</span></h1>
                                 <p id="home-motivational" style="font-size:0.95rem;color:#c8ccd8;margin:0;line-height:1.5;">Your AI-powered learning hub — pick up where you left off.</p>
@@ -1173,10 +1173,10 @@
                         </div>
                     </div>
 
-                    <!-- v18.3 — Daily Challenge (lives on the home page) -->
+                    <!-- v18.4 — Daily Challenge (lives on the home page) -->
                     <div id="daily-challenge-panel" style="margin-bottom:18px;"></div>
 
-                    <!-- v18.3 — Daily Reward chest -->
+                    <!-- v18.4 — Daily Reward chest -->
                     <div id="home-daily-reward" style="display:flex;align-items:center;gap:14px;padding:14px 18px;margin-bottom:18px;border-radius:14px;background:linear-gradient(135deg,rgba(255,215,0,0.12),rgba(253,121,168,0.08));border:1px solid rgba(255,215,0,0.3);">
                         <span style="font-size:1.8rem;line-height:1;">🎁</span>
                         <div style="flex:1;min-width:0;">
@@ -1317,7 +1317,7 @@
                 <header>
                     <h1 style="-webkit-text-fill-color:#fff;background:none;font-size:clamp(1.1rem,2vw,1.4rem);">Welcome back, <span id="dashboard-username" style="color:#00ECE6;">Scholar</span>.</h1>
                     <p>Track your progress and stay motivated <span
-                            style="background:linear-gradient(135deg, #fd79a8, #6c5ce7);color:#fff;font-weight:700;font-size:0.8em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(253,121,168,0.35);">v18.3 ✨</span>
+                            style="background:linear-gradient(135deg, #fd79a8, #6c5ce7);color:#fff;font-weight:700;font-size:0.8em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(253,121,168,0.35);">v18.4 ✨</span>
                     </p>
                 </header>
 
@@ -1577,7 +1577,7 @@
                             <video id="screen-video" autoplay playsinline muted></video>
                             <canvas id="screen-canvas" style="display:none;"></canvas>
                         </div>
-                        <!-- v18.3 — Work-it-out board fills the space under the video -->
+                        <!-- v18.4 — Work-it-out board fills the space under the video -->
                         <div class="vision-board" style="flex:1;min-height:170px;display:flex;flex-direction:column;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);border-radius:10px;overflow:hidden;">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:rgba(108,92,231,0.12);border-bottom:1px solid var(--glass-border);">
                                 <span style="font-size:0.78rem;font-weight:700;color:#a29bfe;letter-spacing:0.5px;"><i class="ph ph-pencil-simple"></i> WORK IT OUT</span>
@@ -1731,7 +1731,7 @@
                     </div>
                 </div>
 
-                <!-- v18.3 — Daily Challenge moved to the home page -->
+                <!-- v18.4 — Daily Challenge moved to the home page -->
 
                 <!-- Debate Practice (Command Center feature) — collapsible node -->
                 <details id="command-debate-section" class="glass-panel" style="padding:20px 24px;margin-top:20px;border:1px solid rgba(108,92,231,0.35);background:linear-gradient(135deg,rgba(108,92,231,0.08),rgba(0,206,201,0.04));">
@@ -1763,7 +1763,7 @@
                     </div>
                 </details>
 
-                <!-- v18.3 — Study History collapsible node (re-renders chart on open) -->
+                <!-- v18.4 — Study History collapsible node (re-renders chart on open) -->
                 <details id="home-study-history" class="glass-panel" style="padding:18px 20px;margin-top:20px;" ontoggle="if(this.open && typeof renderStudyHistoryChart==='function'){setTimeout(function(){renderStudyHistoryChart('study-history-canvas');},60);}">
                     <summary style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;outline:none;gap:12px;">
                         <div style="min-width:0;">
@@ -2863,7 +2863,7 @@
                     <button onclick="switchTab('home');" style="background:linear-gradient(135deg,rgba(253,121,168,0.18),rgba(232,67,147,0.1));border:1px solid rgba(253,121,168,0.3);border-radius:10px;color:#fd79a8;padding:8px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-chart-bar"></i> Study History</button>
                 </div>
 
-                <!-- v18.3 — Region Explorer (collapsible node) -->
+                <!-- v18.4 — Region Explorer (collapsible node) -->
                 <details style="background:rgba(253,121,168,0.06);border:1px solid rgba(253,121,168,0.25);border-radius:12px;padding:16px;margin-bottom:20px;">
                     <summary style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;list-style:none;outline:none;"><i class="ph ph-globe-hemisphere-west" style="color:#fd79a8;font-size:1.2rem;"></i><strong style="color:white;">Region Explorer</strong><span style="font-size:0.78rem;color:var(--text-muted);">— history, government &amp; economy of any place</span><i class="ph ph-caret-down" style="margin-left:auto;color:var(--text-muted);"></i></summary>
                     <div style="margin-top:12px;">
@@ -2986,11 +2986,11 @@
                             </button>
                         </div>
 
-                        <div style="margin-bottom: 24px;">
-                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                        <details style="margin-bottom: 24px;">
+                            <summary style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; cursor:pointer; list-style:none; outline:none;">
                                 <i class="ph ph-star"></i> Notable Conflicts
-                            </p>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            </summary>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
                                 <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;"
                                     onclick="document.getElementById('social-war-search').value='World War II'; searchSocial('war')">
                                     World War II
@@ -3012,7 +3012,7 @@
                                     D-Day
                                 </button>
                             </div>
-                        </div>
+                        </details>
 
                         <div id="social-war-output" class="hidden"
                             style="background:rgba(214, 48, 49, 0.05); padding:24px; border-radius:12px; border:1px solid rgba(214, 48, 49, 0.2); line-height: 1.8;">
@@ -3043,11 +3043,11 @@
                             </button>
                         </div>
 
-                        <div style="margin-bottom: 24px;">
-                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                        <details style="margin-bottom: 24px;">
+                            <summary style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; cursor:pointer; list-style:none; outline:none;">
                                 <i class="ph ph-star"></i> Major Events
-                            </p>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            </summary>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
                                 <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;"
                                     onclick="document.getElementById('social-timing-search').value='Industrial Revolution'; searchSocial('timing')">
                                     Industrial Revolution
@@ -3065,7 +3065,7 @@
                                     Berlin Wall Fall
                                 </button>
                             </div>
-                        </div>
+                        </details>
 
                         <div id="social-timing-output" class="hidden"
                             style="background:rgba(0, 184, 148, 0.05); padding:24px; border-radius:12px; border:1px solid rgba(0, 184, 148, 0.2); line-height: 1.8;">
@@ -3094,8 +3094,9 @@
                                 <i class="ph ph-magnifying-glass"></i> Search
                             </button>
                         </div>
-                        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;"><i class="ph ph-star"></i> Popular Searches</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
+                        <details style="margin-bottom:24px;">
+                        <summary style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;cursor:pointer;list-style:none;outline:none;"><i class="ph ph-star"></i> Popular Searches</summary>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-civ-search').value='Roman Empire'; searchSocial('civ')">Roman Empire</button>
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-civ-search').value='Ancient Egypt'; searchSocial('civ')">Ancient Egypt</button>
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-civ-search').value='Mesopotamia'; searchSocial('civ')">Mesopotamia</button>
@@ -3107,6 +3108,7 @@
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-civ-search').value='Mongol Empire'; searchSocial('civ')">Mongol</button>
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-civ-search').value='Ottoman Empire'; searchSocial('civ')">Ottoman</button>
                         </div>
+                        </details>
                         <div id="social-civ-output" class="hidden"
                             style="background:rgba(255,159,67,0.05);padding:24px;border-radius:12px;border:1px solid rgba(255,159,67,0.2);line-height:1.8;"></div>
                     </div>
@@ -3132,8 +3134,9 @@
                                 <i class="ph ph-magnifying-glass"></i> Search
                             </button>
                         </div>
-                        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;"><i class="ph ph-star"></i> Popular Searches</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
+                        <details style="margin-bottom:24px;">
+                        <summary style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;cursor:pointer;list-style:none;outline:none;"><i class="ph ph-star"></i> Popular Searches</summary>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-docs-search').value='Declaration of Independence'; searchSocial('docs')">Declaration of Independence</button>
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-docs-search').value='US Constitution'; searchSocial('docs')">US Constitution</button>
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-docs-search').value='Magna Carta'; searchSocial('docs')">Magna Carta</button>
@@ -3143,6 +3146,7 @@
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-docs-search').value='Treaty of Versailles'; searchSocial('docs')">Treaty of Versailles</button>
                             <button class="btn-secondary" style="padding:8px 16px;font-size:0.85rem;" onclick="document.getElementById('social-docs-search').value='Emancipation Proclamation'; searchSocial('docs')">Emancipation Proclamation</button>
                         </div>
+                        </details>
                         <div id="social-docs-output" class="hidden"
                             style="background:rgba(108,92,231,0.05);padding:24px;border-radius:12px;border:1px solid rgba(108,92,231,0.2);line-height:1.8;"></div>
                     </div>
@@ -5079,7 +5083,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260622f"></script>
+    <script src="script.js?v=20260622g"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
