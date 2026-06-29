@@ -18989,8 +18989,13 @@ let _updateLogHtml = null; // cache — reset to null on each deploy to pick up 
 function renderUpdateLog() {
     const container = document.getElementById('update-log-container');
     if (!container) return;
-    localStorage.setItem('update_log_opened', '1');
-    setTimeout(checkAchievements, 500);
+    // Only credit the "Lore Keeper" achievement when the user is actually viewing the
+    // Updates tab — not when the changelog is rendered in the background at startup.
+    const _uv = document.getElementById('view-updates');
+    if (_uv && _uv.classList.contains('active')) {
+        localStorage.setItem('update_log_opened', '1');
+        setTimeout(checkAchievements, 500);
+    }
 
     if (_updateLogHtml) { container.innerHTML = _updateLogHtml; return; }
 
