@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260622k">
+    <link rel="stylesheet" href="style.css?v=20260622l">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -777,9 +777,12 @@
                     onclick="handleAuthSubmit()">
                     <svg width="18" height="18" style="color:#fff;"><use href="#ic-sign-in"/></svg> Sign In
                 </button>
-                <!-- v16.5 — Continue with Google (client-side Google Identity Services) -->
+                <!-- v19 — Continue with Google via Supabase OAuth -->
                 <div style="display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--text-muted);font-size:0.8rem;"><div style="flex:1;height:1px;background:var(--glass-border);"></div>or<div style="flex:1;height:1px;background:var(--glass-border);"></div></div>
-                <div id="google-signin-container" style="display:flex;justify-content:center;"></div>
+                <button onclick="cloudGoogleSignIn()" style="width:100%;padding:12px;background:#fff;color:#1f2233;border:none;border-radius:10px;font-weight:600;font-size:0.95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:10px;">
+                    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.02-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.98 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.02-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.02 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+                    Continue with Google
+                </button>
                 <div id="google-signin-note" style="text-align:center;font-size:0.78rem;color:var(--text-muted);margin-top:8px;"></div>
                 <p style="text-align:center;margin:18px 0 0;color:var(--text-muted);font-size:0.85rem;">
                     Don't have an account?
@@ -5072,7 +5075,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260622k"></script>
+    <script src="script.js?v=20260622l"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

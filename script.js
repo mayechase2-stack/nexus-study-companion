@@ -109,6 +109,43 @@ async function cloudUiSignOut() {
     try { if (nexusSB) await nexusSB.auth.signOut(); } catch (_) {}
     showToast('Signed out of cloud.', 'info'); _cloudRefreshUi();
 }
+// v19 — Continue with Google via Supabase OAuth (enable the Google provider in
+// Supabase → Authentication → Providers, with a Google OAuth Client ID).
+async function cloudGoogleSignIn() {
+    var note = document.getElementById('google-signin-note');
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) { if (note) note.textContent = 'Cloud not available right now.'; return; }
+        const { error } = await nexusSB.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin } });
+        if (error) throw error;
+        // Browser redirects to Google, then back to redirectTo where Supabase restores the session.
+    } catch (e) {
+        var msg = (e && e.message) || 'Google sign-in unavailable';
+        if (note) note.textContent = msg + ' — enable Google in Supabase Auth providers.';
+        if (typeof showToast === 'function') showToast('Google sign-in: ' + msg, 'error', 5000);
+    }
+}
+// On return from Google OAuth there's a Supabase session but maybe no local
+// account yet — bootstrap one so the app opens signed in.
+async function _bootstrapCloudSession() {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return;
+        var u = await _cloudUser();
+        if (!u) return;
+        if (localStorage.getItem('auth_user')) return; // already logged in locally
+        var email = u.email || '';
+        var uname = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || (email ? email.split('@')[0] : 'Scholar');
+        uname = String(uname).replace(/[^A-Za-z0-9_.\- ]/g, '').trim().slice(0, 32) || 'Scholar';
+        localStorage.setItem('auth_user', uname);
+        if (email) localStorage.setItem('auth_email_' + uname, email);
+        localStorage.setItem('auth_remember', '1');
+        if (typeof registerAuthAccount === 'function') registerAuthAccount(uname, 'oauth-google');
+        if (typeof completeLogin === 'function') completeLogin();
+        if (typeof showToast === 'function') showToast('Signed in as ' + uname + ' via Google', 'success', 4000);
+    } catch (_) {}
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_bootstrapCloudSession, 900); });
 // UNIFIED ACCOUNT — keep the local login in lockstep with a Supabase cloud
 // account so signing up / in automatically establishes the synced session
 // (no separate "Cloud Sync" step). Best-effort: never blocks local auth if the
