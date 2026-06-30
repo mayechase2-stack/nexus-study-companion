@@ -21129,8 +21129,9 @@ function spawnCompanion(id) {
     // Glow tint based on companion accent
     sprite.style.filter = `drop-shadow(0 6px 12px ${data.glow}66) drop-shadow(0 0 18px ${data.accent}55)`;
 
-    // Click → open chat
-    wrap.onclick = () => openCompanionChat(id);
+    // Click → open chat; drag → move the sprite (v19)
+    wrap.onclick = null;
+    _initCompanionDrag(id);
 
     // Snap into starting boundary
     const bounds = getCompanionBounds();
@@ -21189,6 +21190,55 @@ function walkCompanion() {
     wrap.style.transition = `left ${duration}s linear, transform 0.4s ease`;
     wrap.style.left = next + 'px';
     window._companionWalkTimer = setTimeout(walkCompanion, (duration * 1000) + 1500 + Math.random() * 4000);
+}
+
+// v19 — Drag the sprite anywhere; it reacts with emotes. A real click (no drag)
+// still opens the chat. After dropping, it returns to the floor and resumes walking.
+const COMPANION_DRAG_LINES = ['Wheee! 🎢', 'Put me down! 😅', 'Where are we going?', 'Whoa!', 'Hehe!', 'Carry me! 💕', 'To the moon! 🚀', 'So high up!', 'I can fly! ✨'];
+function _initCompanionDrag(id) {
+    const wrap = document.getElementById('companion-sprite-wrap');
+    if (!wrap) return;
+    wrap.style.cursor = 'grab';
+    if (wrap._dragInit) return; // attach handlers only once
+    wrap._dragInit = true;
+    let down = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    function emoteEl() { return document.getElementById('companion-emote'); }
+    function showDragEmote() { const em = emoteEl(); if (!em) return; em.textContent = COMPANION_DRAG_LINES[Math.floor(Math.random() * COMPANION_DRAG_LINES.length)]; em.style.opacity = '1'; em.style.transform = 'translateX(-50%) scale(1)'; }
+    function hideDragEmote() { const em = emoteEl(); if (em) { em.style.opacity = '0'; em.style.transform = 'translateX(-50%) scale(0)'; } }
+    function move(e) {
+        if (!down) return;
+        const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+        if (!moved && (Math.abs(pt.clientX - sx) > 5 || Math.abs(pt.clientY - sy) > 5)) { moved = true; wrap.style.cursor = 'grabbing'; showDragEmote(); }
+        if (moved) {
+            if (e.cancelable) e.preventDefault();
+            let nx = Math.max(0, Math.min(window.innerWidth - wrap.offsetWidth, pt.clientX - ox));
+            let ny = Math.max(0, Math.min(window.innerHeight - wrap.offsetHeight, pt.clientY - oy));
+            wrap.style.left = nx + 'px'; wrap.style.top = ny + 'px'; wrap.style.bottom = 'auto';
+        }
+    }
+    function end() {
+        window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end);
+        window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end);
+        wrap.style.cursor = 'grab';
+        if (!down) return; down = false;
+        const cid = (document.getElementById('companion-sprite') || {}).dataset ? document.getElementById('companion-sprite').dataset.companionId : id;
+        if (!moved) { openCompanionChat(cid || id); return; } // tap = open chat
+        setTimeout(hideDragEmote, 1400);
+        if (localStorage.getItem('companion_walking_enabled') !== 'false') {
+            window._companionWalkTimer = setTimeout(function () { wrap.style.top = 'auto'; wrap.style.bottom = '24px'; walkCompanion(); }, 5000);
+        }
+    }
+    function start(e) {
+        const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+        down = true; moved = false; sx = pt.clientX; sy = pt.clientY;
+        const r = wrap.getBoundingClientRect(); ox = pt.clientX - r.left; oy = pt.clientY - r.top;
+        wrap.style.transition = 'none';
+        if (window._companionWalkTimer) { clearTimeout(window._companionWalkTimer); window._companionWalkTimer = null; }
+        window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+        window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end);
+    }
+    wrap.addEventListener('mousedown', start);
+    wrap.addEventListener('touchstart', start, { passive: true });
 }
 
 // Re-evaluate boundaries on resize so companion never gets stranded under the sidebar.
