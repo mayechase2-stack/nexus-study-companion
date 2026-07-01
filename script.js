@@ -3086,6 +3086,30 @@ function awardXP(amount, reason) {
 }
 // Milestone bonuses make leveling feel rewarding (one-time big gold drops at key levels).
 const LEVEL_MILESTONES = { 3: 200, 5: 400, 10: 1000, 15: 1800, 20: 2800, 25: 4000, 30: 6000, 40: 10000 };
+// v19 (#4) — NON-GOLD REWARDS. Reaching a level unlocks a cosmetic "flair" — a
+// collectible badge the student can equip and show next to their name. Makes XP
+// feel like it's *for* something beyond gold, aimed at younger players who love
+// collecting/showing off. Purely cosmetic; ownership is derived from level.
+const LEVEL_UNLOCKS = {
+    2:  { icon: '🌱', name: 'Sprout' },
+    4:  { icon: '📗', name: 'Bookworm' },
+    6:  { icon: '⚡', name: 'Quick Learner' },
+    8:  { icon: '🎯', name: 'Sharpshooter' },
+    10: { icon: '🧠', name: 'Big Brain' },
+    13: { icon: '🔥', name: 'On Fire' },
+    16: { icon: '💎', name: 'Diamond Mind' },
+    20: { icon: '🚀', name: 'Overachiever' },
+    25: { icon: '👑', name: 'Scholar King' },
+    30: { icon: '🌟', name: 'Superstar' },
+    40: { icon: '🏆', name: 'Living Legend' }
+};
+function getUnlockedFlairLevels(level) {
+    return Object.keys(LEVEL_UNLOCKS).map(Number).filter(function (l) { return l <= level; }).sort(function (a, b) { return a - b; });
+}
+function nextFlairUnlock(level) {
+    var l = Object.keys(LEVEL_UNLOCKS).map(Number).sort(function (a, b) { return a - b; }).filter(function (x) { return x > level; })[0];
+    return l ? { level: l, unlock: LEVEL_UNLOCKS[l] } : null;
+}
 function nextMilestone(level) {
     const keys = Object.keys(LEVEL_MILESTONES).map(Number).sort(function (a, b) { return a - b; });
     const lvl = keys.filter(function (l) { return l > level; })[0];
@@ -3098,6 +3122,12 @@ function _onLevelUp(level) {
     if (typeof updateCredits === 'function') updateCredits(reward);
     if (typeof recordQuestProgress === 'function') recordQuestProgress('level_up');
     if (typeof showToast === 'function') showToast('🎉 LEVEL UP! You\'re now Level ' + level + ' — ' + getRankTitle(level) + '! +' + reward + ' gold' + bonusMsg, 'success', 6500);
+    // v19 (#4) — announce any cosmetic flair unlocked at this level (non-gold reward).
+    if (LEVEL_UNLOCKS[level] && typeof showToast === 'function') {
+        setTimeout(function () {
+            showToast('🎁 New flair unlocked: ' + LEVEL_UNLOCKS[level].icon + ' ' + LEVEL_UNLOCKS[level].name + '! Equip it on your Profile.', 'success', 6500);
+        }, 900);
+    }
 }
 
 // ============================================================
@@ -3272,7 +3302,9 @@ function openUniversalTutor(options) {
                 <div style="font-size:0.9rem;color:${color};font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">NEXUS Tutor</div>
                 <div style="color:white;font-size:0.92rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${subject}${topic ? ' — ' + topic : ''}</div>
             </div>
-            <button class="btn-icon" onclick="document.getElementById('nexus-univ-tutor-modal').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
+            <button class="btn-icon" onclick="popOutTutor()" title="Pop out — floating window that stays on top of your schoolwork app" style="flex-shrink:0;"><i class="ph ph-picture-in-picture"></i></button>
+            <button class="btn-icon" onclick="minimizeTutor()" title="Minimize (keep working, tutor stays open)" style="flex-shrink:0;"><i class="ph ph-minus"></i></button>
+            <button class="btn-icon" onclick="document.getElementById('nexus-univ-tutor-modal').remove()" title="Close" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
         </div>
         <!-- Chat area -->
         <div id="univ-tutor-chat" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:360px;">
@@ -3352,6 +3384,7 @@ async function sendUniversalTutorMessage(subject, topic, context) {
     loadBubble.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Thinking…';
     chat.appendChild(loadBubble);
     chat.scrollTop = chat.scrollHeight;
+    if (typeof _mirrorTutorToPip === 'function') _mirrorTutorToPip();   // v19 (#2)
 
     // Use stored meta in case called from inline onclick with stale arg strings
     const _meta = window._tutorMeta || {};
@@ -3401,11 +3434,126 @@ Format: clean HTML only (<strong>, <ul><li>, <br>, etc.). No markdown asterisks.
         loadBubble.style.cssText = 'background:rgba(10,12,22,0.7);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:0.85rem;color:#dde0ee;line-height:1.55;align-self:flex-start;max-width:85%;word-break:break-word;overflow-wrap:anywhere;';
         loadBubble.innerHTML = cleaned;
         chat.scrollTop = chat.scrollHeight;
+        _renderTutorFollowups(chat, resolvedSubject);   // v19 (#3) — quick follow-up chips
+        if (typeof _mirrorTutorToPip === 'function') _mirrorTutorToPip();   // v19 (#2) — update pop-out
         logStudyEvent('study', `Tutor: ${resolvedSubject}${resolvedTopic ? ' — ' + resolvedTopic : ''}: ${question.substring(0,60)}`);
     } catch (err) {
         loadBubble.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`;
     }
 }
+
+// v19 (#3) — one-tap follow-up chips under the latest tutor reply. Keeps the
+// student moving without retyping. Only the most recent set is kept (declutter).
+function _renderTutorFollowups(chat, subject) {
+    if (!chat) return;
+    chat.querySelectorAll('.tutor-followups').forEach(function (e) { e.remove(); });
+    var subj = (subject || '').toLowerCase();
+    var chips = ['Explain that more simply', 'Walk me through the next step', 'Why does that work?'];
+    if (subj.includes('math') || subj.includes('science')) chips.push('Give me a similar practice problem');
+    else if (subj.includes('english')) chips.push('Give me an example');
+    else if (subj.includes('social')) chips.push('Put it in a timeline');
+    else chips.push('Quiz me on this');
+    var wrap = document.createElement('div');
+    wrap.className = 'tutor-followups';
+    wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:95%;margin-top:2px;';
+    chips.forEach(function (c) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = c;
+        b.style.cssText = 'background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.35);color:#c9c3f5;font-size:0.76rem;padding:5px 10px;border-radius:14px;cursor:pointer;transition:background 0.15s;';
+        b.onmouseover = function () { b.style.background = 'rgba(108,92,231,0.28)'; };
+        b.onmouseout = function () { b.style.background = 'rgba(108,92,231,0.14)'; };
+        b.onclick = function () {
+            var input = document.getElementById('univ-tutor-input');
+            if (input) { input.value = c; }
+            var meta = window._tutorMeta || {};
+            sendUniversalTutorMessage(meta.subject || subject || '', meta.topic || '', meta.context || '');
+        };
+        wrap.appendChild(b);
+    });
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+// v19 (#3/#2) — minimize the tutor to a floating pill so the student can look at
+// their own schoolwork (in another app/tab) and pop the tutor back with one tap.
+function minimizeTutor() {
+    var modal = document.getElementById('nexus-univ-tutor-modal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    if (document.getElementById('nexus-tutor-mini')) return;
+    var pill = document.createElement('button');
+    pill.id = 'nexus-tutor-mini';
+    pill.type = 'button';
+    pill.onclick = restoreTutor;
+    pill.title = 'Reopen your tutor';
+    pill.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:99998;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;border:1px solid rgba(108,92,231,0.5);background:linear-gradient(135deg,rgba(108,92,231,0.95),rgba(0,206,201,0.9));color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;box-shadow:0 6px 20px rgba(108,92,231,0.4);backdrop-filter:blur(8px);';
+    pill.innerHTML = '🎓 Tutor <span style="opacity:0.85;font-weight:500;">— tap to reopen</span>';
+    document.body.appendChild(pill);
+}
+function restoreTutor() {
+    var modal = document.getElementById('nexus-univ-tutor-modal');
+    var pill = document.getElementById('nexus-tutor-mini');
+    if (pill) pill.remove();
+    if (modal) { modal.style.display = 'flex'; var i = document.getElementById('univ-tutor-input'); if (i) i.focus(); }
+}
+window.minimizeTutor = minimizeTutor;
+window.restoreTutor = restoreTutor;
+
+// v19 (#2) — MINI-PLAYER. Pops the tutor into a Document Picture-in-Picture
+// window: a small OS-level window that floats ON TOP of everything, so a student
+// can keep their SEPARATE schoolwork app in focus and still read/ask NEXUS on the
+// same screen. Chromium desktop only; elsewhere we fall back to the minimize pill.
+async function popOutTutor() {
+    if (!('documentPictureInPicture' in window)) {
+        showToast('Pop-out floating window needs desktop Chrome or Edge. Minimizing instead — tap the pill to reopen.', 'info', 4500);
+        minimizeTutor();
+        return;
+    }
+    try {
+        const pip = await window.documentPictureInPicture.requestWindow({ width: 400, height: 540 });
+        window._tutorPip = pip;
+        const meta = window._tutorMeta || {};
+        const pd = pip.document;
+        pd.body.style.cssText = 'margin:0;font-family:system-ui,-apple-system,sans-serif;background:#0a0a0f;color:#dde0ee;display:flex;flex-direction:column;height:100vh;overflow:hidden;';
+        const style = pd.createElement('style');
+        style.textContent = '.tutor-block{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;margin:6px 0;}h3,h4{margin:4px 0;font-size:0.9rem;color:#fff;}ul,ol{margin:4px 0;padding-left:18px;}code{background:rgba(108,92,231,0.2);padding:1px 4px;border-radius:4px;}.tutor-followups{display:none;}';
+        pd.head.appendChild(style);
+        pd.body.innerHTML = '<div style="padding:10px 14px;background:linear-gradient(135deg,rgba(108,92,231,0.35),rgba(0,0,0,0.2));font-weight:700;color:#fff;font-size:0.85rem;flex-shrink:0;">🎓 NEXUS Tutor' + (meta.subject ? ' — ' + escapeHtmlSafe(meta.subject) : '') + '</div>' +
+            '<div id="pip-chat" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:0.85rem;line-height:1.5;"></div>' +
+            '<div style="display:flex;gap:6px;padding:10px;border-top:1px solid rgba(255,255,255,0.1);flex-shrink:0;">' +
+            '<input id="pip-input" placeholder="Ask your tutor…" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;outline:none;font-size:0.85rem;">' +
+            '<button id="pip-send" style="padding:9px 13px;border:none;border-radius:8px;background:#6c5ce7;color:#fff;cursor:pointer;font-size:0.9rem;">➤</button></div>';
+        _mirrorTutorToPip();
+        const pipInput = pd.getElementById('pip-input');
+        const pipSend = pd.getElementById('pip-send');
+        function pipSubmit() {
+            const v = pipInput.value.trim(); if (!v) return;
+            const mainInput = document.getElementById('univ-tutor-input');
+            if (mainInput) mainInput.value = v;
+            pipInput.value = '';
+            const m = window._tutorMeta || {};
+            sendUniversalTutorMessage(m.subject || '', m.topic || '', m.context || '');
+        }
+        pipSend.onclick = pipSubmit;
+        pipInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); pipSubmit(); } });
+        pip.addEventListener('pagehide', function () { window._tutorPip = null; });
+        // Keep the main modal open but out of the way.
+        var modal = document.getElementById('nexus-univ-tutor-modal');
+        if (modal) modal.style.display = 'none';
+    } catch (e) {
+        showToast('Could not open pop-out: ' + ((e && e.message) || e), 'error', 3000);
+    }
+}
+// Mirror the live tutor conversation into the PiP window (called after each reply).
+function _mirrorTutorToPip() {
+    const pip = window._tutorPip;
+    if (!pip || pip.closed) return;
+    const src = document.getElementById('univ-tutor-chat');
+    const dst = pip.document.getElementById('pip-chat');
+    if (src && dst) { dst.innerHTML = src.innerHTML; dst.scrollTop = dst.scrollHeight; }
+}
+window.popOutTutor = popOutTutor;
 
 // ============================================================
 // SECURITY - HTML Sanitization
@@ -26603,11 +26751,31 @@ function renderBetterProfile() {
     var _rankLvls=[3,6,10,15,22,30,40];
     var _nextRankLvl=_rankLvls.filter(function(l){return l>level;})[0]||null;
     var _nm=(typeof nextMilestone==='function')?nextMilestone(level):null;
+    // v19 (#4) — equipped flair + banner color customization
+    var _eqFlairLvl=parseInt(localStorage.getItem('equipped_flair')||'0',10);
+    var _unlocked=(typeof getUnlockedFlairLevels==='function')?getUnlockedFlairLevels(level):[];
+    var _flair=(_eqFlairLvl && _unlocked.indexOf(_eqFlairLvl)>=0 && LEVEL_UNLOCKS[_eqFlairLvl])?LEVEL_UNLOCKS[_eqFlairLvl]:null;
+    var _banner=localStorage.getItem('profile_banner_color')||'';
+    // Apply banner color to the Profile header if the student picked one.
+    try{ var _hdr=container.closest('.view')?container.closest('.view').querySelector('header'):null; if(_hdr && _banner){ _hdr.style.background='linear-gradient(135deg,'+_banner+'33,'+_banner+'11)'; _hdr.style.borderColor=_banner+'55'; } }catch(_){}
+    // v19 (#4) — reward track: collectible flairs unlocked by leveling up.
+    var _nf=(typeof nextFlairUnlock==='function')?nextFlairUnlock(level):null;
+    var _trackItems=Object.keys(LEVEL_UNLOCKS).map(Number).sort(function(a,b){return a-b;}).map(function(l){
+        var u=LEVEL_UNLOCKS[l], has=(_unlocked.indexOf(l)>=0), eq=(l===_eqFlairLvl && has);
+        return '<div onclick="'+(has?'equipFlair('+l+')':'')+'" title="'+(has?('Equip '+u.name):('Unlocks at Level '+l))+'" style="flex:0 0 auto;text-align:center;width:66px;padding:8px 4px;border-radius:10px;cursor:'+(has?'pointer':'default')+';border:1px solid '+(eq?'var(--accent)':'rgba(255,255,255,0.08)')+';background:'+(eq?'rgba(0,206,201,0.12)':'rgba(255,255,255,0.03)')+';opacity:'+(has?'1':'0.4')+';">'
+            +'<div style="font-size:1.5rem;filter:'+(has?'none':'grayscale(1)')+';">'+(has?u.icon:'🔒')+'</div>'
+            +'<div style="font-size:0.62rem;color:'+(eq?'var(--accent)':'var(--text-muted)')+';margin-top:3px;font-weight:600;line-height:1.2;">'+u.name+'</div>'
+            +'<div style="font-size:0.58rem;color:var(--text-muted);opacity:0.7;">Lv.'+l+'</div></div>';
+    }).join('');
+    var _rewardTrack='<div class="glass-panel" style="padding:16px;margin-bottom:14px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><h4 style="margin:0;color:white;font-size:0.9rem;"><i class="ph ph-medal" style="color:#fdcb6e;"></i> Reward Track — collect flairs by leveling up</h4>'+(_flair?'<button onclick="equipFlair(0)" style="background:transparent;border:none;color:var(--text-muted);font-size:0.72rem;cursor:pointer;font-weight:600;">Clear flair</button>':'')+'</div>'
+        +'<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;">'+_trackItems+'</div>'
+        +(_nf?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Next: '+_nf.unlock.icon+' <strong style="color:#fff;">'+_nf.unlock.name+'</strong> at Level '+_nf.level+'</div>':'<div style="font-size:0.78rem;color:#c89bff;margin-top:8px;font-weight:700;">🏆 You\'ve collected every flair!</div>')
+        +'</div>';
 
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
         +'<div style="text-align:center;"><div style="font-size:1.4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
         +'<div style="flex:1;min-width:200px;">'
-        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2><span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span><span style="background:rgba(168,85,247,0.18);color:#c89bff;font-size:0.82rem;font-weight:700;padding:3px 10px;border-radius:20px;">'+title+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2 style="margin:0;color:white;font-size:1.4rem;">'+username+'</h2>'+(_flair?'<span title="'+_flair.name+'" style="font-size:1.3rem;">'+_flair.icon+'</span>':'')+'<span style="background:linear-gradient(135deg,var(--accent),var(--grad));color:white;font-size:0.9rem;font-weight:700;padding:3px 10px;border-radius:20px;">Lv. '+level+'</span><span style="background:rgba(168,85,247,0.18);color:#c89bff;font-size:0.82rem;font-weight:700;padding:3px 10px;border-radius:20px;">'+title+'</span>'+(grade?'<span style="background:rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.85rem;padding:3px 10px;border-radius:20px;">Grade '+grade+'</span>':'')+'</div>'
         +(bio?'<div style="font-size:0.85rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"'+bio+'"</div>':'')
         +'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);margin-bottom:4px;"><span>'+xp.toLocaleString()+' XP</span><span>'+xpForNext.toLocaleString()+' XP to Lv.'+(level+1)+'</span></div><div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="height:100%;width:'+xpPct+'%;background:linear-gradient(90deg,var(--accent),var(--grad));border-radius:4px;transition:width 0.5s;"></div></div>'+(_nextRankLvl?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;">Rank <strong style="color:#c89bff;">'+title+'</strong> · next rank at <strong style="color:#fff;">Lv.'+_nextRankLvl+'</strong></div>':'<div style="font-size:0.78rem;color:#c89bff;margin-top:6px;font-weight:700;">👑 Max rank reached: '+title+'</div>')+'</div>'
         +'<div style="display:flex;gap:12px;margin-top:12px;"><button class="btn-secondary" style="font-size:0.88rem;padding:6px 12px;" onclick="openEditProfile()"><i class="ph ph-pencil-simple"></i> Edit Profile</button></div>'
@@ -26624,6 +26792,7 @@ function renderBetterProfile() {
         +'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;font-size:0.85rem;color:var(--text-muted);"><span><i class="ph ph-calendar-blank"></i> Member since <strong style="color:#fff;">'+joinedStr+'</strong></span><span><i class="ph ph-bookmark-simple"></i> Most studied: <strong style="color:#fff;">'+favSubject+'</strong></span><span><i class="ph ph-target"></i> Daily streak: <strong style="color:#fff;">'+dcStreak+'</strong></span>'+(_nm?'<span><i class="ph ph-gift" style="color:#fdcb6e;"></i> Next milestone: <strong style="color:#fff;">Lv.'+_nm.level+' → +'+_nm.reward.toLocaleString()+'g</strong></span>':'')+'</div>'
         +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'notebook\');setTimeout(function(){switchNotebookTab(\'cards\');},80)" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
         +'<div class="glass-panel" style="padding:16px;margin-bottom:14px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h4 style="margin:0;color:white;font-size:0.9rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> Today\'s Quests</h4><button onclick="openQuestsModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:0.78rem;cursor:pointer;padding:0;font-weight:600;">All quests</button></div><div id="profile-quests-list" style="display:grid;gap:10px;"></div></div>'
+        +_rewardTrack
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
 
     setTimeout(function(){
@@ -26636,6 +26805,10 @@ function renderBetterProfile() {
 
 function openEditProfile() {
     var grade=localStorage.getItem('profile_grade')||'', bio=localStorage.getItem('profile_bio')||'';
+    var banner=localStorage.getItem('profile_banner_color')||'';
+    var _swatches=['#6C5CE7','#00CEC9','#a855f7','#fd79a8','#fdcb6e','#00b894','#ff6b6b','#0984e3'];
+    var _swHtml=_swatches.map(function(c){return '<button type="button" onclick="localStorage.setItem(\'profile_banner_color\',\''+c+'\');document.querySelectorAll(\'.ep-sw\').forEach(function(e){e.style.outline=\'none\';});this.style.outline=\'2px solid #fff\';" class="ep-sw" style="width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;background:'+c+';outline:'+(banner===c?'2px solid #fff':'none')+';outline-offset:2px;"></button>';}).join('');
+    _swHtml+='<button type="button" onclick="localStorage.removeItem(\'profile_banner_color\');document.querySelectorAll(\'.ep-sw\').forEach(function(e){e.style.outline=\'none\';});" class="ep-sw" title="Default" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--glass-border);cursor:pointer;background:transparent;color:var(--text-muted);font-size:0.7rem;">✕</button>';
     var modal=document.createElement('div');
     modal.id='edit-profile-overlay';
     modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
@@ -26643,7 +26816,7 @@ function openEditProfile() {
     var gradeOpts='<option value="">Not set</option>';
     for(var g=1;g<=12;g++) gradeOpts+='<option value="'+g+'"'+(grade==g?' selected':'')+'>'+g+'</option>';
     gradeOpts+='<option value="College"'+(grade==='College'?' selected':'')+'>College</option>';
-    modal.innerHTML='<div class="glass-panel" style="max-width:420px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;">Edit Profile</h3><button class="btn-icon" onclick="document.getElementById(\'edit-profile-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Grade Level</label><select id="ep-grade" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;">'+gradeOpts+'</select><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Short Bio</label><input id="ep-bio" class="input-field" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. Aspiring engineer, loves math" maxlength="80" value="'+bio+'"><div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'edit-profile-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="saveEditProfile()">Save</button></div></div>';
+    modal.innerHTML='<div class="glass-panel" style="max-width:420px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h3 style="margin:0;color:white;">Edit Profile</h3><button class="btn-icon" onclick="document.getElementById(\'edit-profile-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Grade Level</label><select id="ep-grade" class="input-field" style="width:100%;padding:10px;margin-bottom:12px;">'+gradeOpts+'</select><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Short Bio</label><input id="ep-bio" class="input-field" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. Aspiring engineer, loves math" maxlength="80" value="'+bio+'"><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:6px;">Profile Banner Color</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">'+_swHtml+'</div><div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'edit-profile-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="saveEditProfile()">Save</button></div></div>';
     document.body.appendChild(modal);
 }
 function saveEditProfile(){
@@ -26654,6 +26827,24 @@ function saveEditProfile(){
     document.getElementById('edit-profile-overlay').remove();
     renderBetterProfile(); showToast('Profile updated!','success',2000);
 }
+
+// v19 (#4) — equip/clear a level-unlocked flair (0 clears). Verifies the student
+// has actually reached the required level before equipping.
+function equipFlair(level) {
+    level = parseInt(level, 10) || 0;
+    if (level === 0) {
+        localStorage.removeItem('equipped_flair');
+        if (typeof showToast === 'function') showToast('Flair cleared.', 'info', 1800);
+    } else {
+        var xp = parseInt(localStorage.getItem('total_xp') || '0', 10);
+        var curLvl = (typeof getLevelFromXP === 'function') ? getLevelFromXP(xp) : Math.floor(xp / 500) + 1;
+        if (level > curLvl || !LEVEL_UNLOCKS[level]) { if (typeof showToast === 'function') showToast('Reach Level ' + level + ' to unlock this flair.', 'error', 2500); return; }
+        localStorage.setItem('equipped_flair', String(level));
+        if (typeof showToast === 'function') showToast('Equipped ' + LEVEL_UNLOCKS[level].icon + ' ' + LEVEL_UNLOCKS[level].name + '!', 'success', 2200);
+    }
+    if (typeof renderBetterProfile === 'function') renderBetterProfile();
+}
+window.equipFlair = equipFlair;
 
 // Override renderProfileSection with the new better version
 function renderProfileSection() { renderBetterProfile(); }
