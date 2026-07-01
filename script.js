@@ -877,7 +877,24 @@ function updateHomeStats() {
 let mediaStream = null;
 let visionInterval = null;
 
+// v19 (#1) — true on devices where screen-share (getDisplayMedia) is blocked or
+// missing: iPhone/iPad Safari & most in-app browsers. Those get the camera path.
+function _liveVisionScreenShareSupported() {
+    var md = navigator.mediaDevices;
+    if (!md || typeof md.getDisplayMedia !== 'function') return false;
+    var ua = navigator.userAgent || '';
+    var isIOS = /iPad|iPhone|iPod/.test(ua) || (/(Macintosh)/.test(ua) && 'ontouchend' in document);
+    return !isIOS;   // iOS advertises the method but it always rejects
+}
+
 async function startLiveVision() {
+    // v19 (#1) — on tablets/phones that can't screen-share, go straight to camera
+    // so every user gets Live Vision (our flagship). Screen-share stays the path
+    // wherever it actually works.
+    if (!_liveVisionScreenShareSupported()) {
+        showToast("Screen sharing isn't available on this device — using your camera. Point it at your work.", 'info', 5000);
+        return startLiveVisionCamera();
+    }
     try {
         // Clean restart — if a session is somehow still active, tear it down first
         // so a second click always works.
@@ -904,11 +921,61 @@ async function startLiveVision() {
 
     } catch (err) {
         console.error("Error starting screen share:", err);
+        // If the browser simply can't screen-share, fall back to the camera
+        // instead of failing outright.
+        if (err && (err.name === 'NotSupportedError' || err.name === 'NotFoundError' || err.name === 'NotReadableError' || err.name === 'TypeError')) {
+            showToast("Screen sharing didn't work here — switching to your camera.", 'info', 4500);
+            if (window._logNexusError) window._logNexusError('live-vision-start-fallback', err && err.message);
+            return startLiveVisionCamera();
+        }
         // Don't nag if the user simply cancelled the screen-picker dialog.
         if (err && err.name !== 'NotAllowedError') showToast("Could not start screen share.", 'error');
         if (window._logNexusError) window._logNexusError('live-vision-start', err && err.message);
     }
 }
+
+// v19 (#1) — Camera-based Live Vision for tablets/phones. Uses the rear camera by
+// default (best for pointing at a worksheet or a second screen) and reuses the
+// exact same #screen-video pipeline, so the "Work it out" board and "Help me"
+// capture work identically.
+async function startLiveVisionCamera(front) {
+    try {
+        if (mediaStream) { try { stopLiveVision(); } catch (_) {} }
+        const video = document.getElementById('screen-video');
+        const panel = document.getElementById('live-vision-panel');
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+            showToast('This device has no camera access available.', 'error', 4000);
+            return;
+        }
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: front ? 'user' : { ideal: 'environment' } }, audio: false });
+        } catch (inner) {
+            // Some devices reject the exact facingMode — retry with any camera.
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        mediaStream = stream;
+        window._liveVisionIsCamera = true;
+        if (video) { video.srcObject = mediaStream; video.setAttribute('playsinline', ''); try { await video.play(); } catch (_) {} }
+        if (panel) panel.classList.remove('hidden');
+        if (typeof refreshLiveVisionButtons === 'function') refreshLiveVisionButtons();
+        const vt = mediaStream.getVideoTracks()[0];
+        if (vt) vt.onended = () => { if (mediaStream === stream) stopLiveVision(); };
+    } catch (err) {
+        console.error('Error starting camera vision:', err);
+        if (err && err.name === 'NotAllowedError') showToast('Camera permission denied. Allow camera access to use Live Vision here.', 'error', 5000);
+        else showToast('Could not start the camera.', 'error', 4000);
+        if (window._logNexusError) window._logNexusError('live-vision-camera', err && err.message);
+    }
+}
+// Flip between front/rear camera during a camera Live Vision session.
+function flipLiveVisionCamera() {
+    if (!window._liveVisionIsCamera) { showToast('Camera flip only works in camera mode.', 'info', 2500); return; }
+    window._liveVisionFront = !window._liveVisionFront;
+    startLiveVisionCamera(window._liveVisionFront);
+}
+window.startLiveVisionCamera = startLiveVisionCamera;
+window.flipLiveVisionCamera = flipLiveVisionCamera;
 
 function stopLiveVision() {
     // Guard: skip all work if live vision is not active
@@ -921,6 +988,7 @@ function stopLiveVision() {
         mediaStream.getTracks().forEach(track => track.stop());
         mediaStream = null;
     }
+    window._liveVisionIsCamera = false;   // v19 (#1)
 
     if (video) video.srcObject = null;
     if (panel) panel.classList.add('hidden');
@@ -8280,7 +8348,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v18.4';
+const NEXUS_CURRENT_VERSION = 'v19.0';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18191,6 +18259,23 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v19.0',
+        date: 'July 1, 2026',
+        tag: 'UPDATE 19 — THE BIG ONE',
+        tagColor: '#a855f7',
+        changes: [
+            'SIGN IN WITH GOOGLE — one-tap sign-in with your Google account, plus a real cloud account behind the scenes.',
+            'REAL MEMORY, EVERYWHERE — NEXUS now remembers your name, grade, and what you\'ve been working on across every tab and your companion, so help feels personal. Set it up or turn it off in Settings → Companion → Study Memory, and see exactly what it knows.',
+            'SPEAK YOUR LANGUAGE — pick from 14 languages in Settings → Appearance. Your companion and every AI answer reply in your language; core menus are translated too.',
+            'TUTOR, LEVELLED UP — one-tap follow-up questions after each answer, a minimize button, and a POP-OUT floating window (mini-player) that stays on top of your separate schoolwork app so you can see the answer while you work.',
+            'LIVE VISION ON TABLETS & PHONES — if screen-sharing isn\'t available (iPad/iPhone), NEXUS uses your camera instead. Point it at your screen or a paper worksheet, and flip between front/rear cameras.',
+            'COLLECT & SHOW OFF — a new Reward Track unlocks collectible flairs as you level up (beyond gold). Equip one next to your name and pick a profile banner color.',
+            'FRESH TUTORIAL — a rebuilt welcome tour covering all the new stuff, replayable anytime from the Help Center.',
+            'FREE DURING BETA, FOR REAL — removed the forced paywall so nothing blocks you while NEXUS is free; fixed a sign-in loop and made Sign Out actually stick.',
+            'CLEANUP — fixed the mobile sidebar overlapping content on split-screen, removed keyboard shortcuts and the redundant model/rain settings, fixed delete-suggestion, draggable companion sprite with emotes, and more.',
+        ]
+    },
+    {
         version: 'v18.4',
         date: 'June 27, 2026',
         tag: 'UPDATE 18.4 — POLISH & TRUE TRACKING',
@@ -23406,33 +23491,43 @@ function renderQuestsModal() {
 // ════════════════════════════════════════════════════════════════════
 const ONBOARDING_STEPS = [
     {
-        title: 'Welcome to NEXUS 👋',
-        body: 'Quick 60-second tour so you don\'t miss the good parts. Skip anytime.',
+        title: '👋 Welcome to NEXUS!',
+        body: 'You\'ve got a personal AI study crew now. This is a quick 60-second tour of the best parts — skip anytime with the ✕.',
         target: null
     },
     {
-        title: 'Subjects live in the sidebar',
-        body: 'Math, Science, English, Social Studies, and your Notebook are all one click away. Click any to switch.',
+        title: '📚 All your subjects, one click',
+        body: 'Math, Science, English, Social Studies, your Notebook, and more all live in the sidebar. On a phone or tablet, tap the ☰ menu to open it.',
         target: '.sidebar .nav-links'
     },
     {
-        title: 'Live Vision reads your screen',
-        body: 'In Math, click "Live Vision" to share your screen — NEXUS reads any problem on it (Acellus, Edgenuity, Khan, IXL, anything) and solves it. Type Enter to submit a problem; Shift+Enter for a new line.',
+        title: '👁️ Live Vision — show it your work',
+        body: 'Stuck on a problem? Share your screen and NEXUS reads it (Acellus, Edgenuity, Khan, IXL — anything) and walks you through it. On a tablet or phone, tap "Camera" to point at your screen or a paper worksheet instead.',
         target: '[onclick*="switchTab(\'math\')"]'
     },
     {
-        title: 'Tutor Mode vs. Casual Mode',
-        body: 'Settings → Tutoring Modes. Tutor Mode (default) explains the concept and asks YOU a guiding question — true Socratic tutoring. Casual Mode (Pro) gives instant answers.',
+        title: '🎓 Your Tutor stays on top',
+        body: 'The Tutor explains the next step instead of just handing over answers, and suggests follow-up questions. Tap the pop-out button to float it in a little window that stays on top of your schoolwork app.',
         target: null
     },
     {
-        title: 'Companions, quests, and a shop',
-        body: 'Earn credits by solving problems, hitting daily quests, and chatting with your AI companion. Spend them in the Shop on themes, wallpapers, cursors, and characters.',
+        title: '🧠 It remembers you',
+        body: 'NEXUS remembers your name, grade, and what you\'ve been working on across every tab, so help feels personal. Set it up (or turn it off) in Settings → Companion → Study Memory.',
+        target: null
+    },
+    {
+        title: '🎮 Level up & collect flairs',
+        body: 'Solve problems and finish quests to earn XP and gold. Level up to unlock collectible flairs you can show off on your Profile — plus themes, wallpapers, and characters in the Shop.',
         target: '[onclick*="openQuestsModal"]'
     },
     {
-        title: 'Backup your account before you lose it',
-        body: 'NEXUS lives in your browser. Settings → Data → Export downloads a one-file backup. Do it once a week. We\'ll prompt you again after signup.',
+        title: '🌍 Speak your language',
+        body: 'Want NEXUS to reply in Spanish, French, or 11 other languages? Settings → Appearance → Language. Your companion and every AI answer will follow.',
+        target: null
+    },
+    {
+        title: '💾 Back up your account',
+        body: 'Your progress lives in your browser. Once a week, go to Settings → Data → Export for a one-file backup so you never lose your streak. That\'s it — go learn something! 🚀',
         target: null
     }
 ];
