@@ -861,7 +861,12 @@ function switchTab(tabId) {
     if (typeof playSfx === 'function') playSfx('tab');
     // v17.0 — re-apply the chosen language after navigation so re-rendered nav/labels stay translated
     var _lang = localStorage.getItem('app_lang');
-    if (_lang && _lang !== 'en' && typeof setAppLanguage === 'function') setAppLanguage(_lang);
+    if (_lang && _lang !== 'en' && typeof setAppLanguage === 'function') {
+        setAppLanguage(_lang);
+        // v19 — some views (changelog, shop, etc.) render their content a beat
+        // later; run a second AI-translate pass once that async content is in.
+        if (typeof nexusTranslatePage === 'function') setTimeout(function () { nexusTranslatePage(); }, 400);
+    }
     // v17.5 — re-label any freshly rendered icon controls for screen readers
     if (typeof _a11yAriaSweep === 'function') setTimeout(_a11yAriaSweep, 60);
     // v17.0 — keep the Word of the Day fresh when returning Home
@@ -17646,12 +17651,72 @@ function setAppLanguage(lang) {
     document.documentElement.lang = lang || 'en';
     var sel = document.getElementById('setting-app-lang');
     if (sel) sel.value = lang || 'en';
+    // v19 — beyond the curated labels, AI-translate the rest of what's on screen.
+    if (lang && lang !== 'en') { try { nexusTranslatePage(); } catch (_) {} }
 }
 document.addEventListener('DOMContentLoaded', function () {
     var l = localStorage.getItem('app_lang');
     if (l && l !== 'en') setTimeout(function () { setAppLanguage(l); }, 400);
     else { var sel = document.getElementById('setting-app-lang'); if (sel && l) sel.value = l; }
 });
+
+// v19 (#10) — full-app translation. The curated NEXUS_I18N covers menu labels;
+// this AI-translates everything ELSE currently on screen (changelog, cards,
+// prose…) into the chosen language. Every unique phrase is translated ONCE and
+// cached in localStorage (nexus_tr_<lang>), so repeat visits are instant + free.
+async function nexusTranslatePage(root) {
+    try {
+        var lang = localStorage.getItem('app_lang');
+        if (!lang || lang === 'en' || typeof NEXUS_LANGS === 'undefined' || !NEXUS_LANGS[lang]) return;
+        root = root || document.querySelector('.view.active') || document.querySelector('.main-content') || document.body;
+        if (!root) return;
+        var cacheKey = 'nexus_tr_' + lang;
+        var dict = {}; try { dict = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch (_) {}
+        var SKIP = { SCRIPT: 1, STYLE: 1, CODE: 1, PRE: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, OPTION: 1 };
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode: function (n) {
+                var p = n.parentNode;
+                if (!p || SKIP[p.nodeName]) return NodeFilter.FILTER_REJECT;
+                if (p.closest && (p.closest('[data-no-translate]') || p.closest('[data-i18n]') || p.closest('.nav-links'))) return NodeFilter.FILTER_REJECT;
+                var t = (n.nodeValue || '').trim();
+                if (t.length < 2 || !/[A-Za-z]/.test(t)) return NodeFilter.FILTER_REJECT;   // skip numbers/symbols/emoji-only
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        var nodes = [], node;
+        while ((node = walker.nextNode())) nodes.push(node);
+        // Apply anything already cached immediately.
+        var need = [];
+        nodes.forEach(function (n) {
+            var s = n.nodeValue.trim();
+            if (dict[s]) { n.nodeValue = n.nodeValue.replace(s, dict[s]); }
+            else if (need.indexOf(s) < 0) need.push(s);
+        });
+        if (!need.length) return;
+        var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+        if (!apiKey) return;   // no AI available — leave untranslated
+        var batch = need.slice(0, 50);   // cap payload; more get done on the next visit
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini', temperature: 0, response_format: { type: 'json_object' },
+                messages: [
+                    { role: 'system', content: 'Translate each string in the JSON array "items" into ' + NEXUS_LANGS[lang] + '. Return JSON {"items":[...]} with the SAME number of items in the SAME order. Keep product names (NEXUS), numbers, emojis, version tags (v19.0), and code identifiers unchanged. Natural, concise UI translations.' },
+                    { role: 'user', content: JSON.stringify({ items: batch }) }
+                ]
+            })
+        });
+        var d = await res.json();
+        if (d.error) return;
+        var parsed = {}; try { parsed = JSON.parse(d.choices[0].message.content); } catch (_) { return; }
+        var arr = parsed.items || [];
+        batch.forEach(function (src, i) { if (arr[i] && typeof arr[i] === 'string') dict[src] = arr[i]; });
+        try { localStorage.setItem(cacheKey, JSON.stringify(dict)); } catch (_) {}
+        nodes.forEach(function (n) { var s = n.nodeValue.trim(); if (dict[s]) n.nodeValue = n.nodeValue.replace(s, dict[s]); });
+    } catch (_) {}
+}
+window.nexusTranslatePage = nexusTranslatePage;
 
 // v16.5 — Word of the Day (curated list, picked deterministically by date)
 const NEXUS_WORDS = [
