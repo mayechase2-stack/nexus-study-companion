@@ -161,8 +161,28 @@ async function linkEmailToAccount() {
         }
     } catch (_) {}
     setNote('Linking…', true);
-    const ok = await _cloudLinkAccount(email, pass, { backup: true });
+    // v19 — prefer CONVERTING the current (usually anonymous) session so ALL the
+    // user's progress stays on the same account id. Falls back to the old
+    // create/sign-in path if there's no anonymous session to convert.
+    let ok = false, converted = false;
+    try {
+        if (typeof _ensureCloudSession === 'function') await _ensureCloudSession();
+        if (!nexusSB) _initSupabase();
+        const cur = nexusSB ? await _cloudUser() : null;
+        if (cur && cur.is_anonymous) {
+            const up = await nexusSB.auth.updateUser({ email: email, password: pass });
+            if (!up.error) { ok = true; converted = true; }
+            else if (/registered|already|exists|taken/i.test(up.error.message || '')) {
+                setNote('That email is already registered. If YOU made it, sign in with "Sign in (existing)" below, or use "Link with Google" if you created it with Google. Otherwise pick a different email.');
+                return;
+            } else { setNote('Could not link: ' + up.error.message); return; }
+        }
+    } catch (e) { if (window._logNexusError) window._logNexusError('link-convert', e && e.message); }
+    // Fallback (no anonymous session to convert): create/sign into a cloud account.
+    if (!ok) ok = await _cloudLinkAccount(email, pass, { backup: true });
     if (!ok) { setNote('Could not link — that email may already be taken with a different password. Try "Sign in (existing)" instead.'); return; }
+    // Push current local progress up so it's saved to this now-permanent account.
+    try { if (typeof cloudUiBackup === 'function') await cloudUiBackup(true); } catch (_) {}
     // Record the email against this local account so it's recoverable + reusable.
     try {
         localStorage.setItem('auth_email_' + localUser, email);
@@ -172,7 +192,9 @@ async function linkEmailToAccount() {
             if (reg[localUser]) { reg[localUser].email = email; localStorage.setItem('auth_users', JSON.stringify(reg)); }
         }
     } catch (_) {}
-    setNote('✓ Email linked and your data backed up to the cloud. You can now sign in with Google using ' + email + '.', true);
+    setNote(converted
+        ? '✓ Email linked to THIS account — all your progress is kept. Check ' + email + ' and click the confirmation link to finish.'
+        : '✓ Email linked and your data backed up. You can now sign in with Google using ' + email + '.', true);
     if (typeof showToast === 'function') showToast('☁️ Email linked to your account!', 'success', 4000);
     _cloudRefreshUi();
 }
