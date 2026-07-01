@@ -460,6 +460,20 @@ const NexusMemory = {
 };
 window.NexusMemory = NexusMemory;
 
+// v19 — one button to forget EVERYTHING: cross-tab study memory (profile +
+// recent topics) AND every companion's long-term conversation memory. Gives
+// students full control to wipe their "real memory" whenever they want.
+function wipeAllNexusMemory() {
+    if (!confirm('Forget everything NEXUS remembers about you — your study memory across all tabs AND every companion\'s memory of past chats? This cannot be undone.')) return;
+    try {
+        NexusMemory.clear();
+        localStorage.removeItem('companion_memory');
+    } catch (_) {}
+    if (typeof showToast === 'function') showToast('🧹 All memory wiped — NEXUS has a clean slate.', 'success', 3000);
+    var m = document.getElementById('companion-memory-modal'); if (m) m.remove();
+}
+window.wipeAllNexusMemory = wipeAllNexusMemory;
+
 // v19 (#9/#7) — human-readable view of everything NEXUS remembers across tabs.
 function showStudyMemory() {
     var p = NexusMemory.profile();
@@ -14411,38 +14425,28 @@ async function helpMeLiveVision() {
     // Subject detection is implicit — let the tutor prompt for math handle most
     // school work; if the problem is clearly science/history, the AI will still
     // adapt because we feed the tutor instructions for "any subject".
-    const systemPrompt = `You are NEXUS Tutor — a great tutor analyzing a problem the student has on their screen. You DO NOT solve the problem. You teach them to solve it themselves through a single guided step.
+    const systemPrompt = `You are NEXUS Tutor analyzing a problem on the student's screen. Return a STRICT JSON object (no prose outside it) with EXACTLY these keys:
 
-Produce the response as THREE clearly-styled cards (use the EXACT div structure):
+{
+  "work": "<HTML: the tutor's step-by-step WORKING that teaches the method. Restate the problem in 1 sentence, name the concept, then walk through the SOLUTION STEPS in order using the tutor-block cards below — BUT stop just short of stating the final numeric/textual answer. This is the teaching, shown on the work board.>",
+  "hint": "<ONE short sentence: a nudge toward the very next move. Plain text, no answer.>",
+  "answer": "<the final answer, as short as possible (a number, expression, or short phrase). This is hidden until the student reveals it.>"
+}
 
-1. <div class="tutor-block tutor-block-concept">
-     <h3>💡 The concept</h3>
-     <p>Restate the problem briefly (1 sentence) so the student knows you read it right. Then 2-3 sentences naming the concept and explaining it with ONE concrete hook (analogy, real-world frame, or worked example with DIFFERENT numbers).</p>
-     <div class="tutor-formula"><code>If applicable: relevant formula, identity, or rule as a single line.</code></div>
-   </div>
+For the "work" HTML use these cards in order:
+<div class="tutor-block tutor-block-concept"><h3>💡 The concept</h3><p>...</p><div class="tutor-formula"><code>formula/rule if any</code></div></div>
+<div class="tutor-block tutor-block-strategy"><h3>🧭 Strategy</h3><p>the shape of the solution</p></div>
+<div class="tutor-block tutor-block-steps"><h3>🪜 Steps</h3><ol><li>each step of the method, with the arithmetic set up but the FINAL answer left as the student's to compute</li></ol></div>
 
-2. <div class="tutor-block tutor-block-strategy">
-     <h3>🧭 Strategy</h3>
-     <p>1-2 sentences outlining the SHAPE of the solution — what to isolate, what to factor, what to identify — without doing the arithmetic. "The move is to..." not "the answer is..."</p>
-   </div>
-
-3. <div class="tutor-block tutor-block-question">
-     <h3>🎯 Your turn — first step</h3>
-     <p>Exactly ONE precise, answerable guiding question that asks the student to take the FIRST move.</p>
-   </div>
-
-ABSOLUTE RULES:
-- Do NOT reveal the final answer. Ever.
-- Use the exact <div class="tutor-block tutor-block-X"> wrappers shown.
-- Pure HTML only, no markdown, no asterisks.
-- NEVER use LaTeX commands (\geq, \frac, \sqrt, \times, etc.). Use Unicode symbols directly: ≥ ≤ ÷ × √ ² ³ π θ etc.
-- Tolerant of screen noise — reconstruct the intended problem before responding.
-- If you can't read the problem clearly, say so plainly in concept-block and ask the student to retype it.`;
+RULES:
+- "work" must NOT contain the final answer (that lives only in "answer").
+- Pure HTML in "work"; no markdown/asterisks. NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ.
+- Reconstruct the intended problem from the image even if noisy. If unreadable, say so in "work" and set "answer" to "" and "hint" to "Retype the problem so I can read it.".`;
 
     const userParts = [
         { type: 'text', text: ocrText
-            ? `OCR-EXTRACTED TEXT FROM SCREEN (may have errors — use the image as the source of truth):\n${ocrText}\n\nGuide me through this. Don't give the answer.`
-            : 'Read the problem in the image and guide me through it. Don\'t give the answer.' },
+            ? `OCR-EXTRACTED TEXT FROM SCREEN (may have errors — use the image as the source of truth):\n${ocrText}\n\nTeach me the method and give the hidden hint + answer as JSON.`
+            : 'Read the problem in the image. Teach me the method (work board) and give the hidden hint + answer as JSON.' },
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }
     ];
 
@@ -14459,42 +14463,148 @@ ABSOLUTE RULES:
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userParts }
                 ],
-                max_tokens: 800,
-                temperature: 0.5
+                max_tokens: 1000,
+                temperature: 0.4,
+                response_format: { type: 'json_object' }
             })
         });
         clearTimeout(_hvTimeout);
         if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
-        const guidance = data.choices[0].message.content || '';
-        const cleaned = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(guidance) : guidance;
-        // Only mention the companion if one is actually equipped.
-        const _hasCompanion = (typeof userLoadout !== 'undefined' && userLoadout && userLoadout.companion && userLoadout.companion !== 'none');
-        // Render the tutor-block cards in place of the regular straight-answer panel
+        const raw = data.choices[0].message.content || '{}';
+        let parsed = {};
+        try { parsed = JSON.parse(raw); } catch (_) { parsed = { work: raw, hint: '', answer: '' }; }
+        const workHtml = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(parsed.work || '') : (parsed.work || '');
+        // Stash the hidden hint + answer for the reveal buttons and credit challenge.
+        window._lvHint = String(parsed.hint || '').trim();
+        window._lvAnswer = String(parsed.answer || '').trim();
+        window._lvAwarded = false;
+
+        // 1) Tutor's WORKING goes on the work board (left).
+        const workEl = document.getElementById('vision-tutor-work');
+        if (workEl) { workEl.innerHTML = workHtml || '<p style="color:var(--text-muted);">Couldn\'t read the problem clearly — try re-capturing.</p>'; }
+        if (typeof _showVisionWork === 'function') _showVisionWork();   // ensure work view (not scratch) is visible
+
+        // 2) The answer box (right) becomes 3 controls: Hint · Answer · Earn 30 credits.
         if (solutionPanel) {
-            const _compHint = _hasCompanion
-                ? '<span style="margin-left:auto;font-size:0.9rem;color:var(--text-muted);">Open the companion to ask follow-up questions about this problem.</span>'
-                : '';
             solutionPanel.innerHTML = `
-                <div style="padding:14px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.06));border-bottom:1px solid rgba(108,92,231,0.25);display:flex;align-items:center;gap:12px;">
+                <div style="padding:12px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.06));border-bottom:1px solid rgba(108,92,231,0.25);display:flex;align-items:center;gap:10px;">
                     <i class="ph ph-graduation-cap" style="color:#a29bfe;font-size:1.05rem;"></i>
-                    <span style="color:#a29bfe;font-size:0.9rem;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;">Help Me — Tutor Mode</span>
-                    ${_compHint}
+                    <span style="color:#a29bfe;font-size:0.85rem;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;">Your Answer</span>
                 </div>
-                <div style="padding:14px 16px;" id="live-vision-tutor-output">${cleaned}</div>
-            `;
+                <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
+                    <button onclick="revealVisionHint()" class="btn-secondary" style="width:100%;justify-content:flex-start;"><i class="ph ph-lightbulb" style="color:#fdcb6e;"></i> Show a hint</button>
+                    <div id="lv-hint-out" style="display:none;font-size:0.88rem;color:#f1d59a;background:rgba(253,203,110,0.08);border:1px solid rgba(253,203,110,0.25);border-radius:8px;padding:10px 12px;"></div>
+
+                    <button onclick="revealVisionAnswer()" class="btn-secondary" style="width:100%;justify-content:flex-start;"><i class="ph ph-eye" style="color:#00cec9;"></i> Reveal the answer</button>
+                    <div id="lv-answer-out" style="display:none;font-size:0.95rem;color:#fff;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.3);border-radius:8px;padding:12px;font-weight:600;"></div>
+
+                    <div style="border-top:1px dashed var(--glass-border);margin-top:4px;padding-top:12px;">
+                        <div style="font-size:0.82rem;color:#a29bfe;font-weight:700;margin-bottom:8px;"><i class="ph ph-coins" style="color:#FFD700;"></i> Try it yourself — earn 30 credits</div>
+                        <input id="lv-answer-input" type="text" placeholder="Type your answer…" style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.9rem;margin-bottom:8px;">
+                        <button onclick="submitVisionAnswer()" class="btn-primary" style="width:100%;"><i class="ph ph-paper-plane-tilt"></i> Submit for 30 credits</button>
+                        <div id="lv-grade-out" style="display:none;font-size:0.86rem;margin-top:8px;padding:10px 12px;border-radius:8px;"></div>
+                    </div>
+                </div>`;
         }
-        window._liveVisionLastGuidance = cleaned.replace(/<[^>]+>/g, ' ').trim().slice(0, 1000);
+        window._liveVisionLastGuidance = String(parsed.work || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 1000);
         logActivity('study', 'Live Vision — Help Me (tutor)');
         updateStudyStats('problem_solved');
-        showToast(_hasCompanion ? '✓ Tutor card ready. Ask the companion follow-ups via "Link" → Live Vision.' : '✓ Tutor card ready.', 'success', 4500);
+        showToast('✓ Tutor worked it out on the board. Try it, grab a hint, or reveal the answer.', 'success', 4500);
     } catch (err) {
         if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         showToast('AI Error: ' + err.message, 'error');
         if (solutionPanel) solutionPanel.innerHTML = `<p style="padding:14px;color:#ff6b6b;">Error: ${err.message}</p>`;
     }
 }
+
+// v19 — Live Vision tutor-work board helpers.
+function _showVisionWork() {
+    var w = document.getElementById('vision-tutor-work');
+    var t = document.getElementById('vision-board-text');
+    var title = document.getElementById('vision-board-title');
+    var btn = document.getElementById('vision-board-toggle');
+    if (w) w.style.display = 'block';
+    if (t) t.style.display = 'none';
+    if (title) title.innerHTML = '<i class="ph ph-chalkboard-teacher"></i> TUTOR WORK';
+    if (btn) btn.innerHTML = '<i class="ph ph-pencil-simple"></i> My scratch';
+}
+function toggleVisionScratch() {
+    var w = document.getElementById('vision-tutor-work');
+    var t = document.getElementById('vision-board-text');
+    var title = document.getElementById('vision-board-title');
+    var btn = document.getElementById('vision-board-toggle');
+    if (!w || !t) return;
+    var showScratch = (w.style.display !== 'none');
+    if (showScratch) {
+        w.style.display = 'none'; t.style.display = 'block'; t.focus();
+        if (title) title.innerHTML = '<i class="ph ph-pencil-simple"></i> MY SCRATCH';
+        if (btn) btn.innerHTML = '<i class="ph ph-chalkboard-teacher"></i> Tutor work';
+    } else { _showVisionWork(); }
+}
+function revealVisionHint() {
+    var out = document.getElementById('lv-hint-out');
+    if (!out) return;
+    out.style.display = 'block';
+    out.textContent = window._lvHint || 'No hint available — try re-capturing the problem.';
+}
+function revealVisionAnswer() {
+    var out = document.getElementById('lv-answer-out');
+    if (!out) return;
+    if (!window._lvAnswer) { out.style.display = 'block'; out.textContent = 'No answer captured — try re-capturing the problem.'; return; }
+    if (out.style.display === 'block') return;
+    if (!confirm('Reveal the full answer? Trying it yourself first earns you 30 credits.')) return;
+    out.style.display = 'block';
+    out.innerHTML = '<span style="color:#00cec9;">Answer:</span> ' + escapeHtmlSafe(window._lvAnswer);
+}
+async function submitVisionAnswer() {
+    var input = document.getElementById('lv-answer-input');
+    var out = document.getElementById('lv-grade-out');
+    if (!input || !out) return;
+    var attempt = (input.value || '').trim();
+    if (!attempt) { out.style.display = 'block'; out.style.color = '#ff9a9a'; out.textContent = 'Type your answer first.'; return; }
+    if (!window._lvAnswer) { out.style.display = 'block'; out.style.color = '#ff9a9a'; out.textContent = 'No answer to check against — re-capture the problem.'; return; }
+    if (window._lvAwarded) { out.style.display = 'block'; out.style.background = 'rgba(0,184,148,0.12)'; out.style.color = '#7bed9f'; out.textContent = 'You already earned the 30 credits for this one. 🎉'; return; }
+    var norm = function (s) { return String(s).toLowerCase().replace(/\s+/g, '').replace(/[^\w./-]/g, ''); };
+    var correct = norm(attempt) === norm(window._lvAnswer);
+    out.style.display = 'block';
+    // Fuzzy check via AI when a plain normalize doesn't match (handles "12/4" vs "3", etc.)
+    if (!correct) {
+        out.style.color = 'var(--accent)'; out.style.background = 'transparent';
+        out.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Checking…';
+        try {
+            const apiKey = getApiKey();
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [{ role: 'system', content: 'You grade whether a student answer is mathematically/factually equivalent to the correct answer. Reply with ONLY "yes" or "no".' },
+                        { role: 'user', content: 'Correct answer: ' + window._lvAnswer + '\nStudent answer: ' + attempt + '\nEquivalent?' }],
+                    temperature: 0, max_tokens: 3
+                })
+            });
+            const d = await r.json();
+            correct = /yes/i.test((d.choices && d.choices[0] && d.choices[0].message.content) || '');
+        } catch (_) { /* fall back to the strict compare result (incorrect) */ }
+    }
+    if (correct) {
+        window._lvAwarded = true;
+        if (typeof updateCredits === 'function') updateCredits(30);
+        if (typeof awardXP === 'function') awardXP(15, 'Live Vision correct answer');
+        if (typeof recordQuestProgress === 'function') recordQuestProgress('problem_solved');
+        out.style.background = 'rgba(0,184,148,0.12)'; out.style.color = '#7bed9f';
+        out.innerHTML = '<i class="ph ph-check-circle"></i> Correct! +30 credits earned. 🎉';
+    } else {
+        out.style.background = 'rgba(255,107,107,0.1)'; out.style.color = '#ff9a9a';
+        out.innerHTML = '<i class="ph ph-x-circle"></i> Not quite — check the tutor work, grab a hint, and try again.';
+    }
+}
+window.toggleVisionScratch = toggleVisionScratch;
+window.revealVisionHint = revealVisionHint;
+window.revealVisionAnswer = revealVisionAnswer;
+window.submitVisionAnswer = submitVisionAnswer;
 
 async function analyzeText() {
     const video = document.getElementById('screen-video');

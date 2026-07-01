@@ -1586,13 +1586,20 @@
                             <video id="screen-video" autoplay playsinline muted></video>
                             <canvas id="screen-canvas" style="display:none;"></canvas>
                         </div>
-                        <!-- v18.4 — Work-it-out board fills the space under the video -->
+                        <!-- v18.4 board → v19 Tutor Work area: the tutor's step-by-step working shows here; toggle to your own scratch pad -->
                         <div class="vision-board" style="flex:1;min-height:170px;display:flex;flex-direction:column;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);border-radius:10px;overflow:hidden;">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:rgba(108,92,231,0.12);border-bottom:1px solid var(--glass-border);">
-                                <span style="font-size:0.78rem;font-weight:700;color:#a29bfe;letter-spacing:0.5px;"><i class="ph ph-pencil-simple"></i> WORK IT OUT</span>
-                                <button onclick="var b=document.getElementById('vision-board-text');if(b){b.value='';b.focus();}" style="background:rgba(255,255,255,0.08);border:none;color:#cdd2e0;font-size:0.72rem;padding:4px 9px;border-radius:6px;cursor:pointer;">Clear</button>
+                                <span id="vision-board-title" style="font-size:0.78rem;font-weight:700;color:#a29bfe;letter-spacing:0.5px;"><i class="ph ph-chalkboard-teacher"></i> TUTOR WORK</span>
+                                <div style="display:flex;gap:6px;">
+                                    <button id="vision-board-toggle" onclick="toggleVisionScratch()" style="background:rgba(255,255,255,0.08);border:none;color:#cdd2e0;font-size:0.72rem;padding:4px 9px;border-radius:6px;cursor:pointer;"><i class="ph ph-pencil-simple"></i> My scratch</button>
+                                    <button onclick="var b=document.getElementById('vision-board-text');if(b){b.value='';b.focus();}" style="background:rgba(255,255,255,0.08);border:none;color:#cdd2e0;font-size:0.72rem;padding:4px 9px;border-radius:6px;cursor:pointer;">Clear</button>
+                                </div>
                             </div>
-                            <textarea id="vision-board-text" placeholder="Scratch space — try the steps here yourself before you peek at the answer…" style="flex:1;width:100%;box-sizing:border-box;resize:none;background:transparent;border:none;outline:none;color:#e8eef8;font-family:var(--font-main);font-size:0.95rem;padding:12px;line-height:1.55;"></textarea>
+                            <!-- Tutor's worked guidance renders here after "Help Me" -->
+                            <div id="vision-tutor-work" style="flex:1;overflow-y:auto;padding:12px;color:#e8eef8;font-size:0.92rem;line-height:1.55;">
+                                <div style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-top:20px;">Tap <strong style="color:#a29bfe;">Help Me</strong> and the tutor will work through your problem here — step by step, without spoiling the answer.</div>
+                            </div>
+                            <textarea id="vision-board-text" placeholder="Your scratch space — try the steps yourself here…" style="display:none;flex:1;width:100%;box-sizing:border-box;resize:none;background:transparent;border:none;outline:none;color:#e8eef8;font-family:var(--font-main);font-size:0.95rem;padding:12px;line-height:1.55;"></textarea>
                         </div>
                         </div>
                         <div class="analysis-feed">
@@ -4092,7 +4099,7 @@ if __name__ == '__main__':
                             <textarea id="setting-memory-about" placeholder="e.g. I learn best with step-by-step examples. I'm studying for a biology exam. I find fractions tricky." onchange="NexusMemory.saveProfile({about:this.value.trim()})" style="width:100%;min-height:70px;padding:9px;margin-bottom:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;resize:vertical;font-family:inherit;"></textarea>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                                 <button class="btn-secondary" onclick="showStudyMemory()" style="font-size:0.85rem;"><i class="ph ph-list-magnifying-glass"></i> What NEXUS remembers</button>
-                                <button class="btn-secondary" onclick="if(confirm('Clear everything NEXUS remembers about you across all tabs?')){NexusMemory.clear();showToast('🧠 Study memory cleared.','info',2500);}" style="font-size:0.85rem;color:#ff9a9a;border-color:rgba(255,107,107,0.3);"><i class="ph ph-trash"></i> Clear study memory</button>
+                                <button class="btn-secondary" onclick="wipeAllNexusMemory()" style="font-size:0.85rem;color:#ff9a9a;border-color:rgba(255,107,107,0.3);"><i class="ph ph-trash"></i> Wipe all memory</button>
                             </div>
                         </div>
                     </div>
@@ -5124,7 +5131,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260701v194"></script>
+    <script src="script.js?v=20260701v195"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
