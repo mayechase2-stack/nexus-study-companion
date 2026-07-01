@@ -64,6 +64,33 @@ document.addEventListener('DOMContentLoaded', function () { setTimeout(_initSupa
 async function _cloudUser() {
     try { if (!nexusSB) _initSupabase(); if (!nexusSB) return null; const r = await nexusSB.auth.getUser(); return (r && r.data) ? r.data.user : null; } catch (_) { return null; }
 }
+// v19 — guarantee EVERY signed-in user has a Supabase session so the hosted AI
+// proxy works for them out of the box (no personal key needed). If they haven't
+// linked an email or Google, we create an ANONYMOUS Supabase session. They can
+// later link an email/Google (Supabase upgrades the same anonymous user).
+// REQUIRES: enable "Allow anonymous sign-ins" in Supabase → Authentication →
+// Providers. No-ops when a personal key is set or a session already exists.
+async function _ensureCloudSession() {
+    try {
+        const personal = localStorage.getItem('openai_api_key');
+        if (personal && personal.indexOf('sk-') === 0) return;   // personal key — proxy not needed
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return;
+        if (typeof _hasCloudSession === 'function' && _hasCloudSession()) return;   // already have a token
+        const cur = await _cloudUser();
+        if (cur) return;
+        if (typeof nexusSB.auth.signInAnonymously === 'function') {
+            const { error } = await nexusSB.auth.signInAnonymously();
+            if (error) {
+                if (window._logNexusError) window._logNexusError('anon-session', error.message);
+                return;
+            }
+            if (typeof updateTierUI === 'function') updateTierUI();
+            if (window._logNexusError) window._logNexusError('anon-session', 'created (ok)');
+        }
+    } catch (e) { if (window._logNexusError) window._logNexusError('ensure-session', e && e.message); }
+}
+window._ensureCloudSession = _ensureCloudSession;
 function _collectSyncBlob() {
     const blob = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -236,6 +263,13 @@ function _nexusTabletWelcome() {
     } catch (_) {}
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_nexusTabletWelcome, 1800); });
+// v19 — on load, if the user is already signed into NEXUS locally but has no
+// Supabase session, give them one (anonymous) so hosted AI keeps working.
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+        if (localStorage.getItem('auth_user') && typeof _ensureCloudSession === 'function') _ensureCloudSession();
+    }, 1400);
+});
 // UNIFIED ACCOUNT — keep the local login in lockstep with a Supabase cloud
 // account so signing up / in automatically establishes the synced session
 // (no separate "Cloud Sync" step). Best-effort: never blocks local auth if the
@@ -2042,6 +2076,9 @@ function completeLogin() {
     showToast("Login successful!", "success");
     updateTierUI();
     if (typeof applyFreeTierOverlays === 'function') applyFreeTierOverlays();
+    // v19 — make sure this account has a Supabase session so hosted AI works
+    // without a personal key (falls back to an anonymous session if needed).
+    if (typeof _ensureCloudSession === 'function') _ensureCloudSession();
     // v11.0 — paid-access only: if user has not yet purchased a plan, force them
     // through checkout immediately. The payment modal cannot be dismissed without
     // either paying or cancelling the account (handled in closePaymentModal).
