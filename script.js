@@ -222,6 +222,130 @@ async function callHostedAI(opts) {
 // key. When the user has NO personal key (i.e. they're on hosted AI), reroute that
 // call to the Edge Function proxy and return an OpenAI-shaped response, so all ~20
 // AI features work through the proxy without editing each call site.
+// v19 (#10) — supported languages for AI replies + UI chrome. Code → native name.
+const NEXUS_LANGS = {
+    en: 'English', es: 'Español', fr: 'Français', de: 'Deutsch', pt: 'Português',
+    it: 'Italiano', zh: '中文 (Chinese)', ja: '日本語 (Japanese)', ko: '한국어 (Korean)',
+    hi: 'हिन्दी (Hindi)', ar: 'العربية (Arabic)', ru: 'Русский (Russian)',
+    vi: 'Tiếng Việt (Vietnamese)', tl: 'Tagalog'
+};
+// Returns a system directive telling the model which language to answer in — or
+// null when English / when the call expects structured JSON (translating those
+// would break the app's parsers). Applied app-wide via the fetch interceptor so
+// every AI feature (tutor, subjects, companion, book tools…) speaks the user's
+// language. #10
+function _nexusAILangDirective(body) {
+    try {
+        const lang = localStorage.getItem('app_lang');
+        if (!lang || lang === 'en' || !NEXUS_LANGS[lang]) return null;
+        // Skip structured/JSON responses — those keep their machine schema.
+        if (body && body.response_format) return null;
+        const name = NEXUS_LANGS[lang];
+        return 'LANGUAGE REQUIREMENT: Write your entire reply to the user in ' + name +
+            '. Translate only the human-readable text — keep any HTML tags, code, ' +
+            'LaTeX/math, and JSON exactly as-is. If the student writes in another ' +
+            'language, still answer in ' + name + ' unless they ask otherwise.';
+    } catch (_) { return null; }
+}
+// v19 (#7) — cross-tab "real memory". A compact, always-on student profile plus a
+// rolling log of recent study topics, injected into every AI system prompt so the
+// tutor, companion, and subject tabs all remember who the student is and what
+// they've been working on. Shares the companion retention window (0 = forever).
+const NexusMemory = {
+    _turnsKey: 'nexus_mem_turns',
+    profile: function () {
+        var p = {};
+        try { p = JSON.parse(localStorage.getItem('nexus_profile_mem') || '{}'); } catch (_) {}
+        if (!p.name) { var u = localStorage.getItem('auth_user'); if (u) p.name = u; }
+        return p;
+    },
+    saveProfile: function (obj) {
+        try {
+            var p = NexusMemory.profile();
+            Object.assign(p, obj || {});
+            localStorage.setItem('nexus_profile_mem', JSON.stringify(p));
+        } catch (_) {}
+    },
+    _retainDays: function () {
+        var d = parseInt(localStorage.getItem('companion_memory_days') || '30', 10);
+        return isNaN(d) ? 30 : d;
+    },
+    turns: function () {
+        var arr = [];
+        try { arr = JSON.parse(localStorage.getItem(NexusMemory._turnsKey) || '[]'); } catch (_) {}
+        var days = NexusMemory._retainDays();
+        if (days > 0) { var cut = Date.now() - days * 86400000; arr = arr.filter(function (t) { return (t.ts || 0) >= cut; }); }
+        return arr;
+    },
+    record: function (tab, q) {
+        try {
+            if (localStorage.getItem('nexus_memory_enabled') === '0') return;
+            if (!q) return;
+            q = String(q).replace(/\s+/g, ' ').trim();
+            if (q.length < 8 || q.length > 400) return;   // skip pings and big pasted blobs
+            var arr = NexusMemory.turns();
+            var last = arr[arr.length - 1];
+            var clipped = q.slice(0, 240);
+            if (last && last.q === clipped) return;        // dedupe repeats
+            arr.push({ ts: Date.now(), tab: tab || '', q: clipped });
+            while (arr.length > 40) arr.shift();
+            localStorage.setItem(NexusMemory._turnsKey, JSON.stringify(arr));
+        } catch (_) {}
+    },
+    buildContext: function () {
+        try {
+            if (localStorage.getItem('nexus_memory_enabled') === '0') return null;
+            var p = NexusMemory.profile();
+            var lines = [], bits = [];
+            if (p.name) bits.push('Name: ' + p.name);
+            if (p.grade) bits.push('Grade/level: ' + p.grade);
+            if (p.about) bits.push('About them: ' + String(p.about).slice(0, 300));
+            if (bits.length) lines.push(bits.join(' | '));
+            var t = NexusMemory.turns().slice(-8);
+            if (t.length) lines.push('Recently worked on: ' + t.map(function (x) { return (x.tab ? '[' + x.tab + '] ' : '') + x.q; }).join('; '));
+            if (!lines.length) return null;
+            return '=== WHAT YOU REMEMBER ABOUT THIS STUDENT ===\n' + lines.join('\n') +
+                '\n=== END ===\nUse this to personalize naturally; never recite it back verbatim.';
+        } catch (_) { return null; }
+    },
+    clear: function () {
+        try { localStorage.removeItem(NexusMemory._turnsKey); localStorage.removeItem('nexus_profile_mem'); } catch (_) {}
+    }
+};
+window.NexusMemory = NexusMemory;
+
+// v19 (#9/#7) — human-readable view of everything NEXUS remembers across tabs.
+function showStudyMemory() {
+    var p = NexusMemory.profile();
+    var turns = NexusMemory.turns();
+    var rows = '';
+    var pbits = [];
+    if (p.name) pbits.push('<li><strong>Name:</strong> ' + escapeHtmlSafe(p.name) + '</li>');
+    if (p.grade) pbits.push('<li><strong>Grade/level:</strong> ' + escapeHtmlSafe(p.grade) + '</li>');
+    if (p.about) pbits.push('<li><strong>About you:</strong> ' + escapeHtmlSafe(p.about) + '</li>');
+    rows += pbits.length ? ('<ul style="margin:0 0 14px;padding-left:18px;line-height:1.7;">' + pbits.join('') + '</ul>')
+                         : '<p style="color:var(--text-muted);margin:0 0 14px;">No profile saved yet — add a grade or "about me" below the list.</p>';
+    if (turns.length) {
+        rows += '<strong style="color:#fff;display:block;margin-bottom:6px;">Recent things you worked on</strong><ul style="margin:0;padding-left:18px;line-height:1.7;">';
+        turns.slice().reverse().forEach(function (t) {
+            rows += '<li><span style="color:var(--text-muted);font-size:0.78rem;">' + new Date(t.ts).toLocaleDateString() + (t.tab ? ' · ' + escapeHtmlSafe(t.tab) : '') + '</span><br>' + escapeHtmlSafe(t.q) + '</li>';
+        });
+        rows += '</ul>';
+    } else {
+        rows += '<p style="color:var(--text-muted);margin:0;">Nothing tracked yet — ask a question in any tab and it\'ll show up here.</p>';
+    }
+    var overlay = document.createElement('div');
+    overlay.className = 'modal';
+    overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(6px);z-index:1000000;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = '<div class="glass-panel" style="max-width:520px;width:100%;max-height:80vh;overflow:auto;padding:24px;border-radius:16px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;color:#fff;"><i class="ph ph-brain"></i> What NEXUS remembers</h3>' +
+        '<button onclick="this.closest(\'.modal\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;">&times;</button></div>' +
+        rows + '</div>';
+    document.body.appendChild(overlay);
+}
+window.showStudyMemory = showStudyMemory;
+
 (function installAIProxyInterceptor() {
     if (window._aiProxyInstalled) return;
     window._aiProxyInstalled = true;
@@ -232,6 +356,36 @@ async function callHostedAI(opts) {
             const u = (typeof url === 'string') ? url : (url && url.url) || '';
             const personal = localStorage.getItem('openai_api_key');
             const hasPersonal = !!(personal && personal.indexOf('sk-') === 0);
+            // v19 (#10) — inject the language directive into EVERY chat completion,
+            // before the hosted/personal split, so both paths reply in the chosen
+            // language. Rewrites opts.body so _origFetch (personal key) sees it too.
+            if (u.indexOf('api.openai.com/v1/chat/completions') >= 0) {
+                try {
+                    const pb = JSON.parse((opts && opts.body) || '{}');
+                    if (pb && Array.isArray(pb.messages)) {
+                        // Build extra system context: language (#10) + student memory (#7).
+                        const extras = [];
+                        const dir = _nexusAILangDirective(pb);
+                        if (dir) extras.push(dir);
+                        if (!pb.response_format) {   // memory only for free-form replies
+                            const mem = NexusMemory.buildContext();
+                            if (mem) extras.push(mem);
+                            // Capture the latest student question for cross-tab memory.
+                            const lastUser = [].concat(pb.messages).reverse().find(function (m) { return m && m.role === 'user'; });
+                            if (lastUser && typeof lastUser.content === 'string') {
+                                NexusMemory.record(localStorage.getItem('last_tab') || '', lastUser.content);
+                            }
+                        }
+                        if (extras.length) {
+                            const block = extras.join('\n\n');
+                            const si = pb.messages.findIndex(function (m) { return m && m.role === 'system'; });
+                            if (si >= 0) pb.messages[si].content = (pb.messages[si].content || '') + '\n\n' + block;
+                            else pb.messages.unshift({ role: 'system', content: block });
+                            opts = Object.assign({}, opts, { body: JSON.stringify(pb) });
+                        }
+                    }
+                } catch (_) {}
+            }
             if (u.indexOf('api.openai.com/v1/chat/completions') >= 0 && !hasPersonal) {
                 let body = {};
                 try { body = JSON.parse((opts && opts.body) || '{}'); } catch (_) {}
@@ -16971,7 +17125,9 @@ document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
 // and AI-response translation is out of scope; this covers the app's chrome.
 const NEXUS_I18N = {
     es: { 'Home':'Inicio','Command Center':'Centro de Mando','Math':'Matemáticas','Science':'Ciencias','English Aid':'Ayuda de Inglés','Social Studies':'Estudios Sociales','Notebook':'Cuaderno','Profile':'Perfil','Leaderboard':'Clasificación','Shop':'Tienda','Inventory':'Inventario','Suggestions':'Sugerencias','Updates':'Novedades','Grade Calc':'Notas','Practice Test':'Examen de Práctica','Lo-fi Music':'Música Lo-fi','Settings':'Ajustes','Sign Out':'Cerrar sesión','Light Mode':'Modo Claro','Dark Mode':'Modo Oscuro','Upgrade to Pro':'Mejorar a Pro','Open Shop':'Abrir Tienda','My Inventory':'Mi Inventario','Study Planner':'Planificador','Formula Cheat Sheet':'Hoja de Fórmulas','Rain Ambiance':'Ambiente de Lluvia','Run Self-Test':'Ejecutar Diagnóstico','Daily Challenge':'Reto Diario','Word of the Day':'Palabra del Día','Achievements':'Logros' },
-    fr: { 'Home':'Accueil','Command Center':'Centre de Commande','Math':'Maths','Science':'Sciences','English Aid':'Aide en Anglais','Social Studies':'Études Sociales','Notebook':'Carnet','Profile':'Profil','Leaderboard':'Classement','Shop':'Boutique','Inventory':'Inventaire','Suggestions':'Suggestions','Updates':'Mises à jour','Grade Calc':'Notes','Practice Test':'Test Pratique','Lo-fi Music':'Musique Lo-fi','Settings':'Paramètres','Sign Out':'Déconnexion','Light Mode':'Mode Clair','Dark Mode':'Mode Sombre','Upgrade to Pro':'Passer à Pro','Open Shop':'Ouvrir la Boutique','My Inventory':'Mon Inventaire','Study Planner':'Planificateur','Formula Cheat Sheet':'Fiche de Formules','Rain Ambiance':'Ambiance Pluie','Run Self-Test':'Lancer le Diagnostic','Daily Challenge':'Défi du Jour','Word of the Day':'Mot du Jour','Achievements':'Succès' }
+    fr: { 'Home':'Accueil','Command Center':'Centre de Commande','Math':'Maths','Science':'Sciences','English Aid':'Aide en Anglais','Social Studies':'Études Sociales','Notebook':'Carnet','Profile':'Profil','Leaderboard':'Classement','Shop':'Boutique','Inventory':'Inventaire','Suggestions':'Suggestions','Updates':'Mises à jour','Grade Calc':'Notes','Practice Test':'Test Pratique','Lo-fi Music':'Musique Lo-fi','Settings':'Paramètres','Sign Out':'Déconnexion','Light Mode':'Mode Clair','Dark Mode':'Mode Sombre','Upgrade to Pro':'Passer à Pro','Open Shop':'Ouvrir la Boutique','My Inventory':'Mon Inventaire','Study Planner':'Planificateur','Formula Cheat Sheet':'Fiche de Formules','Rain Ambiance':'Ambiance Pluie','Run Self-Test':'Lancer le Diagnostic','Daily Challenge':'Défi du Jour','Word of the Day':'Mot du Jour','Achievements':'Succès' },
+    de: { 'Home':'Start','Command Center':'Kommandozentrale','Math':'Mathe','Science':'Wissenschaft','English Aid':'Englischhilfe','Social Studies':'Sozialkunde','Notebook':'Notizbuch','Profile':'Profil','Leaderboard':'Bestenliste','Shop':'Shop','Inventory':'Inventar','Suggestions':'Vorschläge','Updates':'Neuigkeiten','Grade Calc':'Noten','Practice Test':'Übungstest','Lo-fi Music':'Lo-fi-Musik','Settings':'Einstellungen','Sign Out':'Abmelden','Light Mode':'Heller Modus','Dark Mode':'Dunkler Modus','Upgrade to Pro':'Auf Pro upgraden','Open Shop':'Shop öffnen','My Inventory':'Mein Inventar','Study Planner':'Lernplaner','Formula Cheat Sheet':'Formelsammlung','Rain Ambiance':'Regen-Ambiente','Run Self-Test':'Selbsttest starten','Daily Challenge':'Tägliche Herausforderung','Word of the Day':'Wort des Tages','Achievements':'Erfolge' },
+    pt: { 'Home':'Início','Command Center':'Central de Comando','Math':'Matemática','Science':'Ciências','English Aid':'Ajuda de Inglês','Social Studies':'Estudos Sociais','Notebook':'Caderno','Profile':'Perfil','Leaderboard':'Classificação','Shop':'Loja','Inventory':'Inventário','Suggestions':'Sugestões','Updates':'Novidades','Grade Calc':'Notas','Practice Test':'Teste Prático','Lo-fi Music':'Música Lo-fi','Settings':'Configurações','Sign Out':'Sair','Light Mode':'Modo Claro','Dark Mode':'Modo Escuro','Upgrade to Pro':'Assinar o Pro','Open Shop':'Abrir Loja','My Inventory':'Meu Inventário','Study Planner':'Planejador','Formula Cheat Sheet':'Folha de Fórmulas','Rain Ambiance':'Ambiente de Chuva','Run Self-Test':'Executar Autoteste','Daily Challenge':'Desafio Diário','Word of the Day':'Palavra do Dia','Achievements':'Conquistas' }
 };
 function setAppLanguage(lang) {
     localStorage.setItem('app_lang', lang || 'en');
@@ -17577,6 +17733,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (md) { md.value = localStorage.getItem('companion_memory_days') || '30';
             var v = parseInt(md.value, 10);
             var dd = document.getElementById('setting-memory-days-display'); if (dd) dd.textContent = (v === 0 ? 'Forever' : v + ' day' + (v !== 1 ? 's' : '')); }
+        // v19 (#7) — populate cross-tab study-memory fields
+        try {
+            var me = document.getElementById('setting-memory-enabled');
+            if (me) me.checked = localStorage.getItem('nexus_memory_enabled') !== '0';
+            var prof = (typeof NexusMemory !== 'undefined') ? NexusMemory.profile() : {};
+            var mg = document.getElementById('setting-memory-grade'); if (mg) mg.value = prof.grade || '';
+            var ma = document.getElementById('setting-memory-about'); if (ma) ma.value = prof.about || '';
+        } catch (_) {}
     }, 600);
 });
 

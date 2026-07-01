@@ -4072,6 +4072,23 @@ if __name__ == '__main__':
                             <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">See what your Sprite remembers from past conversations — and clear it anytime.</p>
                             <button class="btn-secondary" onclick="showCompanionMemorySummary()" style="font-size:0.85rem;"><i class="ph ph-list-magnifying-glass"></i> What does my companion know?</button>
                         </div>
+                        <!-- v19 (#7) — cross-tab study memory -->
+                        <div class="glass-panel" style="padding:18px;margin-bottom:10px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;"><i class="ph ph-student"></i> Study Memory (all tabs)</strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">NEXUS remembers who you are and what you've been working on across <em>every</em> tab — Math, Science, Tutor, your companion, all of it — so help feels personal. Tell it anything you want it to keep in mind.</p>
+                            <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:0.85rem;color:var(--text-muted);cursor:pointer;">
+                                <input type="checkbox" id="setting-memory-enabled" checked onchange="localStorage.setItem('nexus_memory_enabled', this.checked ? '1':'0')" style="accent-color:var(--accent);width:16px;height:16px;">
+                                Let NEXUS remember me across tabs
+                            </label>
+                            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">Grade / level (optional)</label>
+                            <input type="text" id="setting-memory-grade" placeholder="e.g. Grade 9" onchange="NexusMemory.saveProfile({grade:this.value.trim()})" style="width:100%;padding:9px;margin-bottom:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;">
+                            <label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">Things to remember about me (optional)</label>
+                            <textarea id="setting-memory-about" placeholder="e.g. I learn best with step-by-step examples. I'm studying for a biology exam. I find fractions tricky." onchange="NexusMemory.saveProfile({about:this.value.trim()})" style="width:100%;min-height:70px;padding:9px;margin-bottom:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;resize:vertical;font-family:inherit;"></textarea>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="btn-secondary" onclick="showStudyMemory()" style="font-size:0.85rem;"><i class="ph ph-list-magnifying-glass"></i> What NEXUS remembers</button>
+                                <button class="btn-secondary" onclick="if(confirm('Clear everything NEXUS remembers about you across all tabs?')){NexusMemory.clear();showToast('🧠 Study memory cleared.','info',2500);}" style="font-size:0.85rem;color:#ff9a9a;border-color:rgba(255,107,107,0.3);"><i class="ph ph-trash"></i> Clear study memory</button>
+                            </div>
+                        </div>
                     </div>
                     <!-- APPEARANCE (v10.6 expanded) -->
                     <div class="settings-tab-pane" data-pane="appearance" style="display:none;">
@@ -4084,7 +4101,19 @@ if __name__ == '__main__':
                                 <option value="en">English</option>
                                 <option value="es">Español</option>
                                 <option value="fr">Français</option>
+                                <option value="de">Deutsch</option>
+                                <option value="pt">Português</option>
+                                <option value="it">Italiano</option>
+                                <option value="zh">中文 (Chinese)</option>
+                                <option value="ja">日本語 (Japanese)</option>
+                                <option value="ko">한국어 (Korean)</option>
+                                <option value="hi">हिन्दी (Hindi)</option>
+                                <option value="ar">العربية (Arabic)</option>
+                                <option value="ru">Русский (Russian)</option>
+                                <option value="vi">Tiếng Việt (Vietnamese)</option>
+                                <option value="tl">Tagalog</option>
                             </select>
+                            <p style="font-size:0.78rem;color:var(--text-muted);margin:8px 0 0;line-height:1.5;"><i class="ph ph-info"></i> Your companion and every AI reply will answer in this language. Core menu labels are also translated.</p>
                         </div>
                         <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Themes, fonts, cursors, wallpapers, and click effects are all managed in the <strong style="color:white;">Shop</strong> &amp; <strong style="color:white;">Inventory</strong> tabs (Pro tier).</p>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
