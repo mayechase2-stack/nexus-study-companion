@@ -122,6 +122,17 @@ async function linkEmailToAccount() {
     if (pass.length < 8) { setNote('Password must be at least 8 characters.'); return; }
     const localUser = localStorage.getItem('auth_user');
     if (!localUser) { setNote('Sign in to your NEXUS account first, then link an email.'); return; }
+    // v19 — enforce one email → one account. If another account on this device
+    // already claims this email, block it (each email belongs to a single account).
+    try {
+        if (typeof getAuthRegistry === 'function') {
+            const reg = getAuthRegistry() || {};
+            const clash = Object.keys(reg).find(function (name) {
+                return name !== localUser && reg[name] && reg[name].email && reg[name].email.toLowerCase() === email.toLowerCase();
+            });
+            if (clash) { setNote('That email is already linked to another account (“' + clash + '”). Each email can belong to only one account.'); return; }
+        }
+    } catch (_) {}
     setNote('Linking…', true);
     const ok = await _cloudLinkAccount(email, pass, { backup: true });
     if (!ok) { setNote('Could not link — that email may already be taken with a different password. Try "Sign in (existing)" instead.'); return; }
@@ -139,6 +150,34 @@ async function linkEmailToAccount() {
     _cloudRefreshUi();
 }
 window.linkEmailToAccount = linkEmailToAccount;
+// v19 — change the email on the current cloud account. Supabase sends a
+// confirmation link to the NEW address; the change finalizes once the user
+// clicks it. Requires being signed into the cloud.
+async function changeAccountEmail() {
+    const note = document.getElementById('change-email-note');
+    const setNote = function (m, ok) { if (note) { note.textContent = m; note.style.color = ok ? '#7bed9f' : '#ff9a9a'; } };
+    const newEmail = ((document.getElementById('change-email-input') || {}).value || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) { setNote('Enter a valid email.'); return; }
+    if (!nexusSB) _initSupabase();
+    if (!nexusSB) { setNote('Cloud not available right now.'); return; }
+    try {
+        const user = await _cloudUser();
+        if (!user) { setNote('Sign in to your cloud account first (above), then change the email.'); return; }
+        if (user.email && user.email.toLowerCase() === newEmail.toLowerCase()) { setNote('That is already your email.'); return; }
+        setNote('Sending confirmation…', true);
+        const { error } = await nexusSB.auth.updateUser({ email: newEmail });
+        if (error) throw error;
+        // Update local record optimistically; Supabase finalizes after they click
+        // the confirmation link sent to the new address.
+        const localUser = localStorage.getItem('auth_user');
+        if (localUser) { try { localStorage.setItem('auth_email_' + localUser, newEmail); localStorage.setItem('auth_email', newEmail); } catch (_) {} }
+        setNote('✓ Check your NEW inbox (' + newEmail + ') and click the confirmation link to finish the change.', true);
+        if (typeof showToast === 'function') showToast('Confirmation email sent to ' + newEmail + '.', 'success', 5000);
+    } catch (e) {
+        setNote('Could not change email: ' + ((e && e.message) || e) + (String((e && e.message) || '').match(/registered|exists/i) ? ' (that email is already used by another account).' : ''));
+    }
+}
+window.changeAccountEmail = changeAccountEmail;
 // v19 — Continue with Google via Supabase OAuth (enable the Google provider in
 // Supabase → Authentication → Providers, with a Google OAuth Client ID).
 async function cloudGoogleSignIn() {
@@ -176,6 +215,27 @@ async function _bootstrapCloudSession() {
     } catch (_) {}
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_bootstrapCloudSession, 900); });
+
+// v19 (#1) — welcome tablet/phone users so the app doesn't feel laptop-only.
+// Shows once per device: reassures them Live Vision works via the camera.
+function _nexusTabletWelcome() {
+    try {
+        if (localStorage.getItem('tablet_welcomed') === '1') return;
+        var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        var ua = navigator.userAgent || '';
+        var tabletish = coarse || /iPad|Tablet|Android/.test(ua);
+        if (!tabletish) return;
+        // Only greet once they're actually in the app (signed in).
+        if (!localStorage.getItem('auth_user')) return;
+        localStorage.setItem('tablet_welcomed', '1');
+        setTimeout(function () {
+            if (typeof showToast === 'function') {
+                showToast('👋 Welcome! On a tablet or phone, NEXUS is fully touch-ready — Live Vision works with your camera (tap "Use Camera"), and the tutor floats in a mini window.', 'info', 8000);
+            }
+        }, 2600);
+    } catch (_) {}
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_nexusTabletWelcome, 1800); });
 // UNIFIED ACCOUNT — keep the local login in lockstep with a Supabase cloud
 // account so signing up / in automatically establishes the synced session
 // (no separate "Cloud Sync" step). Best-effort: never blocks local auth if the
@@ -1290,11 +1350,19 @@ function updateTierUI() {
     const badge = document.getElementById('tier-badge');
     const upgradeBtn = document.getElementById('upgrade-pro-btn');
     const ownerBtn = document.getElementById('owner-access-btn');
+    const beta = (typeof FREE_BETA !== 'undefined' && FREE_BETA);
     if (badge) {
         if (tier === 'owner') {
             badge.innerHTML = '<i class="ph ph-crown"></i> OWNER';
             badge.style.background = 'linear-gradient(135deg, #FFD700, #FF8C00)';
             badge.style.color = '#000';
+        } else if (beta) {
+            // v19 — during the free beta there are no Access/Pro tiers; everyone
+            // has full access. Show a friendly BETA badge instead.
+            badge.innerHTML = '<i class="ph ph-sparkle"></i> BETA · Full Access';
+            badge.style.background = 'linear-gradient(135deg, #a855f7, #00CEC9)';
+            badge.style.color = '#fff';
+            badge.style.border = 'none';
         } else if (tier === 'pro') {
             badge.innerHTML = '<i class="ph ph-star"></i> NEXUS PRO';
             badge.style.background = 'linear-gradient(135deg, #6C5CE7, #00CEC9)';
@@ -1307,9 +1375,10 @@ function updateTierUI() {
         }
         badge.style.display = '';
     }
-    // Hide upgrade button for pro/owner users
+    // Hide upgrade button for pro/owner users — and for everyone during the beta
+    // (nothing to upgrade to while it's all free).
     if (upgradeBtn) {
-        upgradeBtn.style.display = (tier === 'pro' || tier === 'owner') ? 'none' : '';
+        upgradeBtn.style.display = (beta || tier === 'pro' || tier === 'owner') ? 'none' : '';
     }
     // Hide owner-access button for owners (already activated)
     if (ownerBtn) {
@@ -2091,12 +2160,16 @@ function signOut() {
         if (nexusSB && nexusSB.auth && nexusSB.auth.signOut) nexusSB.auth.signOut();
     } catch (_) {}
 
-    // Remove payment lock & close any open modals
+    // Remove payment lock & close any open modals. v19 — include the SETTINGS
+    // modal (and reset the scroll lock): signing out from Settings used to leave
+    // it open on top of the auth screen, so the "Sign In" button was unclickable
+    // until a refresh.
     document.body.classList.remove('payment-required-lock');
-    ['payment-modal','signup-flow-modal','signin-modal'].forEach(id => {
+    ['payment-modal','signup-flow-modal','signin-modal','settings-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
     });
+    document.body.style.overflow = '';
 
     // Blank the sign-in form and mark readonly so Chrome autofill can't re-fill it
     const uField = document.getElementById('auth-username');
@@ -2104,9 +2177,11 @@ function signOut() {
     if (uField) { uField.value = ''; uField.setAttribute('readonly', 'readonly'); }
     if (pField) { pField.value = ''; pField.setAttribute('readonly', 'readonly'); }
 
-    // Show the auth overlay immediately — NO reload, no navigation, no race conditions
+    // Show the auth overlay immediately — NO reload, no navigation, no race
+    // conditions. Force it above any remaining app chrome so the Sign In button
+    // is clickable right away (v19).
     const overlay = document.getElementById('auth-overlay');
-    if (overlay) overlay.style.display = 'block';
+    if (overlay) { overlay.style.display = 'block'; overlay.style.zIndex = '100000'; }
 
     showToast('Signed out.', 'info', 1500);
 }
@@ -2117,6 +2192,12 @@ function signOut() {
 let _selectedPlan = 'access'; // 'access' or 'pro'
 
 function openPaymentModal(plan) {
+    // v19 — there are no Access/Pro tiers during the free beta. Never show the old
+    // "Choose Your Plan" tier cards; just reassure the user everything's free.
+    if (typeof FREE_BETA !== 'undefined' && FREE_BETA) {
+        if (typeof showToast === 'function') showToast('🎉 Everything is free during the NEXUS beta — nothing to buy. Enjoy!', 'success', 4000);
+        return;
+    }
     // Default: if user already has Access, default the modal to Pro upgrade. Otherwise default to Access.
     const defaultPlan = plan || (getUserTier() === 'access' ? 'pro' : 'access');
     selectPlan(defaultPlan);

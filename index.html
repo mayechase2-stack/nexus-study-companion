@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260701v19">
+    <link rel="stylesheet" href="style.css?v=20260701v192">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -559,7 +559,7 @@
                         <svg width="22" height="22"><use href="#ic-sliders"/></svg>
                     </div>
                     <h3 style="color:white;margin-bottom:8px;font-size:1rem;">2 Tutoring Modes</h3>
-                    <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;"><strong style="color:#a855f7;">Tutor</strong> explains the concept and asks you to take the next step yourself — real Socratic teaching. <strong style="color:#00cec9;">Casual</strong> (Pro) gives instant answers for quick checks.</p>
+                    <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;"><strong style="color:#a855f7;">Tutor</strong> explains the concept and asks you to take the next step yourself — real Socratic teaching. <strong style="color:#00cec9;">Casual</strong> gives instant answers for quick checks.</p>
                 </div>
                 <!-- Feature 3 -->
                 <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:28px;transition:all 0.3s;"
@@ -1374,9 +1374,9 @@
                         <div class="icon-glow cyan"><i class="ph ph-broadcast"></i></div>
                         <h3>Live Vision AI</h3>
                         <p>Share your screen — or use your camera on a tablet/phone</p>
-                        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                            <button class="btn-primary" style="flex:1;">Start Now</button>
-                            <button class="btn-secondary" style="flex-shrink:0;" onclick="event.stopPropagation();startLiveVisionCamera()" title="Use your camera (great for tablets or paper worksheets)"><i class="ph ph-camera"></i> Camera</button>
+                        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+                            <button class="btn-primary" style="width:100%;white-space:nowrap;"><i class="ph ph-broadcast"></i> Share Screen</button>
+                            <button class="btn-secondary" style="width:100%;white-space:nowrap;" onclick="event.stopPropagation();startLiveVisionCamera()" title="Use your camera — great for tablets, phones, or paper worksheets"><i class="ph ph-camera"></i> Use Camera</button>
                         </div>
                     </div>
 
@@ -3892,7 +3892,7 @@ if __name__ == '__main__':
                     <!-- MODES -->
                     <div class="settings-tab-pane" data-pane="modes" style="display:none;">
                         <h3 style="margin:0 0 14px;color:white;font-size:1.1rem;">Tutoring Modes</h3>
-                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Pick how the AI teaches you. You can switch between modes anytime (Pro tier).</p>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Pick how the AI teaches you. You can switch between modes anytime.</p>
                         <div style="display:grid;gap:10px;">
                             <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:rgba(168,85,247,0.05);border-radius:10px;cursor:pointer;border:1px solid rgba(168,85,247,0.2);transition:border-color 0.2s;" id="mode-tutor-label">
                                 <input type="radio" name="difficulty-mode" value="tutor" id="mode-tutor" checked style="width:18px;height:18px;accent-color:#a855f7;margin-top:2px;cursor:pointer;" onchange="updateModePreview()">
@@ -3900,7 +3900,7 @@ if __name__ == '__main__':
                             </label>
                             <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:rgba(0,206,201,0.05);border-radius:10px;cursor:pointer;border:1px solid rgba(0,206,201,0.2);transition:border-color 0.2s;" id="mode-casual-label">
                                 <input type="radio" name="difficulty-mode" value="casual" id="mode-casual" style="width:18px;height:18px;accent-color:#00cec9;margin-top:2px;cursor:pointer;" onchange="updateModePreview()">
-                                <div><div style="font-weight:600;color:#00cec9;">Casual Mode <span style="font-size:0.7rem;background:#00cec9;color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;">PRO</span></div><p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Instant answer first, minimal explanation. For quick checks when you already know the material. <strong style="color:#00cec9;">Pro tier only.</strong></p></div>
+                                <div><div style="font-weight:600;color:#00cec9;">Casual Mode</div><p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Instant answer first, minimal explanation. For quick checks when you already know the material.</p></div>
                             </label>
                         </div>
                     </div>
@@ -4121,7 +4121,7 @@ if __name__ == '__main__':
                             </select>
                             <p style="font-size:0.78rem;color:var(--text-muted);margin:8px 0 0;line-height:1.5;"><i class="ph ph-info"></i> Your companion and every AI reply will answer in this language. Core menu labels are also translated.</p>
                         </div>
-                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Themes, fonts, cursors, wallpapers, and click effects are all managed in the <strong style="color:white;">Shop</strong> &amp; <strong style="color:white;">Inventory</strong> tabs (Pro tier).</p>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Themes, fonts, cursors, wallpapers, and click effects are all managed in the <strong style="color:white;">Shop</strong> &amp; <strong style="color:white;">Inventory</strong> tabs.</p>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                             <button class="btn-secondary" onclick="toggleSettings();switchTab('shop');"><i class="ph ph-storefront"></i> Open Shop</button>
                             <button class="btn-secondary" onclick="toggleSettings();switchTab('inventory');"><i class="ph ph-package"></i> My Inventory</button>
@@ -4304,6 +4304,13 @@ if __name__ == '__main__':
                                 </div>
                                 <button class="btn-secondary" onclick="cloudUiTestAI()" style="width:100%;font-size:0.82rem;margin-bottom:8px;"><i class="ph ph-robot"></i> Test hosted AI</button>
                                 <div id="cloud-ai-test-out" style="display:none;font-size:0.8rem;color:#cdd2e0;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;padding:8px 10px;margin-bottom:8px;word-break:break-word;"></div>
+                                <!-- v19 — change the email on this account -->
+                                <div style="border-top:1px solid var(--glass-border);margin:6px 0 8px;padding-top:10px;">
+                                    <label style="font-size:0.78rem;color:var(--text-muted);display:block;margin-bottom:5px;">Change account email</label>
+                                    <input id="change-email-input" type="email" placeholder="new email" autocomplete="off" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.88rem;box-sizing:border-box;margin-bottom:6px;">
+                                    <button class="btn-secondary" onclick="changeAccountEmail()" style="width:100%;font-size:0.82rem;"><i class="ph ph-envelope-simple"></i> Update email</button>
+                                    <div id="change-email-note" style="font-size:0.74rem;color:var(--text-muted);margin-top:6px;"></div>
+                                </div>
                                 <button class="btn-secondary" onclick="cloudUiSignOut()" style="width:100%;font-size:0.82rem;">Sign out of cloud</button>
                             </div>
                         </div>
@@ -5117,7 +5124,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260701v191"></script>
+    <script src="script.js?v=20260701v192"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

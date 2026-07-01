@@ -3525,3 +3525,37 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
     .btn-primary, .btn-secondary, .status-indicator { min-height: 42px; }
     .card.glass-panel { padding: 16px !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   v19 (#1) — TABLET & TOUCH-FIRST POLISH
+   Any device with a coarse pointer (finger) gets larger, comfortable
+   tap targets so tablet/phone users feel first-class, not squeezed
+   into a laptop layout. Applies regardless of width (covers big iPads
+   in landscape that are wider than the phone breakpoint above).
+   ════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+    /* Apple's 44px minimum touch target across interactive chrome */
+    .btn-primary, .btn-secondary, .btn-icon, .status-indicator,
+    .nav-links li, .card button, .tools-tab-btn, select, .settings-tab-btn {
+        min-height: 44px;
+    }
+    .btn-icon { min-width: 44px; }
+    .nav-links li { padding: 13px 16px; font-size: 1rem; }
+    /* Roomier inputs so on-screen keyboards don't feel cramped */
+    input, textarea, select { font-size: 16px; }   /* 16px stops iOS auto-zoom */
+    /* Bigger, easier-to-hit floating buttons (help, quick notes, mini-player) */
+    #help-fab-btn { width: 54px; height: 54px; }
+    #mobile-menu-toggle, .mobile-menu-toggle { width: 48px; height: 48px; }
+    /* Give the tutor / vision / companion modals a little more breathing room */
+    .modal-content, .glass-panel { -webkit-tap-highlight-color: transparent; }
+    /* The Live Vision "Camera" path is the star on touch — make it pop */
+    .card.glass-panel .btn-secondary { font-weight: 600; }
+}
+
+/* Tablet sweet-spot (portrait iPads etc.): use the roomy drawer sidebar and a
+   2-up card grid so it feels designed-for-tablet, not a stretched phone. */
+@media (min-width: 600px) and (max-width: 1024px) and (pointer: coarse) {
+    .card-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .main-content { padding: 20px 24px !important; }
+}
