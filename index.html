@@ -4285,12 +4285,16 @@ if __name__ == '__main__':
                             <strong style="color:white;display:block;margin-bottom:6px;">☁️ Cloud Account <span style="font-size:0.7rem;color:var(--accent);">beta</span></strong>
                             <p style="margin:0 0 12px;font-size:0.78rem;color:var(--text-muted);">Your account now syncs to the cloud <strong style="color:#cdd2e0;">automatically</strong> when you sign up or sign in — no extra step. This panel is just for manually backing up/restoring or linking an older local-only account.</p>
                             <div id="cloud-signed-out">
+                                <p style="margin:0 0 8px;font-size:0.78rem;color:#cdd2e0;">Made your account without an email? <strong>Link one here</strong> so you can sign in with Google, recover it, and sync across devices.</p>
                                 <input id="cloud-email" type="email" placeholder="email" autocomplete="off" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.9rem;box-sizing:border-box;margin-bottom:8px;">
                                 <input id="cloud-pass" type="password" placeholder="password (8+ characters)" autocomplete="new-password" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.9rem;box-sizing:border-box;margin-bottom:10px;">
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                    <button class="btn-secondary" onclick="cloudUiSignIn()" style="font-size:0.85rem;">Sign in</button>
-                                    <button class="btn-primary" onclick="cloudUiSignUp()" style="font-size:0.85rem;">Create account</button>
+                                <button class="btn-primary" onclick="linkEmailToAccount()" style="width:100%;font-size:0.88rem;margin-bottom:8px;"><i class="ph ph-link"></i> Link this email to my account</button>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                                    <button class="btn-secondary" onclick="cloudUiSignIn()" style="font-size:0.82rem;">Sign in (existing)</button>
+                                    <button class="btn-secondary" onclick="cloudUiSignUp()" style="font-size:0.82rem;">New cloud acct</button>
                                 </div>
+                                <button class="btn-secondary" onclick="cloudGoogleSignIn()" style="width:100%;font-size:0.82rem;"><i class="ph ph-google-logo"></i> Link with Google</button>
+                                <div id="link-email-note" style="font-size:0.76rem;color:var(--text-muted);margin-top:8px;"></div>
                             </div>
                             <div id="cloud-signed-in" style="display:none;">
                                 <div id="cloud-status" style="font-size:0.84rem;color:#cdd2e0;margin-bottom:10px;"></div>
@@ -5113,7 +5117,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260701v19"></script>
+    <script src="script.js?v=20260701v191"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

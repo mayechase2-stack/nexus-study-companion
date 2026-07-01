@@ -109,6 +109,36 @@ async function cloudUiSignOut() {
     try { if (nexusSB) await nexusSB.auth.signOut(); } catch (_) {}
     showToast('Signed out of cloud.', 'info'); _cloudRefreshUi();
 }
+// v19 — Link an email/password to the CURRENT (already-made) local account, so
+// older local-only accounts get cloud backup, cross-device sync, and can later
+// sign in with Google using the same email. Attaches the email to this account
+// in the local registry too.
+async function linkEmailToAccount() {
+    const note = document.getElementById('link-email-note');
+    const setNote = function (m, ok) { if (note) { note.textContent = m; note.style.color = ok ? '#7bed9f' : '#ff9a9a'; } };
+    const email = ((document.getElementById('cloud-email') || {}).value || '').trim();
+    const pass = (document.getElementById('cloud-pass') || {}).value || '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setNote('Enter a valid email.'); return; }
+    if (pass.length < 8) { setNote('Password must be at least 8 characters.'); return; }
+    const localUser = localStorage.getItem('auth_user');
+    if (!localUser) { setNote('Sign in to your NEXUS account first, then link an email.'); return; }
+    setNote('Linking…', true);
+    const ok = await _cloudLinkAccount(email, pass, { backup: true });
+    if (!ok) { setNote('Could not link — that email may already be taken with a different password. Try "Sign in (existing)" instead.'); return; }
+    // Record the email against this local account so it's recoverable + reusable.
+    try {
+        localStorage.setItem('auth_email_' + localUser, email);
+        localStorage.setItem('auth_email', email);
+        if (typeof getAuthRegistry === 'function' && typeof localStorage.getItem('auth_users') === 'string') {
+            const reg = getAuthRegistry();
+            if (reg[localUser]) { reg[localUser].email = email; localStorage.setItem('auth_users', JSON.stringify(reg)); }
+        }
+    } catch (_) {}
+    setNote('✓ Email linked and your data backed up to the cloud. You can now sign in with Google using ' + email + '.', true);
+    if (typeof showToast === 'function') showToast('☁️ Email linked to your account!', 'success', 4000);
+    _cloudRefreshUi();
+}
+window.linkEmailToAccount = linkEmailToAccount;
 // v19 — Continue with Google via Supabase OAuth (enable the Google provider in
 // Supabase → Authentication → Providers, with a Google OAuth Client ID).
 async function cloudGoogleSignIn() {
@@ -1187,6 +1217,11 @@ function hasPaid() {
 }
 
 function hasPro() {
+    // v19 — during the free beta everyone gets the full experience (all tabs,
+    // all modes, shop, etc.), so nothing is locked behind a tier. This matches
+    // the "free during beta" promise and mirrors hasPaid(). Flip FREE_BETA to
+    // false at paid launch to restore the à-la-carte / Pro gating.
+    if (typeof FREE_BETA !== 'undefined' && FREE_BETA) return true;
     const t = getUserTier();
     return t === 'pro' || t === 'owner';
 }
