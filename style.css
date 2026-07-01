@@ -3007,36 +3007,11 @@ kbd {
    they're open (they were overlapping content on small viewports).
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-    .app-container {
-        flex-direction: column;
-    }
-    .sidebar {
-        width: 100% !important;
-        height: auto !important;
-        flex-direction: row !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        padding: 12px !important;
-        border-right: none !important;
-        border-bottom: 1px solid var(--glass-border) !important;
-        gap: 12px;
-    }
-    .sidebar .logo { display: none !important; }
-    .sidebar .nav-links {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 4px !important;
-        flex: 1;
-        overflow-x: auto;
-        scrollbar-width: thin;
-    }
-    .sidebar .nav-links li {
-        flex-shrink: 0 !important;
-        padding: 8px 12px !important;
-        font-size: 0.85rem !important;
-        white-space: nowrap;
-    }
-    .sidebar .nav-links li span { font-size: 0.85rem !important; }
+    /* v19 — sidebar stays an off-canvas slide-in drawer (see the earlier
+       max-width:768px block). The old "horizontal top-bar" sidebar rules
+       that used to live here were removed: they collided with the drawer
+       rules and left the OWNER/Credits/Settings footer floating over the
+       page content on narrow / split-screen widths. */
     .main-content {
         padding: 12px !important;
         overflow-x: hidden;
@@ -3087,8 +3062,8 @@ kbd {
     .companion-resize-handle { display: none !important; }
 }
 @media (max-width: 480px) {
-    .sidebar .nav-links li span { display: none !important; }
-    .sidebar .nav-links li i { font-size: 1.2rem !important; }
+    /* v19 — drawer shows full nav labels; icon-only collapse removed
+       (it belonged to the old top-bar sidebar layout). */
 }
 
 /* ════════════════════════════════════════════════════════════════

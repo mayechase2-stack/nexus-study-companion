@@ -920,6 +920,13 @@ const ACCESS_STARTER_GOLD = 100;
 const PRO_STARTER_GOLD = 300;
 const ACCESS_PRICE = 4.50;
 const PRO_PRICE = 6.00;
+// v19 — FREE BETA switch. While true, no account is ever hard-locked behind the
+// paywall: the "Choose Your Plan" modal becomes an optional waitlist popup that
+// can be dismissed, and login never forces payment. This matches the modal copy
+// ("Free during beta — no card needed"). Flip to false at paid launch to restore
+// the mandatory-checkout gate. This also fixes the cloud/Google auto-login loop
+// where an unpaid cloud account was force-locked on every load.
+const FREE_BETA = true;
 
 function tabLabel(tabId) {
     const labels = { dashboard: 'Command Center', history: 'History', achievements: 'Achievements', leaderboard: 'Leaderboard', shop: 'Shop', inventory: 'Inventory', homework: 'Homework', grades: 'Grade Calculator', tools: 'Study Tools', profile: 'Profile' };
@@ -948,6 +955,10 @@ function setUserTier(tier) {
 }
 
 function hasPaid() {
+    // v19 — during the free beta everyone has full paid-tier access, so every
+    // `!hasPaid()` feature gate passes and the paywall never nags. Flip FREE_BETA
+    // to false at paid launch to restore real checkout gating.
+    if (typeof FREE_BETA !== 'undefined' && FREE_BETA) return true;
     // True if the user has actually completed checkout (any tier set explicitly)
     const t = localStorage.getItem('user_tier');
     return t === 'access' || t === 'pro' || t === 'owner';
@@ -1708,10 +1719,13 @@ function completeLogin() {
     // v11.0 — paid-access only: if user has not yet purchased a plan, force them
     // through checkout immediately. The payment modal cannot be dismissed without
     // either paying or cancelling the account (handled in closePaymentModal).
-    if (!hasPaid() && !isOwner()) {
+    if (!FREE_BETA && !hasPaid() && !isOwner()) {
         // Block any other app interactions until payment completes
         document.body.classList.add('payment-required-lock');
         setTimeout(() => openPaymentModal('access'), 400);
+    } else if (!hasPaid() && !isOwner()) {
+        // v19 — free beta: never hard-lock; make sure no stale lock survives login.
+        document.body.classList.remove('payment-required-lock');
     }
     // v11.0 — run single-session check shortly after login
     setTimeout(() => { enforceSingleSession(); }, 1500);
@@ -1812,6 +1826,14 @@ function signOut() {
     try { userInventory = []; } catch(_) {}
     try { userLoadout = {}; } catch(_) {}
 
+    // v19 — also end the Supabase CLOUD session. Without this, signing out only
+    // cleared local auth, so _bootstrapCloudSession() re-logged the same Google
+    // account on the next load (the "can't get off kinggangster2k10" bug).
+    try {
+        if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
+        if (nexusSB && nexusSB.auth && nexusSB.auth.signOut) nexusSB.auth.signOut();
+    } catch (_) {}
+
     // Remove payment lock & close any open modals
     document.body.classList.remove('payment-required-lock');
     ['payment-modal','signup-flow-modal','signin-modal'].forEach(id => {
@@ -1890,7 +1912,7 @@ function closePaymentModal() {
     // signs them out and sends them back to the landing page. This prevents the
     // "create account → close payment → use the app for free" loophole.
     const isPostSignupFlow = !hasPaid() && localStorage.getItem('auth_user');
-    if (isPostSignupFlow && !isOwner()) {
+    if (!FREE_BETA && isPostSignupFlow && !isOwner()) {
         if (!confirm('Closing this will cancel your signup. Continue?')) return;
         // Remove the partial account
         const user = localStorage.getItem('auth_user');
@@ -16575,8 +16597,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasUser = localStorage.getItem('auth_user');
     if (hasUser) {
         document.getElementById('auth-overlay').style.display = 'none';
-        // If a returning user hasn't paid, force checkout
-        if (!hasPaid()) {
+        // If a returning user hasn't paid, force checkout — only when the free
+        // beta is over. During beta we never auto-open the paywall on load
+        // (that caused the cloud-login "Choose Your Plan" loop). v19
+        if (!FREE_BETA && !hasPaid()) {
             setTimeout(() => openPaymentModal('access'), 800);
         }
     }
