@@ -14433,25 +14433,28 @@ async function helpMeLiveVision() {
     const systemPrompt = `You are NEXUS Tutor analyzing a problem on the student's screen. Return a STRICT JSON object (no prose outside it) with EXACTLY these keys:
 
 {
-  "work": "<HTML: the tutor's step-by-step WORKING that teaches the method. Restate the problem in 1 sentence, name the concept, then walk through the SOLUTION STEPS in order using the tutor-block cards below — BUT stop just short of stating the final numeric/textual answer. This is the teaching, shown on the work board.>",
-  "hint": "<ONE short sentence: a nudge toward the very next move. Plain text, no answer.>",
-  "answer": "<the final answer, as short as possible (a number, expression, or short phrase). This is hidden until the student reveals it.>"
+  "concept": "<1 sentence naming the concept + what it means>",
+  "strategy": "<1 sentence on the overall approach>",
+  "steps": [
+    {
+      "instruction": "<what the student should DO in this step — an action/question, e.g. 'List the x-values from the table.' Do NOT include the result.>",
+      "hints": ["<hint 1: a gentle nudge, does NOT repeat the strategy>", "<hint 2: more specific — points at exactly what to look at or the operation to use>", "<hint 3: almost gives it — shows the setup with the last bit left blank>"],
+      "expect": "<the correct result of THIS step only — used to check the student's work>"
+    }
+  ],
+  "answer": "<the final answer to the whole problem, as short as possible>"
 }
 
-For the "work" HTML use these cards in order:
-<div class="tutor-block tutor-block-concept"><h3>💡 The concept</h3><p>...</p><div class="tutor-formula"><code>formula/rule if any</code></div></div>
-<div class="tutor-block tutor-block-strategy"><h3>🧭 Strategy</h3><p>the shape of the solution</p></div>
-<div class="tutor-block tutor-block-steps"><h3>🪜 Steps</h3><ol><li>each step of the method, with the arithmetic set up but the FINAL answer left as the student's to compute</li></ol></div>
-
 RULES:
-- "work" must NOT contain the final answer (that lives only in "answer").
-- Pure HTML in "work"; no markdown/asterisks. NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ.
-- Reconstruct the intended problem from the image even if noisy. If unreadable, say so in "work" and set "answer" to "" and "hint" to "Retype the problem so I can read it.".`;
+- Break the solution into 2–5 real steps. Each step's "instruction" is a task the student performs; the RESULT goes only in "expect" (hidden).
+- "hints" must ESCALATE and must NOT just restate "strategy" or the "instruction". Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete setup. 2–3 hints per step.
+- Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ.
+- Reconstruct the intended problem from the image even if noisy. If unreadable: concept="", strategy="", steps=[], answer="", and put a note in concept asking them to retype it.`;
 
     const userParts = [
         { type: 'text', text: ocrText
-            ? `OCR-EXTRACTED TEXT FROM SCREEN (may have errors — use the image as the source of truth):\n${ocrText}\n\nTeach me the method and give the hidden hint + answer as JSON.`
-            : 'Read the problem in the image. Teach me the method (work board) and give the hidden hint + answer as JSON.' },
+            ? `OCR-EXTRACTED TEXT FROM SCREEN (may have errors — use the image as the source of truth):\n${ocrText}\n\nGive the guided step-by-step JSON.`
+            : 'Read the problem in the image. Give the guided step-by-step JSON (concept, strategy, steps with escalating hints, and the final answer).' },
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }
     ];
 
@@ -14479,44 +14482,41 @@ RULES:
         if (data.error) throw new Error(data.error.message);
         const raw = data.choices[0].message.content || '{}';
         let parsed = {};
-        try { parsed = JSON.parse(raw); } catch (_) { parsed = { work: raw, hint: '', answer: '' }; }
-        const workHtml = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(parsed.work || '') : (parsed.work || '');
-        // Stash the hidden hint + answer for the reveal buttons and credit challenge.
-        window._lvHint = String(parsed.hint || '').trim();
+        try { parsed = JSON.parse(raw); } catch (_) { parsed = {}; }
+        const esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+        // Stash the guided-solve state for the stepper.
+        window._lvSteps = Array.isArray(parsed.steps) ? parsed.steps : [];
+        window._lvStepIdx = 0;
+        window._lvHintIdx = 0;
         window._lvAnswer = String(parsed.answer || '').trim();
         window._lvAwarded = false;
 
-        // 1) Tutor's WORKING goes on the work board (left).
+        // 1) Work board (left): concept + strategy + the step INSTRUCTIONS (no results).
         const workEl = document.getElementById('vision-tutor-work');
-        if (workEl) { workEl.innerHTML = workHtml || '<p style="color:var(--text-muted);">Couldn\'t read the problem clearly — try re-capturing.</p>'; }
-        if (typeof _showVisionWork === 'function') _showVisionWork();   // ensure work view (not scratch) is visible
+        if (workEl) {
+            var stepList = window._lvSteps.map(function (s) { return '<li>' + esc(s.instruction || '') + '</li>'; }).join('');
+            workEl.innerHTML =
+                (parsed.concept ? '<div class="tutor-block tutor-block-concept"><h3>💡 The concept</h3><p>' + esc(parsed.concept) + '</p></div>' : '') +
+                (parsed.strategy ? '<div class="tutor-block tutor-block-strategy"><h3>🧭 Strategy</h3><p>' + esc(parsed.strategy) + '</p></div>' : '') +
+                (stepList ? '<div class="tutor-block tutor-block-steps"><h3>🪜 The steps</h3><ol>' + stepList + '</ol><p style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">Solve them one at a time in the panel on the right →</p></div>' : '') ||
+                '<p style="color:var(--text-muted);">Couldn\'t read the problem clearly — try re-capturing.</p>';
+        }
+        if (typeof _showVisionWork === 'function') _showVisionWork();
 
-        // 2) The answer box (right) becomes 3 controls: Hint · Answer · Earn 30 credits.
+        // 2) Answer box (right): interactive step-by-step solver.
         if (solutionPanel) {
             solutionPanel.innerHTML = `
                 <div style="padding:12px 16px;background:linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.06));border-bottom:1px solid rgba(108,92,231,0.25);display:flex;align-items:center;gap:10px;">
                     <i class="ph ph-graduation-cap" style="color:#a29bfe;font-size:1.05rem;"></i>
-                    <span style="color:#a29bfe;font-size:0.85rem;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;">Your Answer</span>
+                    <span style="color:#a29bfe;font-size:0.85rem;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;">Solve it step by step</span>
                 </div>
-                <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
-                    <button onclick="revealVisionHint()" class="btn-secondary" style="width:100%;justify-content:flex-start;"><i class="ph ph-lightbulb" style="color:#fdcb6e;"></i> Show a hint</button>
-                    <div id="lv-hint-out" style="display:none;font-size:0.88rem;color:#f1d59a;background:rgba(253,203,110,0.08);border:1px solid rgba(253,203,110,0.25);border-radius:8px;padding:10px 12px;"></div>
-
-                    <button onclick="revealVisionAnswer()" class="btn-secondary" style="width:100%;justify-content:flex-start;"><i class="ph ph-eye" style="color:#00cec9;"></i> Reveal the answer</button>
-                    <div id="lv-answer-out" style="display:none;font-size:0.95rem;color:#fff;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.3);border-radius:8px;padding:12px;font-weight:600;"></div>
-
-                    <div style="border-top:1px dashed var(--glass-border);margin-top:4px;padding-top:12px;">
-                        <div style="font-size:0.82rem;color:#a29bfe;font-weight:700;margin-bottom:8px;"><i class="ph ph-coins" style="color:#FFD700;"></i> Try it yourself — earn 30 credits</div>
-                        <input id="lv-answer-input" type="text" placeholder="Type your answer…" style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.9rem;margin-bottom:8px;">
-                        <button onclick="submitVisionAnswer()" class="btn-primary" style="width:100%;"><i class="ph ph-paper-plane-tilt"></i> Submit for 30 credits</button>
-                        <div id="lv-grade-out" style="display:none;font-size:0.86rem;margin-top:8px;padding:10px 12px;border-radius:8px;"></div>
-                    </div>
-                </div>`;
+                <div id="lv-stepper" style="padding:14px 16px;"></div>`;
         }
-        window._liveVisionLastGuidance = String(parsed.work || '').replace(/<[^>]+>/g, ' ').trim().slice(0, 1000);
+        window._liveVisionLastGuidance = String((parsed.concept || '') + ' ' + (parsed.strategy || '')).trim().slice(0, 1000);
+        if (typeof renderVisionStep === 'function') renderVisionStep();
         logActivity('study', 'Live Vision — Help Me (tutor)');
         updateStudyStats('problem_solved');
-        showToast('✓ Tutor worked it out on the board. Try it, grab a hint, or reveal the answer.', 'success', 4500);
+        showToast('✓ Tutor mapped out the steps. Solve them one at a time on the right — hints escalate if you\'re stuck.', 'success', 5000);
     } catch (err) {
         if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
         showToast('AI Error: ' + err.message, 'error');
@@ -14548,68 +14548,145 @@ function toggleVisionScratch() {
         if (btn) btn.innerHTML = '<i class="ph ph-chalkboard-teacher"></i> Tutor work';
     } else { _showVisionWork(); }
 }
-function revealVisionHint() {
+// Is the student's attempt equivalent to the expected value? Strict-normalize
+// first (fast/free), then an AI equivalence check for things like 12/4 == 3.
+async function _lvCheckEquivalent(attempt, expected) {
+    var norm = function (s) { return String(s).toLowerCase().replace(/\s+/g, '').replace(/[^\w./-]/g, ''); };
+    if (!expected) return false;
+    if (norm(attempt) === norm(expected)) return true;
+    try {
+        var apiKey = getApiKey();
+        var r = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini', temperature: 0, max_tokens: 3,
+                messages: [{ role: 'system', content: 'Reply ONLY "yes" or "no": is the student answer mathematically/factually equivalent to the correct answer?' },
+                    { role: 'user', content: 'Correct: ' + expected + '\nStudent: ' + attempt }]
+            })
+        });
+        var d = await r.json();
+        return /yes/i.test((d.choices && d.choices[0] && d.choices[0].message.content) || '');
+    } catch (_) { return false; }
+}
+function _lvRevealAnswerBtn() {
+    return '<div style="border-top:1px dashed var(--glass-border);margin-top:12px;padding-top:10px;">'
+        + '<button onclick="revealVisionAnswer()" class="btn-secondary" style="width:100%;font-size:0.8rem;"><i class="ph ph-eye"></i> Stuck? Reveal the full answer</button>'
+        + '<div id="lv-answer-out" style="display:none;font-size:0.95rem;color:#fff;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.3);border-radius:8px;padding:12px;font-weight:600;margin-top:8px;"></div></div>';
+}
+// Render the current step of the guided solver into #lv-stepper.
+function renderVisionStep() {
+    var box = document.getElementById('lv-stepper');
+    if (!box) return;
+    var steps = window._lvSteps || [];
+    if (!steps.length) {   // AI gave no steps → simple final-answer-for-credits
+        box.innerHTML = '<div style="font-size:0.86rem;color:var(--text-muted);margin-bottom:8px;">Type your final answer to earn 30 credits.</div>'
+            + '<input id="lv-answer-input" type="text" placeholder="Your answer…" style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.9rem;margin-bottom:8px;">'
+            + '<button onclick="submitVisionFinal()" class="btn-primary" style="width:100%;"><i class="ph ph-paper-plane-tilt"></i> Submit for 30 credits</button>'
+            + '<div id="lv-grade-out" style="display:none;font-size:0.86rem;margin-top:8px;padding:10px 12px;border-radius:8px;"></div>'
+            + _lvRevealAnswerBtn();
+        return;
+    }
+    var i = window._lvStepIdx || 0;
+    if (i >= steps.length) { _lvFinishStepper(); return; }
+    var s = steps[i];
+    box.innerHTML =
+        '<div style="font-size:0.78rem;font-weight:700;color:#a29bfe;letter-spacing:0.5px;margin-bottom:8px;">STEP ' + (i + 1) + ' OF ' + steps.length + '</div>'
+        + '<div style="font-size:0.95rem;color:#fff;margin-bottom:10px;line-height:1.5;">' + escapeHtmlSafe(s.instruction || '') + '</div>'
+        + '<input id="lv-step-input" type="text" placeholder="Your answer for this step…" style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.9rem;margin-bottom:8px;">'
+        + '<div style="display:flex;gap:8px;"><button onclick="revealStepHint()" class="btn-secondary" style="flex:1;"><i class="ph ph-lightbulb" style="color:#fdcb6e;"></i> Hint</button>'
+        + '<button onclick="checkVisionStep()" class="btn-primary" style="flex:1;"><i class="ph ph-check"></i> Check</button></div>'
+        + '<div id="lv-hint-out" style="display:none;font-size:0.86rem;color:#f1d59a;background:rgba(253,203,110,0.08);border:1px solid rgba(253,203,110,0.25);border-radius:8px;padding:9px 11px;margin-top:8px;"></div>'
+        + '<div id="lv-step-feedback" style="display:none;font-size:0.86rem;margin-top:8px;padding:9px 11px;border-radius:8px;"></div>'
+        + _lvRevealAnswerBtn();
+    var inp = document.getElementById('lv-step-input');
+    if (inp) inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); checkVisionStep(); } });
+}
+// Reveal the NEXT (escalating) hint for the current step.
+function revealStepHint() {
     var out = document.getElementById('lv-hint-out');
-    if (!out) return;
+    var steps = window._lvSteps || []; var s = steps[window._lvStepIdx || 0];
+    if (!out || !s) return;
+    var hints = Array.isArray(s.hints) ? s.hints : [];
+    var idx = window._lvHintIdx || 0;
     out.style.display = 'block';
-    out.textContent = window._lvHint || 'No hint available — try re-capturing the problem.';
+    if (idx >= hints.length) { out.textContent = hints.length ? 'That\'s all the hints — check the Tutor Work on the left, or reveal the answer.' : 'No hint for this step — check the Tutor Work on the left.'; return; }
+    out.innerHTML = '<strong>Hint ' + (idx + 1) + ' of ' + hints.length + ':</strong> ' + escapeHtmlSafe(hints[idx]);
+    window._lvHintIdx = idx + 1;
+}
+async function checkVisionStep() {
+    var inp = document.getElementById('lv-step-input');
+    var fb = document.getElementById('lv-step-feedback');
+    var steps = window._lvSteps || []; var i = window._lvStepIdx || 0; var s = steps[i];
+    if (!inp || !fb || !s) return;
+    var val = (inp.value || '').trim();
+    if (!val) { fb.style.display = 'block'; fb.style.color = '#ff9a9a'; fb.style.background = 'transparent'; fb.textContent = 'Type your answer for this step first.'; return; }
+    fb.style.display = 'block'; fb.style.color = 'var(--accent)'; fb.style.background = 'transparent'; fb.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Checking…';
+    var ok = await _lvCheckEquivalent(val, s.expect || '');
+    if (ok) {
+        fb.style.background = 'rgba(0,184,148,0.12)'; fb.style.color = '#7bed9f';
+        if (i >= steps.length - 1) {
+            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct — final step done!';
+            _lvAwardCredits();
+            setTimeout(_lvFinishStepper, 800);
+        } else {
+            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct! <button onclick="nextVisionStep()" class="btn-primary" style="margin-top:8px;width:100%;">Next step →</button>';
+        }
+    } else {
+        fb.style.background = 'rgba(255,107,107,0.1)'; fb.style.color = '#ff9a9a';
+        fb.innerHTML = '<i class="ph ph-x-circle"></i> Not quite — here\'s a hint:';
+        revealStepHint();
+    }
+}
+function nextVisionStep() {
+    window._lvStepIdx = (window._lvStepIdx || 0) + 1;
+    window._lvHintIdx = 0;
+    renderVisionStep();
+}
+function _lvFinishStepper() {
+    var box = document.getElementById('lv-stepper');
+    if (!box) return;
+    box.innerHTML = '<div style="text-align:center;padding:10px;">'
+        + '<div style="font-size:2rem;">🎉</div>'
+        + '<div style="font-size:0.95rem;color:#7bed9f;font-weight:700;margin:6px 0;">You solved it step by step!</div>'
+        + (window._lvAnswer ? '<div style="font-size:0.9rem;color:#fff;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.3);border-radius:8px;padding:10px;margin-top:6px;">Final answer: <strong>' + escapeHtmlSafe(window._lvAnswer) + '</strong></div>' : '')
+        + '</div>';
+}
+function _lvAwardCredits() {
+    if (window._lvAwarded) return;
+    window._lvAwarded = true;
+    if (typeof updateCredits === 'function') updateCredits(30);
+    if (typeof awardXP === 'function') awardXP(15, 'Live Vision guided solve');
+    if (typeof recordQuestProgress === 'function') recordQuestProgress('problem_solved');
+    if (typeof showToast === 'function') showToast('🪙 +30 credits for working it out yourself!', 'success', 3500);
 }
 function revealVisionAnswer() {
     var out = document.getElementById('lv-answer-out');
     if (!out) return;
     if (!window._lvAnswer) { out.style.display = 'block'; out.textContent = 'No answer captured — try re-capturing the problem.'; return; }
     if (out.style.display === 'block') return;
-    if (!confirm('Reveal the full answer? Trying it yourself first earns you 30 credits.')) return;
+    if (!confirm('Reveal the full answer? Working through the steps yourself earns 30 credits.')) return;
     out.style.display = 'block';
     out.innerHTML = '<span style="color:#00cec9;">Answer:</span> ' + escapeHtmlSafe(window._lvAnswer);
 }
-async function submitVisionAnswer() {
-    var input = document.getElementById('lv-answer-input');
-    var out = document.getElementById('lv-grade-out');
-    if (!input || !out) return;
-    var attempt = (input.value || '').trim();
-    if (!attempt) { out.style.display = 'block'; out.style.color = '#ff9a9a'; out.textContent = 'Type your answer first.'; return; }
-    if (!window._lvAnswer) { out.style.display = 'block'; out.style.color = '#ff9a9a'; out.textContent = 'No answer to check against — re-capture the problem.'; return; }
-    if (window._lvAwarded) { out.style.display = 'block'; out.style.background = 'rgba(0,184,148,0.12)'; out.style.color = '#7bed9f'; out.textContent = 'You already earned the 30 credits for this one. 🎉'; return; }
-    var norm = function (s) { return String(s).toLowerCase().replace(/\s+/g, '').replace(/[^\w./-]/g, ''); };
-    var correct = norm(attempt) === norm(window._lvAnswer);
-    out.style.display = 'block';
-    // Fuzzy check via AI when a plain normalize doesn't match (handles "12/4" vs "3", etc.)
-    if (!correct) {
-        out.style.color = 'var(--accent)'; out.style.background = 'transparent';
-        out.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Checking…';
-        try {
-            const apiKey = getApiKey();
-            const r = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
-                    messages: [{ role: 'system', content: 'You grade whether a student answer is mathematically/factually equivalent to the correct answer. Reply with ONLY "yes" or "no".' },
-                        { role: 'user', content: 'Correct answer: ' + window._lvAnswer + '\nStudent answer: ' + attempt + '\nEquivalent?' }],
-                    temperature: 0, max_tokens: 3
-                })
-            });
-            const d = await r.json();
-            correct = /yes/i.test((d.choices && d.choices[0] && d.choices[0].message.content) || '');
-        } catch (_) { /* fall back to the strict compare result (incorrect) */ }
-    }
-    if (correct) {
-        window._lvAwarded = true;
-        if (typeof updateCredits === 'function') updateCredits(30);
-        if (typeof awardXP === 'function') awardXP(15, 'Live Vision correct answer');
-        if (typeof recordQuestProgress === 'function') recordQuestProgress('problem_solved');
-        out.style.background = 'rgba(0,184,148,0.12)'; out.style.color = '#7bed9f';
-        out.innerHTML = '<i class="ph ph-check-circle"></i> Correct! +30 credits earned. 🎉';
-    } else {
-        out.style.background = 'rgba(255,107,107,0.1)'; out.style.color = '#ff9a9a';
-        out.innerHTML = '<i class="ph ph-x-circle"></i> Not quite — check the tutor work, grab a hint, and try again.';
-    }
+// Fallback: single final-answer submission when the AI returned no steps.
+async function submitVisionFinal() {
+    var inp = document.getElementById('lv-answer-input'); var out = document.getElementById('lv-grade-out');
+    if (!inp || !out) return;
+    var val = (inp.value || '').trim();
+    if (!val) { out.style.display = 'block'; out.style.color = '#ff9a9a'; out.textContent = 'Type your answer first.'; return; }
+    if (window._lvAwarded) { out.style.display = 'block'; out.style.color = '#7bed9f'; out.textContent = 'You already earned the 30 credits. 🎉'; return; }
+    out.style.display = 'block'; out.style.color = 'var(--accent)'; out.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Checking…';
+    var ok = await _lvCheckEquivalent(val, window._lvAnswer || '');
+    if (ok) { out.style.background = 'rgba(0,184,148,0.12)'; out.style.color = '#7bed9f'; out.innerHTML = '<i class="ph ph-check-circle"></i> Correct! +30 credits.'; _lvAwardCredits(); }
+    else { out.style.background = 'rgba(255,107,107,0.1)'; out.style.color = '#ff9a9a'; out.innerHTML = '<i class="ph ph-x-circle"></i> Not quite — check the Tutor Work and try again.'; }
 }
 window.toggleVisionScratch = toggleVisionScratch;
-window.revealVisionHint = revealVisionHint;
+window.renderVisionStep = renderVisionStep;
+window.revealStepHint = revealStepHint;
+window.checkVisionStep = checkVisionStep;
+window.nextVisionStep = nextVisionStep;
 window.revealVisionAnswer = revealVisionAnswer;
-window.submitVisionAnswer = submitVisionAnswer;
+window.submitVisionFinal = submitVisionFinal;
 
 async function analyzeText() {
     const video = document.getElementById('screen-video');
