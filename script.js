@@ -14433,19 +14433,22 @@ async function helpMeLiveVision() {
     const systemPrompt = `You are NEXUS Tutor analyzing a problem on the student's screen. Return a STRICT JSON object (no prose outside it) with EXACTLY these keys:
 
 {
-  "concept": "<1 sentence naming the concept + what it means>",
-  "strategy": "<1 sentence on the overall approach>",
+  "concept": "<2–4 sentences that TEACH: name the concept, explain what it means in plain language, and give ONE concrete mini-example using DIFFERENT numbers than the problem so they learn the idea, not just the answer.>",
+  "formula": "<the key rule/formula as a single line, or '' if none>",
+  "strategy": "<1–2 sentences on the overall game plan for THIS problem>",
   "steps": [
     {
       "instruction": "<what the student should DO in this step — an action/question, e.g. 'List the x-values from the table.' Do NOT include the result.>",
-      "hints": ["<hint 1: a gentle nudge, does NOT repeat the strategy>", "<hint 2: more specific — points at exactly what to look at or the operation to use>", "<hint 3: almost gives it — shows the setup with the last bit left blank>"],
-      "expect": "<the correct result of THIS step only — used to check the student's work>"
+      "hints": ["<hint 1: a gentle nudge, does NOT repeat the strategy>", "<hint 2: more specific — the exact thing to look at or operation to use>", "<hint 3: almost gives it — the setup with only the final bit left>"],
+      "expect": "<the correct result of THIS step only — used to check the student's work>",
+      "why": "<1 sentence: WHY this step works / what it teaches, shown after they solve it>"
     }
   ],
   "answer": "<the final answer to the whole problem, as short as possible>"
 }
 
 RULES:
+- Teach thoroughly but concisely. "concept" must actually explain the idea with an example — not one dry sentence.
 - Break the solution into 2–5 real steps. Each step's "instruction" is a task the student performs; the RESULT goes only in "expect" (hidden).
 - "hints" must ESCALATE and must NOT just restate "strategy" or the "instruction". Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete setup. 2–3 hints per step.
 - Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ.
@@ -14496,7 +14499,7 @@ RULES:
         if (workEl) {
             var stepList = window._lvSteps.map(function (s) { return '<li>' + esc(s.instruction || '') + '</li>'; }).join('');
             workEl.innerHTML =
-                (parsed.concept ? '<div class="tutor-block tutor-block-concept"><h3>💡 The concept</h3><p>' + esc(parsed.concept) + '</p></div>' : '') +
+                (parsed.concept ? '<div class="tutor-block tutor-block-concept"><h3>💡 The concept</h3><p>' + esc(parsed.concept) + '</p>' + (parsed.formula ? '<div class="tutor-formula"><code>' + esc(parsed.formula) + '</code></div>' : '') + '</div>' : '') +
                 (parsed.strategy ? '<div class="tutor-block tutor-block-strategy"><h3>🧭 Strategy</h3><p>' + esc(parsed.strategy) + '</p></div>' : '') +
                 (stepList ? '<div class="tutor-block tutor-block-steps"><h3>🪜 The steps</h3><ol>' + stepList + '</ol><p style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">Solve them one at a time in the panel on the right →</p></div>' : '') ||
                 '<p style="color:var(--text-muted);">Couldn\'t read the problem clearly — try re-capturing.</p>';
@@ -14601,7 +14604,8 @@ function renderVisionStep() {
     var inp = document.getElementById('lv-step-input');
     if (inp) inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); checkVisionStep(); } });
 }
-// Reveal the NEXT (escalating) hint for the current step.
+// Reveal the NEXT (escalating) hint for the current step. When hints are
+// exhausted, offer to reveal THIS step's answer so the student is never stuck.
 function revealStepHint() {
     var out = document.getElementById('lv-hint-out');
     var steps = window._lvSteps || []; var s = steps[window._lvStepIdx || 0];
@@ -14609,9 +14613,31 @@ function revealStepHint() {
     var hints = Array.isArray(s.hints) ? s.hints : [];
     var idx = window._lvHintIdx || 0;
     out.style.display = 'block';
-    if (idx >= hints.length) { out.textContent = hints.length ? 'That\'s all the hints — check the Tutor Work on the left, or reveal the answer.' : 'No hint for this step — check the Tutor Work on the left.'; return; }
+    if (idx >= hints.length) {
+        out.innerHTML = (hints.length ? 'That\'s all the hints. ' : 'No more hints. ')
+            + 'Still stuck? <button onclick="revealStepAnswer()" class="btn-secondary" style="margin-top:8px;width:100%;font-size:0.82rem;"><i class="ph ph-eye"></i> Show this step\'s answer &amp; continue</button>';
+        return;
+    }
     out.innerHTML = '<strong>Hint ' + (idx + 1) + ' of ' + hints.length + ':</strong> ' + escapeHtmlSafe(hints[idx]);
     window._lvHintIdx = idx + 1;
+    // After the last hint, also surface the "show answer" escape.
+    if (idx + 1 >= hints.length) {
+        out.innerHTML += '<div style="margin-top:8px;"><button onclick="revealStepAnswer()" class="btn-secondary" style="width:100%;font-size:0.8rem;"><i class="ph ph-eye"></i> Show this step\'s answer &amp; continue</button></div>';
+    }
+}
+// Reveal the current step's worked result (+ why) and let the student continue.
+// No credit for a revealed step, but they're never dead-ended.
+function revealStepAnswer() {
+    var steps = window._lvSteps || []; var i = window._lvStepIdx || 0; var s = steps[i];
+    var fb = document.getElementById('lv-step-feedback');
+    if (!s || !fb) return;
+    fb.style.display = 'block';
+    fb.style.background = 'rgba(0,206,201,0.10)'; fb.style.color = '#fff';
+    var last = (i >= steps.length - 1);
+    fb.innerHTML = '<div><span style="color:#00cec9;font-weight:700;">This step:</span> ' + escapeHtmlSafe(s.expect || '(no answer)') + '</div>'
+        + (s.why ? '<div style="color:#cdd2e0;font-size:0.82rem;margin-top:5px;">' + escapeHtmlSafe(s.why) + '</div>' : '')
+        + (last ? '<button onclick="_lvFinishStepper()" class="btn-primary" style="margin-top:8px;width:100%;">See final answer</button>'
+                : '<button onclick="nextVisionStep()" class="btn-primary" style="margin-top:8px;width:100%;">Next step →</button>');
 }
 async function checkVisionStep() {
     var inp = document.getElementById('lv-step-input');
@@ -14624,12 +14650,13 @@ async function checkVisionStep() {
     var ok = await _lvCheckEquivalent(val, s.expect || '');
     if (ok) {
         fb.style.background = 'rgba(0,184,148,0.12)'; fb.style.color = '#7bed9f';
+        var whyLine = s.why ? '<div style="color:#cdd2e0;font-size:0.82rem;margin-top:5px;font-weight:400;">💡 ' + escapeHtmlSafe(s.why) + '</div>' : '';
         if (i >= steps.length - 1) {
-            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct — final step done!';
+            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct — final step done!' + whyLine;
             _lvAwardCredits();
-            setTimeout(_lvFinishStepper, 800);
+            setTimeout(_lvFinishStepper, 1100);
         } else {
-            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct! <button onclick="nextVisionStep()" class="btn-primary" style="margin-top:8px;width:100%;">Next step →</button>';
+            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct!' + whyLine + '<button onclick="nextVisionStep()" class="btn-primary" style="margin-top:8px;width:100%;">Next step →</button>';
         }
     } else {
         fb.style.background = 'rgba(255,107,107,0.1)'; fb.style.color = '#ff9a9a';
@@ -14683,6 +14710,7 @@ async function submitVisionFinal() {
 window.toggleVisionScratch = toggleVisionScratch;
 window.renderVisionStep = renderVisionStep;
 window.revealStepHint = revealStepHint;
+window.revealStepAnswer = revealStepAnswer;
 window.checkVisionStep = checkVisionStep;
 window.nextVisionStep = nextVisionStep;
 window.revealVisionAnswer = revealVisionAnswer;
