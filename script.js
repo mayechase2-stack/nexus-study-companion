@@ -18323,6 +18323,64 @@ function runNexusDiagnostics() {
     // logged JS errors (from the error monitor)
     try { var _el = JSON.parse(localStorage.getItem('nexus_error_log') || '[]'); if (_el.length) warn('JavaScript errors', _el.length + ' logged — see list below'); else pass('no JavaScript errors logged'); } catch (e) {}
 
+    // ── CRITICAL-PATH CHECKS (v19, GA-readiness Domain 13) ──────────────
+    // Auth surfaces exist and are wired
+    ['signOut', 'openSignInModal', 'openSignUpFlow', 'handleAuthSubmit', 'hashPassword'].forEach(fn => {
+        if (typeof window[fn] === 'function') pass('auth fn: ' + fn); else fail('auth fn: ' + fn, 'MISSING');
+    });
+    ['signin-modal', 'signup-flow-modal', 'auth-overlay'].forEach(id => {
+        if (document.getElementById(id)) pass('auth surface: #' + id); else fail('auth surface: #' + id, 'not in DOM');
+    });
+
+    // Regression guards — source-level checks for bugs fixed in v19.
+    // (a) Modal openers must clear the .hidden class signOut() adds, or Sign In dies after sign-out.
+    try {
+        if (String(openSignInModal).indexOf("classList.remove('hidden')") >= 0) pass('regression: openSignInModal clears .hidden');
+        else fail('regression: openSignInModal clears .hidden', 'guard missing — sign-in breaks after sign-out');
+        if (String(openSignUpFlow).indexOf("classList.remove('hidden')") >= 0) pass('regression: openSignUpFlow clears .hidden');
+        else fail('regression: openSignUpFlow clears .hidden', 'guard missing — signup breaks after sign-out');
+    } catch (e) { warn('regression: modal .hidden guards', e.message); }
+    // (b) Live Vision credit award must be per-problem (anti-farming).
+    try {
+        if (typeof _lvAwardCredits === 'function' && String(_lvAwardCredits).indexOf('lv_awarded_problems') >= 0) pass('regression: LV credits are per-problem');
+        else fail('regression: LV credits are per-problem', 'anti-farm guard missing');
+    } catch (e) { warn('regression: LV anti-farm', e.message); }
+    // (c) Help Me must not crash when #ai-topic-tag was replaced.
+    try {
+        if (typeof helpMeLiveVision === 'function' && String(helpMeLiveVision).indexOf('_topicTag') >= 0) pass('regression: helpMeLiveVision null-guards topic tag');
+        else fail('regression: helpMeLiveVision null-guard', 'crash guard missing — Help Me dies after first use');
+    } catch (e) { warn('regression: helpMe guard', e.message); }
+    // (d) Achievements must never award signed-out guests.
+    try {
+        if (String(checkAchievements).indexOf("auth_user") >= 0) pass('regression: achievements require sign-in');
+        else fail('regression: achievements require sign-in', 'guest-award guard missing');
+    } catch (e) { warn('regression: achievement guard', e.message); }
+
+    // Entitlement/tier plumbing
+    try {
+        if (typeof hasPaid === 'function' && typeof setUserTier === 'function') pass('entitlement fns present');
+        else fail('entitlement fns', 'hasPaid/setUserTier missing');
+        if (typeof FREE_BETA !== 'undefined') pass('FREE_BETA flag defined (' + FREE_BETA + ')');
+        else warn('FREE_BETA flag', 'undefined — paywall behavior ambiguous');
+        if (PER_USER_KEYS.indexOf('lv_awarded_problems') >= 0) pass('lv_awarded_problems in PER_USER_KEYS');
+        else fail('lv_awarded_problems in PER_USER_KEYS', 'award history would leak across accounts');
+    } catch (e) { warn('entitlement checks', e.message); }
+
+    // Consent/legal surfaces (COPPA-critical)
+    try {
+        if (typeof openLegalModal === 'function') pass('legal modal available'); else fail('legal modal', 'openLegalModal missing');
+        if (document.getElementById('signup-dob')) pass('age gate field present'); else fail('age gate field', '#signup-dob not in DOM');
+        if (document.getElementById('signup-terms-agree')) pass('terms consent checkbox present'); else fail('terms consent checkbox', '#signup-terms-agree not in DOM');
+        if (document.getElementById('signup-parent-email')) pass('parental-consent field present'); else fail('parental-consent field', '#signup-parent-email not in DOM');
+    } catch (e) { warn('consent surfaces', e.message); }
+
+    // Signed-in users should have a cloud session (hosted AI depends on it)
+    try {
+        if (localStorage.getItem('auth_user') && typeof _hasCloudSession === 'function' && !_hasCloudSession()) {
+            warn('cloud session', 'signed in locally but no Supabase session — hosted AI may fail for this user');
+        }
+    } catch (e) {}
+
     return r;
 }
 function openDiagnostics() {

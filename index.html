@@ -803,7 +803,7 @@
                         <span style="opacity:0.4;">›</span>
                         <span id="signup-step-3-label">3 · Payment</span>
                     </div>
-                    <button onclick="closeSignUpFlow()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;"><svg width="18" height="18"><use href="#ic-x"/></svg></button>
+                    <button onclick="closeSignUpFlow()" aria-label="Close sign-up" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;"><svg width="18" height="18" aria-hidden="true"><use href="#ic-x"/></svg></button>
                 </div>
                 <div style="padding:18px 28px;height:6px;">
                     <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
@@ -949,14 +949,14 @@
 
     <div class="app-container">
         <!-- Sidebar Navigation -->
-        <nav class="sidebar">
+        <nav class="sidebar" aria-label="Main navigation" tabindex="0">
             <div id="sidebar-resize-handle" title="Drag to resize the sidebar"></div>
             <div class="logo">
                 <i class="ph ph-atom"></i>
                 <span>NEXUS</span>
             </div>
 
-            <ul class="nav-links" role="navigation" aria-label="Main navigation">
+            <ul class="nav-links" tabindex="0">
                 <li class="active" onclick="switchTab('home')">
                     <i class="ph ph-house"></i>
                     <span>Home</span>
@@ -1056,7 +1056,7 @@
                         <i class="ph ph-gear" style="font-size:1rem;"></i>
                         <span>Settings</span>
                     </div>
-                    <div class="status-indicator" style="cursor:pointer;padding:6px 8px;" onclick="toggleThemeQuick()" id="theme-toggle-btn" title="Toggle theme">
+                    <div class="status-indicator" style="cursor:pointer;padding:6px 8px;" onclick="toggleThemeQuick()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleThemeQuick();}" id="theme-toggle-btn" title="Toggle theme" role="button" tabindex="0" aria-label="Toggle light or dark theme">
                         <i class="ph ph-sun" id="theme-toggle-icon" style="font-size:1rem;color:#fdcb6e;"></i>
                     </div>
                 </div>
@@ -4492,6 +4492,7 @@ if __name__ == '__main__':
                     <button class="settings-tab-btn" data-help-cat="labs-tools" onclick="filterHelpCategory('labs-tools')"><i class="ph ph-flask"></i> Labs &amp; Tools</button>
                     <button class="settings-tab-btn" data-help-cat="achievements-help" onclick="filterHelpCategory('achievements-help')"><i class="ph ph-trophy"></i> Achievements</button>
                     <button class="settings-tab-btn" data-help-cat="troubleshooting" onclick="filterHelpCategory('troubleshooting')"><i class="ph ph-wrench"></i> Troubleshooting</button>
+                    <button class="settings-tab-btn" data-help-cat="privacy-billing" onclick="filterHelpCategory('privacy-billing')"><i class="ph ph-shield-check"></i> Privacy &amp; Billing</button>
                 </div>
                 <!-- Topics pane -->
                 <div style="padding:24px 28px;overflow-y:auto;">
@@ -4507,7 +4508,7 @@ if __name__ == '__main__':
                         <div class="faq-item" style="margin-bottom:20px;">
                             <h4 style="color:white; margin-bottom:8px;">How do I create an account?</h4>
                             <p style="color:var(--text-muted); line-height:1.6; margin:0;">
-                                Simply enter a username and password on the login screen. Your data is saved locally on your device, so make sure to remember your credentials!
+                                Click "Get Started" and pick a username, password, and email. Your account syncs to the cloud automatically, so your progress follows you across devices — and keeps working offline on this device too.
                             </p>
                         </div>
 
@@ -4641,23 +4642,80 @@ if __name__ == '__main__':
                         <div class="faq-item" style="margin-bottom:20px;">
                             <h4 style="color:white; margin-bottom:8px;">My data is not saving!</h4>
                             <p style="color:var(--text-muted); line-height:1.6; margin:0;">
-                                NEXUS uses localStorage to save your data locally. Make sure your browser allows localStorage and you're not in incognito/private mode. Try clearing your browser cache if issues persist.
+                                When you're signed in, your progress saves to your cloud account and locally on this device. If saving fails: check you're signed in (Settings → Account), make sure you're not in incognito/private mode, and check your connection. Your cloud copy restores automatically on next sign-in.
                             </p>
                         </div>
 
                         <div class="faq-item" style="margin-bottom:20px;">
                             <h4 style="color:white; margin-bottom:8px;">How do I reset my progress?</h4>
                             <p style="color:var(--text-muted); line-height:1.6; margin:0;">
-                                Open your browser's developer tools (F12), go to Application → Local Storage, and clear all NEXUS-related entries. This will reset your account, credits, and inventory.
+                                Use <strong style="color:#fff;">Settings → Data</strong> to export a backup first, then use the reset/delete options there. Don't clear browser storage by hand — with a cloud account your data would just re-sync, and without one you'd lose everything permanently.
                             </p>
                         </div>
 
                         <div class="faq-item">
                             <h4 style="color:white; margin-bottom:8px;">The AI isn't responding to my questions</h4>
                             <p style="color:var(--text-muted); line-height:1.6; margin:0;">
-                                NEXUS uses real OpenAI models, powered by your own API key during the beta. If the AI isn't responding, check that you've added a valid key in <strong style="color:#fff;">Settings → Account &amp; API</strong>, that the key has available credit, and that you're online. Still stuck? Re-paste the key and try again.
+                                Signed-in accounts get hosted AI automatically — no API key needed. If the AI isn't responding: check you're online and signed in, then try again in a minute. Power users with their own OpenAI key in <strong style="color:#fff;">Settings → Account &amp; API</strong> should verify the key is valid and has credit. Still stuck? Email <strong style="color:#fff;">support@nexusasc.com</strong>.
                             </p>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Privacy, Billing & Accessibility (v19 — trust signals) -->
+                <div class="help-topic" id="privacy-billing" data-keywords="privacy data billing plans price cost parent consent delete export accessibility screen reader keyboard payment card refund cancel">
+                    <div class="glass-panel" style="padding:24px; margin-bottom:20px; border:1px solid rgba(0,184,148,0.25);">
+                        <h3 style="margin-top:0; color:#00b894; display:flex; align-items:center; gap:10px;">
+                            <i class="ph ph-shield-check"></i> Privacy &amp; Your Data
+                        </h3>
+                        <div class="faq-item" style="margin-bottom:20px;">
+                            <h4 style="color:white; margin-bottom:8px;">What data does NEXUS collect?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                Your username, email, date of birth (to confirm age), and your study progress. Study questions you ask are sent to OpenAI to generate the answer — that's the AI provider we use. We never sell your data and there are no ads. Full details are in the <a href="#" onclick="event.preventDefault();openLegalModal('privacy')" style="color:var(--accent);">Privacy Policy</a> and <a href="#" onclick="event.preventDefault();openLegalModal('terms')" style="color:var(--accent);">Terms</a>.
+                            </p>
+                        </div>
+                        <div class="faq-item" style="margin-bottom:20px;">
+                            <h4 style="color:white; margin-bottom:8px;">I'm under 13 — can I use NEXUS?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                Yes, with a parent or guardian's permission. Signup asks for a parent email and consent when your date of birth shows you're under 13. Parents can email <strong style="color:#fff;">support@nexusasc.com</strong> anytime with questions about their child's account or to request its data or deletion.
+                            </p>
+                        </div>
+                        <div class="faq-item">
+                            <h4 style="color:white; margin-bottom:8px;">How do I get a copy of my data, or delete it?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                <strong style="color:#fff;">Settings → Data</strong> lets you export a full backup of your account as a file you keep, and delete your local data. To fully delete your cloud account and its data, email <strong style="color:#fff;">support@nexusasc.com</strong> from your account email.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel" style="padding:24px; margin-bottom:20px; border:1px solid rgba(0,206,201,0.25);">
+                        <h3 style="margin-top:0; color:#00CEC9; display:flex; align-items:center; gap:10px;">
+                            <i class="ph ph-credit-card"></i> Billing &amp; Plans
+                        </h3>
+                        <div class="faq-item" style="margin-bottom:20px;">
+                            <h4 style="color:white; margin-bottom:8px;">Is NEXUS free?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                Yes — everything is free during the beta, and no card is ever collected. When paid plans launch (modules at $2/mo each, 4-module minimum), we'll email every account first. Nothing is charged without you explicitly signing up for a plan.
+                            </p>
+                        </div>
+                        <div class="faq-item">
+                            <h4 style="color:white; margin-bottom:8px;">Will I be able to cancel?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                Yes. When paid plans go live, you'll be able to cancel anytime from <strong style="color:#fff;">Settings → Manage My Plan</strong>, effective at the end of the billing period. Billing questions: <strong style="color:#fff;">support@nexusasc.com</strong>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel" style="padding:24px; margin-bottom:20px; border:1px solid rgba(108,92,231,0.25);">
+                        <h3 style="margin-top:0; color:#a29bfe; display:flex; align-items:center; gap:10px;">
+                            <i class="ph ph-person-arms-spread"></i> Accessibility Statement
+                        </h3>
+                        <p style="color:var(--text-muted); line-height:1.7; margin:0 0 10px;">
+                            NEXUS is built to be usable by every student. The app supports full keyboard navigation with visible focus indicators, honors your system's reduced-motion preference, and offers a dyslexia-friendly font and compact-UI option in Settings. Core views were self-audited against <strong style="color:#fff;">WCAG 2.2 AA</strong> in July 2026 with automated (axe-core) and manual checks.
+                        </p>
+                        <p style="color:var(--text-muted); line-height:1.7; margin:0;">
+                            Accessibility is ongoing work. If anything is hard to use with your assistive technology, email <strong style="color:#fff;">support@nexusasc.com</strong> — reports get fixed with priority.
+                        </p>
                     </div>
                 </div>
 
@@ -4666,14 +4724,11 @@ if __name__ == '__main__':
             <!-- Contact Section -->
             <div class="glass-panel" style="padding:24px; background:linear-gradient(135deg, rgba(108,92,231,0.1), rgba(0,206,201,0.05)); border:1px solid rgba(108,92,231,0.3); text-align:center;">
                 <h3 style="margin-top:0; color:white;">Still need help?</h3>
-                <p style="color:var(--text-muted); margin-bottom:20px;">We're here to support your learning journey!</p>
+                <p style="color:var(--text-muted); margin-bottom:20px;">Email us and a human replies within one business day.</p>
                 <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-                    <button class="btn-primary" onclick="alert('Feedback form coming soon! For now, reach out via email.')">
-                        <i class="ph ph-chat-circle-dots"></i> Send Feedback
-                    </button>
-                    <button class="btn-secondary" onclick="alert('Email: support@nexus-study.com')">
-                        <i class="ph ph-envelope"></i> Contact Support
-                    </button>
+                    <a class="btn-primary" href="mailto:support@nexusasc.com?subject=NEXUS%20support" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+                        <i class="ph ph-envelope"></i> support@nexusasc.com
+                    </a>
                 </div>
             </div>
                     </div> <!-- /help-topics -->
