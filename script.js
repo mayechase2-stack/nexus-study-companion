@@ -1715,6 +1715,7 @@ function openSignInModal() {
     isSignUpMode = false;
     const m = document.getElementById('signin-modal');
     if (!m) return;
+    m.classList.remove('hidden'); // signOut() adds .hidden (display:none !important) — inline flex can't override it
     m.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     setTimeout(_initGoogleSignIn, 100);   // v16.5 — render the Google button if configured
@@ -1785,6 +1786,7 @@ function openSignUpFlow() {
     _signupCurrentStep = 1;
     const m = document.getElementById('signup-flow-modal');
     if (!m) return;
+    m.classList.remove('hidden'); // signOut() adds .hidden (display:none !important) — inline flex can't override it
     m.style.display = 'flex';
     document.body.style.overflow = 'hidden';
     _signupShowStep(1);
@@ -2172,6 +2174,7 @@ const PER_USER_KEYS = [
     'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
     'study_planner', 'wod_saved_vocab', // v17.0
     'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
+    'lv_awarded_problems', // v19 — Live Vision 30-credit awards are per problem per account
     'starter_gold_granted'    // prefix key — cleared by username suffix at signup
 ];
 
@@ -14408,7 +14411,8 @@ async function helpMeLiveVision() {
 
     if (solutionPanel) {
         solutionPanel.classList.remove('hidden');
-        document.getElementById('ai-topic-tag').textContent = 'TUTOR MODE';
+        const _topicTag = document.getElementById('ai-topic-tag');
+        if (_topicTag) _topicTag.textContent = 'TUTOR MODE'; // panel content gets replaced after the first session — tag may be gone, don't crash
         // v13.1 — animated fetch status for tutor mode
         const _hmPhrases = ['Reading your screen…','Finding the concept…','Building your guidance…','Preparing the strategy…','Almost there…'];
         let _hmIdx = 0;
@@ -14492,7 +14496,14 @@ RULES:
         window._lvStepIdx = 0;
         window._lvHintIdx = 0;
         window._lvAnswer = String(parsed.answer || '').trim();
-        window._lvAwarded = false;
+        // Anti-farming: the 30-credit award is once per PROBLEM (answer + steps),
+        // not once per session — re-running Help Me on the same capture used to
+        // re-award indefinitely. Persisted per account via lv_awarded_problems.
+        window._lvProblemKey = window._lvAnswer + '::' + window._lvSteps.map(function (s) { return s.expect || ''; }).join('|');
+        try {
+            var _lvDone = JSON.parse(localStorage.getItem('lv_awarded_problems') || '[]');
+            window._lvAwarded = _lvDone.indexOf(window._lvProblemKey) !== -1;
+        } catch (_) { window._lvAwarded = false; }
 
         // 1) Work board (left): concept + strategy + the step INSTRUCTIONS (no results).
         const workEl = document.getElementById('vision-tutor-work');
@@ -14681,6 +14692,14 @@ function _lvFinishStepper() {
 function _lvAwardCredits() {
     if (window._lvAwarded) return;
     window._lvAwarded = true;
+    // Remember this problem was paid out so re-running Help Me can't re-award it.
+    try {
+        var _lvDone = JSON.parse(localStorage.getItem('lv_awarded_problems') || '[]');
+        if (window._lvProblemKey && _lvDone.indexOf(window._lvProblemKey) === -1) {
+            _lvDone.push(window._lvProblemKey);
+            localStorage.setItem('lv_awarded_problems', JSON.stringify(_lvDone.slice(-200)));
+        }
+    } catch (_) {}
     if (typeof updateCredits === 'function') updateCredits(30);
     if (typeof awardXP === 'function') awardXP(15, 'Live Vision guided solve');
     if (typeof recordQuestProgress === 'function') recordQuestProgress('problem_solved');
@@ -20022,8 +20041,8 @@ const ACHIEVEMENTS = [
     { id: 'prompt-architect',   name: 'Prompt Architect',    desc: 'Forge 10 prompts in the Command Center Prompt Engine', icon: '🛠️', check: () => parseInt(localStorage.getItem('prompt_engine_uses') || '0') >= 10, reward: 400 },
     { id: 'prompt-virtuoso',    name: 'Prompt Virtuoso',     desc: 'Forge 50 prompts in the Command Center Prompt Engine', icon: '✨', check: () => parseInt(localStorage.getItem('prompt_engine_uses') || '0') >= 50, reward: 1200 },
     { id: 'lore-keeper',        name: 'Lore Keeper',         desc: 'Open the Update Log and read the changelog', icon: '📖', check: () => localStorage.getItem('update_log_opened') === '1', reward: 200 },
-    { id: 'night-owl-coder',    name: 'Night Owl',           desc: 'Use NEXUS between 11pm and 4am', icon: '🌙', check: () => { const h = new Date().getHours(); return h >= 23 || h < 4; }, reward: 250 },
-    { id: 'early-bird',         name: 'Early Bird',          desc: 'Use NEXUS between 5am and 7am', icon: '🌅', check: () => { const h = new Date().getHours(); return h >= 5 && h < 7; }, reward: 250 },
+    { id: 'night-owl-coder',    name: 'Night Owl',           desc: 'Use NEXUS between 11pm and 4am', icon: '🌙', check: () => { const h = new Date().getHours(); return (h >= 23 || h < 4) && parseInt(localStorage.getItem('total_xp') || '0') > 0; }, reward: 250 },
+    { id: 'early-bird',         name: 'Early Bird',          desc: 'Use NEXUS between 5am and 7am', icon: '🌅', check: () => { const h = new Date().getHours(); return (h >= 5 && h < 7) && parseInt(localStorage.getItem('total_xp') || '0') > 0; }, reward: 250 },
     { id: 'puzzle-breaker',     name: 'Puzzle Breaker',      desc: 'Solve 25 problems', icon: '🧩', check: () => (getStudyStats().problemsSolved || 0) >= 25, reward: 250 }
 ];
 
@@ -20039,6 +20058,9 @@ let _checkAchievementsRunning = false;
 function checkAchievements() {
     // Guard against re-entrant calls (rapid successive calls before LS is persisted)
     if (_checkAchievementsRunning) return;
+    // Signed-out guests have no account to attach achievements to — don't award
+    // (a guest could otherwise bank credits, e.g. Night Owl, before ever signing up).
+    if (!localStorage.getItem('auth_user')) return;
     _checkAchievementsRunning = true;
     try {
         const completed = JSON.parse(localStorage.getItem('achievements_completed') || '[]');

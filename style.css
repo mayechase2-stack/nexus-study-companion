@@ -3559,3 +3559,17 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
     .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
     .main-content { padding: 20px 24px !important; }
 }
+/* v19 — touch devices: landing nav + footer links get a full 44px hit area
+   (desktop pointer users are unaffected; pointer:coarse = touch only) */
+@media (pointer: coarse) {
+    #auth-overlay nav a,
+    #auth-overlay nav button {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+    #auth-overlay footer a {
+        display: inline-block;
+        padding: 10px 8px;
+    }
+}
