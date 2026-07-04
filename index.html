@@ -897,6 +897,10 @@
                         <input type="checkbox" id="signup-terms-agree" style="accent-color:var(--accent);margin-top:2px;flex-shrink:0;">
                         <span>I agree to the <a href="#" onclick="event.preventDefault();openLegalModal('tos')" style="color:var(--accent);">Terms</a> and <a href="#" onclick="event.preventDefault();openLegalModal('privacy')" style="color:var(--accent);">Privacy Policy</a>.</span>
                     </label>
+                    <!-- Cloudflare Turnstile (bot check). Renders only when TURNSTILE_SITE_KEY
+                         is configured in script.js; invisible/no-op until then, so signup
+                         is unaffected on the current build. -->
+                    <div id="signup-turnstile" style="margin-top:14px;"></div>
                     <div id="signup-step-3-error" style="display:none;color:#ff6b6b;font-size:0.82rem;margin-top:12px;"></div>
                     <div style="display:flex;gap:10px;margin-top:18px;">
                         <button onclick="signupGoToStep(2)" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;">

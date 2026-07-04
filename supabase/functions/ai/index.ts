@@ -1,0 +1,206 @@
+// NEXUS hosted-AI proxy — Supabase Edge Function `ai`.
+//
+// This is the SINGLE server-side chokepoint for all hosted AI. Every protection
+// lives here because the client cannot be trusted (anyone can POST to this URL
+// directly). In order, each request must pass:
+//   1. Auth      — a valid Supabase JWT (rejects anonymous callers to the raw URL)
+//   2. Size caps — body size, message length, and max_tokens are clamped
+//   3. Model     — only gpt-4o / gpt-4o-mini allowed; default mini
+//   4. Rate/limit — per-user/min, per-IP/min, and per-user monthly allotment (ai_gate)
+//   5. Moderation — OpenAI moderation on the input, FAIL-CLOSED for the minor audience
+//   6. Call OpenAI, moderate the output, return { content, used, limit }
+//
+// Env vars (Supabase → Edge Functions → ai → Secrets):
+//   OPENAI_API_KEY            (secret)
+//   SUPABASE_URL              (auto-provided)
+//   SUPABASE_ANON_KEY         (auto-provided)
+//   SUPABASE_SERVICE_ROLE_KEY (auto-provided) — used for usage tables via RLS bypass
+//   ANON_MONTHLY_LIMIT        (optional, default 15)    — anonymous/unverified email
+//   FREE_MONTHLY_LIMIT        (optional, default 300)   — email-verified free accounts
+//   PAID_MONTHLY_LIMIT        (optional, default 5000)  — paid accounts
+//   PER_MIN_LIMIT             (optional, default 12)
+//   IP_PER_MIN_LIMIT          (optional, default 20)
+//
+// Account-farming defense: a scripted attacker can mint many ANONYMOUS accounts,
+// but each only gets ANON_MONTHLY_LIMIT calls. The full free allotment unlocks
+// only after the user verifies a real email (email_confirmed_at is set) — real
+// inboxes are expensive to farm. Per-IP limits (ai_gate) blunt bulk signups too.
+
+const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "15", 10);
+const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "300", 10);
+const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "5000", 10);
+const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
+const IP_PER_MIN = parseInt(Deno.env.get("IP_PER_MIN_LIMIT") ?? "20", 10);
+
+const ALLOWED_MODELS = new Set(["gpt-4o", "gpt-4o-mini"]);
+const MAX_BODY_BYTES = 600_000;   // ~600 KB — generous for a Live Vision image, rejects abuse
+const MAX_OUTPUT_TOKENS = 1500;
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+}
+
+// Pull plain text out of the OpenAI messages array (content may be a string OR an
+// array of {type:'text'|'image_url', ...} parts for vision). Images are ignored
+// for moderation text but their presence forces gpt-4o.
+function extractText(messages: any[]): { text: string; hasImage: boolean } {
+  let text = "";
+  let hasImage = false;
+  for (const m of messages ?? []) {
+    const c = m?.content;
+    if (typeof c === "string") text += " " + c;
+    else if (Array.isArray(c)) {
+      for (const part of c) {
+        if (part?.type === "text") text += " " + (part.text ?? "");
+        if (part?.type === "image_url") hasImage = true;
+      }
+    }
+  }
+  return { text: text.trim(), hasImage };
+}
+
+async function moderate(input: string): Promise<{ ok: boolean; flagged: boolean }> {
+  // FAIL-CLOSED: if the moderation call errors, treat as NOT ok (block) — for a
+  // minor audience we never let unmoderated input through on an error.
+  try {
+    const r = await fetch("https://api.openai.com/v1/moderations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({ model: "omni-moderation-latest", input: input.slice(0, 8000) }),
+    });
+    if (!r.ok) return { ok: false, flagged: false };
+    const d = await r.json();
+    const flagged = !!d?.results?.[0]?.flagged;
+    return { ok: true, flagged };
+  } catch {
+    return { ok: false, flagged: false };
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  // ── 1. Auth ────────────────────────────────────────────────────────────
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  if (!token) return json({ error: "Sign in to use NEXUS AI." }, 401);
+
+  const userRes = await fetch(`${SB_URL}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: ANON },
+  });
+  if (!userRes.ok) return json({ error: "Your session expired — sign in again." }, 401);
+  const user = await userRes.json();
+  const uid = user?.id;
+  if (!uid) return json({ error: "Invalid session." }, 401);
+
+  // ── 2. Size caps ───────────────────────────────────────────────────────
+  const raw = await req.text();
+  if (raw.length > MAX_BODY_BYTES) return json({ error: "Request too large." }, 413);
+  let body: any;
+  try { body = JSON.parse(raw); } catch { return json({ error: "Bad request." }, 400); }
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  if (!messages.length) return json({ error: "No messages." }, 400);
+
+  const { text, hasImage } = extractText(messages);
+  if (text.length > 24_000) return json({ error: "Message too long." }, 413);
+
+  // ── 3. Model routing ───────────────────────────────────────────────────
+  // Vision or explicitly-requested 4o gets 4o; everything else is cheap mini.
+  let model = String(body?.model ?? "gpt-4o-mini");
+  if (!ALLOWED_MODELS.has(model)) model = "gpt-4o-mini";
+  if (hasImage) model = "gpt-4o";
+
+  // ── 4. Entitlement + rate/limit gate ───────────────────────────────────
+  // Base allotment on email verification: anonymous / unconfirmed accounts get
+  // the small ANON allotment (farming defense); a confirmed email unlocks FREE.
+  const emailVerified = !!user?.email_confirmed_at && user?.is_anonymous !== true;
+  let monthlyLimit = emailVerified ? FREE_MONTHLY : ANON_MONTHLY;
+  try {
+    const pr = await fetch(
+      `${SB_URL}/rest/v1/profiles?id=eq.${uid}&select=tier`,
+      { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } },
+    );
+    const rows = pr.ok ? await pr.json() : [];
+    const tier = rows?.[0]?.tier ?? "free";
+    if (tier === "owner") monthlyLimit = -1;            // unlimited
+    else if (tier === "paid") monthlyLimit = PAID_MONTHLY;
+  } catch { /* fall back to the verification-based limit */ }
+
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
+
+  const gateRes = await fetch(`${SB_URL}/rest/v1/rpc/ai_gate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SERVICE,
+      Authorization: `Bearer ${token}`, // run as the caller so auth.uid() is set
+    },
+    body: JSON.stringify({
+      p_ip: ip, p_month_limit: monthlyLimit,
+      p_per_min: PER_MIN, p_ip_per_min: IP_PER_MIN,
+    }),
+  });
+  const gate = gateRes.ok ? await gateRes.json() : { allowed: false, reason: "gate_error" };
+  if (!gate?.allowed) {
+    const msg = gate?.reason === "month_limit"
+      ? "You've reached your free AI allotment for this month. Upgrade to keep going."
+      : gate?.reason?.startsWith("rate")
+        ? "You're going a little fast — wait a few seconds and try again."
+        : "AI is temporarily unavailable. Please try again shortly.";
+    return json({ error: msg, reason: gate?.reason }, 429);
+  }
+
+  // ── 5. Input moderation (FAIL-CLOSED) ──────────────────────────────────
+  const mod = await moderate(text);
+  if (!mod.ok) return json({ error: "Safety check unavailable — please try again." }, 503);
+  if (mod.flagged) {
+    return json({ error: "That request was blocked by NEXUS's safety filter. Try rephrasing your question." }, 400);
+  }
+
+  // ── 6. Call OpenAI (non-streaming; the client synthesizes SSE) ─────────
+  const maxTok = Math.min(Number(body?.max_tokens) || 1024, MAX_OUTPUT_TOKENS);
+  const payload: any = { model, messages, max_tokens: maxTok };
+  if (typeof body?.temperature === "number") payload.temperature = body.temperature;
+  if (body?.response_format) payload.response_format = body.response_format;
+
+  let content = "";
+  try {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) return json({ error: d?.error?.message ?? "AI provider error." }, 502);
+    content = d?.choices?.[0]?.message?.content ?? "";
+  } catch (e) {
+    return json({ error: "AI request failed." }, 502);
+  }
+
+  // Output moderation: if flagged, replace with a safe message. If the check
+  // itself errors we allow it through (the INPUT was already moderated), so a
+  // transient moderation outage doesn't block a legitimately-generated answer.
+  if (content && !body?.response_format) {
+    const outMod = await moderate(content);
+    if (outMod.ok && outMod.flagged) {
+      content = "I can't help with that one. Let's keep it to schoolwork — try asking about the concept instead.";
+    }
+  }
+
+  return json({ content, used: gate?.month ?? null, limit: monthlyLimit });
+});

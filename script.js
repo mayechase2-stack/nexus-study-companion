@@ -44,6 +44,39 @@ const SUPABASE_ANON_KEY = 'sb_publishable_O_iCo_B5LbnDla_w5_nTmw_lmf7o14X';
 // Stripe (TEST) — publishable key + the $2/month "module" price. Both public/safe to commit.
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TkgVNF9D6VpsYOipPuRKLINuwZopdJMGKfnVTPb8qIi0vCgYFtFY0lxNfwncWOXuPNSG3v9UVJ0ucPb1Cp0U8Ge00u2USvo2W';
 const STRIPE_MODULE_PRICE_ID = 'price_1TktHcF9D6VpsYOis2M2tqub';
+// Cloudflare Turnstile site key (bot check on signup). Public/safe to commit.
+// Leave '' to disable — signup then behaves exactly as before. To enable: create
+// a free Turnstile widget at dash.cloudflare.com → Turnstile, paste the SITE key
+// here, and (for real protection) verify the token server-side — see BACKEND_SETUP.md.
+const TURNSTILE_SITE_KEY = '';
+let _turnstileToken = '';
+let _turnstileWidgetId = null;
+// Render the Turnstile widget into the signup modal when a key is configured.
+function renderSignupTurnstile() {
+    if (!TURNSTILE_SITE_KEY) return; // disabled — no-op
+    const host = document.getElementById('signup-turnstile');
+    if (!host) return;
+    if (!(window.turnstile && typeof window.turnstile.render === 'function')) {
+        // Lazy-load the Turnstile script once, then retry.
+        if (!document.getElementById('cf-turnstile-js')) {
+            const s = document.createElement('script');
+            s.id = 'cf-turnstile-js';
+            s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+            s.async = true; s.defer = true;
+            document.head.appendChild(s);
+        }
+        setTimeout(renderSignupTurnstile, 500);
+        return;
+    }
+    if (_turnstileWidgetId !== null) { try { window.turnstile.reset(_turnstileWidgetId); } catch (_) {} _turnstileToken = ''; return; }
+    _turnstileWidgetId = window.turnstile.render(host, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: 'dark',
+        callback: function (t) { _turnstileToken = t; },
+        'expired-callback': function () { _turnstileToken = ''; },
+        'error-callback': function () { _turnstileToken = ''; }
+    });
+}
 let nexusSB = null;
 function _initSupabase() {
     try {
@@ -1202,23 +1235,22 @@ async function hashPassword(password) {
 // ════════════════════════════════════════════════════════════════════
 // DEV / OWNER ACCOUNT (v11.0) — Chase's personal admin account
 // ════════════════════════════════════════════════════════════════════
-// Username/password are baked into the build. The hashed password is verified at
-// sign-in time; plaintext is also kept here as a comment for reference only.
-// When this account signs in, the perks block grants: owner tier, paid, 30000
-// credits, every shop item, and all 3 mythic companions.
+// Owner login is verified by comparing the SHA-256 hash of the typed password to
+// the constant below. The plaintext password is NEVER stored in this source (it
+// used to be, which meant anyone reading the public repo could sign in as owner).
+// To rotate: hash a new password with SHA-256 (hex, lowercase) and replace the
+// constant. NOTE: a client-side owner check is inherently weak because the hash
+// ships to every browser; the durable fix is to move owner/admin auth server-side
+// behind Supabase. Until then, keep this password strong and private.
 const DEV_USERNAME = 'chase_owner';
-// Plaintext password (for your records only): NexusOwner2026
-// SHA-256("NexusOwner2026") computed once and embedded so we don't need to await
-// hashPassword on every login check.
-const DEV_PASSWORD_HASH = 'b1d3fd1a2a91d10c3d3e9a1ff8f9b5b3b4cf86a82e7cbf5b4a7c6e0d3f9d1aa0';
-// IMPORTANT: the hash above is a placeholder. On first DOMContentLoaded we compute
-// the real hash and patch the registry, so even though the placeholder is wrong,
-// signing in still works because handleAuthSubmit checks against the live hash.
+// SHA-256 of the current owner password (rotated 2026-07-03). Plaintext lives only
+// in Chase's password manager.
+const DEV_PASSWORD_HASH = '90d1bb523aca64f87ed626f7db9b342086cc1fda18f084eea6e26a062788c43f';
 
 let _devPasswordHashLive = null;
 async function ensureDevPasswordHashLive() {
-    if (_devPasswordHashLive) return _devPasswordHashLive;
-    _devPasswordHashLive = await hashPassword('NexusOwner2026');
+    // No plaintext to hash anymore — the owner hash is the embedded constant.
+    _devPasswordHashLive = DEV_PASSWORD_HASH;
     return _devPasswordHashLive;
 }
 
@@ -1510,9 +1542,9 @@ async function handleAuthSubmit() {
 
     // v12.0 — handleAuthSubmit is now SIGN-IN ONLY. The signup-flow-modal owns account
     // creation now, so randomly-typed letters can no longer yield a working account.
-    // DEV ACCOUNT short-circuit (chase_owner / NexusOwner2026) — preserved.
-    if (user === DEV_USERNAME && pass === 'NexusOwner2026') {
-        const hash = await ensureDevPasswordHashLive();
+    // DEV ACCOUNT short-circuit — verify by hash so no plaintext password lives here.
+    if (user === DEV_USERNAME && (await hashPassword(pass)) === DEV_PASSWORD_HASH) {
+        const hash = DEV_PASSWORD_HASH;
         // Snapshot whatever account was previously active, then clear stale state.
         const prevUser = localStorage.getItem('auth_user');
         if (prevUser && prevUser !== DEV_USERNAME) snapshotAccountState(prevUser);
@@ -1799,6 +1831,8 @@ function openSignUpFlow() {
     _signupRenderModules();
     _wireSignupPasswordReqs();
     _wireSignupPaymentFormat();
+    _turnstileToken = '';
+    renderSignupTurnstile(); // no-op unless TURNSTILE_SITE_KEY is set
     const err1 = document.getElementById('signup-step-1-error');
     const err3 = document.getElementById('signup-step-3-error');
     if (err1) err1.style.display = 'none';
@@ -1971,6 +2005,9 @@ async function completeSignUpFlow() {
 
     // v17.2 — must accept Terms + Privacy; no card is collected (free beta).
     if (!(document.getElementById('signup-terms-agree') || {}).checked) { showErr('Please agree to the Terms and Privacy Policy to continue.'); return; }
+
+    // v19 — bot check (only enforced when Turnstile is configured; no-op otherwise).
+    if (TURNSTILE_SITE_KEY && !_turnstileToken) { showErr('Please complete the "I’m human" check above.'); return; }
 
     // v17.2 — age / parental-consent (validated again here as a safety net)
     const dobVal = (document.getElementById('signup-dob') || {}).value || '';
