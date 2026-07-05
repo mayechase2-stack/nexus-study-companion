@@ -14968,9 +14968,11 @@ async function analyzeText() {
                 <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);letter-spacing:0.8px;margin-bottom:6px;">ANSWER</div>
                 <div id="ai-answer-text" style="color:white;font-size:0.95rem;line-height:1.5;"></div>
             </div>
-            <div style="padding:0 14px 12px;">
-                <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);letter-spacing:0.8px;margin-bottom:6px;">EXPLANATION</div>
-                <div id="ai-explanation-text" style="color:#d8dce5;font-size:0.88rem;line-height:1.6;"></div>
+            <div style="padding:0 14px 14px;">
+                <div style="background:rgba(108,92,231,0.06);border:1px solid rgba(108,92,231,0.22);border-radius:10px;padding:12px 14px;">
+                    <div style="font-size:0.72rem;font-weight:700;color:#a29bfe;letter-spacing:0.8px;margin-bottom:8px;display:flex;align-items:center;gap:7px;"><i class="ph ph-chalkboard-teacher"></i> EXPLANATION BOARD</div>
+                    <div id="ai-explanation-text" style="color:#e2e6f0;font-size:0.9rem;line-height:1.65;"></div>
+                </div>
             </div>`;
         const answerEl = document.getElementById('ai-answer-text');
         const explainEl = document.getElementById('ai-explanation-text');
@@ -15058,7 +15060,7 @@ MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. 
 STRICT JSON OUTPUT (no prose outside JSON):
 {
   "answer": "Exact answer in the format required by the question type. No filler phrases.",
-  "explanation": "1-3 sentences on WHY this is correct. For fill-in-the-blank: show the complete sentence with blank filled in. Cite the key principle/rule/formula by name.",
+  "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other"
 }
