@@ -14474,25 +14474,26 @@ async function helpMeLiveVision() {
     const systemPrompt = `You are NEXUS Tutor analyzing a problem on the student's screen. Return a STRICT JSON object (no prose outside it) with EXACTLY these keys:
 
 {
-  "concept": "<2–4 sentences that TEACH: name the concept, explain what it means in plain language, and give ONE concrete mini-example using DIFFERENT numbers than the problem so they learn the idea, not just the answer.>",
+  "concept": "<1–2 SHORT sentences: name the idea and what it means in plain language. Keep it tight — this is a reminder, not a lecture.>",
   "formula": "<the key rule/formula as a single line, or '' if none>",
-  "strategy": "<1–2 sentences on the overall game plan for THIS problem>",
+  "strategy": "<ONE sentence: the game plan for THIS problem.>",
   "steps": [
     {
-      "instruction": "<what the student should DO in this step — an action/question, e.g. 'List the x-values from the table.' Do NOT include the result.>",
-      "hints": ["<hint 1: a gentle nudge, does NOT repeat the strategy>", "<hint 2: more specific — the exact thing to look at or operation to use>", "<hint 3: almost gives it — the setup with only the final bit left>"],
+      "instruction": "<what the student DOES this step — a short action/question, e.g. 'Subtract 7 from both sides.' Do NOT include the result.>",
+      "hints": ["<hint 1: a gentle nudge, ONE short sentence, does NOT restate the instruction>", "<hint 2: the specific operation or thing to look at>", "<hint 3: almost the answer — the full setup with only the final calc left>"],
       "expect": "<the correct result of THIS step only — used to check the student's work>",
-      "why": "<1 sentence: WHY this step works / what it teaches, shown after they solve it>"
+      "why": "<ONE short sentence: why this step works, shown after they solve it>"
     }
   ],
   "answer": "<the final answer to the whole problem, as short as possible>"
 }
 
 RULES:
-- Teach thoroughly but concisely. "concept" must actually explain the idea with an example — not one dry sentence.
-- Break the solution into 2–5 real steps. Each step's "instruction" is a task the student performs; the RESULT goes only in "expect" (hidden).
-- "hints" must ESCALATE and must NOT just restate "strategy" or the "instruction". Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete setup. 2–3 hints per step.
-- Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ.
+- Be concise. "concept" and "strategy" are brief reminders, NOT paragraphs — students read this on phones/tablets.
+- Break the solution into 2–5 real steps. Each "instruction" is a task the student performs; the RESULT goes ONLY in "expect" (hidden from them).
+- "hints" MUST escalate and must NOT just restate "strategy" or "instruction". Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete. Keep EACH hint to one short sentence. 2–3 hints per step.
+- ACCURACY IS CRITICAL: after drafting, actually SOLVE it yourself. Verify each step's "expect" is correct and that the steps in order produce "answer". Recompute the final answer to be sure. Fix any mistake before returning.
+- Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ ° for math.
 - Reconstruct the intended problem from the image even if noisy. If unreadable: concept="", strategy="", steps=[], answer="", and put a note in concept asking them to retype it.`;
 
     const userParts = [
@@ -14545,11 +14546,15 @@ RULES:
         // 1) Work board (left): concept + strategy + the step INSTRUCTIONS (no results).
         const workEl = document.getElementById('vision-tutor-work');
         if (workEl) {
-            var stepList = window._lvSteps.map(function (s) { return '<li>' + esc(s.instruction || '') + '</li>'; }).join('');
+            // Compact: concept + strategy only. The step LIST is intentionally not
+            // printed here — the interactive solver on the right walks the steps one
+            // at a time, so duplicating the full list just made the panel very tall
+            // (especially on tablets). Show a one-line pointer instead. (v19)
+            var nSteps = window._lvSteps.length;
             workEl.innerHTML =
                 (parsed.concept ? '<div class="tutor-block tutor-block-concept"><h3>💡 The concept</h3><p>' + esc(parsed.concept) + '</p>' + (parsed.formula ? '<div class="tutor-formula"><code>' + esc(parsed.formula) + '</code></div>' : '') + '</div>' : '') +
                 (parsed.strategy ? '<div class="tutor-block tutor-block-strategy"><h3>🧭 Strategy</h3><p>' + esc(parsed.strategy) + '</p></div>' : '') +
-                (stepList ? '<div class="tutor-block tutor-block-steps"><h3>🪜 The steps</h3><ol>' + stepList + '</ol><p style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">Solve them one at a time in the panel on the right →</p></div>' : '') ||
+                (nSteps ? '<div class="tutor-block tutor-block-steps"><p style="margin:0;font-size:0.85rem;color:var(--text-muted);"><strong style="color:#a29bfe;">🪜 ' + nSteps + (nSteps === 1 ? ' step' : ' steps') + '</strong> — solve them in the panel on the right. Hints escalate if you get stuck.</p></div>' : '') ||
                 '<p style="color:var(--text-muted);">Couldn\'t read the problem clearly — try re-capturing.</p>';
         }
         if (typeof _showVisionWork === 'function') _showVisionWork();

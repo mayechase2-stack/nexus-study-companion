@@ -3045,7 +3045,15 @@ kbd {
     #live-vision-panel .vision-content {
         grid-template-columns: 1fr !important;
     }
-    .video-container { height: 200px !important; }
+    .video-container { height: 170px !important; }
+    /* v19 — on tablet/phone the panel stacks vertically, so cap the tall pieces
+       and let them scroll internally instead of pushing the page way down. The
+       interactive solver (solution panel) stays fully visible — that's what the
+       student acts on. */
+    #live-vision-panel .vision-board { max-height: 200px !important; }
+    #live-vision-panel #vision-tutor-work { max-height: 150px !important; }
+    #live-vision-panel .tutor-block { padding: 9px 12px !important; margin: 7px 0 !important; }
+    #live-vision-panel .tutor-block > p { font-size: 0.88rem !important; line-height: 1.5 !important; }
     /* Pomodoro + Lo-fi floating widgets fit at top */
     #pomodoro-widget, #lofi-player {
         bottom: auto !important;
@@ -3215,15 +3223,16 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
     background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
     border: 1px solid rgba(255,255,255,0.08);
     border-left: 4px solid rgba(108,92,231,0.6);
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin: 14px 0;
+    border-radius: 10px;
+    padding: 11px 14px;
+    margin: 9px 0;
     box-shadow: 0 2px 12px rgba(0,0,0,0.18);
     position: relative;
 }
+.tutor-block:first-child { margin-top: 0; }
 .tutor-block > h3 {
-    margin: 0 0 10px;
-    font-size: 1rem;
+    margin: 0 0 6px;
+    font-size: 0.92rem;
     color: #fff;
     letter-spacing: 0.3px;
     display: flex;
