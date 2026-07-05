@@ -1,14 +1,6 @@
-[[headers]]
-  for = "/*.html"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+# NEXUS is served by GitHub Pages, NOT Netlify. This file exists only to stop a
+# still-linked Netlify site from wasting build credits on every push: the `ignore`
+# command below returns exit 0, which tells Netlify to CANCEL the build every time.
+# To fully disconnect, delete the site in the Netlify dashboard (see docs/OPERATIONS_RUNBOOK.md).
+[build]
+  ignore = "true"
