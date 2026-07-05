@@ -700,9 +700,18 @@ window.showStudyMemory = showStudyMemory;
             if (u.indexOf('api.openai.com/v1/chat/completions') >= 0 && !hasPersonal) {
                 let body = {};
                 try { body = JSON.parse((opts && opts.body) || '{}'); } catch (_) {}
+                // On the hosted path (no personal key), prefer gpt-4o-mini for TEXT
+                // requests. gpt-4o has a tiny per-minute token limit on unfunded /
+                // low-tier OpenAI accounts and returns "Request too large"; mini has
+                // far higher limits and handles schoolwork well. Vision (image)
+                // requests still use gpt-4o because mini can't read images. Once the
+                // OpenAI account is funded to Tier 1+, this can prefer gpt-4o again.
+                const _hostHasImage = (body.messages || []).some(function (m) {
+                    return m && Array.isArray(m.content) && m.content.some(function (p) { return p && p.type === 'image_url'; });
+                });
                 const res = await callHostedAI({
                     messages: body.messages || [],
-                    model: body.model,
+                    model: _hostHasImage ? 'gpt-4o' : 'gpt-4o-mini',
                     temperature: body.temperature,
                     max_tokens: body.max_tokens || body.max_completion_tokens,
                     response_format: body.response_format
