@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: SERVICE,
+      apikey: ANON, // MUST be the anon key so the user's Bearer token sets auth.uid()
       Authorization: `Bearer ${token}`, // run as the caller so auth.uid() is set
     },
     body: JSON.stringify({
@@ -173,22 +173,32 @@ Deno.serve(async (req) => {
   }
 
   // ── 6. Call OpenAI (non-streaming; the client synthesizes SSE) ─────────
+  // Graceful fallback: on a low-tier / unfunded account gpt-4o has a very small
+  // per-minute limit and returns "Request too large". If that happens we retry
+  // once on gpt-4o-mini (much higher limit, cheaper) so the student still gets an
+  // answer. On a funded account gpt-4o is used normally.
   const maxTok = Math.min(Number(body?.max_tokens) || 1024, MAX_OUTPUT_TOKENS);
-  const payload: any = { model, messages, max_tokens: maxTok };
-  if (typeof body?.temperature === "number") payload.temperature = body.temperature;
-  if (body?.response_format) payload.response_format = body.response_format;
-
-  let content = "";
-  try {
+  async function callModel(useModel: string) {
+    const payload: any = { model: useModel, messages, max_tokens: maxTok };
+    if (typeof body?.temperature === "number") payload.temperature = body.temperature;
+    if (body?.response_format) payload.response_format = body.response_format;
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_KEY}` },
       body: JSON.stringify(payload),
     });
-    const d = await r.json();
+    return { r, d: await r.json() };
+  }
+  let content = "";
+  try {
+    let { r, d } = await callModel(model);
+    if (!r.ok && model !== "gpt-4o-mini" &&
+        /too large|tokens per min|rate limit|TPM|quota|429|413/i.test(JSON.stringify(d || {}))) {
+      ({ r, d } = await callModel("gpt-4o-mini")); // retry on the higher-limit model
+    }
     if (!r.ok) return json({ error: d?.error?.message ?? "AI provider error." }, 502);
     content = d?.choices?.[0]?.message?.content ?? "";
-  } catch (e) {
+  } catch {
     return json({ error: "AI request failed." }, 502);
   }
 
