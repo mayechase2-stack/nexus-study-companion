@@ -1878,16 +1878,11 @@ function openSignInModal() {
     // Readonly trick: Chrome autofill skips readonly fields.
     // We set readonly, let autofill fire and find nothing to fill,
     // then remove readonly 300ms later so the user can type normally.
-    if (u) {
-        u.value = '';
-        u.setAttribute('readonly', 'readonly');
-        setTimeout(() => { u.removeAttribute('readonly'); u.focus(); }, 300);
-    }
-    if (p) {
-        p.value = '';
-        p.setAttribute('readonly', 'readonly');
-        setTimeout(() => p.removeAttribute('readonly'), 300);
-    }
+    // v19 — removed the old readonly-autofill hack. It left the fields un-typeable
+    // for 300ms (and signOut left them stuck readonly), so typing/pasting a login
+    // "voided". The autocomplete attributes on the inputs handle autofill fine.
+    if (u) { u.value = ''; setTimeout(() => { try { u.focus(); } catch (_) {} }, 50); }
+    if (p) { p.value = ''; }
 }
 
 function closeSignInModal() {
@@ -2414,8 +2409,8 @@ function signOut() {
     // Blank the sign-in form and mark readonly so Chrome autofill can't re-fill it
     const uField = document.getElementById('auth-username');
     const pField = document.getElementById('auth-password');
-    if (uField) { uField.value = ''; uField.setAttribute('readonly', 'readonly'); }
-    if (pField) { pField.value = ''; pField.setAttribute('readonly', 'readonly'); }
+    if (uField) { uField.value = ''; uField.removeAttribute('readonly'); }
+    if (pField) { pField.value = ''; pField.removeAttribute('readonly'); }
 
     // Show the auth overlay immediately — NO reload, no navigation, no race
     // conditions. Force it above any remaining app chrome so the Sign In button
@@ -2751,7 +2746,9 @@ function toggleSettings() {
     // v12.0 — Show the EmailJS owner panel and prefill it
     const emailjsPanel = document.getElementById('emailjs-config-panel');
     if (emailjsPanel) {
-        const showIt = (typeof isOwner === 'function') && isOwner();
+        // v19 — EmailJS is a dormant dev-only tool; keep it hidden so it doesn't
+        // clutter the owner's Settings. Flip to isOwner() if welcome emails are set up.
+        const showIt = false;
         emailjsPanel.style.display = showIt ? 'block' : 'none';
         if (showIt) {
             const cfg = getEmailJSConfig();
