@@ -1373,14 +1373,13 @@
 <!-- Quick Actions -->
                 <h3 style="margin-bottom:16px;color:var(--text-muted);font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;">AI Tools</h3>
                 <div class="card-grid">
-                    <!-- Live Vision AI - Unique Feature -->
+                    <!-- Live Vision AI - Unique Feature (screen-share only; desktop/laptop web browsers) -->
                     <div class="card glass-panel" onclick="startLiveVision()" style="background: linear-gradient(135deg, rgba(0, 206, 201, 0.1), rgba(108, 92, 231, 0.1)); border: 1px solid var(--accent);">
                         <div class="icon-glow cyan"><i class="ph ph-broadcast"></i></div>
-                        <h3>Live Vision AI</h3>
-                        <p>Share your screen — or use your camera on a tablet/phone</p>
+                        <h3>Live Vision AI <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#00CEC9;background:rgba(0,206,201,0.14);border:1px solid rgba(0,206,201,0.35);padding:2px 7px;border-radius:999px;vertical-align:middle;margin-left:6px;">Web only</span></h3>
+                        <p>Share your screen and the tutor reads the problem. Works in a desktop or laptop web browser.</p>
                         <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
                             <button class="btn-primary" style="width:100%;white-space:nowrap;"><i class="ph ph-broadcast"></i> Share Screen</button>
-                            <button class="btn-secondary" style="width:100%;white-space:nowrap;" onclick="event.stopPropagation();startLiveVisionCamera()" title="Use your camera — great for tablets, phones, or paper worksheets"><i class="ph ph-camera"></i> Use Camera</button>
                         </div>
                     </div>
 
@@ -1580,7 +1579,6 @@
                     <div class="panel-header">
                         <h2><i class="ph ph-eye"></i> Vision Active</h2>
                         <div style="display:flex;gap:6px;">
-                            <button class="btn-icon" onclick="flipLiveVisionCamera()" title="Flip camera (camera mode)"><i class="ph ph-camera-rotate"></i></button>
                             <button class="btn-icon" onclick="stopLiveVision()" title="Stop"><i class="ph ph-x"></i></button>
                         </div>
                     </div>

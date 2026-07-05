@@ -312,7 +312,7 @@ function _nexusTabletWelcome() {
         localStorage.setItem('tablet_welcomed', '1');
         setTimeout(function () {
             if (typeof showToast === 'function') {
-                showToast('👋 Welcome! On a tablet or phone, NEXUS is fully touch-ready — Live Vision works with your camera (tap "Use Camera"), and the tutor floats in a mini window.', 'info', 8000);
+                showToast('👋 Welcome! On a tablet or phone, NEXUS is fully touch-ready. Note: Live Vision (screen sharing) is web-only — use it on a desktop or laptop browser; everything else works great here.', 'info', 8000);
             }
         }, 2600);
     } catch (_) {}
@@ -1086,12 +1086,12 @@ function _liveVisionScreenShareSupported() {
 }
 
 async function startLiveVision() {
-    // v19 (#1) — on tablets/phones that can't screen-share, go straight to camera
-    // so every user gets Live Vision (our flagship). Screen-share stays the path
-    // wherever it actually works.
+    // v19 — Live Vision is WEB-ONLY (screen sharing). Devices that can't screen-share
+    // (iPad/iPhone/most tablets) are told to use a desktop or laptop browser instead
+    // of falling back to the camera.
     if (!_liveVisionScreenShareSupported()) {
-        showToast("Screen sharing isn't available on this device — using your camera. Point it at your work.", 'info', 5000);
-        return startLiveVisionCamera();
+        showToast("📺 Live Vision is web-only — it shares your screen, which needs a desktop or laptop web browser. Open NEXUS on a computer to use it.", 'info', 6500);
+        return;
     }
     try {
         // Clean restart — if a session is somehow still active, tear it down first
@@ -1122,9 +1122,9 @@ async function startLiveVision() {
         // If the browser simply can't screen-share, fall back to the camera
         // instead of failing outright.
         if (err && (err.name === 'NotSupportedError' || err.name === 'NotFoundError' || err.name === 'NotReadableError' || err.name === 'TypeError')) {
-            showToast("Screen sharing didn't work here — switching to your camera.", 'info', 4500);
+            showToast("Live Vision is web-only and needs screen sharing — try a desktop or laptop web browser (Chrome/Edge).", 'info', 5500);
             if (window._logNexusError) window._logNexusError('live-vision-start-fallback', err && err.message);
-            return startLiveVisionCamera();
+            return;
         }
         // Don't nag if the user simply cancelled the screen-picker dialog.
         if (err && err.name !== 'NotAllowedError') showToast("Could not start screen share.", 'error');
@@ -1132,11 +1132,15 @@ async function startLiveVision() {
     }
 }
 
-// v19 (#1) — Camera-based Live Vision for tablets/phones. Uses the rear camera by
-// default (best for pointing at a worksheet or a second screen) and reuses the
-// exact same #screen-video pipeline, so the "Work it out" board and "Help me"
-// capture work identically.
+// Camera-based Live Vision has been RETIRED (v19). Live Vision is now web-only
+// (screen sharing on desktop/laptop browsers). This stub remains only so any
+// lingering caller fails safe with a clear message instead of opening the camera.
 async function startLiveVisionCamera(front) {
+    if (typeof showToast === 'function') {
+        showToast("📺 Live Vision is web-only — it shares your screen and needs a desktop or laptop web browser.", 'info', 6000);
+    }
+    return;
+    // eslint-disable-next-line no-unreachable
     try {
         if (mediaStream) { try { stopLiveVision(); } catch (_) {} }
         const video = document.getElementById('screen-video');
