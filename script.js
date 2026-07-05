@@ -260,6 +260,124 @@ async function changeAccountEmail() {
     }
 }
 window.changeAccountEmail = changeAccountEmail;
+
+// ════════════════════════════════════════════════════════════════════
+// v19 — PASSWORD RESET ("Forgot password?")
+// Uses Supabase's email recovery. On return from the emailed link, the user
+// sets a new password; we update the cloud password AND sync the local hash so
+// the normal username/password sign-in works with the new password too.
+// ════════════════════════════════════════════════════════════════════
+function _nexusModal(innerHtml) {
+    var old = document.getElementById('nexus-reset-modal'); if (old) old.remove();
+    var m = document.createElement('div');
+    m.id = 'nexus-reset-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.88);backdrop-filter:blur(8px);z-index:100050;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.innerHTML = '<div class="glass-panel" style="max-width:420px;width:100%;padding:24px;border:1px solid rgba(108,92,231,0.4);border-radius:16px;">' + innerHtml + '</div>';
+    m.addEventListener('click', function (e) { if (e.target === m) m.remove(); });
+    document.body.appendChild(m);
+    return m;
+}
+async function nexusRequestPasswordReset() {
+    if (!nexusSB) _initSupabase();
+    if (!nexusSB) { showToast('Cloud not available right now — try again in a moment.', 'error'); return; }
+    var typedUser = ((document.getElementById('auth-username') || {}).value || '').trim();
+    var knownEmail = typedUser ? (localStorage.getItem('auth_email_' + typedUser) || '') : '';
+    _nexusModal(
+        '<h2 style="margin:0 0 6px;font-size:1.2rem;color:#fff;">Reset your password</h2>' +
+        '<p style="margin:0 0 14px;color:var(--text-muted);font-size:0.85rem;">Enter your account email — we\'ll send a link to set a new password.</p>' +
+        '<input id="nexus-reset-email" type="email" value="' + (knownEmail || '') + '" placeholder="you@example.com" style="width:100%;box-sizing:border-box;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:#fff;outline:none;font-size:0.95rem;margin-bottom:6px;">' +
+        '<div id="nexus-reset-note" style="font-size:0.82rem;min-height:18px;margin-bottom:8px;"></div>' +
+        '<div style="display:flex;gap:8px;"><button onclick="document.getElementById(\'nexus-reset-modal\').remove()" class="btn-secondary" style="flex:1;">Cancel</button>' +
+        '<button onclick="_nexusSendReset()" class="btn-primary" style="flex:2;">Send reset link</button></div>'
+    );
+    setTimeout(function () { var f = document.getElementById('nexus-reset-email'); if (f && !knownEmail) f.focus(); }, 60);
+}
+async function _nexusSendReset() {
+    var note = document.getElementById('nexus-reset-note');
+    var setNote = function (m, ok) { if (note) { note.textContent = m; note.style.color = ok ? '#7bed9f' : '#ff9a9a'; } };
+    var email = ((document.getElementById('nexus-reset-email') || {}).value || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setNote('Enter a valid email.'); return; }
+    try {
+        setNote('Sending…', true);
+        var res = await nexusSB.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+        if (res && res.error) throw res.error;
+        var m = document.getElementById('nexus-reset-modal'); if (m) m.remove();
+        showToast('✅ If an account exists for ' + email + ', a reset link is on its way. Check your inbox (and spam).', 'success', 8000);
+    } catch (e) {
+        setNote('Could not send: ' + ((e && e.message) || e));
+    }
+}
+// Shown when the user returns from the recovery email link.
+function _nexusShowSetNewPassword() {
+    if (document.getElementById('nexus-reset-modal')) return; // already open
+    _nexusModal(
+        '<h2 style="margin:0 0 6px;font-size:1.2rem;color:#fff;">Set a new password</h2>' +
+        '<p style="margin:0 0 14px;color:var(--text-muted);font-size:0.85rem;">Choose a new password for your NEXUS account.</p>' +
+        '<input id="nexus-newpass" type="password" placeholder="New password (8+ chars, 1 upper, 1 number)" style="width:100%;box-sizing:border-box;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:#fff;outline:none;font-size:0.95rem;margin-bottom:8px;">' +
+        '<input id="nexus-newpass2" type="password" placeholder="Confirm new password" style="width:100%;box-sizing:border-box;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:#fff;outline:none;font-size:0.95rem;margin-bottom:6px;">' +
+        '<div id="nexus-newpass-note" style="font-size:0.82rem;min-height:18px;margin-bottom:8px;"></div>' +
+        '<button onclick="_nexusSetNewPassword()" class="btn-primary" style="width:100%;">Update password</button>'
+    );
+}
+async function _nexusSetNewPassword() {
+    var note = document.getElementById('nexus-newpass-note');
+    var setNote = function (m, ok) { if (note) { note.textContent = m; note.style.color = ok ? '#7bed9f' : '#ff9a9a'; } };
+    var p1 = (document.getElementById('nexus-newpass') || {}).value || '';
+    var p2 = (document.getElementById('nexus-newpass2') || {}).value || '';
+    var strongOk = (typeof validatePasswordStrict === 'function') ? validatePasswordStrict(p1) : (p1.length >= 8);
+    if (!strongOk) { setNote('Password needs 8+ chars, 1 uppercase, and 1 number.'); return; }
+    if (p1 !== p2) { setNote('Passwords don\'t match.'); return; }
+    try {
+        if (!nexusSB) _initSupabase();
+        setNote('Updating…', true);
+        var up = await nexusSB.auth.updateUser({ password: p1 });
+        if (up && up.error) throw up.error;
+        // Sync the LOCAL sign-in hash so username/password login works with the new password.
+        var email = (up && up.data && up.data.user && up.data.user.email) || '';
+        var hash = await hashPassword(p1);
+        var uname = null;
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('auth_email_') === 0 && (localStorage.getItem(k) || '').toLowerCase() === email.toLowerCase()) { uname = k.slice('auth_email_'.length); break; }
+        }
+        if (uname && typeof getAuthRegistry === 'function') {
+            var reg = getAuthRegistry() || {}; reg[uname] = hash; localStorage.setItem('auth_users', JSON.stringify(reg));
+        }
+        var m = document.getElementById('nexus-reset-modal'); if (m) m.remove();
+        try { history.replaceState({}, '', location.pathname); } catch (_) {}
+        if (uname) {
+            // Log them straight in with the new credentials.
+            localStorage.setItem('auth_user', uname);
+            localStorage.setItem('auth_pass', hash);
+            if (typeof restoreAccountState === 'function') restoreAccountState(uname);
+            if (typeof completeLogin === 'function') completeLogin();
+            showToast('✅ Password updated — you\'re signed in.', 'success', 5000);
+        } else {
+            showToast('✅ Password updated. Please sign in with your new password.', 'success', 6000);
+            if (typeof openSignInModal === 'function') openSignInModal();
+        }
+    } catch (e) {
+        setNote('Could not update: ' + ((e && e.message) || e));
+    }
+}
+window.nexusRequestPasswordReset = nexusRequestPasswordReset;
+window._nexusSendReset = _nexusSendReset;
+window._nexusSetNewPassword = _nexusSetNewPassword;
+// Detect the return from the recovery email link and prompt for a new password.
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+        try {
+            if (!nexusSB) _initSupabase();
+            if (nexusSB && nexusSB.auth && nexusSB.auth.onAuthStateChange) {
+                nexusSB.auth.onAuthStateChange(function (event) {
+                    if (event === 'PASSWORD_RECOVERY') _nexusShowSetNewPassword();
+                });
+            }
+            // Fallback: the recovery link puts type=recovery in the URL hash.
+            if ((location.hash || '').indexOf('type=recovery') >= 0) setTimeout(_nexusShowSetNewPassword, 900);
+        } catch (_) {}
+    }, 500);
+});
 // v19 — Continue with Google via Supabase OAuth (enable the Google provider in
 // Supabase → Authentication → Providers, with a Google OAuth Client ID).
 async function cloudGoogleSignIn() {
@@ -4393,6 +4511,16 @@ function _renderBookDescription(raw) {
     s = s.split(/\n{2,}/).map(p => `<p style="margin:0 0 10px;">${p.replace(/\n/g, '<br>')}</p>`).join('');
     return s;
 }
+
+// Close the book-reader panel. The X button calls this; it was referenced in the
+// markup but never defined, so the close button did nothing. (v19 fix)
+function closeBookReader() {
+    const reader = document.getElementById('book-reader');
+    if (reader) reader.classList.remove('open');
+    const summaryOut = document.getElementById('book-summary-output');
+    if (summaryOut) summaryOut.classList.add('hidden');
+}
+window.closeBookReader = closeBookReader;
 
 async function openBook(key, title, author, coverId) {
     const reader = document.getElementById('book-reader');

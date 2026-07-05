@@ -768,11 +768,14 @@
                         onkeydown="if(event.key==='Enter') handleAuthSubmit()">
                 </div>
                 <!-- v12.0 — Remember me toggle -->
-                <label for="auth-remember-me" style="display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;color:var(--text-muted);font-size:0.85rem;">
-                    <input type="checkbox" id="auth-remember-me"
-                        style="width:16px;height:16px;accent-color:#6C5CE7;cursor:pointer;">
-                    <span>Remember me on this device</span>
-                </label>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:18px;">
+                    <label for="auth-remember-me" style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-muted);font-size:0.85rem;">
+                        <input type="checkbox" id="auth-remember-me"
+                            style="width:16px;height:16px;accent-color:#6C5CE7;cursor:pointer;">
+                        <span>Remember me on this device</span>
+                    </label>
+                    <a href="#" onclick="event.preventDefault();nexusRequestPasswordReset();" style="color:var(--accent);text-decoration:none;font-size:0.82rem;white-space:nowrap;">Forgot password?</a>
+                </div>
                 <button class="btn-primary" style="width:100%;padding:13px;font-size:1rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;font-weight:600;border-radius:10px;cursor:pointer;color:white;display:inline-flex;align-items:center;justify-content:center;gap:8px;"
                     onclick="handleAuthSubmit()">
                     <svg width="18" height="18" style="color:#fff;"><use href="#ic-sign-in"/></svg> Sign In
@@ -3900,18 +3903,27 @@ if __name__ == '__main__':
                     </div>
                     <!-- MODES -->
                     <div class="settings-tab-pane" data-pane="modes" style="display:none;">
-                        <h3 style="margin:0 0 14px;color:white;font-size:1.1rem;">Tutoring Modes</h3>
-                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Pick how the AI teaches you. You can switch between modes anytime.</p>
+                        <h3 style="margin:0 0 6px;color:white;font-size:1.1rem;">Tutoring Modes</h3>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">NEXUS has <strong style="color:#fff;">two ways to help</strong> — that's it, and they never go away. Pick your default here; you can switch anytime in Settings.</p>
                         <div style="display:grid;gap:10px;">
                             <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:rgba(168,85,247,0.05);border-radius:10px;cursor:pointer;border:1px solid rgba(168,85,247,0.2);transition:border-color 0.2s;" id="mode-tutor-label">
                                 <input type="radio" name="difficulty-mode" value="tutor" id="mode-tutor" checked style="width:18px;height:18px;accent-color:#a855f7;margin-top:2px;cursor:pointer;" onchange="updateModePreview()">
-                                <div><div style="font-weight:600;color:#a855f7;">Tutor Mode <span style="font-size:0.7rem;background:#a855f7;color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;">DEFAULT</span></div><p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Full step-by-step walkthrough with reasoning at every step. Restate → Plan → Each Step → Check → Final Answer. Best for actually learning the material.</p></div>
+                                <div>
+                                    <div style="font-weight:600;color:#a855f7;">🎓 Tutor Mode <span style="font-size:0.7rem;background:#a855f7;color:#000;padding:2px 6px;border-radius:4px;margin-left:6px;">DEFAULT</span></div>
+                                    <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);line-height:1.5;"><strong style="color:#cdb4f0;">Walks you through it so you learn.</strong> Guides you step by step with hints and checks instead of just handing over the answer.</p>
+                                    <p style="margin:6px 0 0;font-size:0.72rem;color:#8a90a2;line-height:1.4;"><em>Ask "solve 2x + 3 = 9" → "First, what undoes the +3? Try that on both sides."</em></p>
+                                </div>
                             </label>
                             <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:rgba(0,206,201,0.05);border-radius:10px;cursor:pointer;border:1px solid rgba(0,206,201,0.2);transition:border-color 0.2s;" id="mode-casual-label">
                                 <input type="radio" name="difficulty-mode" value="casual" id="mode-casual" style="width:18px;height:18px;accent-color:#00cec9;margin-top:2px;cursor:pointer;" onchange="updateModePreview()">
-                                <div><div style="font-weight:600;color:#00cec9;">Casual Mode</div><p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);line-height:1.5;">Instant answer first, minimal explanation. For quick checks when you already know the material.</p></div>
+                                <div>
+                                    <div style="font-weight:600;color:#00cec9;">⚡ Casual Mode</div>
+                                    <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);line-height:1.5;"><strong style="color:#8fe6e2;">Just the answer, fast.</strong> Gives the direct answer with a short explanation — for quick checks when you already get it.</p>
+                                    <p style="margin:6px 0 0;font-size:0.72rem;color:#8a90a2;line-height:1.4;"><em>Ask "solve 2x + 3 = 9" → "x = 3. (Subtract 3, then divide by 2.)"</em></p>
+                                </div>
                             </label>
                         </div>
+                        <p style="font-size:0.75rem;color:#8a90a2;margin-top:12px;line-height:1.5;"><i class="ph ph-info" style="color:var(--accent);"></i> Tip: Tutor Mode is the one teachers love — it helps you understand, not just finish. Live Vision always coaches step-by-step regardless of this setting.</p>
                     </div>
                     <!-- AI BEHAVIOR (v10.6) -->
                     <div class="settings-tab-pane" data-pane="ai" style="display:none;">
