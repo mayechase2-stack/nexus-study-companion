@@ -15306,6 +15306,12 @@ CRITICAL OUTPUT RULES — READ CAREFULLY:
 - For math expressions, use UNICODE characters and HTML, not LaTeX. Example: write "x² + 5" not "x^2 + 5" or "\\(x^{2} + 5\\)". Write fractions as (numerator)/(denominator) or use the actual ⁄ character or build them with HTML.
 - ZERO markdown leakage. If you write ** or \\[ in your response, the answer breaks for the student.
 
+ANSWER ACCURACY — MANDATORY (do this silently before writing the Final Answer):
+- Recompute the final answer a SECOND, independent way and confirm both agree. If they disagree, find your mistake and fix it — never present an unverified answer.
+- Watch the classic slip-ups: SIGNS (negatives), fraction order, and units.
+- Slope / rate of change: m = (y₂ − y₁) / (x₂ − x₁). Plug the points in carefully, keep the subtraction order consistent in numerator and denominator, and double-check the sign. Simplify the fraction; do NOT round a fraction to a whole number.
+- Substitute your answer back into the original equation/problem to confirm it actually works, and show that check.
+
 IMAGE READING (when an image is attached):
 - READ the image carefully first — quote the exact problem text/equation BEFORE solving so the student sees you understood it correctly.
 - If the image shows handwritten work, transcribe the equation in clean notation at the top of your response.
