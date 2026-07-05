@@ -1,17 +1,32 @@
 # NEXUS — Operations Runbook
 
-Purpose: let Chase — or, in an emergency, a trusted adult with access to the accounts below — operate, fix, or safely shut down NEXUS. Written for someone competent but unfamiliar with the codebase. Last updated: July 3, 2026.
+Purpose: let Chase — or, in an emergency, a trusted adult with access to the accounts below — operate, fix, or safely shut down NEXUS. Written for someone competent but unfamiliar with the codebase. Last updated: July 5, 2026.
 
 ## The moving parts
 
 | Piece | Where | What it does |
 |---|---|---|
-| Front end | GitHub repo `mayechase2-stack/nexus-study-companion` → GitHub Pages, domain nexusasc.com (Cloudflare DNS + CNAME file in repo) | The whole visible app (index.html + script.js + style.css) |
+| Front end | GitHub repo `mayechase2-stack/nexus-study-companion` → **GitHub Pages** (NOT Netlify), domain nexusasc.com (Cloudflare DNS + CNAME file in repo) | The whole visible app (index.html + script.js + style.css) |
 | Backend | Supabase project `hmgouywiiqukisupqbsq` | Auth, Postgres (user data, RLS), Edge Functions |
-| Edge Functions | Supabase dashboard → Edge Functions (`ai`, `checkout`) — **source lives only in Supabase, not in the repo** | AI proxy to OpenAI; Stripe checkout |
+| Edge Functions | Supabase dashboard → Edge Functions (`ai`, `checkout`, `stripe-webhook`) — source now versioned in the repo under `supabase/functions/` | AI proxy to OpenAI; Stripe checkout + webhook |
 | AI provider | OpenAI platform account | Serves gpt-4o / gpt-4o-mini via the `ai` function |
-| Payments | Stripe account (test mode, dormant) | Future billing |
+| Payments | Stripe account (test mode, dormant until launch) | Future billing |
 | Email | support@nexusasc.com (forwarded inbox); EmailJS (not configured) | Support + future receipts |
+
+## Hosting — GitHub Pages only (Netlify is being retired)
+
+The live site is served by **GitHub Pages**, confirmed by the response headers
+(`Server: GitHub.com`). Netlify does **not** serve nexusasc.com.
+
+A leftover Netlify site is still linked to the repo and was building on every push,
+burning Netlify credits. Mitigation in the repo: `netlify.toml` now contains
+`[build] ignore = "true"`, which makes Netlify cancel every build (no more credit
+drain). **To fully cut Netlify (do this once):**
+1. app.netlify.com → open the NEXUS site.
+2. Site configuration → Build & deploy → Continuous deployment → **Unlink repository**,
+   or Site configuration → Danger zone → **Delete this site** (cleaner).
+3. This is safe — nexusasc.com is on GitHub Pages and is unaffected. Deleting the
+   Netlify site also removes any outdated `*.netlify.app` public copy of the app.
 
 ## Deploy / rollback
 
@@ -41,12 +56,11 @@ Purpose: let Chase — or, in an emergency, a trusted adult with access to the a
 
 **Steps:** contain (rotate secrets / disable function) → assess via Supabase logs (Functions → Logs; Auth → Logs) → fix → notify affected users (and parents for under-13 accounts) per the WISP → write a 5-line post-mortem in this file's changelog.
 
-**Watch-fors:** OpenAI spend (platform usage page — no cap is set yet **[fix: set one]**), Supabase egress/DB size, GitHub Pages status (githubstatus.com).
+**Watch-fors:** OpenAI spend (platform usage page — hard cap set in the OpenAI billing dashboard), Supabase egress/DB size, GitHub Pages status (githubstatus.com), Netlify credit emails (until the site is deleted — see Hosting section).
 
 ## Known gaps (tracked in GA plan)
 
 - No server-side alerting or status page yet — failures surface via user email only.
-- Edge Function source isn't in the repo — copy it into `supabase/functions/` and commit, so it's versioned and survivable.
 - No second operator: if Chase is unreachable, this runbook + password-manager emergency access is the plan.
 
 ## Emergency contacts / accounts
