@@ -14612,27 +14612,27 @@ async function helpMeLiveVision() {
     const systemPrompt = `You are NEXUS Tutor analyzing a problem on the student's screen. Return a STRICT JSON object (no prose outside it) with EXACTLY these keys:
 
 {
-  "concept": "<1–2 SHORT sentences: name the idea and what it means in plain language. Keep it tight — this is a reminder, not a lecture.>",
+  "concept": "<2–3 clear sentences that actually TEACH: name the idea, explain what it means in plain language, and give the intuition for WHY it works. This is the reminder a student needs to understand the topic — make it genuinely helpful, not one dry line.>",
   "formula": "<the key rule/formula as a single line, or '' if none>",
-  "strategy": "<ONE sentence: the game plan for THIS problem.>",
+  "strategy": "<1–2 sentences: the game plan for THIS specific problem and why that approach fits.>",
   "steps": [
     {
-      "instruction": "<what the student DOES this step — a short action/question, e.g. 'Subtract 7 from both sides.' Do NOT include the result.>",
-      "hints": ["<hint 1: a gentle nudge, ONE short sentence, does NOT restate the instruction>", "<hint 2: the specific operation or thing to look at>", "<hint 3: almost the answer — the full setup with only the final calc left>"],
+      "instruction": "<what the student DOES this step — a clear action/question, e.g. 'Subtract 7 from both sides.' Do NOT include the result.>",
+      "hints": ["<hint 1: a gentle nudge toward the idea, does NOT restate the instruction>", "<hint 2: name the specific operation or thing to look at>", "<hint 3: almost the answer — the full setup with only the final calc left>"],
       "expect": "<the correct result of THIS step only — used to check the student's work>",
-      "why": "<ONE short sentence: why this step works, shown after they solve it>"
+      "why": "<1–2 sentences: WHY this step works and what it accomplishes, shown after they solve it. Teach here, don't just label.>"
     }
   ],
   "answer": "<the final answer to the whole problem, as short as possible>"
 }
 
 RULES:
-- Be concise. "concept" and "strategy" are brief reminders, NOT paragraphs — students read this on phones/tablets.
+- READ THE IMAGE CAREFULLY FIRST. Reconstruct the EXACT problem (numbers, signs, exponents, coordinates). Most wrong answers come from misreading the screen — do not guess. If genuinely unreadable: concept="", strategy="", steps=[], answer="", and put a note in concept asking them to retype it.
+- ACCURACY IS THE TOP PRIORITY. Silently SOLVE the whole problem yourself first, then build the steps to match YOUR verified solution. Recompute the final answer a second, independent way and confirm both agree. Substitute the answer back into the original problem to check it works. Watch the classic slips: SIGNS (negatives), fraction order, exponents, and units. For slope/rate: m = (y₂−y₁)/(x₂−x₁) — keep the subtraction order consistent, mind the sign, and NEVER round a fraction to a whole number. If your check fails, fix it before returning. A wrong answer is worse than no answer.
+- Teaching quality matters: "concept" and each "why" should help the student actually UNDERSTAND, not just see labels. Be clear and encouraging, but keep it readable on a phone (short paragraphs, no walls of text).
 - Break the solution into 2–5 real steps. Each "instruction" is a task the student performs; the RESULT goes ONLY in "expect" (hidden from them).
-- "hints" MUST escalate and must NOT just restate "strategy" or "instruction". Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete. Keep EACH hint to one short sentence. 2–3 hints per step.
-- ACCURACY IS CRITICAL: after drafting, actually SOLVE it yourself. Verify each step's "expect" is correct and that the steps in order produce "answer". Recompute the final answer to be sure. Fix any mistake before returning.
-- Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ ° for math.
-- Reconstruct the intended problem from the image even if noisy. If unreadable: concept="", strategy="", steps=[], answer="", and put a note in concept asking them to retype it.`;
+- "hints" MUST escalate: Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete. 2–3 hints per step, and they must not just restate the instruction.
+- Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ ° for math.`;
 
     const userParts = [
         { type: 'text', text: ocrText
