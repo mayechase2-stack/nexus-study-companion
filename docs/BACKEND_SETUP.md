@@ -75,20 +75,26 @@ message — that's the protection working.
    `supabase functions deploy stripe-webhook --no-verify-jwt`
    (Dashboard: create the function, paste the file, then toggle "Enforce JWT" **off**.)
 
-## 5. Make your checkout pass the user id (important)
+## 5. Deploy the checkout function (links payments to accounts)
 
-Your existing `checkout` function must tell the webhook *who* paid and *what* they
-bought, or entitlements can't be written. When it creates the Checkout Session, set:
+`supabase/functions/checkout/index.ts` is now provided — it stamps the user id +
+chosen modules onto the Stripe session so the webhook can credit the right
+account (without this, a completed payment can't be linked to anyone).
 
-```
-client_reference_id: <the supabase user id>
-subscription_data: { metadata: { user_id: <id>, modules: "math,science,english,social" } }
-```
+1. Supabase → **Edge Functions → checkout** → paste `checkout/index.ts` → **Deploy**.
+   (If a `checkout` function already exists from before, replace its code with this.)
+2. Secrets: it needs `STRIPE_SECRET_KEY` (same one as the webhook). The Supabase
+   keys are auto-provided.
+3. It matches the client call already in `script.js` (`_pbConfirm` → POST
+   `/functions/v1/checkout` with `{ modules, priceId, successUrl, cancelUrl }`),
+   so no front-end change is needed.
 
-Then module access is real: the `ai` function reads `profiles.tier`, and you gate
-features off `subscriptions.modules` — the browser only *reflects* it.
+The full loop is now: **checkout** stamps `user_id` + `modules` → **stripe-webhook**
+writes the verified entitlement to `subscriptions` + `profiles` → the **ai** function
+reads `profiles.tier` for the allotment. The browser only *reflects* entitlement,
+never grants it.
 
-Test with a Stripe **test-mode** card (`4242 4242 4242 4242`) end-to-end before going live.
+Test end-to-end with a Stripe **test-mode** card (`4242 4242 4242 4242`) before going live.
 
 ## 6. (Optional) Turn on the bot check
 
