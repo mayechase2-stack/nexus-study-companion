@@ -14603,20 +14603,29 @@ function toggleVisionScratch() {
 // first (fast/free), then an AI equivalence check for things like 12/4 == 3.
 async function _lvCheckEquivalent(attempt, expected) {
     var norm = function (s) { return String(s).toLowerCase().replace(/\s+/g, '').replace(/[^\w./-]/g, ''); };
-    if (!expected) return false;
-    if (norm(attempt) === norm(expected)) return true;
+    if (!expected || !attempt) return false;
+    if (norm(attempt) === norm(expected)) return true;   // exact/normalized match — no AI needed
     try {
         var apiKey = getApiKey();
+        if (!apiKey) return false;
+        // Use a JSON response, NOT a "yes"/"no" word. json_object mode makes the
+        // app's fetch interceptor skip the language + memory injection, so the
+        // reply is language-neutral and can't come back as "sí"/"oui"/extra prose
+        // that the old parser mis-read as "wrong". (v19 fix)
         var r = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
             body: JSON.stringify({
-                model: 'gpt-4o-mini', temperature: 0, max_tokens: 3,
-                messages: [{ role: 'system', content: 'Reply ONLY "yes" or "no": is the student answer mathematically/factually equivalent to the correct answer?' },
-                    { role: 'user', content: 'Correct: ' + expected + '\nStudent: ' + attempt }]
+                model: 'gpt-4o-mini', temperature: 0, max_tokens: 20,
+                response_format: { type: 'json_object' },
+                messages: [
+                    { role: 'system', content: 'Decide if the student\'s answer matches the correct answer for a math/school step. Ignore formatting, spacing, order, and equivalent forms (e.g. "x=9" equals "9"; "1/2" equals "0.5"; "12 cm" equals "12"). Respond ONLY as JSON: {"equivalent": true} or {"equivalent": false}.' },
+                    { role: 'user', content: 'Correct answer: ' + expected + '\nStudent answer: ' + attempt }
+                ]
             })
         });
         var d = await r.json();
-        return /yes/i.test((d.choices && d.choices[0] && d.choices[0].message.content) || '');
+        var txt = (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '{}';
+        try { return JSON.parse(txt).equivalent === true; } catch (_) { return /"equivalent"\s*:\s*true/i.test(txt); }
     } catch (_) { return false; }
 }
 function _lvRevealAnswerBtn() {
