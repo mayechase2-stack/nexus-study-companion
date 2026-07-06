@@ -510,9 +510,57 @@ async function callHostedAI(opts) {
         })
     });
     const data = await resp.json().catch(function () { return {}; });
-    if (!resp.ok) throw new Error(data.error || ('Hosted AI error (' + resp.status + ')'));
+    if (!resp.ok) {
+        // When the trial cap is hit, pop the one-tap prompt to verify email /
+        // make an account instead of just showing a dead-end error.
+        if (data.reason === 'verify_email' && typeof _nexusShowVerifyEmailPrompt === 'function') _nexusShowVerifyEmailPrompt(data.error, 'verify');
+        else if (data.reason === 'make_account' && typeof _nexusShowVerifyEmailPrompt === 'function') _nexusShowVerifyEmailPrompt(data.error, 'make');
+        throw new Error(data.error || ('Hosted AI error (' + resp.status + ')'));
+    }
     return data; // { content, used, limit }
 }
+
+// v19 — one-tap "verify your email" flow. When an anonymous/unverified user hits
+// the 10-use trial cap, the AI returns reason 'verify_email' and we surface this
+// prompt so they can resend the confirmation email without hunting for it.
+async function nexusResendVerification(emailOverride) {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) { showToast('Cloud unavailable — try again in a moment.', 'error'); return; }
+        let email = emailOverride;
+        if (!email) { try { const u = await _cloudUser(); email = u && u.email; } catch (_) {} }
+        if (!email) { const un = localStorage.getItem('auth_user') || ''; email = localStorage.getItem('auth_email') || localStorage.getItem('auth_email_' + un) || ''; }
+        if (!email) { showToast('This account has no email yet — create an account with an email to verify.', 'info', 5000); return; }
+        showToast('Sending verification email…', 'info', 2000);
+        const { error } = await nexusSB.auth.resend({ type: 'signup', email: email });
+        if (error) throw error;
+        const modal = document.getElementById('nexus-verify-modal'); if (modal) modal.remove();
+        showToast('✅ Verification email sent to ' + email + ' — check your inbox (and spam), click the link, then reload the page.', 'success', 9000);
+    } catch (e) {
+        showToast('Could not send verification email: ' + ((e && e.message) || e), 'error', 6000);
+    }
+}
+window.nexusResendVerification = nexusResendVerification;
+function _nexusShowVerifyEmailPrompt(message, mode) {
+    if (document.getElementById('nexus-verify-modal')) return; // already showing
+    const isMake = mode === 'make';
+    const m = document.createElement('div');
+    m.id = 'nexus-verify-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.88);backdrop-filter:blur(8px);z-index:100060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const action = isMake
+        ? '<button onclick="document.getElementById(\'nexus-verify-modal\').remove();openSignUpFlow();" class="btn-primary" style="width:100%;"><i class="ph ph-user-plus"></i> Create a free account</button>'
+        : '<button onclick="nexusResendVerification()" class="btn-primary" style="width:100%;"><i class="ph ph-paper-plane-tilt"></i> Resend verification email</button>';
+    m.innerHTML = '<div class="glass-panel" style="max-width:430px;width:100%;padding:26px 24px;border:1px solid rgba(108,92,231,0.4);border-radius:16px;text-align:center;">'
+        + '<div style="font-size:2.2rem;">📧</div>'
+        + '<h2 style="margin:8px 0 8px;font-size:1.25rem;color:#fff;">' + (isMake ? 'Unlock more free AI' : 'Verify your email to keep going') + '</h2>'
+        + '<p style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem;line-height:1.6;">' + (message || '') + '</p>'
+        + action
+        + '<button onclick="document.getElementById(\'nexus-verify-modal\').remove();" class="btn-secondary" style="width:100%;margin-top:8px;">Maybe later</button>'
+        + '</div>';
+    m.addEventListener('click', function (e) { if (e.target === m) m.remove(); });
+    document.body.appendChild(m);
+}
+window._nexusShowVerifyEmailPrompt = _nexusShowVerifyEmailPrompt;
 
 // Phase 2b — AI PROXY INTERCEPTOR. Every feature already calls
 // fetch('https://api.openai.com/v1/chat/completions', …) directly with the user's
@@ -12710,7 +12758,7 @@ function showHistoryDetail(id) {
         ${imageBlock}
         <div style="margin-bottom:14px;">
             <div style="color:var(--text-muted);font-size:0.9rem;font-weight:700;letter-spacing:0.8px;margin-bottom:4px;">ANSWER</div>
-            <div id="history-detail-body" style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; color:#ddd; font-size:0.9rem; line-height:1.6; max-height:50vh; overflow-y:auto;">${entry.answer || ''}</div>
+            <div id="history-detail-body" style="background:rgba(255,255,255,0.04); border-radius:8px; padding:14px; color:#ddd; font-size:0.9rem; line-height:1.6; max-height:50vh; overflow-y:auto; white-space:pre-wrap; word-break:break-word;">${entry.answer || ''}</div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
             <button class="btn-secondary" onclick="document.getElementById('history-modal').classList.add('hidden')" style="padding:9px 14px;font-size:0.85rem;">Close</button>
@@ -14710,6 +14758,21 @@ RULES:
         if (typeof renderVisionStep === 'function') renderVisionStep();
         logActivity('study', 'Live Vision — Help Me (tutor)');
         updateStudyStats('problem_solved');
+
+        // Save the full worked tutorial to History (concept, steps, and answer) so
+        // the student can review how to do it — not just the final answer.
+        try {
+            if (typeof addToHistory === 'function') {
+                const _steps = (window._lvSteps || []).map(function (s, i) {
+                    return (i + 1) + '. ' + (s.instruction || '') + (s.expect ? '  →  ' + s.expect : '') + (s.why ? '  (' + s.why + ')' : '');
+                }).join('\n');
+                const _histA = (parsed.concept ? 'Concept: ' + parsed.concept + '\n\n' : '')
+                    + (parsed.strategy ? 'Strategy: ' + parsed.strategy + '\n\n' : '')
+                    + (_steps ? 'Steps:\n' + _steps + '\n\n' : '')
+                    + (parsed.answer ? 'Final answer: ' + parsed.answer : '');
+                if (_histA.trim()) addToHistory('vision', ('Live Vision tutor — ' + (parsed.answer || 'guided solve')).substring(0, 200), _histA);
+            }
+        } catch (_) {}
         showToast('✓ Tutor mapped out the steps. Solve them one at a time on the right — hints escalate if you\'re stuck.', 'success', 5000);
     } catch (err) {
         if (window._hmPhaseTimer) { clearInterval(window._hmPhaseTimer); window._hmPhaseTimer = null; }
@@ -15144,6 +15207,18 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         logActivity('study', `Used Live Vision AI: ${ai.topic}`);
         updateStudyStats('problem_solved');
         updateStudyStats('daily_goal', 33);
+
+        // Save the REAL answer + explanation to History so it's reviewable later.
+        // (The old MutationObserver captured the "analyzing…" placeholder instead —
+        // that logger has been removed.)
+        try {
+            if (typeof addToHistory === 'function' && _hasAns) {
+                const _histQ = (ai.topic || 'Live Vision problem').toString().substring(0, 200);
+                const _plainExplain = (cleanedExplain || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                const _histA = 'Answer: ' + cleanedAnswer + (_plainExplain ? '\n\nExplanation: ' + _plainExplain : '');
+                addToHistory('vision', _histQ, _histA);
+            }
+        } catch (_) {}
 
         showToast('✓ Problem analyzed successfully!', 'success');
 
@@ -17815,30 +17890,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup AI Typing Assistant if enabled
     setupTypingAssist();
 
-    // Also hook analyzeText to add to history (Live Vision)
-    const origAnalyzeText = window.analyzeText;
-    if (typeof origAnalyzeText === 'function') {
-        // We patch by observing the solution panel updates
-        const observer = new MutationObserver(() => {
-            const panel = document.getElementById('solution-panel');
-            if (panel && !panel.classList.contains('hidden')) {
-                const q = (document.getElementById('ocr-result') || {}).textContent || '';
-                const a = ((document.getElementById('ai-answer-text') || {}).textContent || '') + ' ' +
-                          ((document.getElementById('ai-explanation-text') || {}).textContent || '');
-                if (q && a && q !== 'Waiting for input...' && q !== 'Scanning...') {
-                    // Only add once per detection
-                    if (!panel.dataset.historyLogged) {
-                        panel.dataset.historyLogged = 'true';
-                        addToHistory('vision', q.substring(0, 200), a);
-                    }
-                } else {
-                    panel.dataset.historyLogged = '';
-                }
-            }
-        });
-        const panel = document.getElementById('solution-panel');
-        if (panel) observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
-    }
+    // NOTE: Live Vision history is now saved directly inside the solve/tutor
+    // functions once the real answer arrives (see addToHistory calls there). The
+    // old MutationObserver here logged the "analyzing…" placeholder instead and
+    // has been removed.
 });
 
 // ============================================
