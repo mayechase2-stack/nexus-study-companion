@@ -15,25 +15,31 @@
 //   SUPABASE_URL              (auto-provided)
 //   SUPABASE_ANON_KEY         (auto-provided)
 //   SUPABASE_SERVICE_ROLE_KEY (auto-provided) — used for usage tables via RLS bypass
-//   ANON_MONTHLY_LIMIT        (optional, default 15)    — anonymous/unverified email
-//   FREE_MONTHLY_LIMIT        (optional, default 300)   — email-verified free accounts
-//   PAID_MONTHLY_LIMIT        (optional, default 5000)  — paid accounts
+//   ANON_MONTHLY_LIMIT        (optional, default 100)   — anonymous/unverified email
+//   FREE_MONTHLY_LIMIT        (optional, default 1500)  — email-verified free accounts
+//   PAID_MONTHLY_LIMIT        (optional, default 6000)  — paid accounts
 //   PER_MIN_LIMIT             (optional, default 12)
 //   IP_PER_MIN_LIMIT          (optional, default 20)
 //
-// Account-farming defense: a scripted attacker can mint many ANONYMOUS accounts,
-// but each only gets ANON_MONTHLY_LIMIT calls. The full free allotment unlocks
-// only after the user verifies a real email (email_confirmed_at is set) — real
-// inboxes are expensive to farm. Per-IP limits (ai_gate) blunt bulk signups too.
+// How the limits work together (see docs/BACKEND_SETUP.md for the full reasoning):
+//   - PER_MIN / IP_PER_MIN are the real script-stopper — a burst can't exceed them.
+//   - The monthly caps bound cost + account-farming, NOT script speed.
+//   - Anonymous accounts are cheap to mint, so their cap is LOW (each fake account
+//     is worth ~pennies). The generous cap unlocks only with a verified email,
+//     which is expensive to mass-create; per-IP limits + Turnstile blunt bulk signup.
+//   - The OpenAI hard spend cap (set in the OpenAI billing dashboard) is the
+//     absolute backstop no matter what.
+// BETA values below are generous so real testers aren't blocked. BEFORE PAID
+// LAUNCH, drop ANON_MONTHLY_LIMIT to ~30 (that's when farming has value to protect).
 
 const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "15", 10);
-const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "300", 10);
-const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "5000", 10);
+const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "100", 10);
+const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "1500", 10);
+const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "6000", 10);
 const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
 const IP_PER_MIN = parseInt(Deno.env.get("IP_PER_MIN_LIMIT") ?? "20", 10);
 

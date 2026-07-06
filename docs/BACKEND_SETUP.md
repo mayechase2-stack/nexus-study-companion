@@ -40,9 +40,31 @@ Supabase → **Edge Functions → ai → Secrets** (Manage secrets). Add:
 | `OPENAI_API_KEY` | your OpenAI secret key (`sk-...`) |
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected
-automatically — you don't add them. Optional tuning knobs (defaults in parentheses):
-`ANON_MONTHLY_LIMIT` (15), `FREE_MONTHLY_LIMIT` (300), `PAID_MONTHLY_LIMIT` (5000),
-`PER_MIN_LIMIT` (12), `IP_PER_MIN_LIMIT` (20).
+automatically — you don't add them.
+
+### AI usage limits — how to think about them
+
+There are three separate defenses; they do different jobs, so don't conflate them:
+
+| Knob | Default (beta) | Its actual job |
+|---|---|---|
+| `PER_MIN_LIMIT` | 12 / user / min | **The real script-stopper.** A burst can't exceed this. |
+| `IP_PER_MIN_LIMIT` | 20 / IP / min | Stops many accounts abused from one machine. |
+| `ANON_MONTHLY_LIMIT` | **100** | Cap for anonymous / unverified accounts. Kept low because they're free to mint — each fake account is worth only pennies of usage. |
+| `FREE_MONTHLY_LIMIT` | **1500** | Cap for email-verified free users (~50/day; ~$1.50/mo of OpenAI even if maxed). Generous so real students never feel limited. |
+| `PAID_MONTHLY_LIMIT` | **6000** | Paid users (later). |
+| OpenAI **spend cap** | set in OpenAI billing | Absolute dollar ceiling — the final backstop. |
+
+Key point: the **per-minute** limits stop a script; the **monthly** caps bound cost
+and account-farming. A verified email doesn't stop a script — it just makes the
+*generous* cap expensive to mass-create (you'd need many real inboxes). Text
+questions cost ~0.1¢ each (gpt-4o-mini); Live Vision images ~1.6¢.
+
+To change any of these, add it as a secret above (a secret overrides the code
+default). **Before flipping on PAID plans, drop `ANON_MONTHLY_LIMIT` to ~30** — the
+low anonymous cap is your anti-farming defense, and it only matters once there's
+paid value to protect. During the free beta, the OpenAI spend cap is the real
+protection, so generous caps are fine.
 
 ## 3. Deploy the AI function + fund/cap OpenAI (15 min) — THE URGENT ONE
 
