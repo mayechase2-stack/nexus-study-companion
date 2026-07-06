@@ -18382,16 +18382,27 @@ function resetCosmetics() {
 // v17.2 — full data deletion (children's-privacy / data-rights): erases the account
 // and every trace of it from this browser, then reloads to the signed-out state.
 function deleteAllMyData() {
-    showConfirm('Delete all my data', 'This permanently erases your NEXUS account and ALL data stored in this browser — history, notes, decks, grades, credits, inventory, vocab, planner, and settings. This cannot be undone. Continue?', function () {
+    showConfirm('Delete all my data', 'This permanently erases your NEXUS account and ALL data stored in this browser — history, notes, decks, grades, credits, inventory, vocab, planner, and settings. This cannot be undone. Continue?', async function () {
         try {
             var user = localStorage.getItem('auth_user');
+            // v19 — END the Supabase cloud session FIRST. Without this, the session
+            // token survived the reload and _bootstrapCloudSession re-created the
+            // login — so "delete account" appeared to just sign you back in.
+            try {
+                if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
+                if (nexusSB && nexusSB.auth && nexusSB.auth.signOut) await nexusSB.auth.signOut();
+            } catch (_) {}
             if (typeof clearCurrentAccountState === 'function') clearCurrentAccountState();
             // remove this account from the registry
             try { var reg = getAuthRegistry(); if (user && reg[user]) { delete reg[user]; localStorage.setItem('auth_users', JSON.stringify(reg)); } } catch (_) {}
             // remove any username-suffixed keys (email, dob, consent, per-user snapshots)
             if (user) Object.keys(localStorage).forEach(function (k) { if (k.indexOf(user) !== -1) localStorage.removeItem(k); });
             // app-level keys + the v17 additions
-            ['auth_user', 'auth_pass', 'has_paid', 'user_tier', 'nexus_subscription', 'auth_email', 'study_planner', 'wod_saved_vocab', 'last_mystery_box', 'nexus_waitlist', 'companion_memory', 'streak_freeze_count'].forEach(function (k) { localStorage.removeItem(k); });
+            ['auth_user', 'auth_pass', 'auth_remember', 'has_paid', 'user_tier', 'nexus_subscription', 'auth_email', 'study_planner', 'wod_saved_vocab', 'last_mystery_box', 'nexus_waitlist', 'companion_memory', 'streak_freeze_count'].forEach(function (k) { localStorage.removeItem(k); });
+            // Wipe every leftover Supabase session token + cloud-sync marker so the
+            // app can't bootstrap the account back in on reload.
+            Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sb-') === 0 || k.indexOf('cloud_') === 0) localStorage.removeItem(k); });
+            try { sessionStorage.clear(); } catch (_) {}
         } catch (_) {}
         showToast('Your data has been permanently deleted.', 'info', 3000);
         setTimeout(function () { location.reload(); }, 1200);
