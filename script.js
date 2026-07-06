@@ -844,10 +844,15 @@ async function _cloudRefreshUi() {
     const out = document.getElementById('cloud-signed-out'), inn = document.getElementById('cloud-signed-in'), status = document.getElementById('cloud-status');
     if (!out || !inn) return;
     const user = await _cloudUser();
-    if (user) {
+    // Only treat this as a "real" cloud account (show Change email / Backup / Restore)
+    // when there's a CONFIRMED, non-anonymous email. An anonymous session (which the
+    // app creates automatically for hosted AI) has no email — that user needs the
+    // "Link this email to my account" box, not "Change account email". (v19 fix)
+    const hasRealEmail = !!(user && user.email && user.is_anonymous !== true);
+    if (hasRealEmail) {
         out.style.display = 'none'; inn.style.display = 'block';
         const last = localStorage.getItem('cloud_last_sync');
-        if (status) status.innerHTML = 'Signed in as <strong style="color:#fff;">' + escapeHtmlSafe(user.email || 'cloud user') + '</strong>' + (last ? '<br><span style="font-size:0.74rem;color:var(--text-muted);">Last backup: ' + new Date(last).toLocaleString() + '</span>' : '');
+        if (status) status.innerHTML = 'Signed in as <strong style="color:#fff;">' + escapeHtmlSafe(user.email) + '</strong>' + (last ? '<br><span style="font-size:0.74rem;color:var(--text-muted);">Last backup: ' + new Date(last).toLocaleString() + '</span>' : '');
     } else { out.style.display = 'block'; inn.style.display = 'none'; }
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_cloudRefreshUi, 700); });
