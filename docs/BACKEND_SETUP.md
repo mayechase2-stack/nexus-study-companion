@@ -50,7 +50,7 @@ There are three separate defenses; they do different jobs, so don't conflate the
 |---|---|---|
 | `PER_MIN_LIMIT` | 12 / user / min | **The real script-stopper.** A burst can't exceed this. |
 | `IP_PER_MIN_LIMIT` | 20 / IP / min | Stops many accounts abused from one machine. |
-| `ANON_MONTHLY_LIMIT` | **100** | Cap for anonymous / unverified accounts. Kept low because they're free to mint — each fake account is worth only pennies of usage. |
+| `ANON_MONTHLY_LIMIT` | **10** | Trial cap for anonymous / unverified accounts. Deliberately low — it's a taste of the product that pushes people to make a real (verified) account. When they hit it, the AI returns a "verify your email" or "make an account" message (reason `verify_email` / `make_account`), not "upgrade". |
 | `FREE_MONTHLY_LIMIT` | **1500** | Cap for email-verified free users (~50/day; ~$1.50/mo of OpenAI even if maxed). Generous so real students never feel limited. |
 | `PAID_MONTHLY_LIMIT` | **6000** | Paid users (later). |
 | OpenAI **spend cap** | set in OpenAI billing | Absolute dollar ceiling — the final backstop. |

@@ -15,7 +15,7 @@
 //   SUPABASE_URL              (auto-provided)
 //   SUPABASE_ANON_KEY         (auto-provided)
 //   SUPABASE_SERVICE_ROLE_KEY (auto-provided) — used for usage tables via RLS bypass
-//   ANON_MONTHLY_LIMIT        (optional, default 100)   — anonymous/unverified email
+//   ANON_MONTHLY_LIMIT        (optional, default 10)    — anonymous/unverified email (trial)
 //   FREE_MONTHLY_LIMIT        (optional, default 1500)  — email-verified free accounts
 //   PAID_MONTHLY_LIMIT        (optional, default 6000)  — paid accounts
 //   PER_MIN_LIMIT             (optional, default 12)
@@ -37,7 +37,7 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "100", 10);
+const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "10", 10);
 const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "1500", 10);
 const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "6000", 10);
 const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
@@ -163,12 +163,27 @@ Deno.serve(async (req) => {
   });
   const gate = gateRes.ok ? await gateRes.json() : { allowed: false, reason: "gate_error" };
   if (!gate?.allowed) {
-    const msg = gate?.reason === "month_limit"
-      ? "You've reached your free AI allotment for this month. Upgrade to keep going."
-      : gate?.reason?.startsWith("rate")
-        ? "You're going a little fast — wait a few seconds and try again."
-        : "AI is temporarily unavailable. Please try again shortly.";
-    return json({ error: msg, reason: gate?.reason }, 429);
+    let msg, reason = gate?.reason;
+    if (gate?.reason === "month_limit") {
+      if (emailVerified) {
+        // Real cap for a verified user.
+        msg = "You've reached your free AI allotment for this month. Upgrade to keep going.";
+      } else if (user?.email && user?.is_anonymous !== true) {
+        // Signed up but hasn't clicked the confirmation link — this is the path
+        // to way more usage, so point them at it (not "upgrade").
+        msg = "You've used your free trial questions. Verify your email — check your inbox for the confirmation link — to unlock a lot more, free.";
+        reason = "verify_email";
+      } else {
+        // Truly anonymous (never made an account).
+        msg = "You've used your free trial questions. Create a free account (with an email) to unlock a lot more.";
+        reason = "make_account";
+      }
+    } else if (gate?.reason?.startsWith("rate")) {
+      msg = "You're going a little fast — wait a few seconds and try again.";
+    } else {
+      msg = "AI is temporarily unavailable. Please try again shortly.";
+    }
+    return json({ error: msg, reason }, 429);
   }
 
   // ── 5. Input moderation (FAIL-CLOSED) ──────────────────────────────────
