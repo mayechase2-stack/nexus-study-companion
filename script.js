@@ -15116,12 +15116,13 @@ DIAGRAM / LABELING: a labeled figure (cell, anatomy, circuit, map, molecule) wit
 DATA TABLE: a table of values to read from or compute with.
   -> Pull the exact cell value(s), or compute the requested statistic, and state it with units.
 
-REASONING (apply silently):
+REASONING (apply silently — this is where accuracy comes from; DO NOT skip it and DO NOT guess):
 1. Identify the question format from the list above.
 2. Strip all UI noise (buttons, progress bars) to isolate the academic question.
 3. Reconstruct garbled OCR words using subject context.
-4. Solve or recall. Verify units, dates, spelling.
-5. Compress to minimum correct words.
+4. ACTUALLY SOLVE IT — never guess or approximate. For math/science: state the correct formula/law, plug in the given values, carry the UNITS through, and compute step by step. For chemistry: balance equations, use molar masses, watch significant figures. For physics: check the formula and unit consistency. For recall: retrieve the specific fact, not a vague nearby one.
+5. VERIFY before answering: recompute a second way OR substitute your answer back into the problem, and sanity-check the sign, units, and magnitude. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
+6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
 
 MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. Write ≥ not \geq, × not \times, √ not \sqrt, ÷ not \div, ² ³ for exponents, π θ α β for Greek letters. Fractions as a/b.
 
@@ -15158,7 +15159,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userParts }
                 ],
-                max_tokens: 600,
+                max_tokens: 1000,
                 temperature: 0.1
             })
         });
