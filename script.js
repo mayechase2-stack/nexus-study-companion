@@ -14913,19 +14913,24 @@ async function checkVisionStep() {
     if (!val) { fb.style.display = 'block'; fb.style.color = '#ff9a9a'; fb.style.background = 'transparent'; fb.textContent = 'Type your answer for this step first.'; return; }
     fb.style.display = 'block'; fb.style.color = 'var(--accent)'; fb.style.background = 'transparent'; fb.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Checking…';
     var ok = await _lvCheckEquivalent(val, s.expect || '');
+    // v19 — warm, varied feedback so it feels like a real tutor, not a robot
+    // repeating "Correct!". Rotates through encouraging phrases.
+    var _pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+    var _praise = ['Nice — that\'s right!', 'Exactly right! 🙌', 'Yes! You got it.', 'Perfect — well done.', 'That\'s it! Nice work.', 'You nailed it. 🎯'];
+    var _nudge = ['Not quite — but you\'re close. Here\'s a nudge:', 'Almost! Let\'s work through it together:', 'Good try — here\'s a hint to point you the right way:', 'Not this time, and that\'s okay — here\'s a hint:'];
     if (ok) {
         fb.style.background = 'rgba(0,184,148,0.12)'; fb.style.color = '#7bed9f';
         var whyLine = s.why ? '<div style="color:#cdd2e0;font-size:0.82rem;margin-top:5px;font-weight:400;">💡 ' + escapeHtmlSafe(s.why) + '</div>' : '';
         if (i >= steps.length - 1) {
-            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct — final step done!' + whyLine;
+            fb.innerHTML = '<i class="ph ph-check-circle"></i> ' + _pick(_praise) + ' You worked through the whole thing yourself! 🎉' + whyLine;
             _lvAwardCredits();
             setTimeout(_lvFinishStepper, 1100);
         } else {
-            fb.innerHTML = '<i class="ph ph-check-circle"></i> Correct!' + whyLine + '<button onclick="nextVisionStep()" class="btn-primary" style="margin-top:8px;width:100%;">Next step →</button>';
+            fb.innerHTML = '<i class="ph ph-check-circle"></i> ' + _pick(_praise) + whyLine + '<button onclick="nextVisionStep()" class="btn-primary" style="margin-top:8px;width:100%;">Next step →</button>';
         }
     } else {
         fb.style.background = 'rgba(255,107,107,0.1)'; fb.style.color = '#ff9a9a';
-        fb.innerHTML = '<i class="ph ph-x-circle"></i> Not quite — here\'s a hint:';
+        fb.innerHTML = '<i class="ph ph-x-circle"></i> ' + _pick(_nudge);
         revealStepHint();
     }
 }
