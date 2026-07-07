@@ -748,18 +748,15 @@ window.showStudyMemory = showStudyMemory;
             if (u.indexOf('api.openai.com/v1/chat/completions') >= 0 && !hasPersonal) {
                 let body = {};
                 try { body = JSON.parse((opts && opts.body) || '{}'); } catch (_) {}
-                // On the hosted path (no personal key), prefer gpt-4o-mini for TEXT
-                // requests. gpt-4o has a tiny per-minute token limit on unfunded /
-                // low-tier OpenAI accounts and returns "Request too large"; mini has
-                // far higher limits and handles schoolwork well. Vision (image)
-                // requests still use gpt-4o because mini can't read images. Once the
-                // OpenAI account is funded to Tier 1+, this can prefer gpt-4o again.
-                const _hostHasImage = (body.messages || []).some(function (m) {
-                    return m && Array.isArray(m.content) && m.content.some(function (p) { return p && p.type === 'image_url'; });
-                });
+                // The OpenAI account is now funded (Tier 1+), so use the model each
+                // feature actually asks for — gpt-4o for math/vision/tutor quality.
+                // The `ai` Edge Function still auto-falls-back to gpt-4o-mini if a
+                // request ever hits a rate limit, so this is safe. (Previously we
+                // force-downgraded all text to mini to dodge the unfunded-account
+                // "Request too large" limit — no longer needed now that it's funded.)
                 const res = await callHostedAI({
                     messages: body.messages || [],
-                    model: _hostHasImage ? 'gpt-4o' : 'gpt-4o-mini',
+                    model: body.model || 'gpt-4o',
                     temperature: body.temperature,
                     max_tokens: body.max_tokens || body.max_completion_tokens,
                     response_format: body.response_format
