@@ -1285,7 +1285,13 @@ async function startLiveVision() {
         mediaStream = stream;
 
         if (video) video.srcObject = mediaStream;
-        if (panel) panel.classList.remove('hidden');
+        if (panel) {
+            panel.classList.remove('hidden');
+            // Bring the panel into focus — on mobile it lives at the bottom of the
+            // dashboard, so without this the student has to scroll past everything
+            // to find it. Land them right on Live Vision.
+            setTimeout(function () { try { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }, 60);
+        }
         if (typeof refreshLiveVisionButtons === 'function') refreshLiveVisionButtons();
 
         // Guard: only stop if THIS stream is the one that ended (a stale handler
@@ -14758,6 +14764,9 @@ RULES:
         }
         window._liveVisionLastGuidance = String((parsed.concept || '') + ' ' + (parsed.strategy || '')).trim().slice(0, 1000);
         if (typeof renderVisionStep === 'function') renderVisionStep();
+        // Scroll the interactive solver into view so the student lands on the step
+        // to work, not on a wall of content above it.
+        try { var _solPanel = document.getElementById('solution-panel'); if (_solPanel) setTimeout(function () { _solPanel.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120); } catch (_) {}
         logActivity('study', 'Live Vision — Help Me (tutor)');
         updateStudyStats('problem_solved');
 
