@@ -14633,7 +14633,9 @@ async function helpMeLiveVision() {
         canvas.height = vh;
     }
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    let _hmQ = 0.85;
+    let imageDataUrl = canvas.toDataURL('image/jpeg', _hmQ);
+    while (imageDataUrl.length > 520000 && _hmQ > 0.45) { _hmQ -= 0.12; imageDataUrl = canvas.toDataURL('image/jpeg', _hmQ); }
     // Skip OCR — GPT-4o vision reads screen text far better
     let ocrText = '';
 
@@ -15026,8 +15028,17 @@ async function analyzeText() {
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
     try {
-        // Skip OCR — GPT-4o vision reads screen text far better than Tesseract
-        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        // Skip OCR — GPT-4o vision reads screen text far better than Tesseract.
+        // Start at high quality (sharp graphs read better), but if the encoded image
+        // is big enough to trip the proxy's size cap, step the quality down until it
+        // fits. This keeps "Request too large" from ever firing on a big screenshot,
+        // while keeping quality high whenever the image is a normal size.
+        let _q = 0.85;
+        let imageDataUrl = canvas.toDataURL('image/jpeg', _q);
+        while (imageDataUrl.length > 520000 && _q > 0.45) {
+            _q -= 0.12;
+            imageDataUrl = canvas.toDataURL('image/jpeg', _q);
+        }
         let ocrText = '';
 
         resultDiv.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Sending image to vision AI...</p>';
@@ -15120,8 +15131,12 @@ DRAG-AND-DROP / ORDERING:
 DEFINITION / IDENTIFICATION:
   -> "[term] is [definition in 15 words or fewer]." One explanatory sentence in explanation.
 
-GRAPH / CHART READING: a plotted graph, bar/line chart, or number line is shown.
-  -> Read the requested value, trend, slope, intercept, max/min, or coordinate directly from the figure. State it with units.
+GRAPH / CHART READING — READ IT CAREFULLY, this is where mistakes happen:
+  -> FIRST, read the axes: note the x-axis and y-axis scale (how much each gridline is worth — it is often NOT 1). State the scale to yourself before reading any point.
+  -> To read a point: count gridlines from the origin along x, then along y, multiplying by the scale. Name the exact coordinates you read, e.g. "the line passes through (0, 3) and (2, 7)". If a point sits between gridlines, say so and give your best read.
+  -> LINEAR FUNCTION / SLOPE: pick TWO points the line clearly passes through (ideally where it crosses gridline intersections), read them exactly, then slope m = (y₂ − y₁)/(x₂ − x₁). The y-intercept b is where the line crosses the y-axis (x = 0). Write the equation y = mx + b. Double-check the sign of the slope: up-to-the-right is positive, down-to-the-right is negative.
+  -> State the points you read in the explanation so the student can verify you read the graph correctly. If the graph is blurry or the scale is unclear, SAY you are unsure of the exact values rather than guessing.
+  -> For bar/line charts: read the requested value, trend, max/min, or intercept the same careful way, with units.
 DIAGRAM / LABELING: a labeled figure (cell, anatomy, circuit, map, molecule) with parts to identify.
   -> "answer" = the label(s) for the marked part(s), e.g. "A = nucleus, B = mitochondrion".
 DATA TABLE: a table of values to read from or compute with.

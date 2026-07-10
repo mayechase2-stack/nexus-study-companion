@@ -44,7 +44,7 @@ const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
 const IP_PER_MIN = parseInt(Deno.env.get("IP_PER_MIN_LIMIT") ?? "20", 10);
 
 const ALLOWED_MODELS = new Set(["gpt-4o", "gpt-4o-mini"]);
-const MAX_BODY_BYTES = 600_000;   // ~600 KB — generous for a Live Vision image, rejects abuse
+const MAX_BODY_BYTES = 3_000_000;  // ~3 MB — detailed Live Vision graph screenshots can exceed 600 KB; still blocks true abuse
 const MAX_OUTPUT_TOKENS = 1500;
 
 const CORS = {
