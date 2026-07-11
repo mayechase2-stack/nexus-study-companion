@@ -1599,7 +1599,10 @@ html { scroll-behavior: smooth; font-size: 17px; } /* readability: raise rem bas
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    /* Must sit above #shop-preview-modal, which is force-raised to 1000050 —
+       at 10000 the buy-confirm opened invisibly BEHIND the preview, so every
+       shop purchase looked dead. A confirm prompt should always be top-most. */
+    z-index: 1000060;
     backdrop-filter: blur(4px);
 }
 

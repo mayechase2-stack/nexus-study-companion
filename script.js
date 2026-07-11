@@ -1029,6 +1029,11 @@ function switchTab(tabId) {
         return;
     }
 
+    // v19.1 — unknown/removed tab ids (e.g. a stale last_tab like 'quests',
+    // which is a modal, not a view) used to deactivate every view and leave the
+    // whole app blank. Fall back to home instead.
+    if (!document.getElementById(`view-${tabId}`)) tabId = 'home';
+
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
 
     const targetView = document.getElementById(`view-${tabId}`);
@@ -1097,6 +1102,12 @@ function updateHomeStats() {
     if (nameEl) nameEl.textContent = username;
     const dashEl = document.getElementById('dashboard-username');
     if (dashEl) dashEl.textContent = username;
+    // v19.1 — "Welcome back" is wrong on a brand-new account's first visit;
+    // greet with "Welcome" until the onboarding tour has been seen once.
+    const isFirstVisit = !localStorage.getItem('onboarding_completed');
+    document.querySelectorAll('.home-welcome-word').forEach(w => {
+        w.textContent = isFirstVisit ? 'Welcome' : 'Welcome back';
+    });
 
     // v12.7 — motivational message based on streak
     const motivEl = el('home-motivational');
@@ -2333,7 +2344,30 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 
+// v19.1 — re-read per-user globals from localStorage after a sign-in restore.
+// signOut() zeroes userInventory/userLoadout in memory; restoreAccountState()
+// puts the data back in localStorage but the globals stayed empty, and the
+// next save (e.g. grantCommonClassics) persisted the empty array back —
+// wiping every purchased item on re-login. Rehydrate + re-apply the loadout.
+function rehydrateAccountGlobals() {
+    try {
+        userCredits = parseInt(localStorage.getItem('user_credits') || '0');
+        userInventory = JSON.parse(localStorage.getItem('user_inventory') || '[]');
+        userLoadout = JSON.parse(localStorage.getItem('user_loadout') || '{}');
+        refundCount = parseInt(localStorage.getItem('refund_count') || '0');
+    } catch (_) { /* corrupted JSON — keep current globals */ }
+    if (userLoadout.theme && typeof applyTheme === 'function') applyTheme(userLoadout.theme);
+    if (userLoadout.cursor && typeof applyCursor === 'function') applyCursor(userLoadout.cursor);
+    if (userLoadout.font && typeof applyFont === 'function') applyFont(userLoadout.font);
+    if (userLoadout.wallpaper && typeof applyWallpaper === 'function') applyWallpaper(userLoadout.wallpaper);
+    if (userLoadout.badge && typeof applyBadge === 'function') applyBadge(userLoadout.badge);
+    if (userLoadout.effect && typeof applyEffect === 'function') applyEffect(userLoadout.effect);
+    const display = document.getElementById('credit-display');
+    if (display) display.innerText = `Credits: ${userCredits}`;
+}
+
 function completeLogin() {
+    rehydrateAccountGlobals();
     document.getElementById('auth-overlay').style.display = 'none';
     showToast("Login successful!", "success");
     updateTierUI();
@@ -2394,7 +2428,11 @@ const PER_USER_KEYS = [
     'study_planner', 'wod_saved_vocab', // v17.0
     'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
     'lv_awarded_problems', // v19 — Live Vision 30-credit awards are per problem per account
-    'starter_gold_granted'    // prefix key — cleared by username suffix at signup
+    'starter_gold_granted',    // prefix key — cleared by username suffix at signup
+    // v19.1 — were missing: flashcard decks + the tutor chat transcript survived
+    // both account-switching AND "Delete My Account & All Data" (privacy leak on
+    // shared computers — the delete modal explicitly promises decks are erased).
+    'flashcard_decks', 'tutor_session', 'store_history', 'refund_count'
 ];
 
 function snapshotAccountState(username) {
@@ -5624,6 +5662,7 @@ Return STRICT JSON in this exact format:
   "questions": [
     {
       "q": "What is 2 + 2?",
+      "work": "2 + 2 = 4",
       "options": ["3", "4", "5", "6"],
       "answerIndex": 1
     }
@@ -5631,10 +5670,11 @@ Return STRICT JSON in this exact format:
 }
 
 CRITICAL RULES:
+- FIRST solve the question step by step in the "work" field, THEN write the options.
 - "options" must be the actual answer text (numbers, words, expressions) — NOT letters like "A","B","C","D".
-- "answerIndex" is the 0-based index of the correct option in the "options" array (0, 1, 2, or 3).
+- "answerIndex" is the 0-based index of the option that EXACTLY matches the final result in "work" (0, 1, 2, or 3). If they disagree, redo the work — never guess the index.
 - Each question must have exactly 4 options with exactly one correct answer.
-- The correct answer must be REAL and verifiable — double-check your math.` },
+- Re-check the arithmetic in "work" digit by digit before responding; a wrong answer key tells a student their correct math is wrong.` },
                     { role: 'user', content: 'Generate quiz.' }
                 ]
             })
@@ -5660,6 +5700,19 @@ CRITICAL RULES:
                 }
             }
         });
+        // v19.1 — shuffle options so the correct answer isn't predictably the
+        // first choice (the model heavily favored index 0).
+        quizData.questions.forEach(q => {
+            if (!Array.isArray(q.options) || q.options.length < 2) return;
+            const correctText = q.options[q.answerIndex] ?? q.options[0];
+            for (let i = q.options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
+            }
+            const idx = q.options.indexOf(correctText);
+            if (idx >= 0) q.answerIndex = idx;
+        });
+
         _currentQuizData = quizData;
         _quizAnswered = quizData.questions.map(() => false);
 
@@ -5965,6 +6018,15 @@ function filterInventory(category) {
 // category (the items that mean "no theme equipped", "no cursor equipped", etc.)
 // so the shop equip-flow still works on a fresh account.
 function grantCommonClassics() {
+    // v19.1 — merge in the localStorage copy first. If the in-memory array is
+    // stale (e.g. zeroed by signOut before a restore), saving below would
+    // otherwise overwrite the user's real inventory with just the sentinels.
+    try {
+        const stored = JSON.parse(localStorage.getItem('user_inventory') || '[]');
+        if (Array.isArray(stored) && stored.length) {
+            userInventory = Array.from(new Set([...userInventory, ...stored]));
+        }
+    } catch (_) { /* ignore corrupted JSON */ }
     const sentinelIds = ['default', 'none']; // sentinel "no-op" item ids
     let added = 0;
     const cats = ['themes', 'cursors', 'fonts', 'wallpapers', 'badges', 'effects', 'companions'];
@@ -12914,7 +12976,7 @@ function saveManualFlashcardDeck() {
     const decks = getFlashcardDecks();
     decks.unshift(deck);
     saveFlashcardDecks(decks);
-    showToast(`✓ Deck "${title}" saved with ${cards.length} cards!`, 'success');
+    showToast(`✓ Deck "${title}" saved with ${cards.length} card${cards.length === 1 ? '' : 's'}!`, 'success');
     _flashcardReviewIdx = 0;
     renderFlashcardsList(deck.id);
 }
@@ -13737,6 +13799,10 @@ async function searchSocial(type, directQuery) {
     if (!query) { showToast('Please enter a search term.', 'warning'); return; }
 
     outElem.classList.remove('hidden');
+    // v19.1 — open the parent accordion right away so the loading spinner is
+    // visible (not just the final answer).
+    const _srchDetails = outElem.closest('details');
+    if (_srchDetails && !_srchDetails.open) _srchDetails.open = true;
     outElem.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Researching history...';
 
     const apiKey = getApiKey();
@@ -13789,6 +13855,9 @@ ACCURACY: If you are uncertain about a specific date or detail, say so explicitl
         checkHardModeReward(content);
         // Remove markdown formatting if GPT includes it accidentally
         content = content.replace(/```html/g, '').replace(/```/g, '');
+        // v19.1 — the model sometimes mixes markdown bold into the HTML it was
+        // asked for; convert it instead of showing raw ** asterisks.
+        content = content.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
         content = content.replace('[HARD_MODE_PASS]', '<div style="background:linear-gradient(135deg,rgba(0,200,0,0.2),rgba(0,150,0,0.1));padding:12px;border-radius:8px;margin-top:16px;border:2px solid #00cc00;text-align:center;"><strong style="color:#00cc00;">HARD MODE PASSED (+25 credits)</strong></div>');
 
         // v11.0 — fetch Wikipedia thumbnail (always) + use Commons Search API for
@@ -13833,6 +13902,13 @@ ACCURACY: If you are uncertain about a specific date or detail, say so explicitl
         } catch (_) { /* Wikipedia is best-effort; ignore failures */ }
 
         outElem.innerHTML = imgHtml + content;
+
+        // v19.1 — if the output lives inside a collapsed <details> (Region
+        // Explorer), open it and scroll it into view. Quick-chip clicks loaded
+        // the whole profile invisibly and the click looked dead.
+        const wrapDetails = outElem.closest('details');
+        if (wrapDetails && !wrapDetails.open) wrapDetails.open = true;
+        try { outElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
 
     } catch (err) {
         outElem.innerHTML = `<span style="color:#d63031">Error: ${err.message}</span>`;
@@ -18412,11 +18488,24 @@ function deleteAllMyData() {
     showConfirm('Delete all my data', 'This permanently erases your NEXUS account and ALL data stored in this browser — history, notes, decks, grades, credits, inventory, vocab, planner, and settings. This cannot be undone. Continue?', async function () {
         try {
             var user = localStorage.getItem('auth_user');
-            // v19 — END the Supabase cloud session FIRST. Without this, the session
+            // v19.1 — delete the SERVER copy first, while the session token still
+            // exists. Previously this only signed out, so the app_state row and
+            // the auth user survived in Supabase after "Delete ALL data".
+            // Best-effort: local wipe proceeds even if the function isn't deployed.
+            try {
+                if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
+                var _sess = nexusSB ? (await nexusSB.auth.getSession()).data.session : null;
+                if (_sess && _sess.access_token) {
+                    await fetch(SUPABASE_URL + '/functions/v1/delete-account', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + _sess.access_token, 'apikey': SUPABASE_ANON_KEY }
+                    });
+                }
+            } catch (_) { /* server delete is best-effort */ }
+            // v19 — END the Supabase cloud session. Without this, the session
             // token survived the reload and _bootstrapCloudSession re-created the
             // login — so "delete account" appeared to just sign you back in.
             try {
-                if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
                 if (nexusSB && nexusSB.auth && nexusSB.auth.signOut) await nexusSB.auth.signOut();
             } catch (_) {}
             if (typeof clearCurrentAccountState === 'function') clearCurrentAccountState();
@@ -18432,7 +18521,13 @@ function deleteAllMyData() {
             try { sessionStorage.clear(); } catch (_) {}
         } catch (_) {}
         showToast('Your data has been permanently deleted.', 'info', 3000);
-        setTimeout(function () { location.reload(); }, 1200);
+        setTimeout(function () {
+            // v19.1 — re-clear per-user keys right before reload: anything that
+            // saved during the toast window (periodic sync, inventory render,
+            // beforeunload snapshot) would otherwise resurrect deleted data.
+            try { if (typeof clearCurrentAccountState === 'function') clearCurrentAccountState(); } catch (_) {}
+            location.reload();
+        }, 1200);
     });
 }
 
@@ -24357,7 +24452,7 @@ const ONBOARDING_STEPS = [
     },
     {
         title: '💾 Back up your account',
-        body: 'Your progress lives in your browser. Once a week, go to Settings → Data → Export for a one-file backup so you never lose your streak. That\'s it — go learn something! 🚀',
+        body: 'Signed in, your progress syncs to the cloud automatically. For an extra offline copy you control, hit Settings → Data → Export once in a while. That\'s it — go learn something! 🚀',
         target: null
     }
 ];
@@ -27943,7 +28038,7 @@ function generatePracticeTest() {
     if (setupDiv) setupDiv.style.display = 'none';
     if (loadingDiv) loadingDiv.style.display = 'block';
 
-    var prompt = 'Generate ' + numQ + ' ' + difficulty + ' ' + subject + ' multiple-choice questions for a high school / college student. Return ONLY valid JSON:\n{"questions":[{"q":"question text","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why A is correct"}]}\nNo extra text outside the JSON.';
+    var prompt = 'Generate ' + numQ + ' ' + difficulty + ' ' + subject + ' multiple-choice questions for a high school / college student. Return ONLY valid JSON:\n{"questions":[{"q":"question text","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why A is correct"}]}\nNo extra text outside the JSON.\n\nACCURACY RULES (v19.1 — answer keys were coming back wrong ~30% of the time):\n1. SOLVE each question yourself and write the full working in "explanation" BEFORE choosing the answer letter.\n2. "answer" MUST be the letter of the option that contains the result you derived in the explanation. If the explanation and the answer letter disagree, FIX THE LETTER before responding.\n3. Exactly one option is correct; re-check the arithmetic of the correct option digit by digit.\n4. Do not place the correct answer in the same position for every question.';
 
     fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -27960,7 +28055,9 @@ function generatePracticeTest() {
     .then(function(data) {
         if (data.error) throw new Error(data.error.message);
         var parsed = JSON.parse(data.choices[0].message.content);
-        _ptQuestions = parsed.questions || [];
+        // v19.1 — shuffle options client-side: the model put the correct answer
+        // at "A" on ~9 of 10 questions, so pattern-spotting beat studying.
+        _ptQuestions = (parsed.questions || []).map(_ptShuffleQuestion);
         _ptAnswers = {};
         _ptStartTime = Date.now();
         _ptSecondsLeft = timeLimitMin * 60;
@@ -27973,6 +28070,29 @@ function generatePracticeTest() {
         if (setupDiv) setupDiv.style.display = 'block';
         showToast('Error: ' + err.message, 'error');
     });
+}
+
+// v19.1 — shuffle a practice-test question's options and remap the answer
+// letter. Tolerates "A. ", "A) " or bare option text; keeps the original
+// question untouched if the shape is unexpected.
+function _ptShuffleQuestion(q) {
+    try {
+        var letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+        var stripped = (q.options || []).map(function (o) { return String(o).replace(/^\s*[A-F][.)]\s*/, ''); });
+        if (stripped.length < 2) return q;
+        var ansIdx = letters.indexOf(String(q.answer || 'A').trim().toUpperCase().charAt(0));
+        if (ansIdx < 0 || ansIdx >= stripped.length) ansIdx = 0;
+        var correctText = stripped[ansIdx];
+        for (var i = stripped.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = stripped[i]; stripped[i] = stripped[j]; stripped[j] = tmp;
+        }
+        var newIdx = stripped.indexOf(correctText);
+        if (newIdx < 0) return q;
+        q.options = stripped.map(function (t, k) { return letters[k] + '. ' + t; });
+        q.answer = letters[newIdx];
+    } catch (_) { /* keep original question on any surprise shape */ }
+    return q;
 }
 
 function _startPracticeTimer() {

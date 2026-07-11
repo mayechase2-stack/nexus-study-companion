@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260706v210">
+    <link rel="stylesheet" href="style.css?v=20260710v211">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -893,7 +893,7 @@
                     <h2 style="margin:0 0 6px;color:white;font-size:1.6rem;">You're almost in</h2>
                     <p style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem;"><span id="signup-payment-summary">NEXUS is free during beta.</span></p>
                     <div style="background:rgba(0,206,201,0.08);border:1px solid rgba(0,206,201,0.3);border-radius:12px;padding:16px;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="ph ph-rocket-launch" style="color:#00CEC9;font-size:1.2rem;"></i><strong style="color:#fff;">Free beta — no payment needed</strong></div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:1.2rem;">🚀</span><strong style="color:#fff;">Free beta — no payment needed</strong></div>
                         <p style="margin:0;font-size:0.86rem;color:#d8dce5;line-height:1.55;">NEXUS isn't charging yet — we're finishing secure accounts and billing first. Create your account and use everything free. When paid plans launch we'll email you first. <strong style="color:#fff;">No card is collected today.</strong></p>
                     </div>
                     <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#d8dce5;cursor:pointer;margin-top:14px;">
@@ -1159,7 +1159,7 @@
                                     <span style="font-size:1.15rem;background:linear-gradient(135deg,#6C5CE7,#00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;letter-spacing:2px;line-height:1;">NEXUS</span>
                                     <span style="background:linear-gradient(135deg,#fd79a8,#6c5ce7);color:#fff;font-size:0.7rem;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">v19.0</span>
                                 </div>
-                                <h1 style="font-size:clamp(1.3rem,2.4vw,1.7rem);margin:0 0 4px;color:#fff;font-weight:800;line-height:1.15;-webkit-text-fill-color:#fff;background:none;">Welcome back, <span id="home-username" style="color:#00ECE6;">Scholar</span></h1>
+                                <h1 style="font-size:clamp(1.3rem,2.4vw,1.7rem);margin:0 0 4px;color:#fff;font-weight:800;line-height:1.15;-webkit-text-fill-color:#fff;background:none;"><span class="home-welcome-word">Welcome back</span>, <span id="home-username" style="color:#00ECE6;">Scholar</span></h1>
                                 <p id="home-motivational" style="font-size:0.95rem;color:#c8ccd8;margin:0;line-height:1.5;">Your AI-powered learning hub — pick up where you left off.</p>
                             </div>
                             <div style="display:flex;gap:10px;flex-shrink:0;">
@@ -1325,7 +1325,7 @@
 
             <div id="view-dashboard" class="view">
                 <header>
-                    <h1 style="-webkit-text-fill-color:#fff;background:none;font-size:clamp(1.1rem,2vw,1.4rem);">Welcome back, <span id="dashboard-username" style="color:#00ECE6;">Scholar</span>.</h1>
+                    <h1 style="-webkit-text-fill-color:#fff;background:none;font-size:clamp(1.1rem,2vw,1.4rem);"><span class="home-welcome-word">Welcome back</span>, <span id="dashboard-username" style="color:#00ECE6;">Scholar</span>.</h1>
                     <p>Track your progress and stay motivated <span
                             style="background:linear-gradient(135deg, #fd79a8, #6c5ce7);color:#fff;font-weight:700;font-size:0.8em;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(253,121,168,0.35);">v19.0 ✨</span>
                     </p>
@@ -5200,7 +5200,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260706v210"></script>
+    <script src="script.js?v=20260710v211"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
