@@ -187,8 +187,13 @@ async function linkEmailToAccount() {
     try {
         if (typeof getAuthRegistry === 'function') {
             const reg = getAuthRegistry() || {};
+            // v19.2 — registry values are HASH STRINGS, so the old reg[name].email
+            // check was always undefined and this guard never fired. The linked
+            // email actually lives in the auth_email_<username> keys.
             const clash = Object.keys(reg).find(function (name) {
-                return name !== localUser && reg[name] && reg[name].email && reg[name].email.toLowerCase() === email.toLowerCase();
+                if (name === localUser) return false;
+                const linked = localStorage.getItem('auth_email_' + name) || '';
+                return linked.toLowerCase() === email.toLowerCase();
             });
             if (clash) { setNote('That email is already linked to another account (“' + clash + '”). Each email can belong to only one account.'); return; }
         }
@@ -212,7 +217,7 @@ async function linkEmailToAccount() {
         }
     } catch (e) { if (window._logNexusError) window._logNexusError('link-convert', e && e.message); }
     // Fallback (no anonymous session to convert): create/sign into a cloud account.
-    if (!ok) ok = await _cloudLinkAccount(email, pass, { backup: true });
+    if (!ok) ok = await _cloudLinkAccount(email, pass, { backup: true, allowCreate: true }); // explicit link action
     if (!ok) { setNote('Could not link — that email may already be taken with a different password. Try "Sign in (existing)" instead.'); return; }
     // Push current local progress up so it's saved to this now-permanent account.
     try { if (typeof cloudUiBackup === 'function') await cloudUiBackup(true); } catch (_) {}
@@ -220,10 +225,10 @@ async function linkEmailToAccount() {
     try {
         localStorage.setItem('auth_email_' + localUser, email);
         localStorage.setItem('auth_email', email);
-        if (typeof getAuthRegistry === 'function' && typeof localStorage.getItem('auth_users') === 'string') {
-            const reg = getAuthRegistry();
-            if (reg[localUser]) { reg[localUser].email = email; localStorage.setItem('auth_users', JSON.stringify(reg)); }
-        }
+        // v19.2 — removed the reg[localUser].email write: registry values are
+        // hash strings (setting .email on a string is a silent no-op, and
+        // converting them to objects would break password verification).
+        // auth_email_<username> above is the canonical link record.
     } catch (_) {}
     setNote(converted
         ? '✓ Email linked to THIS account — all your progress is kept. Check ' + email + ' and click the confirmation link to finish.'
@@ -334,7 +339,7 @@ async function _nexusSetNewPassword() {
         if (up && up.error) throw up.error;
         // Sync the LOCAL sign-in hash so username/password login works with the new password.
         var email = (up && up.data && up.data.user && up.data.user.email) || '';
-        var hash = await hashPassword(p1);
+        var hash = await hashPasswordV2(p1); // v19.2 — salted PBKDF2
         var uname = null;
         for (var i = 0; i < localStorage.length; i++) {
             var k = localStorage.key(i);
@@ -493,18 +498,33 @@ async function _cloudLinkAccount(email, password, opts) {
     try {
         if (!nexusSB) _initSupabase();
         if (!nexusSB || !email || !password) return false;
+        const _linkedFlag = 'cloud_linked_' + (localStorage.getItem('auth_user') || '');
+        const _markLinked = function () { try { localStorage.setItem(_linkedFlag, '1'); } catch (_) {} };
         const cur = await _cloudUser();
-        if (cur && cur.email && cur.email.toLowerCase() === String(email).toLowerCase()) return true; // already linked
-        // Try signing in first; if no cloud account exists yet, create one (migration / first run).
+        if (cur && cur.email && cur.email.toLowerCase() === String(email).toLowerCase()) { _markLinked(); return true; } // already linked
+        // Try signing in first.
         const si = await nexusSB.auth.signInWithPassword({ email: email, password: password });
-        if (!si.error) { _cloudRefreshUi(); return true; }
+        if (!si.error) { _markLinked(); _cloudRefreshUi(); return true; }
+        // v19.2 — only CREATE a cloud account when the caller explicitly allows
+        // it (signup / email-linking / first-ever migration). Once this local
+        // account has linked successfully once, never signUp again: a later
+        // sign-in failure means a password mismatch, and silently signing up
+        // was how confusing duplicate/ghost cloud accounts got minted.
+        const mayCreate = opts.allowCreate && !localStorage.getItem(_linkedFlag);
+        if (!mayCreate) {
+            if (window._logNexusError) window._logNexusError('cloud-link', 'sign-in failed; creation not allowed here');
+            return false;
+        }
         const su = await nexusSB.auth.signUp({ email: email, password: password });
         if (su.error) { if (window._logNexusError) window._logNexusError('cloud-link', su.error.message); return false; }
         if (su.data && su.data.session) {
+            _markLinked();
             if (opts.backup) { try { await cloudUiBackup(true); } catch (_) {} }
             _cloudRefreshUi();
             return true;
         }
+        // Confirm-email-required flow: account created but no session yet.
+        if (su.data && su.data.user) _markLinked();
         return false;
     } catch (e) { if (window._logNexusError) window._logNexusError('cloud-link', e && e.message); return false; }
 }
@@ -1462,6 +1482,9 @@ async function ensureTesseract() {
 // ============================================================
 // SECURITY - Password Hashing
 // ============================================================
+// LEGACY (v11–v19.1): unsalted SHA-256 hex. Still used to VERIFY old stored
+// hashes (and the owner-account constant) — never for new hashes. Unsalted
+// fast hashes are cheap to crack offline, so v19.2 moved to salted PBKDF2.
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -1469,6 +1492,59 @@ async function hashPassword(password) {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
+}
+
+// v19.2 — salted PBKDF2-SHA256 (WebCrypto). Stored self-describing:
+//   pbkdf2$<iterations>$<salt-b64>$<hash-b64>
+// so iterations can be raised later without breaking existing hashes.
+const PBKDF2_ITERATIONS = 210000; // OWASP 2023 recommendation for PBKDF2-SHA256
+
+function _b64(bytes) { return btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(bytes)))); }
+function _b64ToBytes(s) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+
+async function _pbkdf2(password, saltBytes, iterations) {
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations: iterations },
+        keyMaterial, 256);
+    return _b64(bits);
+}
+
+// Hash a NEW password (fresh random salt every time).
+async function hashPasswordV2(password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hash = await _pbkdf2(password, salt, PBKDF2_ITERATIONS);
+    return 'pbkdf2$' + PBKDF2_ITERATIONS + '$' + _b64(salt) + '$' + hash;
+}
+
+// Verify a password against a stored hash of EITHER format. Returns true/false.
+async function verifyPassword(password, stored) {
+    if (!stored) return false;
+    try {
+        if (String(stored).indexOf('pbkdf2$') === 0) {
+            const parts = String(stored).split('$'); // ['pbkdf2', iters, salt, hash]
+            const derived = await _pbkdf2(password, _b64ToBytes(parts[2]), parseInt(parts[1], 10));
+            return derived === parts[3];
+        }
+        // Legacy unsalted SHA-256 hex
+        return (await hashPassword(password)) === stored;
+    } catch (_) { return false; }
+}
+
+// After a successful sign-in with a LEGACY hash, transparently upgrade the
+// stored hash to PBKDF2 (we only have the plaintext at sign-in time).
+async function _migrateHashIfLegacy(username, password, stored) {
+    try {
+        if (String(stored).indexOf('pbkdf2$') === 0) return stored; // already migrated
+        const v2 = await hashPasswordV2(password);
+        localStorage.setItem('auth_pass', v2);
+        if (typeof getAuthRegistry === 'function') {
+            const reg = getAuthRegistry() || {};
+            if (reg[username]) { reg[username] = v2; localStorage.setItem('auth_users', JSON.stringify(reg)); }
+        }
+        return v2;
+    } catch (_) { return stored; }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1801,33 +1877,37 @@ async function handleAuthSubmit() {
         return;
     }
 
-    const hashedInputPass = await hashPassword(pass);
+    // v19.2 — verifyPassword handles BOTH hash formats (salted PBKDF2 + legacy
+    // unsalted SHA-256); a successful legacy sign-in silently upgrades the
+    // stored hash since sign-in is the only moment we hold the plaintext.
     const savedUser = localStorage.getItem('auth_user');
     const savedPass = localStorage.getItem('auth_pass');
     const registry = getAuthRegistry();
 
     // 1) Match against the currently-active account
-    if (savedUser === user && savedPass === hashedInputPass) {
+    if (savedUser === user && (await verifyPassword(pass, savedPass))) {
+        await _migrateHashIfLegacy(user, pass, savedPass);
         // v12.0 — persist "remember me" preference
         rememberAuthIfChecked();
         const _em1 = localStorage.getItem('auth_email_' + user) || '';
-        if (_em1) _cloudLinkAccount(_em1, pass); // unified account: restore cloud session
+        if (_em1) _cloudLinkAccount(_em1, pass, { allowCreate: true }); // restore cloud session (create = first-time migration only; blocked after first link)
         closeSignInModal();
         completeLogin();
         return;
     }
     // 2) Match against any other known account in the registry
-    if (registry[user] && registry[user] === hashedInputPass) {
+    if (registry[user] && (await verifyPassword(pass, registry[user]))) {
         // v12.0 — switching accounts: snapshot the CURRENT account first so we
         // don't lose their state, then clear, then restore the target account.
         if (savedUser && savedUser !== user) snapshotAccountState(savedUser);
         clearCurrentAccountState();
         localStorage.setItem('auth_user', user);
-        localStorage.setItem('auth_pass', hashedInputPass);
+        localStorage.setItem('auth_pass', registry[user]);
+        await _migrateHashIfLegacy(user, pass, registry[user]);
         const restored = restoreAccountState(user);
         rememberAuthIfChecked();
         const _em2 = localStorage.getItem('auth_email_' + user) || '';
-        if (_em2) _cloudLinkAccount(_em2, pass); // unified account: restore cloud session
+        if (_em2) _cloudLinkAccount(_em2, pass, { allowCreate: true }); // restore cloud session (create = first-time migration only; blocked after first link)
         showToast(restored ? `Welcome back, ${user}.` : `Signed in as ${user}.`, 'success');
         closeSignInModal();
         completeLogin();
@@ -2264,7 +2344,7 @@ async function completeSignUpFlow() {
         submitBtn.innerHTML = '<i class="ph ph-spinner-gap" style="animation:spin 1s linear infinite;"></i> Processing...';
     }
 
-    const hashedPass = await hashPassword(pass);
+    const hashedPass = await hashPasswordV2(pass); // v19.2 — salted PBKDF2 for all new accounts
 
     // v12.0 — IMPORTANT: snapshot whatever account was active, then WIPE per-account
     // state before creating the new account. Without this, the new user inherits
@@ -2291,7 +2371,7 @@ async function completeSignUpFlow() {
     try { const wl = JSON.parse(localStorage.getItem('nexus_waitlist') || '[]'); wl.push({ email: email, name: userName, interestedPlan: planLabel, ts: new Date().toISOString() }); localStorage.setItem('nexus_waitlist', JSON.stringify(wl)); } catch (_) {}
     rememberAuthIfChecked();
     // UNIFIED ACCOUNT — create the synced cloud account behind the scenes (best-effort).
-    _cloudLinkAccount(email, pass, { backup: true });
+    _cloudLinkAccount(email, pass, { backup: true, allowCreate: true }); // signup — creating the cloud account is the point
 
     setTimeout(() => {
         // Beta: grant full access so nothing's locked, but record the chosen modules
