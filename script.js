@@ -404,6 +404,47 @@ async function _bootstrapCloudSession() {
         if (!u) return;
         if (localStorage.getItem('auth_user')) return; // already logged in locally
         var email = u.email || '';
+
+        // v19.1 — FIRST: is a local account already linked to this email? Sign
+        // into THAT one. Previously we always minted a new profile named after
+        // the Google display name, so "Continue with Google" gave linked users
+        // a brand-new empty account instead of their own.
+        if (email) {
+            var lcEmail = email.toLowerCase();
+            var linked = null;
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k && k.indexOf('auth_email_') === 0 && String(localStorage.getItem(k) || '').toLowerCase() === lcEmail) {
+                    linked = k.slice('auth_email_'.length);
+                    break;
+                }
+            }
+            if (linked) {
+                localStorage.setItem('auth_user', linked);
+                localStorage.setItem('auth_remember', '1');
+                if (typeof restoreAccountState === 'function') restoreAccountState(linked);
+                if (typeof completeLogin === 'function') completeLogin();
+                if (typeof showToast === 'function') showToast('Signed in as ' + linked + ' via Google', 'success', 4000);
+                return;
+            }
+        }
+
+        // SECOND: no local account on this device — if this cloud user has a
+        // synced backup (returning user on a fresh browser), restore it whole
+        // instead of starting them from zero.
+        try {
+            var bk = await nexusSB.from('app_state').select('data').eq('user_id', u.id).maybeSingle();
+            var blob = bk && bk.data && bk.data.data;
+            if (blob && blob.auth_user) {
+                _applySyncBlob(blob);
+                localStorage.setItem('auth_remember', '1');
+                if (typeof showToast === 'function') showToast('Welcome back — restoring your account…', 'success', 3000);
+                setTimeout(function () { location.reload(); }, 800);
+                return;
+            }
+        } catch (_) { /* best-effort; fall through to a fresh profile */ }
+
+        // THIRD: genuinely new user — create a fresh local profile.
         var uname = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || (email ? email.split('@')[0] : 'Scholar');
         uname = String(uname).replace(/[^A-Za-z0-9_.\- ]/g, '').trim().slice(0, 32) || 'Scholar';
         localStorage.setItem('auth_user', uname);
