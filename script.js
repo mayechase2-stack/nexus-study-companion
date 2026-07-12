@@ -5773,7 +5773,7 @@ async function generateQuiz() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: `Generate a 3-question multiple-choice math quiz for Grade ${diff}.
@@ -27331,7 +27331,7 @@ where "correct" is the 0-based index of the right answer. No commentary, just JS
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: text.length > 3000 ? text.substring(0, 3000) : text }
@@ -27397,7 +27397,7 @@ async function generateNotesQuiz() {
             method:'POST',
             headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
             body: JSON.stringify({
-                model:'gpt-4o-mini',
+                model:'gpt-4o',
                 response_format:{type:'json_object'},
                 messages:[
                     {role:'system',content:'You are a quiz maker. Create exactly '+count+' multiple-choice questions at '+diff+' difficulty from the provided text. Each question has exactly 4 options labeled A, B, C, D. Return STRICT JSON: {"questions":[{"q":"question","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A"}]}'},
@@ -28165,7 +28165,7 @@ function generatePracticeTest() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
         body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: 'gpt-4o',
             messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
             max_tokens: 2000,
