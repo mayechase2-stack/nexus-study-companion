@@ -5883,6 +5883,15 @@ function answerQuiz(qi, oi) {
     } else {
         showToast('Incorrect — the right answer is highlighted in green.', 'error', 3500);
     }
+    // v19.3 — show the worked solution under the question so a miss teaches
+    // something (the model already returns its step-by-step in q.work).
+    if (wrap && q.work && !wrap.querySelector('.quiz-explanation')) {
+        const ex = document.createElement('div');
+        ex.className = 'quiz-explanation';
+        ex.style.cssText = 'margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.88rem;line-height:1.5;color:#d8dce5;background:rgba(255,255,255,0.05);border-left:3px solid ' + (isCorrect ? '#00b894' : '#fdcb6e') + ';';
+        ex.textContent = (isCorrect ? '✓ Why: ' : '💡 How to get it: ') + q.work;
+        wrap.appendChild(ex);
+    }
 }
 
 // ============================================================
