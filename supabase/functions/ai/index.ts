@@ -37,15 +37,20 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// v19.3 — trial questions for an account with NO verified email. Lowered
-// 10 → 3: anonymous/unverified accounts are near-free to mint, so this is the
-// main account-farming lever. A confirmed email unlocks FREE_MONTHLY. Override
-// live (no redeploy) via the ANON_MONTHLY_LIMIT secret in Supabase.
-const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "3", 10);
+// v19.3 — trial questions for an account with NO verified email. Set to 5:
+// anonymous/unverified accounts are near-free to mint, so this is the main
+// account-farming lever. A confirmed email unlocks FREE_MONTHLY. Override live
+// (no redeploy) via the ANON_MONTHLY_LIMIT secret in Supabase.
+const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "5", 10);
 const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "1500", 10);
 const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "6000", 10);
 const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
 const IP_PER_MIN = parseInt(Deno.env.get("IP_PER_MIN_LIMIT") ?? "20", 10);
+// v19.3 — per-IP MONTHLY cap for the unverified tier (anti account-farming:
+// clearing the browser mints a fresh anon account, but they share an IP). Only
+// applied to unverified callers; a verified email escapes it entirely. Requires
+// migration 0005_ip_month_cap.sql. Override live via IP_ANON_MONTHLY_LIMIT.
+const IP_ANON_MONTHLY = parseInt(Deno.env.get("IP_ANON_MONTHLY_LIMIT") ?? "25", 10);
 
 const ALLOWED_MODELS = new Set(["gpt-4o", "gpt-4o-mini"]);
 const MAX_BODY_BYTES = 3_000_000;  // ~3 MB — detailed Live Vision graph screenshots can exceed 600 KB; still blocks true abuse
@@ -153,18 +158,31 @@ Deno.serve(async (req) => {
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
 
-  const gateRes = await fetch(`${SB_URL}/rest/v1/rpc/ai_gate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: ANON, // MUST be the anon key so the user's Bearer token sets auth.uid()
-      Authorization: `Bearer ${token}`, // run as the caller so auth.uid() is set
-    },
-    body: JSON.stringify({
+  // Per-IP monthly cap applies to the UNVERIFIED tier only; verified accounts
+  // pass -1 (no IP cap). "No verified email is their problem, not ours."
+  const ipMonthLimit = emailVerified ? -1 : IP_ANON_MONTHLY;
+
+  const gateHeaders = {
+    "Content-Type": "application/json",
+    apikey: ANON, // MUST be the anon key so the user's Bearer token sets auth.uid()
+    Authorization: `Bearer ${token}`, // run as the caller so auth.uid() is set
+  };
+  async function callGate(withIpMonth: boolean) {
+    const b: Record<string, unknown> = {
       p_ip: ip, p_month_limit: monthlyLimit,
       p_per_min: PER_MIN, p_ip_per_min: IP_PER_MIN,
-    }),
-  });
+    };
+    if (withIpMonth) b.p_ip_month_limit = ipMonthLimit;
+    return fetch(`${SB_URL}/rest/v1/rpc/ai_gate`, { method: "POST", headers: gateHeaders, body: JSON.stringify(b) });
+  }
+  // Try the 5-arg gate; if migration 0005 isn't applied yet the function
+  // signature won't match, so fall back to the 4-arg call (AI keeps working,
+  // just without the IP cap until the migration is run).
+  let gateRes = await callGate(true);
+  if (!gateRes.ok) {
+    const legacy = await callGate(false);
+    if (legacy.ok) gateRes = legacy;
+  }
   const gate = gateRes.ok ? await gateRes.json() : { allowed: false, reason: "gate_error" };
   if (!gate?.allowed) {
     let msg, reason = gate?.reason;
@@ -180,6 +198,16 @@ Deno.serve(async (req) => {
       } else {
         // Truly anonymous (never made an account).
         msg = "You've used your free trial questions. Create a free account (with an email) to unlock a lot more.";
+        reason = "make_account";
+      }
+    } else if (gate?.reason === "ip_month_limit") {
+      // This network has used up the shared UNVERIFIED trial budget. The escape
+      // hatch is verifying an email (which removes the IP cap entirely).
+      if (user?.email && user?.is_anonymous !== true) {
+        msg = "This network's free trial questions are used up. Verify your email — check your inbox for the confirmation link — to unlock your own free allotment.";
+        reason = "verify_email";
+      } else {
+        msg = "This network's free trial questions are used up. Create a free account with an email to get your own allotment.";
         reason = "make_account";
       }
     } else if (gate?.reason?.startsWith("rate")) {
