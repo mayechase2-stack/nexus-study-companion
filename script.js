@@ -21,18 +21,57 @@ const EMAILJS_TEMPLATE_ID = '';
 // v17.6 — Client-side error monitoring (privacy-respecting: stays in this browser).
 // Registered first so it catches errors anywhere in the app; surfaced in Diagnostics.
 (function () {
-    function _logNexusError(kind, msg, where) {
+    // v19.3 — best-effort cloud push so the owner sees real user breakage
+    // without users reporting it. Throttled + deduped so a render loop can't
+    // flood the table, and fully silent on failure (telemetry never disrupts
+    // the app). Requires migration 0003_client_errors.sql (RLS: anon insert,
+    // owner-only read).
+    var _lastPushKey = '', _lastPushAt = 0;
+    function _cloudPushError(entry) {
         try {
+            if (typeof nexusSB === 'undefined' || !nexusSB) return; // no session yet
+            var key = entry.kind + '|' + entry.msg;
+            var now = Date.now();
+            if (key === _lastPushKey && (now - _lastPushAt) < 60000) return; // dedupe identical within 1 min
+            if ((now - _lastPushAt) < 3000) return; // global throttle: ≤1 push / 3s
+            _lastPushKey = key; _lastPushAt = now;
+            nexusSB.from('client_errors').insert({
+                kind: entry.kind, msg: entry.msg, where_at: entry.where,
+                url: (location.pathname + location.search).slice(0, 200),
+                ua: (navigator.userAgent || '').slice(0, 200)
+            }).then(function () {}, function () {}); // swallow all outcomes
+        } catch (_) {}
+    }
+    function _logNexusError(kind, msg, where) {
+        var entry;
+        try {
+            entry = { ts: new Date().toISOString(), kind: kind, msg: String(msg == null ? 'unknown' : msg).slice(0, 300), where: where ? String(where).slice(0, 160) : '' };
             var log = JSON.parse(localStorage.getItem('nexus_error_log') || '[]');
-            log.unshift({ ts: new Date().toISOString(), kind: kind, msg: String(msg == null ? 'unknown' : msg).slice(0, 300), where: where ? String(where).slice(0, 160) : '' });
+            log.unshift(entry);
             if (log.length > 50) log.length = 50;
             localStorage.setItem('nexus_error_log', JSON.stringify(log));
         } catch (_) {}
+        if (entry) _cloudPushError(entry);
     }
     window.addEventListener('error', function (e) { _logNexusError('error', e.message, (e.filename || '') + (e.lineno ? ':' + e.lineno : '')); });
     window.addEventListener('unhandledrejection', function (e) { _logNexusError('promise', (e.reason && e.reason.message) || e.reason, ''); });
     window._logNexusError = _logNexusError;
 })();
+
+// v19.3 — owner-only: pull the aggregated client-error feed from Supabase.
+// RLS returns rows only when the caller's profile tier is 'owner'; everyone
+// else gets an empty array. Used by the Diagnostics modal.
+async function fetchOwnerErrorFeed(limit) {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return [];
+        var q = await nexusSB.from('client_errors')
+            .select('kind,msg,where_at,url,ts')
+            .order('ts', { ascending: false })
+            .limit(limit || 50);
+        return (q && q.data) || [];
+    } catch (_) { return []; }
+}
 
 // ════════════════════════════════════════════════════════════════════
 // Phase 2 — Supabase (real accounts + cross-device cloud sync).
@@ -18966,8 +19005,24 @@ function openDiagnostics() {
         + '<span style="font-size:0.85rem;color:' + color.warn + ';font-weight:700;">⚠ ' + counts.warn + ' warnings</span>'
         + '<span style="font-size:0.85rem;color:' + color.fail + ';font-weight:700;">✕ ' + counts.fail + ' failed</span>'
         + '<button class="btn-secondary" style="margin-left:auto;font-size:0.78rem;padding:4px 10px;" onclick="openDiagnostics()"><i class="ph ph-arrow-clockwise"></i> Re-run</button></div>'
-        + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + errHtml + '</div></div>';
+        + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + errHtml
+        + (isOwner() ? '<div id="diag-owner-feed" style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;font-size:0.8rem;color:var(--text-muted);"><i class="ph ph-cloud-arrow-down"></i> Loading all-user error feed…</div>' : '')
+        + '</div></div>';
     document.body.appendChild(modal);
+    // v19.3 — owner-only: load the cross-user error feed from Supabase.
+    if (isOwner()) {
+        fetchOwnerErrorFeed(40).then(function (feed) {
+            var el = document.getElementById('diag-owner-feed');
+            if (!el) return;
+            if (!feed.length) { el.innerHTML = '<i class="ph ph-check-circle" style="color:#00b894;"></i> No user errors reported to the cloud (or table 0003 not yet created).'; return; }
+            el.innerHTML = '<strong style="color:#fdcb6e;font-size:0.85rem;"><i class="ph ph-users-three"></i> All-user errors (' + feed.length + ')</strong>'
+                + feed.map(function (x) {
+                    var when = '';
+                    try { when = new Date(x.ts).toLocaleString(); } catch (_) {}
+                    return '<div style="font-size:0.72rem;color:#cdd2e0;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><span style="color:#ff9a9a;">[' + escapeHtmlSafe(x.kind || '') + ']</span> ' + escapeHtmlSafe(x.msg || '') + (x.where_at ? '<span style="color:var(--text-muted);"> — ' + escapeHtmlSafe(x.where_at) + '</span>' : '') + '<span style="color:var(--text-muted);float:right;">' + escapeHtmlSafe(when) + '</span></div>';
+                }).join('');
+        });
+    }
 }
 
 // v17.5 — accessibility: give icon-only controls a screen-reader label by copying their
