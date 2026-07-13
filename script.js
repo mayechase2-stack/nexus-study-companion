@@ -9909,6 +9909,23 @@ let wallpaperAnimFrame = null;
 let _activeWallpaperType = 'none';
 let _wallpaperResizeTimer = null;
 
+// v220 perf — every animated wallpaper schedules its next frame through here.
+// Caps redraws at WALLPAPER_FPS (a 60fps full-screen canvas eats ~half an iGPU,
+// costing real game/app FPS on laptops) and stops entirely while the window is
+// unfocused — visibilitychange only fires for hidden tabs, not for a visible
+// window the user isn't using. The focus listener (next to the visibilitychange
+// handler) restarts the wallpaper via applyWallpaper.
+const WALLPAPER_FPS = 30;
+let _wallpaperLastTs = 0;
+function _wallpaperFrame(fn) {
+    wallpaperAnimFrame = requestAnimationFrame(function (ts) {
+        if (!document.hasFocus()) { wallpaperAnimFrame = null; return; }
+        if (ts - _wallpaperLastTs < (1000 / WALLPAPER_FPS) - 0.5) { _wallpaperFrame(fn); return; }
+        _wallpaperLastTs = ts;
+        fn();
+    });
+}
+
 // Single global resize listener — fully re-initialises the wallpaper at the
 // new screen dimensions. Fixes the bug where moving from a big monitor to a
 // smaller laptop screen kept the oversized canvas from the original display.
@@ -10313,7 +10330,7 @@ function applyWallpaper(type) {
                 }
                 ctx.restore();
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateStars);
+            _wallpaperFrame(animateStars);
         })();
     } else if (type === 'matrix') {
         // v10.6 Matrix Rain — varied glyphs (katakana + ASCII + binary + math symbols + secret words)
@@ -10375,7 +10392,7 @@ function applyWallpaper(type) {
             for (let i = wordDrops.length - 1; i >= 0; i--) {
                 if (wordDrops[i].charIdx >= wordDrops[i].word.length && wordDrops[i].delay > 60) wordDrops.splice(i, 1);
             }
-            wallpaperAnimFrame = requestAnimationFrame(animateMatrix);
+            _wallpaperFrame(animateMatrix);
         })();
     } else if (type === 'underwater') {
         // Underwater with swimming fish, caustic light, bubbles — v10.6 added sharks + scuba divers
@@ -10623,7 +10640,7 @@ function applyWallpaper(type) {
                 ctx.fillStyle = `hsla(${m.hue},100%,90%,${a})`;
                 ctx.beginPath(); ctx.arc(mx, m.y, m.r, 0, Math.PI * 2); ctx.fill();
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateUnderwater);
+            _wallpaperFrame(animateUnderwater);
         })();
     } else if (type === 'ocean-deep') {
         // v16.5 — Deep ocean abyss: bioluminescent motes, drifting glowing jellyfish, god rays, distant fish
@@ -10722,7 +10739,7 @@ function applyWallpaper(type) {
                 ctx.fillStyle = `hsla(${m.hue},100%,90%,${a})`;
                 ctx.beginPath(); ctx.arc(mx, m.y, m.r, 0, Math.PI * 2); ctx.fill();
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateOcean);
+            _wallpaperFrame(animateOcean);
         })();
     } else if (type === 'neon-city') {
         // v17.3 — richer rainy cyberpunk skyline: parallax skyline, moon, rooftop neon,
@@ -10768,7 +10785,7 @@ function applyWallpaper(type) {
             for (let i = splashes.length - 1; i >= 0; i--) { const s = splashes[i]; s.r += 0.6; s.life -= 0.08; if (s.life <= 0) { splashes.splice(i, 1); continue; } ctx.strokeStyle = 'rgba(150,200,255,' + s.life * 0.4 + ')'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, Math.PI, 2 * Math.PI); ctx.stroke(); }
             plane.x += 0.8; if (plane.x > canvas.width + 50) { plane.x = -50; plane.y = canvas.height * (0.06 + Math.random() * 0.12); }
             if (Math.floor(t * 3) % 2 === 0) { ctx.fillStyle = '#ff5555'; ctx.beginPath(); ctx.arc(plane.x, plane.y, 2, 0, Math.PI * 2); ctx.fill(); }
-            wallpaperAnimFrame = requestAnimationFrame(animateNeon);
+            _wallpaperFrame(animateNeon);
         })();
     } else if (type === 'space-station') {
         // v17.3 — richer ISS window view: stars, rotating Earth w/ city lights + aurora,
@@ -10820,7 +10837,7 @@ function applyWallpaper(type) {
             ctx.strokeStyle = '#2a3340'; ctx.lineWidth = 2; ctx.strokeRect(fw, fw, canvas.width - fw * 2, canvas.height - fw * 2);
             // a couple of rivets
             ctx.fillStyle = '#3a4654'; for (let rv = fw; rv < canvas.width; rv += fw * 2) { ctx.beginPath(); ctx.arc(rv, fw * 0.5, 2, 0, Math.PI * 2); ctx.arc(rv, canvas.height - fw * 0.5, 2, 0, Math.PI * 2); ctx.fill(); }
-            wallpaperAnimFrame = requestAnimationFrame(animateStation);
+            _wallpaperFrame(animateStation);
         })();
     } else if (type === 'anime-library') {
         // v17.0 — candlelit library: stained-glass moon, bookshelves, floating books, dust motes
@@ -10883,7 +10900,7 @@ function applyWallpaper(type) {
                 ctx.restore();
             });
             motes.forEach(function (m) { m.y -= m.sp; m.dr += 0.02; const mxx = m.x + Math.sin(m.dr) * 6; if (m.y < -4) { m.y = canvas.height + 4; m.x = Math.random() * canvas.width; } ctx.fillStyle = 'rgba(255,220,150,' + (0.25 + Math.sin(m.dr) * 0.15) + ')'; ctx.beginPath(); ctx.arc(mxx, m.y, m.r, 0, Math.PI * 2); ctx.fill(); });
-            wallpaperAnimFrame = requestAnimationFrame(animateLibrary);
+            _wallpaperFrame(animateLibrary);
         })();
     } else if (type === 'aurora-bg') {
         // EPIC Aurora — vivid multi-color bands with stars and shimmer
@@ -10943,7 +10960,7 @@ function applyWallpaper(type) {
                 ctx.lineTo(x, canvas.height - 15 - Math.sin(x * 0.01) * 10 - Math.random() * 3);
             }
             ctx.lineTo(canvas.width, canvas.height); ctx.closePath(); ctx.fill();
-            wallpaperAnimFrame = requestAnimationFrame(animateAurora);
+            _wallpaperFrame(animateAurora);
         })();
     } else if (type === 'sakura') {
         // LEGENDARY Sakura — massive 8-bit pixel-art tree, MORE petals (v10.6), bench + girl
@@ -11199,7 +11216,7 @@ function applyWallpaper(type) {
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(gx - 7, gy + 11, 6, 3);
             ctx.fillRect(gx + 3, gy + 11, 6, 3);
-            wallpaperAnimFrame = requestAnimationFrame(animateSakura);
+            _wallpaperFrame(animateSakura);
         })();
     } else if (type === 'sakura-day') {
         // LEGENDARY Sakura Day — bright spring sky, big sun, drifting petals (v10.10: 500 petals)
@@ -11261,7 +11278,7 @@ function applyWallpaper(type) {
                 ctx.fill();
                 ctx.restore();
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateSakuraDay);
+            _wallpaperFrame(animateSakuraDay);
         })();
     } else if (type === 'sunny-meadow') {
         // v10.7 — REBUILT: bigger, more recognizable farm. Animals fenced INSIDE pen.
@@ -11588,7 +11605,7 @@ function applyWallpaper(type) {
             ctx.fillStyle = '#f4cba8';
             ctx.fillRect(tx + 30, ty - 3, 4, 2);
             ctx.restore();
-            wallpaperAnimFrame = requestAnimationFrame(animateMeadow);
+            _wallpaperFrame(animateMeadow);
         })();
     } else if (type === 'beach-day') {
         // v10.7 — Beach Day REBUILD: bigger towels, bigger seagulls, beach walkers
@@ -11886,7 +11903,7 @@ function applyWallpaper(type) {
                 ctx.fillStyle = '#d4a085';
                 ctx.fillRect(w.x + flip * 3, w.y - 11, 1, 1);
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateBeach);
+            _wallpaperFrame(animateBeach);
         })();
     } else if (type === 'ghibli-forest') {
         // v12.8 — Ghibli Forest removed from shop. Redirect to no wallpaper.
@@ -12101,7 +12118,7 @@ function applyWallpaper(type) {
                 ctx.fillStyle = `hsla(${f.hue+12},100%,93%,${ffA})`;
                 ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.fill();
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateGhibli);
+            _wallpaperFrame(animateGhibli);
         })();
     } else if (type === 'spring-sky') {
         // v10.6 — Spring Sky toned down + birds + airplane every ~30s
@@ -12180,7 +12197,7 @@ function applyWallpaper(type) {
                 ctx.lineTo(plane.x - 8, plane.y);
                 ctx.closePath(); ctx.fill();
             }
-            wallpaperAnimFrame = requestAnimationFrame(animateSpringSky);
+            _wallpaperFrame(animateSpringSky);
         })();
     } else if (type === 'nexus-void') {
         // v11.0 — NEXUS VOID rebuilt (3rd attempt): a DIMENSIONAL RIFT.
@@ -12381,7 +12398,7 @@ function applyWallpaper(type) {
                 if (glitchY > canvas.height + 20) glitchY = -1;
             }
 
-            wallpaperAnimFrame = requestAnimationFrame(animateVoid);
+            _wallpaperFrame(animateVoid);
         })();
     } else if (type === 'nebula') {
         let t = 0;
@@ -12419,7 +12436,7 @@ function applyWallpaper(type) {
                 ctx.fillStyle = `rgba(255,255,255,${alpha})`;
                 ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
             });
-            wallpaperAnimFrame = requestAnimationFrame(animateNebula);
+            _wallpaperFrame(animateNebula);
         })();
     } else {
         canvas.remove();
@@ -19191,6 +19208,17 @@ function _injectAiDisclaimers() {
     });
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_injectAiDisclaimers, 1000); });
+
+// v220 perf — pause the wallpaper while the window is unfocused (visible-but-idle
+// windows never fire visibilitychange, so an Edge window left open next to a game
+// kept burning GPU). _wallpaperFrame also self-stops on lost focus; this blur
+// handler just kills the loop immediately instead of waiting for the next frame.
+window.addEventListener('blur', function () {
+    if (wallpaperAnimFrame) { cancelAnimationFrame(wallpaperAnimFrame); wallpaperAnimFrame = null; }
+});
+window.addEventListener('focus', function () {
+    if (!document.hidden && !wallpaperAnimFrame && typeof applyWallpaper === 'function' && _activeWallpaperType && _activeWallpaperType !== 'none') applyWallpaper(_activeWallpaperType);
+});
 
 // v17.0 — Battery saver: pause canvas animations while the tab is hidden, resume on return.
 document.addEventListener('visibilitychange', function () {
