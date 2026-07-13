@@ -1569,6 +1569,35 @@ async function ensureDevPasswordHashLive() {
     return _devPasswordHashLive;
 }
 
+// v19.3 — SERVER-DRIVEN OWNER CHECK (replacement for the client password
+// backdoor). Owner status is authoritative in Supabase `profiles.tier='owner'`,
+// which RLS lets a user read only for their OWN row — so a random visitor can't
+// forge it, and no owner secret ships in this file. On sign-in we read the
+// logged-in user's own tier; if it's 'owner', grant the owner experience.
+// Chase enables his account with ONE SQL line (see docs), then the embedded
+// DEV_PASSWORD_HASH backdoor can be deleted in a follow-up.
+async function checkServerOwner() {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return false;
+        const u = await _cloudUser();
+        if (!u || !u.id) return false;
+        const { data, error } = await nexusSB
+            .from('profiles').select('tier').eq('id', u.id).maybeSingle();
+        if (error || !data) return false;
+        if (data.tier === 'owner') {
+            if (typeof setUserTier === 'function') setUserTier('owner');
+            if (typeof applyDevAccountPerks === 'function') applyDevAccountPerks();
+            return true;
+        }
+        return false;
+    } catch (_) { return false; }
+}
+// Run shortly after load, once a cloud session is likely established.
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () { if (localStorage.getItem('auth_user')) checkServerOwner(); }, 2000);
+});
+
 async function provisionDevAccountInRegistry() {
     const hash = await ensureDevPasswordHashLive();
     const reg = (typeof getAuthRegistry === 'function') ? getAuthRegistry() : {};
@@ -1579,7 +1608,13 @@ async function provisionDevAccountInRegistry() {
 }
 
 function applyDevAccountPerks() {
-    if (localStorage.getItem('auth_user') !== DEV_USERNAME) return;
+    // v19.3 — allow EITHER the legacy dev username OR a server-verified owner
+    // (getUserTier()==='owner', set by checkServerOwner). Previously this hard
+    // required auth_user===chase_owner, which would ignore a server owner whose
+    // username differs.
+    const _isOwnerAcct = localStorage.getItem('auth_user') === DEV_USERNAME ||
+                         (typeof getUserTier === 'function' && getUserTier() === 'owner');
+    if (!_isOwnerAcct) return;
     // Always grant owner + paid (idempotent — safe on every login)
     if (typeof setUserTier === 'function') setUserTier('owner');
     localStorage.setItem('has_paid', '1');
