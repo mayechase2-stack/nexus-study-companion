@@ -58,6 +58,95 @@ const EMAILJS_TEMPLATE_ID = '';
     window._logNexusError = _logNexusError;
 })();
 
+// ════════════════════════════════════════════════════════════════════
+// v19.3 — FEEDBACK: users send feedback that reaches the OWNER (cloud).
+// Distinct from the public Suggestions board (that's local + voting); this
+// is a private inbox. Requires migration 0004_feedback.sql.
+// ════════════════════════════════════════════════════════════════════
+function openFeedbackModal() {
+    if (document.getElementById('feedback-overlay')) return;
+    var m = document.createElement('div');
+    m.id = 'feedback-overlay';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:1000061;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:460px;width:96%;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--glass-border);"><h3 style="margin:0;color:#fff;font-size:1.02rem;"><i class="ph ph-chat-teardrop-dots" style="color:#a29bfe;"></i> Send feedback</h3><button class="btn-icon" aria-label="Close" onclick="document.getElementById(\'feedback-overlay\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 18px;">'
+        + '<p style="margin:0 0 12px;font-size:0.84rem;color:#c8ccd8;line-height:1.5;">Found a bug, have an idea, or just want to say something? It goes straight to the NEXUS team.</p>'
+        + '<label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:5px;">Type</label>'
+        + '<select id="fb-category" class="input-field" style="width:100%;padding:9px;margin-bottom:12px;"><option value="bug">🐛 Bug / something broke</option><option value="idea">💡 Idea / request</option><option value="praise">💚 Praise / what you like</option><option value="other">💬 Other</option></select>'
+        + '<label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:5px;">Your feedback</label>'
+        + '<textarea id="fb-message" class="input-field" maxlength="1200" style="width:100%;min-height:120px;padding:10px;resize:vertical;font-size:0.9rem;" placeholder="What happened, or what would make NEXUS better?"></textarea>'
+        + '<div id="fb-msg" style="display:none;color:#ff9a9a;font-size:0.8rem;margin-top:8px;"></div>'
+        + '<button id="fb-submit" class="btn-primary" style="width:100%;padding:11px;margin-top:12px;" onclick="submitFeedback()"><i class="ph ph-paper-plane-tilt"></i> Send feedback</button>'
+        + '<p style="margin:10px 0 0;font-size:0.72rem;color:var(--text-muted);text-align:center;">Please don\'t include passwords or personal details.</p>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    setTimeout(function () { var t = document.getElementById('fb-message'); if (t) t.focus(); }, 60);
+}
+
+async function submitFeedback() {
+    var msgEl = document.getElementById('fb-message');
+    var catEl = document.getElementById('fb-category');
+    var errEl = document.getElementById('fb-msg');
+    var btn = document.getElementById('fb-submit');
+    var message = (msgEl && msgEl.value || '').trim();
+    var category = (catEl && catEl.value) || 'other';
+    function fail(t) { if (errEl) { errEl.textContent = t; errEl.style.display = 'block'; } if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Send feedback'; } }
+    if (message.length < 4) { fail('Please write a little more so we can act on it.'); return; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Sending…'; }
+    // Reuse the app's moderation (kid audience): local list + OpenAI pass.
+    try {
+        if (typeof localNsfwCheck === 'function') { var l = localNsfwCheck(message); if (l && !l.ok) { fail('That contains language we don\'t allow. Please rephrase.'); return; } }
+        if (typeof openaiModerationCheck === 'function') { var mod = await openaiModerationCheck(message); if (mod && !mod.ok) { fail('That was flagged by content moderation. Please rephrase.'); return; } }
+    } catch (_) { /* moderation best-effort; don't block legit feedback on an outage */ }
+    var row = {
+        username: (localStorage.getItem('auth_user') || 'anon').slice(0, 40),
+        category: category, message: message.slice(0, 1200),
+        url: (location.pathname + location.search).slice(0, 200),
+        ua: (navigator.userAgent || '').slice(0, 200)
+    };
+    var sent = false;
+    try {
+        if (!nexusSB) _initSupabase();
+        if (nexusSB) { var r = await nexusSB.from('feedback').insert(row); sent = !(r && r.error); }
+    } catch (_) { sent = false; }
+    if (!sent) {
+        // Offline / table missing: queue locally so nothing is lost.
+        try { var q = JSON.parse(localStorage.getItem('feedback_queue') || '[]'); q.unshift(Object.assign({ ts: new Date().toISOString() }, row)); if (q.length > 30) q.length = 30; localStorage.setItem('feedback_queue', JSON.stringify(q)); } catch (_) {}
+    }
+    var ov = document.getElementById('feedback-overlay'); if (ov) ov.remove();
+    if (typeof showToast === 'function') showToast(sent ? '💚 Thanks! Your feedback was sent.' : '💚 Thanks! Saved — it\'ll send next time you\'re online.', 'success', 4000);
+    if (typeof awardXP === 'function') awardXP(5);
+}
+
+// Best-effort: flush any locally-queued feedback once a session is available.
+async function _flushFeedbackQueue() {
+    try {
+        var q = JSON.parse(localStorage.getItem('feedback_queue') || '[]');
+        if (!q.length) return;
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return;
+        var r = await nexusSB.from('feedback').insert(q.map(function (x) { return { username: x.username, category: x.category, message: x.message, url: x.url, ua: x.ua }; }));
+        if (!(r && r.error)) localStorage.removeItem('feedback_queue');
+    } catch (_) {}
+}
+document.addEventListener('DOMContentLoaded', function () { setTimeout(_flushFeedbackQueue, 4000); });
+
+// Owner-only: pull the feedback inbox (RLS returns rows only for tier='owner').
+async function fetchOwnerFeedback(limit) {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return [];
+        var q = await nexusSB.from('feedback')
+            .select('username,category,message,url,ts')
+            .order('ts', { ascending: false })
+            .limit(limit || 50);
+        return (q && q.data) || [];
+    } catch (_) { return []; }
+}
+window.openFeedbackModal = openFeedbackModal;
+
 // v19.3 — owner-only: pull the aggregated client-error feed from Supabase.
 // RLS returns rows only when the caller's profile tier is 'owner'; everyone
 // else gets an empty array. Used by the Diagnostics modal.
@@ -19034,9 +19123,27 @@ function openDiagnostics() {
         + '<span style="font-size:0.85rem;color:' + color.fail + ';font-weight:700;">✕ ' + counts.fail + ' failed</span>'
         + '<button class="btn-secondary" style="margin-left:auto;font-size:0.78rem;padding:4px 10px;" onclick="openDiagnostics()"><i class="ph ph-arrow-clockwise"></i> Re-run</button></div>'
         + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + errHtml
+        + (isOwner() ? '<div id="diag-owner-feedback" style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;font-size:0.8rem;color:var(--text-muted);"><i class="ph ph-chat-teardrop-dots"></i> Loading feedback inbox…</div>' : '')
         + (isOwner() ? '<div id="diag-owner-feed" style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;font-size:0.8rem;color:var(--text-muted);"><i class="ph ph-cloud-arrow-down"></i> Loading all-user error feed…</div>' : '')
         + '</div></div>';
     document.body.appendChild(modal);
+    // v19.3 — owner-only: load the feedback inbox from Supabase.
+    if (isOwner()) {
+        fetchOwnerFeedback(40).then(function (fb) {
+            var el = document.getElementById('diag-owner-feedback');
+            if (!el) return;
+            if (!fb.length) { el.innerHTML = '<i class="ph ph-check-circle" style="color:#00b894;"></i> No feedback yet (or table 0004 not created).'; return; }
+            var emoji = { bug: '🐛', idea: '💡', praise: '💚', other: '💬' };
+            el.innerHTML = '<strong style="color:#a29bfe;font-size:0.85rem;"><i class="ph ph-chat-teardrop-dots"></i> Feedback inbox (' + fb.length + ')</strong>'
+                + fb.map(function (x) {
+                    var when = ''; try { when = new Date(x.ts).toLocaleString(); } catch (_) {}
+                    return '<div style="font-size:0.75rem;color:#dde0ee;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+                        + (emoji[x.category] || '💬') + ' <span style="color:#a29bfe;">' + escapeHtmlSafe(x.username || 'anon') + '</span>'
+                        + '<span style="color:var(--text-muted);float:right;">' + escapeHtmlSafe(when) + '</span>'
+                        + '<div style="color:#cdd2e0;margin-top:2px;">' + escapeHtmlSafe(x.message || '') + '</div></div>';
+                }).join('');
+        });
+    }
     // v19.3 — owner-only: load the cross-user error feed from Supabase.
     if (isOwner()) {
         fetchOwnerErrorFeed(40).then(function (feed) {

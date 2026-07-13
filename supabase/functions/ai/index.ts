@@ -37,7 +37,11 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "10", 10);
+// v19.3 — trial questions for an account with NO verified email. Lowered
+// 10 → 3: anonymous/unverified accounts are near-free to mint, so this is the
+// main account-farming lever. A confirmed email unlocks FREE_MONTHLY. Override
+// live (no redeploy) via the ANON_MONTHLY_LIMIT secret in Supabase.
+const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "3", 10);
 const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "1500", 10);
 const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "6000", 10);
 const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
