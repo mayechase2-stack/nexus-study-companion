@@ -13058,6 +13058,34 @@ function saveFlashcardDecks(decks) {
     localStorage.setItem('flashcard_decks', JSON.stringify(decks));
 }
 
+// v19.3 — export a deck as CSV (round-trips with the existing Import CSV: one
+// "front,back" row per card, quotes escaped per RFC 4180). Complements import
+// so decks are portable in/out of Quizlet, Anki, spreadsheets, etc.
+function _csvCell(s) {
+    s = String(s == null ? '' : s);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportFlashcardDeck(deckId) {
+    try {
+        var decks = getFlashcardDecks();
+        var deck = decks.find(function (d) { return d.id === deckId; });
+        if (!deck) { showToast('Deck not found.', 'error'); return; }
+        var cards = deck.cards || [];
+        if (!cards.length) { showToast('That deck has no cards to export.', 'info'); return; }
+        var csv = 'front,back\n' + cards.map(function (c) {
+            return _csvCell(c.front) + ',' + _csvCell(c.back);
+        }).join('\n');
+        var safeName = String(deck.title || 'deck').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'deck';
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'nexus-flashcards-' + safeName + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        showToast('✓ Exported "' + deck.title + '" (' + cards.length + ' card' + (cards.length === 1 ? '' : 's') + ')', 'success');
+    } catch (e) { showToast('Export failed: ' + (e && e.message), 'error'); }
+}
+
 async function makeFlashcardsFromHistory(id) {
     const entry = userHistory.find(e => e.id === id);
     if (!entry) return;
@@ -27641,7 +27669,7 @@ function renderSrsHomePanel() {
         +(due>0?'<button class="btn-primary" style="padding:12px 28px;" onclick="startSrsReview()"><i class="ph ph-play"></i> Start Review ('+due+' cards)</button>':'<div style="color:#00b894;">All caught up! Come back tomorrow.</div>')
         +'</div><div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h4 style="margin:0;color:white;">Decks ('+decks.length+')</h4><button class="btn-secondary" style="font-size:0.9rem;padding:6px 12px;" onclick="openCsvImportModal()"><i class="ph ph-upload-simple"></i> Import CSV</button></div>'
         +(decks.length===0?'<div style="text-align:center;padding:24px;color:var(--text-muted);">No decks yet.</div>'
-            :decks.map(function(d){ var di=getDueFlashcards().filter(function(c){return c.deckId===d.id;}).length; return '<div class="glass-panel" style="padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;"><div style="flex:1;"><div style="font-weight:600;color:white;">'+d.title+'</div><div style="font-size:0.88rem;color:var(--text-muted);">'+(d.cards||[]).length+' cards &bull; '+(di>0?'<span style="color:var(--accent);">'+di+' due</span>':'<span style="color:#00b894;">All caught up</span>')+'</div></div>'+(di>0?'<button class="btn-primary" style="font-size:0.9rem;padding:6px 12px;" onclick="startSrsDeckReview('+d.id+')"><i class="ph ph-play"></i> Review</button>':'')+'</div>'; }).join(''))
+            :decks.map(function(d){ var di=getDueFlashcards().filter(function(c){return c.deckId===d.id;}).length; return '<div class="glass-panel" style="padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;"><div style="flex:1;"><div style="font-weight:600;color:white;">'+d.title+'</div><div style="font-size:0.88rem;color:var(--text-muted);">'+(d.cards||[]).length+' cards &bull; '+(di>0?'<span style="color:var(--accent);">'+di+' due</span>':'<span style="color:#00b894;">All caught up</span>')+'</div></div>'+(di>0?'<button class="btn-primary" style="font-size:0.9rem;padding:6px 12px;" onclick="startSrsDeckReview('+d.id+')"><i class="ph ph-play"></i> Review</button>':'')+'<button class="btn-secondary" title="Export deck as CSV" aria-label="Export deck as CSV" style="font-size:0.9rem;padding:6px 10px;" onclick="exportFlashcardDeck('+d.id+')"><i class="ph ph-download-simple"></i></button></div>'; }).join(''))
         +'</div><div id="srs-panel" style="margin-top:16px;"></div>';
 }
 
@@ -27661,14 +27689,39 @@ function openCsvImportModal() {
         if(p) p.textContent=lines.length>0?lines.length+' card'+(lines.length!==1?'s':'')+' detected':'';
     });
 }
+// v19.3 — proper RFC 4180 CSV/TSV parser. The old line-splitter broke on any
+// quoted field containing a comma or newline (i.e. real Quizlet/Anki exports,
+// and our own exportFlashcardDeck output) — it split mid-field and dropped
+// cards. This tokenizes with quote state so front,back round-trips cleanly.
 function parseCsvLines(raw) {
-    var lines=raw.split('\n').map(function(l){return l.trim();}).filter(Boolean), cards=[];
-    for(var i=0;i<lines.length;i++){
-        var line=lines[i], sep=line.indexOf('\t')>=0?'\t':',';
-        var idx=line.indexOf(sep); if(idx<1) continue;
-        var front=line.slice(0,idx).trim().replace(/^["']|["']$/g,'');
-        var back=line.slice(idx+1).trim().replace(/^["']|["']$/g,'');
-        if(front&&back) cards.push({front:front,back:back});
+    raw = String(raw || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    // Choose delimiter: tab if any tab appears outside quotes-ish, else comma.
+    var sep = raw.indexOf('\t') >= 0 ? '\t' : ',';
+    var rows = [], row = [], field = '', inQuotes = false;
+    for (var i = 0; i < raw.length; i++) {
+        var ch = raw[i];
+        if (inQuotes) {
+            if (ch === '"') {
+                if (raw[i + 1] === '"') { field += '"'; i++; }   // escaped quote
+                else inQuotes = false;
+            } else field += ch;
+        } else if (ch === '"') {
+            inQuotes = true;
+        } else if (ch === sep) {
+            row.push(field); field = '';
+        } else if (ch === '\n') {
+            row.push(field); rows.push(row); row = []; field = '';
+        } else field += ch;
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+
+    var cards = [];
+    for (var r = 0; r < rows.length; r++) {
+        var front = (rows[r][0] || '').trim();
+        var back = (rows[r][1] || '').trim();
+        // Skip an optional header row and blank/one-column lines.
+        if (r === 0 && front.toLowerCase() === 'front' && back.toLowerCase() === 'back') continue;
+        if (front && back) cards.push({ front: front, back: back });
     }
     return cards;
 }
