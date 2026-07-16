@@ -9909,19 +9909,36 @@ let wallpaperAnimFrame = null;
 let _activeWallpaperType = 'none';
 let _wallpaperResizeTimer = null;
 
-// v221 perf — every animated wallpaper schedules its next frame through here.
-// Runs at full native rAF speed while NEXUS is the focused window, and stops
-// entirely the moment it isn't — visibilitychange only fires for hidden tabs,
-// not for a visible window the user isn't using. The focus listener (next to
-// the visibilitychange handler) restarts the wallpaper via applyWallpaper.
-// (v220 also throttled to 30fps, but wallpapers move per-frame, so that halved
-// their speed and made the whole app feel sluggish — reverted.)
+// v222 perf — every animated wallpaper schedules its next frame through here.
+// Stops entirely while the window is unfocused (visibilitychange only fires for
+// hidden tabs, not a visible window the user isn't using; the focus listener
+// next to the visibilitychange handler restarts via applyWallpaper), and runs
+// at the user-chosen FPS from Settings → Appearance (default 60 = native feel;
+// wallpapers move per-frame, so lower FPS also means slower drift — the setting
+// copy says so).
+let _wallpaperFpsCap = parseInt(localStorage.getItem('wallpaper_fps'), 10) || 60;
+let _wpNextDue = 0;
+function setWallpaperFps(v) {
+    _wallpaperFpsCap = parseInt(v, 10) || 60;
+    localStorage.setItem('wallpaper_fps', String(_wallpaperFpsCap));
+    _wpNextDue = 0;
+    if (typeof showToast === 'function') showToast('🎞️ Wallpaper FPS: ' + _wallpaperFpsCap, 'success', 2200);
+}
 function _wallpaperFrame(fn) {
-    wallpaperAnimFrame = requestAnimationFrame(function () {
+    wallpaperAnimFrame = requestAnimationFrame(function (ts) {
         if (!document.hasFocus()) { wallpaperAnimFrame = null; return; }
+        if (_wallpaperFpsCap < 58) {
+            if (ts < _wpNextDue - 0.5) { _wallpaperFrame(fn); return; }
+            // steady cadence; resnap after long gaps (blur pause, tab switch)
+            _wpNextDue = (ts - _wpNextDue > 250) ? ts + 1000 / _wallpaperFpsCap : _wpNextDue + 1000 / _wallpaperFpsCap;
+        }
         fn();
     });
 }
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('setting-wallpaper-fps');
+    if (el) el.value = String(_wallpaperFpsCap);
+});
 
 // Single global resize listener — fully re-initialises the wallpaper at the
 // new screen dimensions. Fixes the bug where moving from a big monitor to a

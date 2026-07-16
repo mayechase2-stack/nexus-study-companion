@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260714v221">
+    <link rel="stylesheet" href="style.css?v=20260716v222">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -4142,6 +4142,17 @@ if __name__ == '__main__':
                             </select>
                             <p style="font-size:0.78rem;color:var(--text-muted);margin:8px 0 0;line-height:1.5;"><i class="ph ph-info"></i> Your companion and every AI reply will answer in this language. Core menu labels are also translated.</p>
                         </div>
+                        <!-- v222 — user-selectable wallpaper FPS (perf control for weaker GPUs / battery) -->
+                        <div class="glass-panel" style="padding:18px;margin-bottom:14px;">
+                            <strong style="color:white;display:block;margin-bottom:6px;"><i class="ph ph-film-strip"></i> Wallpaper FPS</strong>
+                            <p style="margin:0 0 10px;font-size:0.78rem;color:var(--text-muted);">How smoothly animated wallpapers run. Lower is much lighter on your GPU and battery, but animations drift slower and less smoothly. Wallpapers always pause when this window isn't focused.</p>
+                            <select id="setting-wallpaper-fps" onchange="setWallpaperFps(this.value)" style="width:100%;padding:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;">
+                                <option value="60">60 FPS — Smooth (default)</option>
+                                <option value="45">45 FPS — Lighter</option>
+                                <option value="30">30 FPS — Balanced</option>
+                                <option value="15">15 FPS — Battery saver</option>
+                            </select>
+                        </div>
                         <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Themes, fonts, cursors, wallpapers, and click effects are all managed in the <strong style="color:white;">Shop</strong> &amp; <strong style="color:white;">Inventory</strong> tabs.</p>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                             <button class="btn-secondary" onclick="toggleSettings();switchTab('shop');"><i class="ph ph-storefront"></i> Open Shop</button>
@@ -5206,7 +5217,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260714v221"></script>
+    <script src="script.js?v=20260716v222"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
