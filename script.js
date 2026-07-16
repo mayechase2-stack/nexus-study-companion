@@ -9909,19 +9909,16 @@ let wallpaperAnimFrame = null;
 let _activeWallpaperType = 'none';
 let _wallpaperResizeTimer = null;
 
-// v220 perf — every animated wallpaper schedules its next frame through here.
-// Caps redraws at WALLPAPER_FPS (a 60fps full-screen canvas eats ~half an iGPU,
-// costing real game/app FPS on laptops) and stops entirely while the window is
-// unfocused — visibilitychange only fires for hidden tabs, not for a visible
-// window the user isn't using. The focus listener (next to the visibilitychange
-// handler) restarts the wallpaper via applyWallpaper.
-const WALLPAPER_FPS = 30;
-let _wallpaperLastTs = 0;
+// v221 perf — every animated wallpaper schedules its next frame through here.
+// Runs at full native rAF speed while NEXUS is the focused window, and stops
+// entirely the moment it isn't — visibilitychange only fires for hidden tabs,
+// not for a visible window the user isn't using. The focus listener (next to
+// the visibilitychange handler) restarts the wallpaper via applyWallpaper.
+// (v220 also throttled to 30fps, but wallpapers move per-frame, so that halved
+// their speed and made the whole app feel sluggish — reverted.)
 function _wallpaperFrame(fn) {
-    wallpaperAnimFrame = requestAnimationFrame(function (ts) {
+    wallpaperAnimFrame = requestAnimationFrame(function () {
         if (!document.hasFocus()) { wallpaperAnimFrame = null; return; }
-        if (ts - _wallpaperLastTs < (1000 / WALLPAPER_FPS) - 0.5) { _wallpaperFrame(fn); return; }
-        _wallpaperLastTs = ts;
         fn();
     });
 }
