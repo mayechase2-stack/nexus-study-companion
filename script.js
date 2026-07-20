@@ -15251,6 +15251,7 @@ RULES:
 - Teaching quality matters: "concept" and each "why" should help the student actually UNDERSTAND, not just see labels. Be clear and encouraging, but keep it readable on a phone (short paragraphs, no walls of text).
 - Break the solution into 2–5 real steps. Each "instruction" is a task the student performs; the RESULT goes ONLY in "expect" (hidden from them).
 - "hints" MUST escalate: Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete. 2–3 hints per step, and they must not just restate the instruction.
+- MULTIPLE CHOICE: the student clicks an option on THEIR screen, so a wrong position label makes them answer wrong even when your answer is right. In "answer", lead with the correct option's TEXT quoted verbatim. Only cite a letter/number if it is LITERALLY PRINTED next to that option on screen — copy it exactly. If no labels are printed, do NOT invent "option 2"; instead describe the position unambiguously with layout and direction ("2nd of the 4 stacked choices, top-down", "middle of the three side-by-side diagrams"). Before finalizing, re-read the option at that position and confirm its text matches your answer — if they disagree, the TEXT wins. If you can't tell the order, say so instead of guessing.
 - Plain text (light inline HTML like <strong> ok). NEVER LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ ° for math.`;
 
     const userParts = [
@@ -15667,8 +15668,36 @@ FILL-IN-THE-BLANK: underscores (___), "[BLANK]", "(blank)", or empty input field
   -> Multiple blanks: list them "1. word  2. word  3. word"
   -> Example: "The ___ War ended in 1865." -> answer: "Civil"
 
-MULTIPLE CHOICE (A/B/C/D or 1/2/3/4):
-  -> State the letter AND the full text of the correct option.
+MULTIPLE CHOICE — ⚠️ THE #1 SOURCE OF STUDENT ERRORS. FOLLOW EXACTLY:
+  The student clicks an option on THEIR screen. If you name the wrong position,
+  they get the question WRONG even though you found the right answer. So:
+  -> RULE 1 — THE ANSWER TEXT IS THE SOURCE OF TRUTH. Always start "answer" with
+     the correct option's text QUOTED VERBATIM as it appears on screen. Never
+     lead with a number or letter alone.
+  -> RULE 2 — ONLY use a label (A/B/C/D, 1/2/3/4, i/ii/iii) if that label is
+     LITERALLY PRINTED on screen next to that option. Copy it exactly as shown.
+     If the options have NO printed labels (bare radio buttons, plain rows, a
+     grid of pictures), you MUST NOT invent "option 2" / "the 3rd one" style
+     numbering — you have no way to know how the student counts them.
+  -> RULE 3 — WITH NO PRINTED LABELS, describe the position UNAMBIGUOUSLY with
+     the layout AND direction, e.g. "3rd from the top of the 4 stacked choices",
+     "the middle of the three side-by-side diagrams", "bottom-left of the 2×2
+     grid". Never a bare ordinal with no orientation.
+  -> RULE 4 — NEVER say a bare "Option 3" / "the third choice" without either a
+     printed label or a Rule-3 description. Ambiguity here loses the student marks.
+  -> RULE 5 — CROSS-CHECK before answering: re-read the option at the position
+     you are about to name and confirm its text matches the answer text you
+     chose. If they disagree, the TEXT wins — fix the position or drop it.
+  -> RULE 6 — DIAGRAM/IMAGE OPTIONS (no text to quote): identify the correct one
+     by describing what it DEPICTS distinctly (e.g. "the graph whose line slopes
+     down to the right and crosses the y-axis at 4"), plus its Rule-3 position.
+     Describe it well enough that the student can match it visually.
+  -> RULE 7 — If you genuinely cannot tell which position the correct option
+     occupies, say so plainly ("I can't reliably tell the option order from this
+     capture — match by the text above") rather than guessing a number.
+  -> Format: "«exact option text»" then the label/position in parentheses —
+     e.g. "«6.02 × 10²³» (labeled C on screen)" or
+     "«The mitochondrion» (2nd of the 4 stacked options, counting top-down)".
   -> In explanation: why correct, and why the main distractor is wrong.
 
 TRUE/FALSE:
@@ -15681,7 +15710,9 @@ SHORT ANSWER / FREE RESPONSE:
   -> Complete answer in 1-3 sentences. Include key terms the teacher expects.
 
 MULTI-SELECT ("select all that apply"):
-  -> List all correct options separated by commas.
+  -> List all correct options by their VERBATIM TEXT, separated by semicolons.
+  -> Apply the SAME labeling rules as MULTIPLE CHOICE above: printed labels only
+     if actually printed; otherwise unambiguous positions; never invented numbers.
 
 COMPUTATION:
   -> Final value with units. Key steps in explanation (1-3 steps max).
@@ -15709,6 +15740,7 @@ REASONING (apply silently — this is where accuracy comes from; DO NOT skip it 
 3. Reconstruct garbled OCR words using subject context.
 4. ACTUALLY SOLVE IT — never guess or approximate. For math/science: state the correct formula/law, plug in the given values, carry the UNITS through, and compute step by step. For chemistry: balance equations, use molar masses, watch significant figures. For physics: check the formula and unit consistency. For recall: retrieve the specific fact, not a vague nearby one.
 5. VERIFY before answering: recompute a second way OR substitute your answer back into the problem, and sanity-check the sign, units, and magnitude. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
+5b. IF MULTIPLE CHOICE: re-read the on-screen option at the exact position/label you are about to cite and confirm its text is the answer you chose. A right answer paired with a wrong option number makes the student click the wrong box — treat that as a wrong answer. If the label isn't printed on screen, do not invent one.
 6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
 
 MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. Write ≥ not \geq, × not \times, √ not \sqrt, ÷ not \div, ² ³ for exponents, π θ α β for Greek letters. Fractions as a/b.
@@ -15780,6 +15812,19 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         if (!_hasAns) {
             // Model returned an empty answer — show a helpful fallback instead of a blank box.
             _typewriterHTML(answerElFinal, _emptyAnsMsg);
+        } else if (qType === 'multiple-choice' || qType === 'multi-select') {
+            // v19.4 — SAFETY NET for the "wrong option number" bug. If the model
+            // cites a bare position ("Option 3", "the third choice") without
+            // anchoring it to the option's text or an explicit on-screen label,
+            // the student can click the wrong box and lose the mark. Detect that
+            // and tell them to match by TEXT instead of by number.
+            const _bareOrdinal = /\b(option|choice|answer)\s*(?:#|number\s*)?\d\b|\b(first|second|third|fourth|last)\s+(option|choice|answer)\b/i.test(cleanedAnswer);
+            const _anchored = /[«"'‘“]/.test(cleanedAnswer)                       // quoted option text
+                || /\b(labeled|marked|printed)\b/i.test(cleanedAnswer)             // cites a real on-screen label
+                || /\b(top|bottom|left|right|middle|row|column|grid|stacked|side-by-side|counting)\b/i.test(cleanedAnswer); // explicit layout
+            _typewriterHTML(answerElFinal, cleanedAnswer + (_bareOrdinal && !_anchored
+                ? '<div style="margin-top:10px;padding:9px 12px;border-radius:8px;background:rgba(253,203,110,0.12);border:1px solid rgba(253,203,110,0.45);font-size:0.84rem;color:#fdcb6e;line-height:1.5;"><strong>⚠️ Match by the answer text, not the number.</strong> NEXUS can\'t always tell how your screen orders the choices — click the option whose <em>wording</em> matches above.</div>'
+                : ''));
         } else if (qType === 'fill-in-the-blank') {
             _typewriterHTML(answerElFinal, `<div style="font-size:0.9rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`);
         } else {
