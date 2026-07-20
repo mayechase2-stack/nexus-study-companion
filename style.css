@@ -293,6 +293,28 @@ button {
     backdrop-filter: blur(5px);
 }
 
+/* v19.3 — Feedback tab category chips */
+.fbp-cat {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.fbp-cat:hover {
+    border-color: rgba(162, 155, 254, 0.5);
+    color: #fff;
+}
+.fbp-cat.active {
+    background: linear-gradient(135deg, rgba(162, 155, 254, 0.25), rgba(0, 206, 201, 0.2));
+    border-color: rgba(162, 155, 254, 0.7);
+    color: #fff;
+    font-weight: 600;
+}
+
 .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.15);
     border-color: rgba(255, 255, 255, 0.3);

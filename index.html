@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260716v222">
+    <link rel="stylesheet" href="style.css?v=20260716v223">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1017,6 +1017,10 @@
                 <li onclick="switchTab('suggestions')">
                     <i class="ph ph-lightbulb"></i>
                     <span>Suggestions</span>
+                </li>
+                <li onclick="switchTab('feedback')">
+                    <i class="ph ph-chat-teardrop-dots"></i>
+                    <span>Feedback</span>
                 </li>
                 <li onclick="switchTab('shop')">
                     <i class="ph ph-storefront"></i>
@@ -3354,6 +3358,31 @@
                 </div>
             </div>
 
+            <!-- ══ v19.3: Feedback (private, goes straight to the team) ═════════ -->
+            <div id="view-feedback" class="view">
+                <div style="margin-bottom:22px;">
+                    <h1 style="margin:0 0 4px;background:linear-gradient(135deg,#a29bfe,#00cec9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">💬 Feedback</h1>
+                    <p style="margin:0;color:var(--text-muted);font-size:0.9rem;">Tell us what's working, what's broken, or what you wish NEXUS did. It goes straight to the team — privately.</p>
+                </div>
+                <div style="max-width:620px;">
+                    <div class="glass-panel" style="padding:20px;">
+                        <label style="font-size:0.82rem;color:var(--text-muted);display:block;margin-bottom:6px;">What kind of feedback?</label>
+                        <div id="fbp-cats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                            <button type="button" class="fbp-cat" data-cat="bug" onclick="_fbpPickCat(this)">🐛 Bug</button>
+                            <button type="button" class="fbp-cat" data-cat="idea" onclick="_fbpPickCat(this)">💡 Idea</button>
+                            <button type="button" class="fbp-cat" data-cat="praise" onclick="_fbpPickCat(this)">💚 Praise</button>
+                            <button type="button" class="fbp-cat" data-cat="other" onclick="_fbpPickCat(this)">💬 Other</button>
+                        </div>
+                        <label style="font-size:0.82rem;color:var(--text-muted);display:block;margin-bottom:6px;">Your feedback</label>
+                        <textarea id="fbp-message" maxlength="1200" class="input-field" style="width:100%;min-height:150px;padding:12px;resize:vertical;font-size:0.92rem;line-height:1.5;" placeholder="What happened, or what would make NEXUS better? The more detail, the more we can do."></textarea>
+                        <div id="fbp-msg" style="display:none;color:#ff9a9a;font-size:0.82rem;margin-top:8px;"></div>
+                        <button id="fbp-submit" class="btn-primary" style="width:100%;padding:12px;margin-top:14px;" onclick="submitFeedbackPage()"><i class="ph ph-paper-plane-tilt"></i> Send feedback</button>
+                        <p style="margin:12px 0 0;font-size:0.74rem;color:var(--text-muted);text-align:center;">Private — only the NEXUS team sees this. Please don't include passwords or personal details.</p>
+                    </div>
+                    <p style="margin:14px 2px 0;font-size:0.82rem;color:var(--text-muted);">Want to suggest a feature others can vote on? Try the <a href="#" onclick="event.preventDefault();switchTab('suggestions');" style="color:var(--accent);">Suggestions board</a> instead.</p>
+                </div>
+            </div>
+
 
             <!-- v16.5 — Homework Tracker removed. Daily Challenge moved to the Command Center (see #daily-challenge-panel there). -->
             <div id="view-homework" class="view"></div>
@@ -5217,7 +5246,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260716v222"></script>
+    <script src="script.js?v=20260716v223"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

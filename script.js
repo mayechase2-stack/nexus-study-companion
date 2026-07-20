@@ -100,9 +100,55 @@ async function submitFeedback() {
         if (typeof localNsfwCheck === 'function') { var l = localNsfwCheck(message); if (l && !l.ok) { fail('That contains language we don\'t allow. Please rephrase.'); return; } }
         if (typeof openaiModerationCheck === 'function') { var mod = await openaiModerationCheck(message); if (mod && !mod.ok) { fail('That was flagged by content moderation. Please rephrase.'); return; } }
     } catch (_) { /* moderation best-effort; don't block legit feedback on an outage */ }
+    var sent = await _sendFeedbackRow({ category: category, message: message });
+    var ov = document.getElementById('feedback-overlay'); if (ov) ov.remove();
+    if (typeof showToast === 'function') showToast(sent ? '💚 Thanks! Your feedback was sent.' : '💚 Thanks! Saved — it\'ll send next time you\'re online.', 'success', 4000);
+    if (typeof awardXP === 'function') awardXP(5);
+}
+
+// ── v19.3 — Feedback PAGE (dedicated sidebar tab) ───────────────────────────
+// Shares the cloud-insert + moderation core with the modal; different UI shell.
+var _fbpCategory = 'bug';
+function _fbpPickCat(btn) {
+    _fbpCategory = btn.getAttribute('data-cat') || 'other';
+    var wrap = document.getElementById('fbp-cats');
+    if (wrap) wrap.querySelectorAll('.fbp-cat').forEach(function (b) { b.classList.toggle('active', b === btn); });
+}
+// Reset the page form to a clean state each time the tab opens.
+function renderFeedbackPage() {
+    _fbpCategory = 'bug';
+    var msg = document.getElementById('fbp-message'); if (msg) msg.value = '';
+    var err = document.getElementById('fbp-msg'); if (err) err.style.display = 'none';
+    var btn = document.getElementById('fbp-submit'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Send feedback'; }
+    var wrap = document.getElementById('fbp-cats');
+    if (wrap) { wrap.querySelectorAll('.fbp-cat').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-cat') === 'bug'); }); }
+}
+async function submitFeedbackPage() {
+    var msgEl = document.getElementById('fbp-message');
+    var errEl = document.getElementById('fbp-msg');
+    var btn = document.getElementById('fbp-submit');
+    var message = (msgEl && msgEl.value || '').trim();
+    function fail(t) { if (errEl) { errEl.textContent = t; errEl.style.display = 'block'; } if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Send feedback'; } }
+    if (message.length < 4) { fail('Please write a little more so we can act on it.'); return; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Sending…'; }
+    try {
+        if (typeof localNsfwCheck === 'function') { var l = localNsfwCheck(message); if (l && !l.ok) { fail('That contains language we don\'t allow. Please rephrase.'); return; } }
+        if (typeof openaiModerationCheck === 'function') { var mod = await openaiModerationCheck(message); if (mod && !mod.ok) { fail('That was flagged by content moderation. Please rephrase.'); return; } }
+    } catch (_) { /* moderation best-effort */ }
+    var ok = await _sendFeedbackRow({ category: _fbpCategory, message: message });
+    if (msgEl) msgEl.value = '';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Send feedback'; }
+    if (typeof showToast === 'function') showToast(ok ? '💚 Thanks! Your feedback was sent.' : '💚 Thanks! Saved — it\'ll send next time you\'re online.', 'success', 4000);
+    if (typeof awardXP === 'function') awardXP(5);
+}
+
+// Shared insert used by BOTH the modal and the page. Returns true if it reached
+// the cloud; otherwise queues locally so nothing is lost.
+async function _sendFeedbackRow(partial) {
     var row = {
         username: (localStorage.getItem('auth_user') || 'anon').slice(0, 40),
-        category: category, message: message.slice(0, 1200),
+        category: partial.category || 'other',
+        message: String(partial.message || '').slice(0, 1200),
         url: (location.pathname + location.search).slice(0, 200),
         ua: (navigator.userAgent || '').slice(0, 200)
     };
@@ -112,12 +158,9 @@ async function submitFeedback() {
         if (nexusSB) { var r = await nexusSB.from('feedback').insert(row); sent = !(r && r.error); }
     } catch (_) { sent = false; }
     if (!sent) {
-        // Offline / table missing: queue locally so nothing is lost.
         try { var q = JSON.parse(localStorage.getItem('feedback_queue') || '[]'); q.unshift(Object.assign({ ts: new Date().toISOString() }, row)); if (q.length > 30) q.length = 30; localStorage.setItem('feedback_queue', JSON.stringify(q)); } catch (_) {}
     }
-    var ov = document.getElementById('feedback-overlay'); if (ov) ov.remove();
-    if (typeof showToast === 'function') showToast(sent ? '💚 Thanks! Your feedback was sent.' : '💚 Thanks! Saved — it\'ll send next time you\'re online.', 'success', 4000);
-    if (typeof awardXP === 'function') awardXP(5);
+    return sent;
 }
 
 // Best-effort: flush any locally-queued feedback once a session is available.
@@ -1251,6 +1294,9 @@ function switchTab(tabId) {
     }
     if (tabId === 'suggestions') {
         renderSuggestionsPage();
+    }
+    if (tabId === 'feedback' && typeof renderFeedbackPage === 'function') {
+        renderFeedbackPage();
     }
     // Apply free-tier overlays after tab is shown
     if (typeof applyFreeTierOverlays === 'function') applyFreeTierOverlays();
