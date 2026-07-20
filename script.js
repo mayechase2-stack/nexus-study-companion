@@ -308,6 +308,73 @@ function _applySyncBlob(blob) {
     if (!blob || typeof blob !== 'object') return;
     Object.keys(blob).forEach(function (k) { try { localStorage.setItem(k, blob[k]); } catch (_) {} });
 }
+
+// ── v19.3 — CONFLICT-SAFE MERGE ─────────────────────────────────────────────
+// The old sync was last-writer-wins on the WHOLE blob: using NEXUS on two
+// devices meant whichever backed up last erased the other's progress. These
+// merge two states so progress is never lost:
+//   • MAX  — monotonic progress numbers take the larger value.
+//   • UNION — collections merge (by id when items have one, else by value).
+//   • else — "newest wins": the preferred side's value is kept.
+const _SYNC_MAX_KEYS = new Set([
+    'total_xp', 'user_credits', 'streak_count', 'streak_freeze_count',
+    'daily_claims_total', 'refund_count'
+]);
+const _SYNC_UNION_KEYS = new Set([
+    'user_inventory', 'achievements_completed', 'achievements_unlocked',
+    'user_history', 'flashcard_decks', 'grade_courses', 'study_sessions_v2',
+    'recent_activities', 'wod_saved_vocab', 'nexus_waitlist', 'nexus_modules'
+]);
+
+function _mergeArrUnion(aStr, bStr, preferB) {
+    var a, b;
+    try { a = JSON.parse(aStr); } catch (_) { a = null; }
+    try { b = JSON.parse(bStr); } catch (_) { b = null; }
+    if (!Array.isArray(a)) return (b !== undefined ? bStr : aStr);
+    if (!Array.isArray(b)) return aStr;
+    var hasObj = a.concat(b).some(function (x) { return x && typeof x === 'object'; });
+    if (!hasObj) { // primitives → set union preserving order
+        var seen = {}, out = [];
+        a.concat(b).forEach(function (x) { var k = String(x); if (!seen[k]) { seen[k] = 1; out.push(x); } });
+        return JSON.stringify(out);
+    }
+    // objects → union by id (or JSON); the preferred side overwrites on conflict
+    var map = new Map();
+    var keyOf = function (x) { return (x && x.id != null) ? 'id:' + x.id : JSON.stringify(x); };
+    var lower = preferB ? a : b, higher = preferB ? b : a;
+    lower.forEach(function (x) { map.set(keyOf(x), x); });
+    higher.forEach(function (x) { map.set(keyOf(x), x); });
+    return JSON.stringify(Array.from(map.values()));
+}
+
+// Merge two blobs. preferIncoming decides who wins the plain "newest" keys.
+function _mergeSyncBlobs(base, incoming, preferIncoming) {
+    base = base || {}; incoming = incoming || {};
+    var out = {};
+    var keys = {};
+    Object.keys(base).forEach(function (k) { keys[k] = 1; });
+    Object.keys(incoming).forEach(function (k) { keys[k] = 1; });
+    Object.keys(keys).forEach(function (k) {
+        var bv = base[k], iv = incoming[k];
+        if (bv === undefined) { out[k] = iv; return; }
+        if (iv === undefined) { out[k] = bv; return; }
+        if (_SYNC_MAX_KEYS.has(k)) {
+            var bn = parseFloat(bv), inn = parseFloat(iv);
+            if (isFinite(bn) && isFinite(inn)) { out[k] = String(Math.max(bn, inn)); return; }
+        }
+        if (_SYNC_UNION_KEYS.has(k)) { out[k] = _mergeArrUnion(bv, iv, preferIncoming); return; }
+        out[k] = preferIncoming ? iv : bv;
+    });
+    return out;
+}
+
+// Pull the current cloud blob (or null) for the signed-in user.
+async function _fetchCloudBlob(userId) {
+    try {
+        var r = await nexusSB.from('app_state').select('data').eq('user_id', userId).maybeSingle();
+        return (r && r.data && r.data.data) || null;
+    } catch (_) { return null; }
+}
 async function cloudUiSignUp() {
     const email = ((document.getElementById('cloud-email') || {}).value || '').trim();
     const pass = (document.getElementById('cloud-pass') || {}).value || '';
@@ -612,7 +679,9 @@ async function _bootstrapCloudSession() {
             var bk = await nexusSB.from('app_state').select('data').eq('user_id', u.id).maybeSingle();
             var blob = bk && bk.data && bk.data.data;
             if (blob && blob.auth_user) {
-                _applySyncBlob(blob);
+                // v19.3 — merge (cloud wins ties) rather than overwrite, so any
+                // progress already on this fresh browser isn't discarded.
+                _applySyncBlob(_mergeSyncBlobs(_collectSyncBlob(), blob, true));
                 localStorage.setItem('auth_remember', '1');
                 if (typeof showToast === 'function') showToast('Welcome back — restoring your account…', 'success', 3000);
                 setTimeout(function () { location.reload(); }, 800);
@@ -702,7 +771,13 @@ async function _cloudLinkAccount(email, password, opts) {
 async function cloudUiBackup(silent) {
     try {
         const user = await _cloudUser(); if (!user) { showToast('Sign in to cloud first.', 'error'); return; }
-        const { error } = await nexusSB.from('app_state').upsert({ user_id: user.id, data: _collectSyncBlob(), updated_at: new Date().toISOString() });
+        // v19.3 — conflict-safe: pull the current cloud state and MERGE this
+        // device's data into it before pushing, so a backup can never erase
+        // progress made on another device (local wins ties on preferences;
+        // XP/credits/inventory/history/etc. merge, not overwrite).
+        const cloudBlob = await _fetchCloudBlob(user.id);
+        const merged = _mergeSyncBlobs(cloudBlob || {}, _collectSyncBlob(), true);
+        const { error } = await nexusSB.from('app_state').upsert({ user_id: user.id, data: merged, updated_at: new Date().toISOString() });
         if (error) throw error;
         localStorage.setItem('cloud_last_sync', new Date().toISOString());
         if (!silent) showToast('☁️ Backed up to the cloud.', 'success');
@@ -715,9 +790,12 @@ async function cloudUiRestore() {
         const { data, error } = await nexusSB.from('app_state').select('data').eq('user_id', user.id).maybeSingle();
         if (error) throw error;
         if (!data || !data.data) { showToast('No cloud backup found for this account yet — Back up first.', 'info', 5000); return; }
-        showConfirm('Restore from cloud', 'This replaces the data on THIS device with your cloud backup, then reloads. Continue?', function () {
-            _applySyncBlob(data.data);
-            showToast('☁️ Restored from cloud. Reloading…', 'success', 2500);
+        // v19.3 — MERGE cloud into local (cloud wins preference ties) instead of
+        // a blind overwrite, so restoring never discards local progress either.
+        showConfirm('Restore from cloud', 'This merges your cloud backup into this device (keeping the best of both), then reloads. Continue?', function () {
+            const merged = _mergeSyncBlobs(_collectSyncBlob(), data.data, true);
+            _applySyncBlob(merged);
+            showToast('☁️ Synced from cloud. Reloading…', 'success', 2500);
             setTimeout(function () { location.reload(); }, 1500);
         });
     } catch (e) { showToast('Restore failed: ' + (e.message || e), 'error', 5000); }
