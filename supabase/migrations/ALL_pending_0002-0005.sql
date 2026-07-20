@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- NEXUS — BUNDLED PENDING MIGRATIONS (0002 + 0003 + 0004 + 0005)
+-- NEXUS — BUNDLED PENDING MIGRATIONS (0002 + 0003 + 0004 + 0005 + 0006)
 -- Run ONCE in Supabase → SQL Editor. Safe to re-run (idempotent).
 --
 -- ⚠️ BEFORE YOU RUN: replace BOTH copies of PUT_YOUR_OWNER_EMAIL_HERE below
@@ -14,6 +14,7 @@
 --   2. client_errors  — user JS errors flow to you (owner-only read)
 --   3. feedback       — in-app feedback inbox (owner-only read)
 --   4. ai_ip_usage + ai_gate() — per-IP monthly cap on the unverified tier
+--   5. leaderboard    — real opt-in rankings (write-own / read-all)
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -170,6 +171,34 @@ end;
 $$;
 
 grant execute on function public.ai_gate(text, int, int, int, int) to anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- SECTION 5 — REAL LEADERBOARD  (opt-in, username-only, write-own/read-all)
+-- ─────────────────────────────────────────────────────────────────────────
+create table if not exists public.leaderboard (
+  user_id      uuid primary key references auth.users(id) on delete cascade,
+  username     text not null,
+  xp           int  not null default 0,
+  problems     int  not null default 0,
+  streak       int  not null default 0,
+  minutes      int  not null default 0,
+  achievements int  not null default 0,
+  badge        text,
+  updated_at   timestamptz not null default now()
+);
+alter table public.leaderboard enable row level security;
+
+drop policy if exists leaderboard_read on public.leaderboard;
+create policy leaderboard_read on public.leaderboard for select using (true);
+drop policy if exists leaderboard_upsert on public.leaderboard;
+create policy leaderboard_upsert on public.leaderboard for insert with check (auth.uid() = user_id);
+drop policy if exists leaderboard_update on public.leaderboard;
+create policy leaderboard_update on public.leaderboard for update using (auth.uid() = user_id);
+drop policy if exists leaderboard_delete on public.leaderboard;
+create policy leaderboard_delete on public.leaderboard for delete using (auth.uid() = user_id);
+
+create index if not exists leaderboard_xp_idx on public.leaderboard (xp desc);
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- DONE. Now: (1) confirm section 1 returned tier=owner, (2) redeploy the `ai`

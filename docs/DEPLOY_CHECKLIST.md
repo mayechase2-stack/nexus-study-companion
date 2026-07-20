@@ -17,11 +17,12 @@ Supabase → **SQL Editor** → open
 **find-and-replace `PUT_YOUR_OWNER_EMAIL_HERE`** (2 spots) with your owner
 account's email → **Run**.
 
-This does four things at once:
+This does five things at once:
 - Makes your account **server-side owner** (retires the client password backdoor)
 - Creates the **client_errors** table (error reporting)
 - Creates the **feedback** table (in-app feedback inbox)
 - Adds the **per-IP monthly cap** table + updated `ai_gate()`
+- Creates the **leaderboard** table (real opt-in rankings)
 
 ✅ Check: the first result grid shows one row with `tier = owner`.
 

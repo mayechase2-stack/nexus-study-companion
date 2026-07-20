@@ -19440,7 +19440,76 @@ window.addEventListener('resize', () => {
 // ============================================
 // LEADERBOARD SYSTEM
 // ============================================
+// v19.3 — REAL leaderboard backed by Supabase (migration 0006_leaderboard.sql).
+// Opt-in (leaderboard_optin), username-only, RLS = write-your-own / read-all.
+// Falls back to the local + demo view when the cloud/table isn't available so
+// the page never breaks. `_realLeaderboard` caches the last cloud fetch.
+let _realLeaderboard = null;
+
+// Current signed-in user's live public stats, from local storage.
+function _myLeaderboardStats() {
+    const stats = getStudyStats();
+    let userMins = 0, userAch = 0;
+    try { userMins = getStudySessions().reduce((s, v) => s + (v.duration || 0), 0); } catch (e) {}
+    try { userAch = JSON.parse(localStorage.getItem('achievements_completed') || '[]').length; } catch (e) {}
+    return {
+        username: localStorage.getItem('auth_user') || 'You',
+        xp: parseInt(localStorage.getItem('total_xp') || '0', 10),
+        problems: stats.problemsSolved || 0,
+        streak: stats.currentStreak || 0,
+        minutes: userMins,
+        achievements: userAch,
+        badge: (userLoadout && userLoadout.badge) || 'none'
+    };
+}
+
+// Publish my stats to the cloud board — only if opted in AND signed into a real
+// cloud account. Opting out removes my row. Best-effort, silent on failure.
+async function publishLeaderboardStats() {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return;
+        const u = await _cloudUser();
+        if (!u || !u.id) return; // need a session to satisfy RLS auth.uid()
+        const optedIn = localStorage.getItem('leaderboard_optin') !== '0'; // default on
+        if (!optedIn) { try { await nexusSB.from('leaderboard').delete().eq('user_id', u.id); } catch (_) {} return; }
+        const s = _myLeaderboardStats();
+        await nexusSB.from('leaderboard').upsert({
+            user_id: u.id, username: s.username, xp: s.xp, problems: s.problems,
+            streak: s.streak, minutes: s.minutes, achievements: s.achievements,
+            badge: s.badge, updated_at: new Date().toISOString()
+        });
+    } catch (_) { /* best-effort */ }
+}
+
+// Fetch the real board (top 100 by XP). Returns an array of rows, or null on
+// failure/empty so callers can fall back.
+async function fetchLeaderboard() {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return null;
+        const q = await nexusSB.from('leaderboard')
+            .select('user_id,username,xp,problems,streak,minutes,achievements,badge')
+            .order('xp', { ascending: false })
+            .limit(100);
+        if (q && !q.error && Array.isArray(q.data) && q.data.length) return q.data;
+        return null;
+    } catch (_) { return null; }
+}
+
 function getLeaderboardData() {
+    // v19.3 — prefer the real cloud board when we have it; mark the current
+    // user's own row so the UI highlights it. Otherwise fall back to the
+    // local + demo competitors below (keeps the page alive pre-migration).
+    if (_realLeaderboard && _realLeaderboard.length) {
+        const myName = localStorage.getItem('auth_user');
+        // Normalize username → name (the render loop uses entry.name).
+        const rows = _realLeaderboard.map(r => Object.assign({}, r, { name: r.username, isUser: r.username === myName }));
+        const sortKey = window._lbSort || 'xp';
+        rows.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+        return rows;
+    }
+
     // Build leaderboard from local stats and simulated competitors
     const stats = getStudyStats();
     const username = localStorage.getItem('auth_user') || 'You';
@@ -19474,6 +19543,20 @@ function getLeaderboardData() {
 
 function _lbSetSort(k) { window._lbSort = k; renderLeaderboard(); } // v16.5 — switch leaderboard category
 
+// v19.3 — refresh the real board from the cloud, then re-render. Called on tab
+// open (not on every keystroke). Publishes the user's own stats first so they
+// appear/update, then pulls the latest board.
+async function refreshLeaderboardFromCloud() {
+    if (window._lbRefreshing) return;
+    window._lbRefreshing = true;
+    try {
+        await publishLeaderboardStats();
+        const rows = await fetchLeaderboard();
+        if (rows) { _realLeaderboard = rows; renderLeaderboard(); }
+    } catch (_) { /* keep fallback */ }
+    finally { window._lbRefreshing = false; }
+}
+
 function renderLeaderboard() {
     const container = document.getElementById('leaderboard-content');
     if (!container) return;
@@ -19494,7 +19577,13 @@ function renderLeaderboard() {
     const sortKey = window._lbSort || 'xp';
     const activeMetric = LB_METRICS.find(m => m.key === sortKey) || LB_METRICS[0];
 
-    let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">'
+    // v19.3 — status banner: real cloud board vs the pre-launch sample.
+    const _isReal = !!(_realLeaderboard && _realLeaderboard.length);
+    const _statusBanner = _isReal
+        ? '<div style="font-size:0.78rem;color:#00b894;margin-bottom:12px;"><i class="ph ph-broadcast"></i> Live — ' + _realLeaderboard.length + ' student' + (_realLeaderboard.length === 1 ? '' : 's') + ' on the board. Rankings update as you study.</div>'
+        : '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;"><i class="ph ph-info"></i> Sample leaderboard — real rankings appear here as students join. You\'re on it (opt out in Settings → Privacy).</div>';
+
+    let html = _statusBanner + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">'
         + LB_METRICS.map(m => '<button onclick="_lbSetSort(\'' + m.key + '\')" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;cursor:pointer;font-size:0.83rem;font-weight:600;transition:all .15s;border:1px solid ' + (m.key === sortKey ? 'transparent' : 'var(--glass-border)') + ';background:' + (m.key === sortKey ? 'linear-gradient(135deg,#6C5CE7,#00CEC9)' : 'rgba(255,255,255,0.05)') + ';color:' + (m.key === sortKey ? '#fff' : 'var(--text-muted)') + ';"><i class="ph ' + m.icon + '"></i> ' + m.label + '</button>').join('')
         + '</div>';
     html += `<div style="margin-bottom:16px;display:flex;gap:12px;">
@@ -20884,7 +20973,7 @@ const _origSwitchTabForUpdates = window.switchTab;
 window.switchTab = function(tabId) {
     _origSwitchTabForUpdates(tabId);
     if (tabId === 'updates') { renderUpdateLog(); switchUpdatesTab('changelog'); }
-    if (tabId === 'leaderboard') renderLeaderboard();
+    if (tabId === 'leaderboard') { renderLeaderboard(); if (typeof refreshLeaderboardFromCloud === 'function') refreshLeaderboardFromCloud(); }
 };
 
 // Also render on initial load if updates tab visible
