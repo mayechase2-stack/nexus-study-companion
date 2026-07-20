@@ -6108,6 +6108,15 @@ CRITICAL RULES:
                 }
             }
         });
+        // v19.4 — reconcile the key against the model's own worked solution
+        // before shuffling (it sometimes derives the right value but keys the
+        // wrong option).
+        quizData.questions.forEach(q => {
+            if (!Array.isArray(q.options) || q.options.length < 2) return;
+            const fixed = _reconcileAnswerIndex(q.options, q.work);
+            if (fixed >= 0 && fixed !== q.answerIndex) q.answerIndex = fixed;
+        });
+
         // v19.1 — shuffle options so the correct answer isn't predictably the
         // first choice (the model heavily favored index 0).
         quizData.questions.forEach(q => {
@@ -28709,6 +28718,39 @@ function generatePracticeTest() {
     });
 }
 
+// v19.4 — ANSWER-KEY RECONCILER. Even gpt-4o sometimes derives the right
+// result in its explanation but labels the wrong option (observed live:
+// "…divide by 3: x = 4" keyed to the option containing 5). The worked text is
+// the reliable signal, so pull the final value from it and, when exactly ONE
+// option matches, trust that over the model's letter. Conservative by design:
+// any ambiguity (no match, or multiple matches) leaves the key untouched.
+// Returns a corrected 0-based index, or -1 to keep the model's answer.
+function _reconcileAnswerIndex(optionTexts, workText) {
+    try {
+        if (!workText || !Array.isArray(optionTexts) || optionTexts.length < 2) return -1;
+        var work = String(workText);
+        // Prefer the last "= <value>" (the conclusion); else the last number.
+        var eqMatches = work.match(/=\s*(-?\d+(?:\.\d+)?(?:\/\d+)?)/g);
+        var finalVal = null;
+        if (eqMatches && eqMatches.length) {
+            finalVal = eqMatches[eqMatches.length - 1].replace(/^=\s*/, '');
+        } else {
+            var nums = work.match(/-?\d+(?:\.\d+)?/g);
+            if (nums && nums.length) finalVal = nums[nums.length - 1];
+        }
+        if (finalVal === null) return -1;
+        var norm = function (s) {
+            var m = String(s).replace(/^\s*[A-F][.)]\s*/, '').trim().match(/^-?\d+(?:\.\d+)?(?:\/\d+)?/);
+            return m ? m[0] : null;
+        };
+        var target = norm(finalVal);
+        if (target === null) return -1;
+        var hits = [];
+        optionTexts.forEach(function (o, i) { if (norm(o) === target) hits.push(i); });
+        return hits.length === 1 ? hits[0] : -1; // unique match only
+    } catch (_) { return -1; }
+}
+
 // v19.1 — shuffle a practice-test question's options and remap the answer
 // letter. Tolerates "A. ", "A) " or bare option text; keeps the original
 // question untouched if the shape is unexpected.
@@ -28719,6 +28761,10 @@ function _ptShuffleQuestion(q) {
         if (stripped.length < 2) return q;
         var ansIdx = letters.indexOf(String(q.answer || 'A').trim().toUpperCase().charAt(0));
         if (ansIdx < 0 || ansIdx >= stripped.length) ansIdx = 0;
+        // v19.4 — trust the worked explanation over the model's letter when it
+        // unambiguously points at a different option.
+        var fixed = _reconcileAnswerIndex(stripped, q.explanation);
+        if (fixed >= 0 && fixed !== ansIdx) ansIdx = fixed;
         var correctText = stripped[ansIdx];
         for (var i = stripped.length - 1; i > 0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
