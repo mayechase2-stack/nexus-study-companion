@@ -14042,8 +14042,13 @@ async function solveScience() {
     try {
         let userContent;
         if (scienceImageBase64) {
-            userContent = [{ type: 'image_url', image_url: { url: scienceImageBase64 } }];
-            if (input) userContent.unshift({ type: 'text', text: input });
+            // v19.5 — ALWAYS send an instruction with the image. Previously an
+            // image with no typed text was sent bare, so the model just described
+            // what it saw ("I can see your worksheet…") instead of answering.
+            userContent = [
+                { type: 'text', text: input || 'Read the science question, diagram, or worksheet in this image and answer it completely.' },
+                { type: 'image_url', image_url: { url: scienceImageBase64 } }
+            ];
         } else {
             userContent = input;
         }
@@ -16110,10 +16115,12 @@ IMPORTANT: Use ONLY valid HTML. No markdown wrappers. Show ALL work clearly. For
         // Build user content — support image + text together
         let userContent;
         if (mathImageBase64) {
+            // v19.5 — ALWAYS pair the image with an instruction (see solveScience).
+            // A bare image made the model describe the problem instead of solving it.
             userContent = [
+                { type: 'text', text: text || 'Solve the math problem(s) shown in this image. Show your work.' },
                 { type: 'image_url', image_url: { url: mathImageBase64 } }
             ];
-            if (text) userContent.unshift({ type: 'text', text });
         } else {
             userContent = text;
         }
@@ -16555,17 +16562,22 @@ IMAGE READING (when an image is attached):
         ];
 
         let userContent = [];
+        // v19.5 — ALWAYS include an instruction. An image with no typed text used
+        // to be sent bare, so the model replied "I can see your prompt…" and did
+        // nothing — the reported "it said it read it but did nothing" bug.
         if (text) {
             userContent.push({ type: "text", text: text });
+        } else if (englishPromptImageBase64) {
+            userContent.push({ type: "text", text: 'Read the assignment shown in this image and COMPLETE it — do not just describe the image. If it is an essay prompt, write the full essay. If it is a question, answer it. If it is writing to review, give the feedback or revision it asks for.' });
         }
-        
+
         if (englishPromptImageBase64) {
             userContent.push({
                 type: "image_url",
                 image_url: { url: englishPromptImageBase64 }
             });
         }
-        
+
         messages.push({ role: 'user', content: userContent });
 
         // v10.7 — STREAM the english generator response
