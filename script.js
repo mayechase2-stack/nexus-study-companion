@@ -4653,7 +4653,7 @@ function setEnglishInputImage(dataUrl) {
     }
     strip.innerHTML = `
         <img src="${dataUrl}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid rgba(0,206,201,0.4);">
-        <span style="color:#7fffec;font-size:0.85rem;flex:1;">📎 Image attached — will be analyzed with your text</span>
+        <span style="color:#7fffec;font-size:0.85rem;flex:1;">📎 Image attached — stays attached so you can run several tools on it. Click ✕ to remove.</span>
         <button onclick="setEnglishInputImage(null)" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;padding:4px 8px;" title="Remove image"><i class="ph ph-x"></i></button>
     `;
 }
@@ -4916,7 +4916,12 @@ Use <h3>, <p>, <ul>, <li>, <blockquote>, <strong>.`
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                model: 'gpt-4o-mini',
+                // v19.5 — use full gpt-4o when an image is attached: mini is
+                // noticeably worse at reading photographed/handwritten essays,
+                // which is exactly what students paste here. (The hosted proxy
+                // already upgrades image requests, but a personal API key
+                // bypasses it — this makes the client correct either way.)
+                model: attachedImg ? 'gpt-4o' : 'gpt-4o-mini',
                 messages: [
                     { role: 'system', content: prompts[type] + getModeSystemPrompt('English') },
                     { role: 'user', content: userContent }
@@ -4930,8 +4935,12 @@ Use <h3>, <p>, <ul>, <li>, <blockquote>, <strong>.`
         checkHardModeReward(engContent);
         engContent = engContent.replace('[HARD_MODE_PASS]', '<div style="background:linear-gradient(135deg,rgba(0,200,0,0.2),rgba(0,150,0,0.1));padding:12px;border-radius:8px;margin-top:16px;border:2px solid #00cc00;text-align:center;"><strong style="color:#00cc00;">HARD MODE PASSED (+25 credits)</strong></div>');
         output.innerHTML = `<h3>${labels[type]}</h3>${sanitizeHTML(engContent)}`;
-        // Clear the attached image after a successful run so the next action doesn't reuse it
-        setEnglishInputImage(null);
+        // v19.5 — KEEP the attached image after a run. English Aid has 7 tools and
+        // the natural workflow is one screenshot → Fix Grammar → Essay Scorer →
+        // Summarize. Auto-clearing forced a re-paste before every tool. Staleness
+        // isn't a risk here because the thumbnail strip stays visible above the
+        // textarea with an × to remove it (unlike the Prompt Engine, where the
+        // only signal was a toast that vanished).
 
         // Track activity
         logActivity('english', `Used ${labels[type]} tool`);
