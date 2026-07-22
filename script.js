@@ -15181,7 +15181,19 @@ async function helpMeLiveVision() {
     const video = document.getElementById('screen-video');
     const canvas = document.getElementById('screen-canvas');
     const solutionPanel = document.getElementById('solution-panel');
-    if (!mediaStream || video.paused) { showToast('Start screen sharing first.', 'warning'); return; }
+    // v19.4 — same mid-session teardown handling as analyzeText: distinguish a
+    // stream that DIED (reconnect) from one merely paused (resume), instead of
+    // the misleading "Start screen sharing first" for an already-started session.
+    var _vt = mediaStream && mediaStream.getVideoTracks && mediaStream.getVideoTracks()[0];
+    if (!mediaStream || mediaStream.active === false || !_vt || _vt.readyState === 'ended') {
+        if (typeof stopLiveVision === 'function') { try { stopLiveVision(); } catch (_) {} }
+        showToast('📺 Screen sharing stopped — tap “Share Screen” to reconnect, then try again.', 'info', 5500);
+        return;
+    }
+    if (video && video.paused) {
+        try { await video.play(); } catch (_) {}
+        if (video.paused) { showToast('The shared screen is paused — click back into this tab, then try again.', 'info', 4500); return; }
+    }
 
     // Scale canvas to max 1280px wide (proportional)
     const MAX_W = 1280;
@@ -15573,7 +15585,27 @@ async function analyzeText() {
     const resultDiv = document.getElementById('ocr-result');
     const solutionPanel = document.getElementById('solution-panel');
 
-    if (!mediaStream || video.paused) return;
+    // v19.4 — Screen sharing frequently ends mid-session: the browser's "Stop
+    // sharing" bar, switching the shared surface, tab changes, or the OS pausing
+    // capture. The old guard `if (!mediaStream || video.paused) return;` did this
+    // SILENTLY — so after a few questions "Solve This" looked completely broken
+    // with zero feedback. Now: detect a dead stream and tell the student to
+    // reconnect (resetting the panel to the Share Screen button); if the video
+    // is merely paused, try to resume it before giving up.
+    var _vt = mediaStream && mediaStream.getVideoTracks && mediaStream.getVideoTracks()[0];
+    var _streamDead = !mediaStream || (mediaStream.active === false) || !_vt || _vt.readyState === 'ended';
+    if (_streamDead) {
+        if (typeof stopLiveVision === 'function') { try { stopLiveVision(); } catch (_) {} }
+        if (typeof showToast === 'function') showToast('📺 Screen sharing stopped — tap “Share Screen” to reconnect, then try again.', 'info', 5500);
+        return;
+    }
+    if (video && video.paused) {
+        try { await video.play(); } catch (_) {}
+        if (video.paused) {
+            if (typeof showToast === 'function') showToast('The shared screen is paused — click back into this tab, then tap Solve This again.', 'info', 4500);
+            return;
+        }
+    }
     resultDiv.innerHTML = '<div style="text-align:center;padding:10px;color:var(--accent);"><i class="ph ph-spinner ph-spin"></i> Scanning screen...</div>';
     solutionPanel.classList.add('hidden');
 
@@ -15862,8 +15894,14 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
 
     } catch (err) {
         if (typeof phaseTimer !== 'undefined') clearInterval(phaseTimer);
-        showToast('AI Error: ' + err.message, 'error');
-        resultDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
+        // v19.4 — also replace the spinner in the ANSWER panel, not just the OCR
+        // strip, so an error (e.g. usage-cap 429 after several questions) never
+        // leaves a frozen "Reading your screen…" spinner that looks hung.
+        var _ansEl = document.getElementById('ai-answer-text');
+        var _msg = (err && err.message) || 'Something went wrong.';
+        if (_ansEl) _ansEl.innerHTML = '<span style="color:#ff9a9a;font-size:0.9rem;">' + (typeof escapeHtmlSafe === 'function' ? escapeHtmlSafe(_msg) : _msg) + '</span>';
+        showToast('AI Error: ' + _msg, 'error');
+        if (resultDiv) resultDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${_msg}</p>`;
     }
 }
 
