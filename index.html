@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260716v230">
+    <link rel="stylesheet" href="style.css?v=20260716v231">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1438,7 +1438,7 @@
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00fff5, #7c4dff);">Forge</button>
                     </div>
                     <!-- Debate Practice - v16.5 (permanent Command Center feature) -->
-                    <div class="card glass-panel" onclick="switchTab('home');setTimeout(function(){var d=document.getElementById('command-debate-section');if(d)d.scrollIntoView({behavior:'smooth',block:'start'});},150)" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
+                    <div class="card glass-panel" onclick="setCommandTool('debate')" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
                         <div class="icon-glow" style="background:radial-gradient(circle,rgba(108,92,231,0.3),transparent);"><i class="ph ph-swords"></i></div>
                         <h3>Debate Practice</h3>
                         <p>Pick a side — the AI argues the opposite</p>
@@ -1723,6 +1723,14 @@
                             <div id="eng-gen-prompt-output" class="ai-response-block hidden" style="margin-top: 0; font-family:'Fira Code',monospace; font-size:0.92rem; line-height:1.55; white-space:pre-wrap;"></div>
                         </div>
                     </div>
+                </div>
+
+                <!-- v19.5 — Debate Practice + Prompt Generator are now side-by-side
+                     modes of one Command Center tool (same pattern as the Math
+                     Visualizer's Function/Plot toggle). Debate is the default. -->
+                <div id="command-tool-switch" style="display:flex;gap:6px;background:rgba(0,0,0,0.25);padding:6px;border-radius:12px;margin-top:2rem;border:1px solid var(--glass-border);">
+                    <button id="ctool-mode-debate" onclick="setCommandTool('debate')" style="flex:1;padding:10px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:8px;color:white;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-swords"></i> Debate Practice</button>
+                    <button id="ctool-mode-prompt" onclick="setCommandTool('prompt')" style="flex:1;padding:10px;background:transparent;border:none;border-radius:8px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-sparkle"></i> Prompt Generator</button>
                 </div>
 
                 <!-- v12.1 — Prompt Engine restructured. Was: multi-mode forge with
@@ -5246,7 +5254,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260716v230"></script>
+    <script src="script.js?v=20260716v231"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

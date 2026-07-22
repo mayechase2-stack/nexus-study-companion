@@ -16604,6 +16604,9 @@ IMAGE READING (when an image is attached):
 function openPromptEngine() {
     const panel = document.getElementById('prompt-engine-panel');
     if (!panel) return;
+    // v19.5 — route through the Command Center tool switch so the Debate/Prompt
+    // toggle buttons stay in sync no matter which entry point opened it.
+    if (typeof setCommandTool === 'function') { setCommandTool('prompt'); refreshPromptEngineCounter(); return; }
     panel.classList.remove('hidden');
     document.getElementById('prompt-engine-input').focus();
     refreshPromptEngineCounter();
@@ -18691,37 +18694,74 @@ function _initQuickNotesDrag() {
 }
 document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
 
-// v16.5 — Debate, Daily Challenge, and Study History belong on the HOME tab.
-// They're authored under Command Center in the markup; move the live nodes into
-// Home on load (preserves their ids + handlers so render functions still work).
+// v19.5 — DECLUTTER HOME. Home had grown to ~4 screens of scrolling by stacking
+// Daily Challenge, Debate, and Study History underneath the dashboard cards.
+// Each panel now lives where it belongs (the markup still authors them under
+// Command Center; we relocate the live nodes so ids + handlers keep working):
+//   • Daily Challenge → the Quests modal (it IS a quest)
+//   • Study History   → Profile (alongside the other stats)
+//   • Debate Practice → stays in Command Center, paired with Prompt Generator
 (function () {
-    function _v165MoveToHome() {
-        var home = document.getElementById('view-home');
-        if (!home) return;
-        // v17.0 — give each relocated panel a tidy section header
-        var meta = {
-            'daily-challenge-panel': '🎯 Daily Challenge',
-            'command-debate-section': '🗣️ Debate Practice',
-            'home-study-history': '📊 Study History'
-        };
-        Object.keys(meta).forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el && el.parentElement && el.parentElement.id !== 'view-home') {
-                if (!document.getElementById('home-label-' + id)) {
-                    var h = document.createElement('h3');
-                    h.id = 'home-label-' + id;
-                    h.className = 'home-section-label';
-                    h.style.cssText = 'margin:22px 0 10px;font-size:1rem;color:#fff;font-weight:700;letter-spacing:0.3px;border-left:3px solid var(--accent);padding-left:10px;';
-                    h.textContent = meta[id];
-                    home.appendChild(h);
-                }
-                home.appendChild(el);
-            }
+    function _v195RelocatePanels() {
+        // ── Daily Challenge → Quests modal ───────────────────────────────
+        // Insert BEFORE #quests-body: renderQuestsModal() rewrites that body's
+        // innerHTML on every open, which would destroy the panel if nested in it.
+        var dc = document.getElementById('daily-challenge-panel');
+        var qBody = document.getElementById('quests-body');
+        if (dc && qBody && qBody.parentElement && dc.parentElement !== qBody.parentElement) {
+            dc.style.margin = '0';
+            var wrap = document.createElement('div');
+            wrap.id = 'quests-daily-challenge-wrap';
+            wrap.style.cssText = 'padding:16px 24px 0;flex-shrink:0;';
+            wrap.appendChild(dc);
+            qBody.parentElement.insertBefore(wrap, qBody);
+        }
+
+        // ── Study History → Profile ──────────────────────────────────────
+        var sh = document.getElementById('home-study-history');
+        var prof = document.getElementById('view-achievements');
+        if (sh && prof && sh.parentElement !== prof) {
+            prof.appendChild(sh);
+        }
+
+        // ── Clean up any stale home section headers from the old layout ──
+        ['daily-challenge-panel', 'command-debate-section', 'home-study-history'].forEach(function (id) {
+            var h = document.getElementById('home-label-' + id);
+            if (h) h.remove();
         });
     }
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _v165MoveToHome);
-    else _v165MoveToHome();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _v195RelocatePanels);
+    else _v195RelocatePanels();
 })();
+
+// v19.5 — Command Center tool switch: Debate Practice ⇄ Prompt Generator as
+// two modes of one tool (mirrors setVisualizerMode's Function/Plot toggle).
+function setCommandTool(mode) {
+    var debate = document.getElementById('command-debate-section');
+    var prompt = document.getElementById('prompt-engine-panel');
+    var bD = document.getElementById('ctool-mode-debate');
+    var bP = document.getElementById('ctool-mode-prompt');
+    var isPrompt = mode === 'prompt';
+    if (debate) {
+        debate.style.display = isPrompt ? 'none' : '';
+        if (!isPrompt) debate.open = true;
+    }
+    if (prompt) prompt.classList.toggle('hidden', !isPrompt);
+    var on = 'linear-gradient(135deg,#6C5CE7,#00CEC9)', off = 'transparent';
+    if (bD) { bD.style.background = isPrompt ? off : on; bD.style.color = isPrompt ? 'var(--text-muted)' : '#fff'; }
+    if (bP) { bP.style.background = isPrompt ? on : off; bP.style.color = isPrompt ? '#fff' : 'var(--text-muted)'; }
+    // Make sure the tool is actually on screen when triggered from a card.
+    if (typeof switchTab === 'function' && document.getElementById('view-dashboard') &&
+        !document.getElementById('view-dashboard').classList.contains('active')) {
+        switchTab('dashboard');
+    }
+    var target = isPrompt ? prompt : debate;
+    if (target) setTimeout(function () { try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 120);
+    if (isPrompt) setTimeout(function () { var i = document.getElementById('prompt-engine-input'); if (i) i.focus(); }, 200);
+}
+window.setCommandTool = setCommandTool;
+// Default the Command Center tool to Debate on load.
+document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { try { setCommandTool('debate'); } catch (_) {} }, 260); });
 
 // v16.5 — lightweight UI language switcher (navigation + footer labels). Full-app
 // and AI-response translation is out of scope; this covers the app's chrome.
@@ -25107,6 +25147,8 @@ function openQuestsModal() {
     m.classList.remove('hidden');
     m.style.display = 'flex';
     renderQuestsModal();
+    // v19.5 — Daily Challenge now lives inside this modal; draw it on open.
+    if (typeof renderDailyChallenge === 'function') { try { renderDailyChallenge(); } catch (_) {} }
 }
 
 function closeQuestsModal() {
@@ -28320,7 +28362,9 @@ function renderStudyHistoryChart(canvasId) {
         else endStudySession();
         _orig(tabId);
         if(tabId==='grades')   setTimeout(renderGradeCalc,80);
-        if(tabId==='dashboard'||tabId==='home') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); if(typeof renderDailyChallenge==='function') renderDailyChallenge(); },120);
+        // v19.5 — Study History moved to Profile (achievements); Daily Challenge
+        // moved into the Quests modal (rendered by openQuestsModal instead).
+        if(tabId==='achievements') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); },120);
         if(tabId==='profile') { switchTab('achievements'); return; } // v16.0 — Profile merged into the Achievements tab
     };
 })();
