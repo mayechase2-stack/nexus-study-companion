@@ -16621,6 +16621,10 @@ function closePromptEngine() {
     if (out) { out.classList.add('hidden'); out.innerHTML = ''; }
     const inp = document.getElementById('prompt-engine-input');
     if (inp) inp.value = '';
+    // v19.4 — drop any attached screenshot so it can't leak into a later session
+    window._promptEngineImage = null;
+    const _badge = document.getElementById('prompt-engine-img-badge');
+    if (_badge) _badge.remove();
 }
 
 function refreshPromptEngineCounter() {
@@ -16712,7 +16716,11 @@ async function processPromptEngine() {
     if (!hasPaid()) { openPaymentModal('access'); return; }
     const text = document.getElementById('prompt-engine-input').value.trim();
     const output = document.getElementById('prompt-engine-output');
-    if (!text) { showToast('Type what you want a prompt for.', 'warning'); return; }
+    // v19.4 — a pasted screenshot is enough on its own; only refuse when there
+    // is neither text NOR an image. (Previously an image-only paste was
+    // rejected with "Type what you want a prompt for.")
+    const _peImage = window._promptEngineImage || null;
+    if (!text && !_peImage) { showToast('Type what you want a prompt for, or paste a screenshot (Ctrl+V).', 'warning'); return; }
 
     output.classList.remove('hidden');
     output.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#00fff5;"></i><div style="margin-top:8px;font-size:0.9rem;">Generating…</div></div>`;
@@ -16741,10 +16749,21 @@ ABSOLUTE RULES:
         const cursorEl = output.querySelector('.streaming-cursor');
         await streamChat({
             apiKey,
-            model: localStorage.getItem('ai_model') || 'gpt-4o',
+            // v19.4 — force the vision model when a screenshot is attached, so a
+            // saved non-vision preference can't drop the image.
+            model: _peImage ? 'gpt-4o' : (localStorage.getItem('ai_model') || 'gpt-4o'),
             messages: [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: text }
+                // v19.4 — actually SEND the pasted screenshot. The Ctrl+V handler
+                // stored it in window._promptEngineImage and toasted "Image
+                // attached", but the request only ever included the text, so
+                // screenshots silently did nothing.
+                { role: 'user', content: _peImage
+                    ? [
+                        { type: 'text', text: text || 'Write a prompt I can paste into an AI, based on what is shown in this screenshot.' },
+                        { type: 'image_url', image_url: { url: _peImage } }
+                      ]
+                    : text }
             ],
             max_tokens: 800,
             temperature: 0.5,
@@ -16757,7 +16776,12 @@ ABSOLUTE RULES:
                 localStorage.setItem('prompt_engine_uses', String(uses));
                 if (typeof refreshPromptEngineCounter === 'function') refreshPromptEngineCounter();
                 if (typeof recordQuestProgress === 'function') recordQuestProgress('prompt_forged');
-                if (typeof addToHistory === 'function') addToHistory('prompt-engine', text.substring(0, 200), clean.substring(0, 500));
+                if (typeof addToHistory === 'function') addToHistory('prompt-engine', (text || '[screenshot]').substring(0, 200), clean.substring(0, 500));
+                // v19.4 — consume the attached screenshot so it doesn't silently
+                // carry over into the next, unrelated forge.
+                window._promptEngineImage = null;
+                var _peBadge = document.getElementById('prompt-engine-img-badge');
+                if (_peBadge) _peBadge.remove();
                 setTimeout(checkAchievements, 500);
             },
             onError: (err) => { output.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`; }
@@ -18475,7 +18499,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- Prompt Engine: Ctrl+V image paste (universal coverage) ----
     attachImagePasteHandler(
         'prompt-engine-input',
-        (base64) => { window._promptEngineImage = base64; showToast('Image attached to Prompt Engine.', 'success', 2000); },
+        (base64) => {
+            window._promptEngineImage = base64;
+            showToast('Screenshot attached — it will be read when you Forge.', 'success', 2500);
+            // v19.4 — show a PERSISTENT badge (with a remove button) instead of
+            // only a toast that disappears. Previously there was no way to tell
+            // whether an image was actually attached.
+            try {
+                var inp = document.getElementById('prompt-engine-input');
+                if (!inp) return;
+                var old = document.getElementById('prompt-engine-img-badge');
+                if (old) old.remove();
+                var badge = document.createElement('div');
+                badge.id = 'prompt-engine-img-badge';
+                badge.style.cssText = 'display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:7px 10px;border-radius:8px;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.35);font-size:0.82rem;color:#00cec9;';
+                badge.innerHTML = '<img src="' + base64 + '" alt="attached screenshot" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;">'
+                    + '<span style="flex:1;">Screenshot attached — will be read when you Forge.</span>'
+                    + '<button type="button" title="Remove screenshot" aria-label="Remove screenshot" style="background:none;border:none;color:#ff9a9a;cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px;" '
+                    + 'onclick="window._promptEngineImage=null;this.parentElement.remove();">&times;</button>';
+                inp.insertAdjacentElement('afterend', badge);
+            } catch (_) {}
+        },
         null,
         null,
         null
