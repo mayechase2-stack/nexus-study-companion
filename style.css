@@ -3622,3 +3622,41 @@ body.theme-onyx p, body.theme-onyx .glass-panel p { color: #9a9caa !important; }
         padding: 10px 8px;
     }
 }
+
+
+/* ═══════════════════════════════════════════════════════════
+   v234 — STUDY MODE BADGE
+   Shows which mode (Casual / Tutor) an AI tool is running in,
+   right in the tool's own header. Click to switch. Added after
+   a 100-word request silently came back at 78 words because
+   Casual mode was rewriting the brief with nothing on screen
+   saying so.
+   ═══════════════════════════════════════════════════════════ */
+.nexus-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    line-height: 1;
+    white-space: nowrap;
+    transition: filter 0.15s ease, transform 0.15s ease;
+    font-family: inherit;
+}
+.nexus-mode-badge:hover { filter: brightness(1.25); transform: translateY(-1px); }
+.nexus-mode-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nexus-mode-badge[data-active-mode="casual"] {
+    color: #00cec9;
+    background: rgba(0, 206, 201, 0.12);
+    border: 1px solid rgba(0, 206, 201, 0.45);
+}
+.nexus-mode-badge[data-active-mode="tutor"] {
+    color: #c4a5ff;
+    background: rgba(168, 85, 247, 0.14);
+    border: 1px solid rgba(168, 85, 247, 0.5);
+}

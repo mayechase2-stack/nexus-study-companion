@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260716v233">
+    <link rel="stylesheet" href="style.css?v=20260722v234">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -509,12 +509,12 @@
                 <!-- CARD B — COMMAND CENTER screenshot -->
                 <div class="glass-panel" style="padding:0;overflow:hidden;border:1px solid rgba(0,206,201,0.3);">
                     <div style="aspect-ratio:16/11;background:#0B0E1A;overflow:hidden;display:flex;align-items:center;justify-content:center;">
-                        <img src="assets/feature-command-center.jpeg" alt="NEXUS Command Center dashboard — stats, daily goals, and 7 AI tool cards (Live Vision, English Generator, Quick Quiz, Math Visualizer, Science Simulator, History Timeline, Prompt Engine)"
+                        <img src="assets/feature-command-center.jpeg" alt="NEXUS Command Center dashboard — stats, daily goals, and 8 AI tool cards (Live Vision, English Generator, Quick Quiz, Math Visualizer, Science Simulator, History Timeline, AI Flashcards, Debate Practice)"
                              style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block;" loading="lazy">
                     </div>
                     <div style="padding:18px;">
                         <h4 style="margin:0 0 6px;color:white;font-size:1.05rem;">Every AI tool, one launcher.</h4>
-                        <p style="margin:0;color:var(--text-muted);font-size:0.86rem;line-height:1.5;">The Command Center is where you fire off Live Vision, generate essays, run a Quick Quiz, visualize math, simulate experiments, build timelines, or forge structured prompts — all from one panel. Tutor Mode guides you instead of just handing over answers.</p>
+                        <p style="margin:0;color:var(--text-muted);font-size:0.86rem;line-height:1.5;">The Command Center is where you fire off Live Vision, generate essays, run a Quick Quiz, visualize math, simulate experiments, build timelines, or build a flashcard deck — all from one panel. Tutor Mode guides you instead of just handing over answers.</p>
                     </div>
                 </div>
 
@@ -1430,12 +1430,13 @@
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #fd79a8, #e84393);">Create</button>
                     </div>
 
-                    <!-- Prompt Engine - v9.6 -->
-                    <div class="card glass-panel" onclick="openPromptEngine()" style="background: linear-gradient(135deg, rgba(0, 255, 245, 0.12), rgba(124, 77, 255, 0.12)); border: 1px solid rgba(0, 255, 245, 0.55);">
-                        <div class="icon-glow" style="background: radial-gradient(circle, rgba(0, 255, 245, 0.35), transparent);"><i class="ph ph-sparkle"></i></div>
-                        <h3>Prompt Engine</h3>
-                        <p>Forge elite, structured prompts</p>
-                        <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00fff5, #7c4dff);">Forge</button>
+                    <!-- AI Flashcards - v234 (promoted into the grid; replaced the standalone
+                         Prompt Engine card, which now lives in English Generator → Generate a prompt) -->
+                    <div class="card glass-panel" onclick="openFlashcards('ai')" style="background: linear-gradient(135deg, rgba(0, 206, 201, 0.12), rgba(108, 92, 231, 0.12)); border: 1px solid rgba(0, 206, 201, 0.55);">
+                        <div class="icon-glow" style="background: radial-gradient(circle, rgba(0, 206, 201, 0.35), transparent);"><i class="ph ph-cards"></i></div>
+                        <h3>AI Flashcards</h3>
+                        <p>Turn any topic into a study deck</p>
+                        <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #00cec9, #6c5ce7);">Generate</button>
                     </div>
                     <!-- Debate Practice - v16.5 (permanent Command Center feature) -->
                     <div class="card glass-panel" onclick="setCommandTool('debate')" style="background:linear-gradient(135deg,rgba(108,92,231,0.12),rgba(0,206,201,0.08));border:1px solid rgba(108,92,231,0.45);">
@@ -1585,7 +1586,8 @@
                 <div id="live-vision-panel" class="hidden">
                     <div class="panel-header">
                         <h2><i class="ph ph-eye"></i> Vision Active</h2>
-                        <div style="display:flex;gap:6px;">
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <button class="nexus-mode-badge" data-mode-badge="1" onclick="cycleDifficultyMode()" title="Study mode — click to switch between Casual and Tutor"></button>
                             <button class="btn-icon" onclick="stopLiveVision()" title="Stop"><i class="ph ph-x"></i></button>
                         </div>
                     </div>
@@ -1670,7 +1672,10 @@
                 <div id="english-prompt-panel" class="hidden" style="margin-top: 2rem; border: 1px solid var(--accent); border-radius: 16px; background: rgba(0, 0, 0, 0.6); overflow: hidden;">
                     <div class="panel-header" style="background: rgba(253, 121, 168, 0.1);">
                         <h2><i class="ph ph-pencil-line"></i> English Generator</h2>
-                        <button class="btn-icon" onclick="closeEnglishPrompt()"><i class="ph ph-x"></i></button>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <button class="nexus-mode-badge" data-mode-badge="1" onclick="cycleDifficultyMode()" title="Study mode — click to switch between Casual and Tutor"></button>
+                            <button class="btn-icon" onclick="closeEnglishPrompt()"><i class="ph ph-x"></i></button>
+                        </div>
                     </div>
                     <div style="padding: 20px; background: var(--bg-dark);">
                         <!-- v12.1 — mode tabs: Write OR Generate-a-Prompt -->
@@ -1683,14 +1688,45 @@
                             </button>
                         </div>
 
-                        <!-- MODE: WRITE -->
+                        <!-- MODE: WRITE — v234: pure writing + Type / Paragraphs / Word count controls -->
                         <div id="eng-gen-write-mode">
                             <div style="background: linear-gradient(135deg, rgba(108,92,231,0.1), rgba(237,100,166,0.08)); border: 1px solid rgba(237,100,166,0.25); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
                                 <div style="font-size: 0.78rem; color: #ed64a6; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 8px;">WHAT IS THIS?</div>
-                                <div style="color: #e0e0ec; font-size: 0.88rem; line-height: 1.55;">A flexible English writing assistant. Give it a prompt and it writes whatever you ask — essays, summaries, analysis, emails, creative pieces, anything.</div>
+                                <div style="color: #e0e0ec; font-size: 0.88rem; line-height: 1.55;">Pure writing. Pick what you need and it writes it — nothing else, no analysis, no headings, no commentary. For feedback, scoring or analysis, use <strong style="color:#fd79a8;">English Aid</strong>.</div>
                             </div>
+
+                            <!-- v234 — writing controls -->
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+                                <div style="flex:1;min-width:150px;">
+                                    <label for="eng-gen-type" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-bottom: 5px; font-weight:600; letter-spacing:0.4px;">TYPE OF WRITING</label>
+                                    <select id="eng-gen-type" class="input-field" onchange="updateEnglishGenControls()" style="width:100%;padding:9px 10px;font-size:0.88rem;">
+                                        <option value="standard" selected>Standard writing</option>
+                                        <option value="paragraph">Paragraph</option>
+                                        <option value="essay">Essay</option>
+                                        <option value="document">Document</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;min-width:130px;">
+                                    <label for="eng-gen-paragraphs" id="eng-gen-paragraphs-label" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-bottom: 5px; font-weight:600; letter-spacing:0.4px;">PARAGRAPHS</label>
+                                    <select id="eng-gen-paragraphs" class="input-field" disabled style="width:100%;padding:9px 10px;font-size:0.88rem;opacity:0.45;cursor:not-allowed;">
+                                        <option value="auto" selected>Auto</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                    </select>
+                                </div>
+                                <div style="flex:0 0 auto;min-width:110px;">
+                                    <label for="eng-gen-words" style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-bottom: 5px; font-weight:600; letter-spacing:0.4px;">WORD COUNT</label>
+                                    <input type="number" id="eng-gen-words" class="input-field" min="20" max="4000" step="10" placeholder="Auto" title="Leave blank for automatic length" style="width:100%;padding:9px 10px;font-size:0.88rem;">
+                                </div>
+                            </div>
+                            <div id="eng-gen-controls-hint" style="font-size:0.76rem;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45;">Paragraph count applies to essays only. Word count is a hard target — leave it blank to let the length follow the request.</div>
+
                             <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 8px;">Your request</label>
-                            <textarea id="english-prompt-input" placeholder="e.g. Write a 500-word analytical essay on the symbolism of the green light in The Great Gatsby. MLA format." style="width: 100%; height: 130px; margin-bottom: 10px; resize: vertical;"></textarea>
+                            <textarea id="english-prompt-input" placeholder="e.g. a message to my teacher asking for an extension. Or: an essay on the green light in The Great Gatsby, MLA format." style="width: 100%; height: 130px; margin-bottom: 10px; resize: vertical;"></textarea>
                             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
                                 <input type="file" id="english-prompt-image" accept="image/*" style="display: none;" onchange="handleEnglishPromptImage(this)">
                                 <button class="btn-secondary" style="padding: 8px;" onclick="document.getElementById('english-prompt-image').click()" title="Attach Image">
@@ -1702,16 +1738,38 @@
                                 </button>
                             </div>
                             <div id="english-prompt-output" class="ai-response-block hidden" style="margin-top: 0;"></div>
+                            <!-- v234 — live word counter + follow-up actions -->
+                            <div id="english-prompt-meta" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;">
+                                <span id="english-prompt-wordcount" style="font-size:0.78rem;color:var(--text-muted);letter-spacing:0.5px;"></span>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenRefine('regenerate')" title="Write it again from scratch"><i class="ph ph-arrows-clockwise"></i> Regenerate</button>
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenRefine('longer')"><i class="ph ph-arrow-up"></i> Longer</button>
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenRefine('shorter')"><i class="ph ph-arrow-down"></i> Shorter</button>
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenRefine('formal')"><i class="ph ph-briefcase"></i> More formal</button>
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenCopy()"><i class="ph ph-copy"></i> Copy</button>
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenDownload()"><i class="ph ph-download-simple"></i> .txt</button>
+                                    <button class="btn-secondary" style="padding:6px 11px;font-size:0.78rem;" onclick="englishGenToNotebook()"><i class="ph ph-notebook"></i> To Notebook</button>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- MODE: PROMPT GENERATOR (v12.1 — moved here from standalone Prompt Engine) -->
+                        <!-- MODE: PROMPT GENERATOR — v234: now runs the Prompt Engine (screenshot
+                             paste, counter, quests, history) with a Short / Detailed toggle. The
+                             standalone Command Center Prompt Engine was removed. -->
                         <div id="eng-gen-prompt-mode" style="display:none;">
                             <div style="background: linear-gradient(135deg, rgba(0,255,245,0.08), rgba(124,77,255,0.08)); border: 1px solid rgba(0,255,245,0.25); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
-                                <div style="font-size: 0.78rem; color: #00fff5; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 8px;">DETAILED PROMPT</div>
-                                <div style="color: #e0e0ec; font-size: 0.88rem; line-height: 1.55;">A richer, more thorough paste-ready prompt — 6 to 12 sentences weaving in role, audience, format, and quality bars as natural prose. For a quick 1-3 sentence version, use the standalone <strong style="color:#00fff5;">Prompt Engine</strong> in Command Center.</div>
+                                <div style="font-size: 0.78rem; color: #00fff5; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 8px;">PROMPT GENERATOR</div>
+                                <div style="color: #e0e0ec; font-size: 0.88rem; line-height: 1.55;">Describe what you want and get a paste-ready prompt for any AI. You can also paste a screenshot (Ctrl+V) and it will write the prompt from what's on screen.</div>
                             </div>
+
+                            <!-- v234 — Short / Detailed length toggle -->
+                            <div style="display:flex;gap:6px;background:rgba(0,0,0,0.25);padding:5px;border-radius:10px;margin-bottom:14px;border:1px solid var(--glass-border);">
+                                <button id="eng-gen-plen-short" onclick="setPromptGenLength('short')" style="flex:1;padding:8px;background:linear-gradient(135deg,#00fff5,#7c4dff);border:none;border-radius:7px;color:#fff;font-size:0.83rem;font-weight:600;cursor:pointer;">Short — 1-3 sentences</button>
+                                <button id="eng-gen-plen-detailed" onclick="setPromptGenLength('detailed')" style="flex:1;padding:8px;background:transparent;border:none;border-radius:7px;color:var(--text-muted);font-size:0.83rem;font-weight:600;cursor:pointer;">Detailed — 6-12 sentences</button>
+                            </div>
+
                             <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 8px;">What do you want a prompt for?</label>
-                            <textarea id="eng-gen-prompt-input" placeholder="e.g. an essay outline on Of Mice and Men symbolism. Or: a Python script that scrapes news headlines. Or: a polite extension request email." style="width: 100%; height: 110px; margin-bottom: 10px; resize: vertical;"></textarea>
+                            <textarea id="eng-gen-prompt-input" placeholder="e.g. an essay outline on Of Mice and Men symbolism. Or paste a screenshot of the assignment (Ctrl+V)." style="width: 100%; height: 110px; margin-bottom: 10px; resize: vertical;"></textarea>
                             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
                                 <button class="btn-secondary" style="padding: 8px 14px;" onclick="copyEnglishGenPromptOutput()" title="Copy prompt">
                                     <i class="ph ph-copy"></i> Copy
@@ -1721,50 +1779,21 @@
                                 </button>
                             </div>
                             <div id="eng-gen-prompt-output" class="ai-response-block hidden" style="margin-top: 0; font-family:'Fira Code',monospace; font-size:0.92rem; line-height:1.55; white-space:pre-wrap;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- v19.5 — Debate Practice + Prompt Generator are now side-by-side
-                     modes of one Command Center tool (same pattern as the Math
-                     Visualizer's Function/Plot toggle). Debate is the default. -->
-                <div id="command-tool-switch" style="display:flex;gap:6px;background:rgba(0,0,0,0.25);padding:6px;border-radius:12px;margin-top:2rem;border:1px solid var(--glass-border);">
-                    <button id="ctool-mode-debate" onclick="setCommandTool('debate')" style="flex:1;padding:10px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:8px;color:white;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-swords"></i> Debate Practice</button>
-                    <button id="ctool-mode-prompt" onclick="setCommandTool('prompt')" style="flex:1;padding:10px;background:transparent;border:none;border-radius:8px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-sparkle"></i> Prompt Generator</button>
-                </div>
-
-                <!-- v12.1 — Prompt Engine restructured. Was: multi-mode forge with
-                     audience / format / depth / tone calibration knobs. Now: a single
-                     "what do you want a prompt for?" textarea → one paste-ready prompt.
-                     Also surfaced as a sub-mode inside English Generator. -->
-                <div id="prompt-engine-panel" class="hidden" style="margin-top: 2rem; border: 1px solid #00fff5; border-radius: 16px; background: linear-gradient(135deg, rgba(0,5,30,0.85), rgba(20,5,50,0.85)); overflow: hidden; box-shadow: 0 0 48px rgba(0,255,245,0.15);">
-                    <div class="panel-header" style="background: linear-gradient(135deg, rgba(0,255,245,0.12), rgba(124,77,255,0.12)); border-bottom: 1px solid rgba(0,255,245,0.3);">
-                        <h2><i class="ph ph-sparkle"></i> Prompt Generator</h2>
-                        <button class="btn-icon" onclick="closePromptEngine()"><i class="ph ph-x"></i></button>
-                    </div>
-                    <div style="padding: 20px;">
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 14px;">
-                            <strong style="color:#00fff5;">Quick form.</strong> Type what you want a prompt for and we hand back a 1-3 sentence prompt — short, plain words, paste-ready. For a longer, more detailed prompt, use <strong style="color:#fd79a8;">English Generator → Generate a prompt</strong>.
-                        </p>
-                        <label style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-bottom: 6px;font-weight:600;">WHAT DO YOU WANT A PROMPT FOR?</label>
-                        <textarea id="prompt-engine-input" placeholder="e.g. an essay outline on Of Mice and Men. Or: a Python script that scrapes headlines. Or: a polite email asking for an extension." style="width: 100%; height: 110px; margin-bottom: 14px; background:rgba(0,0,0,0.4); border:1px solid rgba(0,255,245,0.25); border-radius:8px; color:#e8eef8; padding:12px; font-family:inherit; resize:vertical;"></textarea>
-
-                        <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px;">
-                            <button class="btn-primary" style="flex:1; margin:0; background: linear-gradient(135deg, #00fff5, #7c4dff); font-weight:700; letter-spacing:1px;" onclick="processPromptEngine()">
-                                <i class="ph ph-magic-wand"></i> Generate prompt
-                            </button>
-                            <button class="btn-secondary" style="padding:10px 16px;" onclick="copyPromptEngineOutput()" title="Copy generated prompt to clipboard">
-                                <i class="ph ph-copy"></i> Copy
-                            </button>
-                        </div>
-                        <div id="prompt-engine-output" class="hidden" style="background:rgba(0,0,0,0.4); border:1px solid rgba(0,255,245,0.25); border-radius:8px; padding:18px; color:#e8eef8; font-family:'Fira Code',monospace; font-size:0.92rem; line-height:1.55; white-space:pre-wrap;"></div>
-                        <div style="margin-top:14px; font-size:0.7rem; color:var(--text-muted); text-align:center; letter-spacing:1px;">
-                            GENERATED <span id="prompt-engine-counter" style="color:#00fff5;font-weight:700;">0</span> PROMPTS
+                            <div style="margin-top:14px; font-size:0.7rem; color:var(--text-muted); text-align:center; letter-spacing:1px;">
+                                GENERATED <span id="prompt-engine-counter" style="color:#00fff5;font-weight:700;">0</span> PROMPTS
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- v18.4 — Daily Challenge moved to the home page -->
+
+                <!-- v234 — The Debate/Prompt toggle and the standalone Prompt Engine panel were
+                     removed. Prompt Generator now lives in English Generator → "Generate a
+                     prompt". Debate Practice gets its own labelled section with real spacing:
+                     it used to sit flush against the bottom edge of whichever tool panel was
+                     open (Live Vision, English Generator…), so it read as a mode of that tool. -->
+                <h3 style="margin:34px 0 16px;color:var(--text-muted);font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;"><i class="ph ph-swords" style="margin-right:6px;"></i>Debate Practice</h3>
 
                 <!-- Debate Practice (Command Center feature) — collapsible node -->
                 <details id="command-debate-section" class="glass-panel" style="padding:20px 24px;margin-top:20px;border:1px solid rgba(108,92,231,0.35);background:linear-gradient(135deg,rgba(108,92,231,0.08),rgba(0,206,201,0.04));">
@@ -2233,6 +2262,7 @@
                             <div>
                                 <h1 style="margin:0;background:linear-gradient(135deg, #6C5CE7, #00CEC9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Math Lab</h1>
                                 <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Tools & Concept Analysis</p>
+                                <button class="nexus-mode-badge" data-mode-badge="1" onclick="cycleDifficultyMode()" title="Study mode — click to switch between Casual and Tutor" style="margin-top:8px;"></button>
                             </div>
                         </div>
                         <button onclick="openUniversalTutor({subject:'Math',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(108,92,231,0.25),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:#a29bfe;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">
@@ -2455,6 +2485,7 @@
                             <div>
                                 <h1 style="margin:0;background:linear-gradient(135deg,#a29bfe,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">English Aid</h1>
                                 <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Writing tools, library, speed typing &amp; dictionary</p>
+                                <button class="nexus-mode-badge" data-mode-badge="1" onclick="cycleDifficultyMode()" title="Study mode — click to switch between Casual and Tutor" style="margin-top:8px;"></button>
                             </div>
                         </div>
                         <button onclick="openUniversalTutor({subject:'English',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(108,92,231,0.25),rgba(162,155,254,0.15));border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:#a29bfe;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
@@ -2553,8 +2584,8 @@
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                             <label style="color:var(--text-muted);font-size:0.8rem;">PASTE TEXT BELOW</label>
                             <div id="word-limit-container" style="display:flex; align-items:center; gap:8px;">
-                                <label style="color:var(--text-muted);font-size:0.8rem;">Word Limit:</label>
-                                <input type="number" id="english-word-limit" min="10" max="10000" value="100" style="width: 80px; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: white;">
+                                <label for="english-word-limit" style="color:var(--text-muted);font-size:0.8rem;" title="Only applies to the Summarize tool">Summary length:</label>
+                                <input type="number" id="english-word-limit" min="10" max="10000" value="100" title="Only applies to the Summarize tool" style="width: 80px; padding: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 4px; color: white;">
                             </div>
                         </div>
                         <textarea id="english-input" placeholder="Paste your text here..."
@@ -2788,6 +2819,7 @@
                             <div>
                                 <h1 style="margin:0;background:linear-gradient(135deg, #00b894, #55efc4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Science Lab</h1>
                                 <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Explore the wonders of Physics, Chemistry, and Biology</p>
+                                <button class="nexus-mode-badge" data-mode-badge="1" onclick="cycleDifficultyMode()" title="Study mode — click to switch between Casual and Tutor" style="margin-top:8px;"></button>
                             </div>
                         </div>
                         <button onclick="openUniversalTutor({subject:'Science',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(0,184,148,0.25),rgba(85,239,196,0.1));border:1px solid rgba(0,184,148,0.4);border-radius:10px;color:#00b894;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">
@@ -2876,6 +2908,7 @@
                         <div>
                             <h1 id="social-header-title" style="margin:0;background:linear-gradient(135deg, #fd79a8, #e84393);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;transition:filter 0.4s;">Social Studies</h1>
                             <p id="social-header-tagline" style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Figures, wars, eras, civilizations, and the documents that defined them — all on demand.</p>
+                            <button class="nexus-mode-badge" data-mode-badge="1" onclick="cycleDifficultyMode()" title="Study mode — click to switch between Casual and Tutor" style="margin-top:8px;"></button>
                         </div>
                     </div>
                     <!-- v12.1 — "Did You Know" rotating fact card -->
@@ -3393,7 +3426,9 @@
 
 
             <!-- v16.5 — Homework Tracker removed. Daily Challenge moved to the Command Center (see #daily-challenge-panel there). -->
-            <div id="view-homework" class="view"></div>
+            <!-- v234 — #view-homework removed: the Homework Tracker was retired in v13.0 and
+                 this div had been rendering as an empty, unreachable tab ever since. -->
+
 
             <!-- ══ v13.0: Grade Calculator ══════════════════════════════════ -->
             <div id="view-grades" class="view">
@@ -4005,6 +4040,13 @@ if __name__ == '__main__':
                             <label style="display:flex;align-items:center;gap:12px;color:white;cursor:pointer;">
                                 <input type="checkbox" id="setting-streaming" checked style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;">
                                 <div><div style="font-weight:500;">Live streaming responses</div><p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Show AI text as it generates (typing effect). Uncheck to wait for the full response before showing.</p></div>
+                            </label>
+                        </div>
+                        <!-- v234 — B-9: style-match generated writing to the student's own work -->
+                        <div class="glass-panel" style="padding:14px;margin-top:10px;background:rgba(0,0,0,0.2);border-left:3px solid #fd79a8;">
+                            <label style="display:flex;align-items:center;gap:12px;color:white;cursor:pointer;">
+                                <input type="checkbox" id="setting-match-voice" onchange="localStorage.setItem('eng_gen_match_voice', this.checked ? '1' : '0')" style="width:20px;height:20px;accent-color:#fd79a8;cursor:pointer;">
+                                <div><div style="font-weight:500;">Match my voice (English Generator)</div><p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Uses up to 3 pieces of your own past writing as a style reference so generated work sounds like you. Your samples stay on your device and are only sent with your own requests.</p></div>
                             </label>
                         </div>
                     </div>
@@ -5254,7 +5296,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260716v233"></script>
+    <script src="script.js?v=20260722v234"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

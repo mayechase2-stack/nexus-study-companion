@@ -1,4 +1,4 @@
-﻿// ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
 // NEXUS CONFIG
 // SECURITY: no host key here. This file is downloaded by every visitor's
 // browser, so any key placed here is public and WILL be stolen. Each user
@@ -3429,6 +3429,7 @@ function saveSettings() {
     sset('setting-temp', 'ai_temperature');
     sset('setting-math-notation', 'math_notation');
     sset('setting-streaming', 'ai_streaming');
+    sset('setting-match-voice', 'eng_gen_match_voice'); // v234 — B-9
     sset('setting-notify-toasts', 'notify_toasts');
     sset('setting-notify-quests', 'notify_quests');
     sset('setting-notify-achievements', 'notify_achievements');
@@ -3485,6 +3486,7 @@ function loadExpandedSettings() {
     lget('setting-temp', 'ai_temperature', '50');
     lget('setting-math-notation', 'math_notation', 'plain');
     lget('setting-streaming', 'ai_streaming', true);
+    lget('setting-match-voice', 'eng_gen_match_voice', false); // v234 — B-9
     lget('setting-notify-toasts', 'notify_toasts', true);
     lget('setting-notify-quests', 'notify_quests', true);
     lget('setting-notify-achievements', 'notify_achievements', true);
@@ -3600,7 +3602,54 @@ function updateModePreview() {
     });
 }
 
-function getModeSystemPrompt(subject) {
+// ── v234 · D-1 — MODE POLICY REGISTRY ────────────────────────────────────
+// Casual/Tutor is a TEACHING preference — "show me the answer" vs "walk me
+// through it". It is not a "refuse to write my essay" preference. Before v234
+// each feature decided by hand whether to append getModeSystemPrompt(), at
+// eight separate call sites, and two of them were wrong: the English Generator
+// and all seven English Aid tools were being told, in Tutor mode, "Do NOT solve
+// it — reply with a concept blurb and a guiding question." So "write my essay"
+// answered with a question, and "fix my grammar" was told not to give the fix.
+//
+//   'full' — this tool teaches; the mode block applies.
+//   'none' — this tool performs a job; mode is irrelevant to the deliverable.
+//
+// Adding a tool here is deliberate. modePromptFor() warns loudly on an unknown
+// tool rather than silently guessing, so the bug class can't come back quietly.
+const TOOL_MODE_POLICY = {
+    math: 'full', science: 'full', social: 'full', liveVision: 'full', tutorChat: 'full',
+    englishGenerator: 'none', englishAid: 'none', promptGen: 'none',
+    quiz: 'none', practiceTest: 'none', flashcards: 'none', conceptMap: 'none',
+    notebookGrammar: 'none', debate: 'none', historyTimeline: 'none', dictionary: 'none'
+};
+
+function modePromptFor(tool, subject, requestText) {
+    const policy = TOOL_MODE_POLICY[tool];
+    if (policy === undefined) {
+        console.warn('[NEXUS] No TOOL_MODE_POLICY entry for "' + tool + '" — defaulting to none. Add it to the registry.');
+        return '';
+    }
+    if (policy === 'none') return '';
+    return getModeSystemPrompt(subject, requestText);
+}
+
+// ── v234 · D-2 — an explicit length spec outranks the brevity clause ──────
+// Casual mode used to end every prompt with "1-3 sentences max… keep total
+// response short and punchy" — the LAST line the model reads, so it wins.
+// That silently truncated anything with a real length requirement: a "write a
+// 100 word message" request came back at 78 words, and Region Explorer's five
+// ~90-word sections were being squeezed into a couple of sentences. When the
+// request states a length, brevity yields; the casual TONE stays.
+function _hasExplicitLengthSpec(text) {
+    if (!text) return false;
+    const t = String(text);
+    return /\b\d{2,4}\s*[-–—]?\s*words?\b/i.test(t)
+        || /\b\d+\s*[-–—]?\s*(paragraphs?|sentences?|pages?|bullet points?)\b/i.test(t)
+        || /~\s*\d+\s*words?/i.test(t)
+        || /<h3>/i.test(t);
+}
+
+function getModeSystemPrompt(subject, requestText) {
     const mode = getDifficultyMode();
     if (mode === 'tutor') {
         const subjLower = (subject || '').toLowerCase();
@@ -3743,6 +3792,23 @@ ABSOLUTE RULES:
     }
     // Casual mode — instant direct answer, minimal explanation
     if (mode === 'casual') {
+        // v234 — when the request carries a real length spec (a word count, a
+        // paragraph count, an <h3> section layout), drop the brevity rules and
+        // keep only the "lead with the answer" posture. Otherwise the length
+        // spec loses to whichever instruction lands last, which is this one.
+        if (_hasExplicitLengthSpec(requestText)) {
+            return `
+
+═══════════════════════════════════════════════════════════════
+[CASUAL MODE — INSTANT ANSWER · explicit length requested]
+═══════════════════════════════════════════════════════════════
+- Lead with the answer. No preamble, no throat-clearing.
+- Skip the hand-holding — don't narrate every step unless asked.
+- THE REQUESTED LENGTH IS A HARD REQUIREMENT. The request specifies a word
+  count, paragraph count, or section layout: deliver it in full and at that
+  length. Do NOT shorten, compress, or summarise to be "punchy". Brevity does
+  NOT override a stated length.`;
+        }
         return `
 
 ═══════════════════════════════════════════════════════════════
@@ -3761,6 +3827,44 @@ ABSOLUTE RULES:
 
 // Hard Mode removed in v10.5 — keeping a stub so any leftover references don't crash.
 function checkHardModeReward(responseText) { /* no-op, Hard Mode removed */ }
+
+// ── v234 · D-3 — STUDY MODE BADGE ────────────────────────────────────────
+// Any element with data-mode-badge="1" renders the active mode and switches it
+// on click. Casual mode was quietly editing requests ("100 words" → 78) with
+// nothing on screen admitting it; now the mode is visible on the tool itself
+// and is one click to change, instead of buried in Settings.
+function refreshModeBadges() {
+    const mode = (typeof getDifficultyMode === 'function') ? getDifficultyMode() : 'tutor';
+    const label = mode === 'tutor' ? 'Tutor' : 'Casual';
+    const icon = mode === 'tutor' ? 'ph-graduation-cap' : 'ph-lightning';
+    document.querySelectorAll('[data-mode-badge="1"]').forEach(el => {
+        el.dataset.activeMode = mode;
+        el.innerHTML = '<i class="ph ' + icon + '"></i> ' + label;
+        el.title = mode === 'tutor'
+            ? 'Tutor mode — guided, step-by-step. Click for Casual (straight answers).'
+            : 'Casual mode — straight answers. Click for Tutor (guided, step-by-step).';
+    });
+}
+
+function cycleDifficultyMode() {
+    // Access tier is locked to Tutor (see getDifficultyMode) — don't pretend otherwise.
+    if (typeof hasPro === 'function' && !hasPro()) {
+        showToast('Casual mode is a Pro feature — Tutor mode is always on for your tier.', 'info');
+        return;
+    }
+    const next = getDifficultyMode() === 'tutor' ? 'casual' : 'tutor';
+    localStorage.setItem('difficulty_mode', next);
+    const radio = document.getElementById('mode-' + next);
+    if (radio) radio.checked = true;
+    if (typeof updateModePreview === 'function') updateModePreview();
+    if (typeof refreshLiveVisionButtons === 'function') refreshLiveVisionButtons();
+    refreshModeBadges();
+    showToast(next === 'tutor'
+        ? 'Tutor mode — the tutor will guide you instead of answering outright.'
+        : 'Casual mode — straight answers.', 'success', 2600);
+}
+
+document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshModeBadges, 500); });
 
 // ── DEEP DIVE — expand the most recent AI answer into a full conceptual explanation ──
 async function triggerDeepDive() {
@@ -4916,14 +5020,17 @@ Use <h3>, <p>, <ul>, <li>, <blockquote>, <strong>.`
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
             body: JSON.stringify({
-                // v19.5 — use full gpt-4o when an image is attached: mini is
-                // noticeably worse at reading photographed/handwritten essays,
-                // which is exactly what students paste here. (The hosted proxy
-                // already upgrades image requests, but a personal API key
-                // bypasses it — this makes the client correct either way.)
-                model: attachedImg ? 'gpt-4o' : 'gpt-4o-mini',
+                // v234 (B-12) — gpt-4o for everything. These seven tools grade,
+                // rewrite and score real schoolwork; mini is measurably weaker at
+                // exactly that, and it was the same downgrade the quiz generators
+                // were pulled off in v214. Images already forced gpt-4o.
+                model: 'gpt-4o',
                 messages: [
-                    { role: 'system', content: prompts[type] + getModeSystemPrompt('English') },
+                    // v234 (B-6) — no mode block here. These are DO-IT tools: in
+                    // Tutor mode the old append told "fix ALL grammar errors" and
+                    // "score this essay /100" to withhold the answer and ask a
+                    // guiding question instead. See TOOL_MODE_POLICY.
+                    { role: 'system', content: prompts[type] + modePromptFor('englishAid', 'English') },
                     { role: 'user', content: userContent }
                 ],
                 max_tokens: 4000
@@ -14099,18 +14206,22 @@ DEPTH BAR — IMPORTANT (v12.1):
 `;
         let sciModePrompt;
         if (sciMode === 'tutor') {
-            // Tutor mode: defer entirely to the tutor-block structure from getModeSystemPrompt('science').
-            sciModePrompt = sciBaseRole + getModeSystemPrompt('science');
+            // Tutor mode: defer entirely to the tutor-block structure from the mode prompt.
+            sciModePrompt = sciBaseRole + modePromptFor('science', 'science', (typeof input === 'string' ? input : ''));
         } else {
             // Casual / default: original structure.
-            sciModePrompt = sciBaseRole + `
+            // v234 — the casual structure below IS an explicit section layout, so it
+            // is passed to the mode prompt: otherwise casual's "keep it short and
+            // punchy" outranked these four required <h3> sections and collapsed them.
+            const sciCasualStructure = `
 DEFAULT RESPONSE STRUCTURE (casual mode):
 <h3>🔬 The Big Idea</h3><p>...</p>
 <h3>📐 Step-by-Step Breakdown</h3><ol><li>...</li></ol>
 <h3>🧠 Why This Matters</h3><p>...</p>
 <h3>🔑 Key Takeaways</h3><ul><li>...</li></ul>
 
-VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this stuff. Make connections, use analogies, point out the cool parts.` + getModeSystemPrompt('science');
+VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this stuff. Make connections, use analogies, point out the cool parts.`;
+            sciModePrompt = sciBaseRole + sciCasualStructure + modePromptFor('science', 'science', sciCasualStructure);
         }
         // v12.1 — save the conversation seed so follow-up answers feed back in.
         _scienceTutorSystem = sciModePrompt;
@@ -14345,7 +14456,7 @@ OUTPUT REQUIREMENTS:
 
 TONE: Authoritative but accessible. Treat history as a living interpretive discipline, not a list of facts.
 
-ACCURACY: If you are uncertain about a specific date or detail, say so explicitly rather than guessing. Distinguish established consensus from contested interpretation.` + getModeSystemPrompt('social studies') }, { role: 'user', content: promptRef }]
+ACCURACY: If you are uncertain about a specific date or detail, say so explicitly rather than guessing. Distinguish established consensus from contested interpretation.` + modePromptFor('social', 'social studies', promptRef) }, { role: 'user', content: promptRef }]
             })
         });
         const data = await res.json();
@@ -16030,7 +16141,7 @@ async function processMathInput() {
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
     try {
-        const modeModifier = getModeSystemPrompt('math');
+        const modeModifier = modePromptFor('math', 'math', text);
         const baseRole = `You are NEXUS Math Tutor — an elite mathematics tutor covering the full curriculum from middle school through undergraduate university. You explain with the depth, rigor, and structure of Microsoft Copilot's best math responses, scaled to the student's actual level.
 
 ROLE & CAPABILITIES (full vertical coverage):
@@ -16481,19 +16592,133 @@ function handleEnglishPromptImage(input) {
     }
 }
 
-async function processEnglishPrompt() {
+// ══════════════════════════════════════════════════════════════════════
+// v234 — ENGLISH GENERATOR: PURE WRITING
+// ══════════════════════════════════════════════════════════════════════
+// What changed and why:
+//  · The old system prompt was an ANALYSIS prompt ("elite literary scholar",
+//    "every claim must be supported by a quoted phrase", "use <h3> for
+//    sections") driving a WRITING tool. gpt-4o did the obvious thing and
+//    returned Claim / Reasoning / Evidence scaffolding instead of the piece
+//    that was actually asked for. Analysis lives in English Aid; this tool
+//    writes and nothing else.
+//  · The mode block is gone (see TOOL_MODE_POLICY). In Tutor mode it told the
+//    generator "Do NOT solve it — reply with a concept and a guiding
+//    question", so "write my essay" answered with a question. In Casual mode
+//    it ended with "1-3 sentences max… short and punchy", which is why a
+//    "write a 100 word message" request came back at 78 words.
+//  · Length is now a control, not a hope: Type / Paragraphs / Word count,
+//    compiled into a hard directive, then verified against the finished text
+//    with at most ONE repair pass.
+
+// Remembers the last run so Regenerate / Longer / Shorter / More formal can
+// re-issue it without the user retyping anything.
+window._engGenLast = null;
+
+function updateEnglishGenControls() {
+    const type = (document.getElementById('eng-gen-type') || {}).value || 'standard';
+    const paras = document.getElementById('eng-gen-paragraphs');
+    const label = document.getElementById('eng-gen-paragraphs-label');
+    const isEssay = type === 'essay';
+    if (paras) {
+        paras.disabled = !isEssay;
+        paras.style.opacity = isEssay ? '1' : '0.45';
+        paras.style.cursor = isEssay ? '' : 'not-allowed';
+        paras.title = isEssay ? 'How many paragraphs the essay should have' : 'Paragraph count applies to essays only';
+        if (!isEssay) paras.value = 'auto';
+    }
+    if (label) label.style.opacity = isEssay ? '1' : '0.5';
+}
+document.addEventListener('DOMContentLoaded', () => { setTimeout(updateEnglishGenControls, 500); });
+
+function _engGenWordCount(str) {
+    return String(str || '').replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
+}
+
+// Builds the format contract from the two dropdowns + the word box. This is
+// prepended to the user's request so it outranks anything vague they typed.
+function _engGenBuildDirective(type, paragraphs, words) {
+    const shapes = {
+        standard: 'FORMAT: standard writing — a message, email, reply, caption, or short answer. Plain flowing prose. No title, no headings, no labels, no bullet points, no sign-off unless the request asks for one.',
+        paragraph: 'FORMAT: exactly ONE paragraph. No title, no headings, no lists, no line breaks inside it.',
+        essay: 'FORMAT: an essay — an introduction with a clear thesis, body paragraphs that each develop one point, and a conclusion. Continuous prose. No section headings, no bullet points, no labels like "Introduction" or "Body".',
+        document: 'FORMAT: a document — a report, letter, proposal, or similar. Headings and sections ARE allowed here where they genuinely belong, and so is a title.'
+    };
+    const parts = [shapes[type] || shapes.standard];
+    if (type === 'essay' && paragraphs && paragraphs !== 'auto') {
+        parts.push('PARAGRAPH COUNT: exactly ' + paragraphs + ' paragraphs, including the introduction and the conclusion.');
+    }
+    if (words) {
+        const lo = Math.max(1, Math.round(words * 0.95));
+        const hi = Math.round(words * 1.05);
+        parts.push('LENGTH: ' + words + ' words. Stay between ' + lo + ' and ' + hi + ' words. Count your words before you finish. This is a hard requirement, not a target — do not stop short.');
+    }
+    return parts.join('\n');
+}
+
+const ENGLISH_GEN_SYSTEM = `You are NEXUS English Generator. You write the piece the student asks for. That is the entire job.
+
+WHAT YOU RETURN:
+- ONLY the finished piece of writing. Nothing before it, nothing after it.
+- No preamble ("Here is your essay:"), no sign-off, no notes on what you did, no offers to revise.
+- Never explain your choices. Never analyse the request. Never comment on the writing.
+
+ABSOLUTELY FORBIDDEN unless the requested format is a Document:
+- Headings or section labels of any kind — no <h1>/<h2>/<h3>, and no bolded pseudo-headings.
+- Claim / Reasoning / Evidence scaffolding, or any other analytical framework imposed on the piece.
+- Bullet points and numbered lists, unless the thing being written IS a list.
+- Labels like "Introduction", "Body Paragraph 1", "Thesis", "Conclusion".
+A message must read like a message. An essay must read like an essay a student wrote — continuous prose, not a labelled skeleton.
+
+HOW YOU WRITE:
+- Match the register to the task: a text to a friend is casual, an email to a teacher is polite and plain, an essay is academic but human.
+- Vary sentence length. Avoid the flat, evenly-paced rhythm that reads as machine-written.
+- Be specific and concrete. Cut filler, throat-clearing, and padding phrases like "in today's world" or "it is important to note that".
+- Write at the level the request implies. Grade 9 work should not read like a graduate seminar.
+- If the request names a source text, quote it accurately and sparingly, woven into the prose.
+
+FORMAT AND LENGTH:
+- Obey the FORMAT and LENGTH directives at the top of the request exactly. They outrank anything else.
+- If a word count is given, it is a hard requirement. Count before finishing. Do not stop short and do not pad.
+- Finish the piece. Never trail off, never write "I could continue".
+
+OUTPUT: clean semantic HTML — <p> for each paragraph, <em>/<strong> only where the writing genuinely calls for emphasis. No markdown, no code fences, no <h3> unless the format is Document.
+
+IMAGE ATTACHED:
+- If the image contains an assignment or prompt, COMPLETE it — don't describe the image.
+- If the image contains writing to work from, use it as the source and produce what was asked for.
+- If something is genuinely unreadable, say so in one short line and write what you can.`;
+
+// Style samples from the student's own past work, so generated writing sounds
+// like them rather than like an AI. Opt-in via Settings (`eng_gen_match_voice`).
+function _engGenVoiceContext() {
+    if (localStorage.getItem('eng_gen_match_voice') !== '1') return '';
+    let samples = [];
+    try {
+        samples = (JSON.parse(localStorage.getItem('user_history') || '[]') || [])
+            .filter(h => h.type === 'english' && h.answer && h.answer.length > 200)
+            .slice(0, 3)
+            .map(h => String(h.answer).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 900));
+    } catch (_) { return ''; }
+    if (!samples.length) return '';
+    return '\n\nVOICE MATCHING: below are samples of this student\'s own writing. Match their sentence rhythm, vocabulary level, and habits of phrasing. Do NOT copy their content, and do not imitate their mistakes.\n\n--- SAMPLE ---\n' + samples.join('\n--- SAMPLE ---\n');
+}
+
+async function processEnglishPrompt(_refineInstruction) {
     if (!hasPaid()) { openPaymentModal('access'); return; }
     const text = document.getElementById('english-prompt-input').value.trim();
     const output = document.getElementById('english-prompt-output');
+    const meta = document.getElementById('english-prompt-meta');
 
     if (!text && !englishPromptImageBase64) {
         showToast('Please enter a prompt or attach an image.', 'warning');
         return;
     }
-    
+
     output.classList.remove('hidden');
     output.innerHTML = '<div style="text-align:center;padding:15px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;"></i> Processing...</div>';
-    
+    if (meta) meta.classList.add('hidden');
+
     const apiKey = getApiKey();
     if (!apiKey) {
         showToast('Add API key in Settings.', 'error');
@@ -16501,110 +16726,99 @@ async function processEnglishPrompt() {
         return;
     }
 
+    // ── read the v234 controls ──────────────────────────────────────────
+    const type = (document.getElementById('eng-gen-type') || {}).value || 'standard';
+    const paragraphs = (document.getElementById('eng-gen-paragraphs') || {}).value || 'auto';
+    const rawWords = parseInt((document.getElementById('eng-gen-words') || {}).value, 10);
+    // The Word count box wins; otherwise fall back to a count typed in the request.
+    let targetWords = (!isNaN(rawWords) && rawWords >= 20) ? rawWords : null;
+    if (!targetWords && text) {
+        const m = text.match(/\b(\d{2,4})\s*[-–—]?\s*words?\b/i);
+        if (m) targetWords = parseInt(m[1], 10);
+    }
+
+    const directive = _engGenBuildDirective(type, paragraphs, targetWords);
+    const refineLine = _refineInstruction ? ('\n\nREVISION: ' + _refineInstruction) : '';
+
     try {
-        let messages = [
-            { role: 'system', content: `You are NEXUS English — an elite English-language tutor, writing coach, and literary scholar with deep mastery of the curriculum from Grade 9 through undergraduate university. You produce responses with the depth, structure, and reasoning quality of Microsoft Copilot's best literary and writing answers, calibrated to the student's level.
-
-ROLE & CAPABILITIES (full vertical coverage):
-- High school: 9–12 English Language Arts, AP Lang, AP Lit — close reading, persuasive essays, the literary canon (Shakespeare, Steinbeck, Fitzgerald, Lee, Orwell, Hawthorne, Achebe, Morrison).
-- College composition: Freshman Comp / Rhetoric — argumentative essays, MLA / APA / Chicago citation, source synthesis, research paper structure, peer review feedback.
-- College literature: Intro to Lit, British Lit survey, American Lit survey, Shakespeare seminars, Modernism, Postmodernism, Postcolonial Lit, Critical Theory (formalist, structuralist, deconstructionist, feminist, Marxist, queer, postcolonial readings).
-- Linguistics-adjacent: rhetoric, semantics, pragmatics, register / dialect, history of English.
-- Detect the level from the request: a high-school five-paragraph essay gets thesis + 3 body + conclusion; a college essay gets sophisticated thesis with stakes, nuanced counterargument, source-grounded claims.
-
-ESSAY WRITING & COACHING:
-- Thesis development with a stakes statement ("matters because…"), argumentation, evidence selection, transitions, conclusions.
-- For college work: integrate critical-theoretical lenses, use embedded citations correctly (MLA in-text, Works Cited; APA author-date; Chicago footnotes), avoid the five-paragraph crutch.
-
-LITERARY ANALYSIS:
-- Theme, tone, mood, voice, structure, narrative perspective, literary devices, historical/cultural context, intertextuality.
-- Use precise terminology: free indirect discourse, polysyndeton, metonymy, defamiliarization, the uncanny, the sublime, dramatic vs. situational irony, focalization.
-- Apply named critical lenses where the question invites it.
-
-GRAMMAR & MECHANICS:
-- Every category — punctuation, syntax, agreement, parallelism, modifier placement, voice, register.
-- For college writers, also: nominalization, sentence emphasis, cohesion (given–new), information structure.
-
-VOCABULARY & READING COMPREHENSION:
-- Precise word choice, denotation vs. connotation, register matching.
-- Main idea, supporting details, inference, author's purpose, rhetorical situation.
-
-REASONING STRATEGY (apply silently before responding):
-1. PARSE the request — what specific deliverable does the student need? (analysis, edit, original writing, explanation, feedback)
-2. DIAGNOSE the text or topic — identify genre, register, audience, and the key craft elements that matter.
-3. STRUCTURE — outline the response so it reads as organized and complete, not stream-of-consciousness.
-4. EXECUTE with precision — use specific literary terminology (metaphor, anaphora, dramatic irony, free indirect discourse, etc.) and define them when first used.
-5. CITE evidence — quote or paraphrase the source text directly for any analysis claim.
-6. ELEVATE — for original writing, raise vocabulary one notch above plain conversational, vary sentence structure, eliminate redundancy.
-
-QUALITY BAR:
-- Every claim about a text must be supported by a quoted phrase or paraphrased line from that text.
-- Every grammar correction must name the rule violated, not just the fix.
-- Every essay structure recommendation must explain WHY it strengthens the argument.
-- No vague praise ("this is good"); use specific descriptors ("the parallel structure in your second paragraph mirrors the contrast you set up in the thesis").
-
-OUTPUT REQUIREMENTS:
-- Clean semantic HTML only (no \`\`\`html fences).
-- Use <h3> for sections, <p> for prose, <ul>/<li> for lists, <blockquote> for quoted text, <strong> for terms, <em> for titles or emphasis.
-- Match the request's scope — do not abbreviate, do not skip parts of multi-part requests.
-- Follow user instructions precisely and completely.
-
-TONE: Knowledgeable, encouraging, candid. Treat the student as a developing writer capable of growth. Match the warmth and natural human reasoning of a top-tier writing tutor, NOT a cold AI assistant. Sound like a person who genuinely loves the craft.
-
-COPILOT-LEVEL REASONING:
-- Think like a human writer would think: notice the goal, the audience, the constraints, the unspoken expectations.
-- For ANY writing request: surface the underlying intent ("you want this for a college app — so I\'ll prioritize voice and concision"), not just execute the literal request.
-- For analysis: don\'t just identify devices, explain WHY they matter to the meaning. Make connections the student didn\'t know to ask for.
-- For revisions: explain the rule, then show the rewrite, then briefly note what improved and why.
-- For freeform requests with no constraints: write at full natural length — don\'t self-censor for brevity unless explicitly asked.
-
-LENGTH POLICY:
-- Match the actual deliverable. A 5-paragraph essay = 600-900 words. A research paper section = as long as needed. A revision = the rewritten passage in full.
-- DO NOT cut yourself off, DO NOT add "I could continue..." trailing notes — finish the piece.
-- If the request is huge, structure it cleanly with headers and deliver the whole thing.
-
-IMAGE READING (when an image is attached):
-- TRANSCRIBE / SUMMARIZE the image content first so the student knows you understood it correctly.
-- For text screenshots: read the text accurately, quote it back, then proceed with the requested task.
-- For handwritten work: transcribe it, then provide the requested feedback or revision.
-- If anything is unclear or unreadable, say so explicitly rather than guessing.` + getModeSystemPrompt('English') }
+        const messages = [
+            { role: 'system', content: ENGLISH_GEN_SYSTEM + _engGenVoiceContext() }
+            // v234 — no modePromptFor() call here at all: englishGenerator is
+            // policy 'none'. See TOOL_MODE_POLICY for why.
         ];
 
-        let userContent = [];
-        // v19.5 — ALWAYS include an instruction. An image with no typed text used
-        // to be sent bare, so the model replied "I can see your prompt…" and did
-        // nothing — the reported "it said it read it but did nothing" bug.
-        if (text) {
-            userContent.push({ type: "text", text: text });
-        } else if (englishPromptImageBase64) {
-            userContent.push({ type: "text", text: 'Read the assignment shown in this image and COMPLETE it — do not just describe the image. If it is an essay prompt, write the full essay. If it is a question, answer it. If it is writing to review, give the feedback or revision it asks for.' });
-        }
+        const instruction = directive + refineLine + '\n\nREQUEST:\n' +
+            (text || 'Read the assignment shown in the attached image and COMPLETE it — do not describe the image. If it is a prompt, write the piece. If it is a question, answer it.');
 
+        let userContent;
         if (englishPromptImageBase64) {
-            userContent.push({
-                type: "image_url",
-                image_url: { url: englishPromptImageBase64 }
-            });
+            userContent = [
+                { type: 'text', text: instruction },
+                { type: 'image_url', image_url: { url: englishPromptImageBase64 } }
+            ];
+        } else {
+            userContent = [{ type: 'text', text: instruction }];
         }
-
         messages.push({ role: 'user', content: userContent });
 
-        // v10.7 — STREAM the english generator response
+        window._engGenLast = { text, type, paragraphs, targetWords };
+
         output.innerHTML = '<div><span class="streaming-content"></span><span class="streaming-cursor">▍</span></div>';
         const contentEl = output.querySelector('.streaming-content');
         const cursorEl = output.querySelector('.streaming-cursor');
         await streamChat({
             apiKey,
-            model: localStorage.getItem('ai_model') || 'gpt-4o',
+            model: englishPromptImageBase64 ? 'gpt-4o' : (localStorage.getItem('ai_model') || 'gpt-4o'),
             messages,
             max_tokens: 8000,
             temperature: 0.75,
             onChunk: (delta, full) => { contentEl.textContent = stripHtmlForStream(full); },
-            onDone: (full) => {
+            onDone: async (full) => {
                 if (cursorEl) cursorEl.remove();
                 let content = full.replace(/```html/g, '').replace(/```/g, '');
                 content = convertMarkdownLeaks(content);
                 output.innerHTML = sanitizeHTML(content);
+
+                // ── v234 · B-3 — verify the word count, repair ONCE ──────────
+                // gpt-4o undershoots explicit counts by 10-25% when it isn't told
+                // to count. One corrective pass, then stop — no loops, no runaway
+                // API spend.
+                if (targetWords) {
+                    const got = _engGenWordCount(content);
+                    const off = Math.abs(got - targetWords) / targetWords;
+                    if (off > 0.10) {
+                        const verb = got < targetWords ? 'EXPAND' : 'TRIM';
+                        output.insertAdjacentHTML('beforeend',
+                            '<div id="eng-gen-fixing" style="margin-top:10px;font-size:0.8rem;color:var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> ' +
+                            got + ' words — adjusting to ' + targetWords + '…</div>');
+                        try {
+                            const fixed = await streamChat({
+                                apiKey,
+                                model: localStorage.getItem('ai_model') || 'gpt-4o',
+                                messages: [
+                                    { role: 'system', content: ENGLISH_GEN_SYSTEM },
+                                    { role: 'user', content: 'This piece is ' + got + ' words. It must be ' + targetWords +
+                                        ' words (between ' + Math.round(targetWords * 0.95) + ' and ' + Math.round(targetWords * 1.05) +
+                                        '). ' + verb + ' it to hit that count. Keep the same content, voice, and format — only adjust the length. Return the full corrected piece and nothing else.\n\n' + content }
+                                ],
+                                max_tokens: 8000,
+                                temperature: 0.4
+                            });
+                            const fixEl = document.getElementById('eng-gen-fixing');
+                            if (fixEl) fixEl.remove();
+                            if (fixed && fixed.trim()) {
+                                content = convertMarkdownLeaks(fixed.replace(/```html/g, '').replace(/```/g, ''));
+                                output.innerHTML = sanitizeHTML(content);
+                            }
+                        } catch (_) {
+                            const fixEl = document.getElementById('eng-gen-fixing');
+                            if (fixEl) fixEl.remove();
+                        }
+                    }
+                }
+
+                window._engGenLastOutput = content;
+                _engGenShowMeta(content, targetWords);
                 addToHistory('english', text || '(Image prompt)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500));
             },
             onError: (err) => { output.innerHTML = `<span style="color:#d63031">Error: ${err.message}</span>`; }
@@ -16615,150 +16829,112 @@ IMAGE READING (when an image is attached):
     }
 }
 
-// ============================================================
-// v9.6 COMMAND CENTER PROMPT ENGINE — Elite Forge
-// ============================================================
-// A meta-LLM that takes a rough idea and forges a top-tier, structured prompt.
-// Modes: forge (build from scratch), refine (polish existing), decompose (break down),
-// critique (audit for weaknesses). Adapts to audience, format, depth, tone.
-
-function openPromptEngine() {
-    const panel = document.getElementById('prompt-engine-panel');
-    if (!panel) return;
-    // v19.5 — route through the Command Center tool switch so the Debate/Prompt
-    // toggle buttons stay in sync no matter which entry point opened it.
-    if (typeof setCommandTool === 'function') { setCommandTool('prompt'); refreshPromptEngineCounter(); return; }
-    panel.classList.remove('hidden');
-    document.getElementById('prompt-engine-input').focus();
-    refreshPromptEngineCounter();
-    // Close other panels if open
-    if (typeof closeEnglishPrompt === 'function' && !document.getElementById('english-prompt-panel').classList.contains('hidden')) {
-        closeEnglishPrompt();
+function _engGenShowMeta(content, targetWords) {
+    const meta = document.getElementById('english-prompt-meta');
+    const counter = document.getElementById('english-prompt-wordcount');
+    if (!meta || !counter) return;
+    const n = _engGenWordCount(content);
+    if (targetWords) {
+        const off = Math.abs(n - targetWords) / targetWords;
+        const colour = off <= 0.05 ? '#00b894' : (off <= 0.10 ? '#fdcb6e' : '#ff6b6b');
+        counter.innerHTML = '<span style="color:' + colour + ';font-weight:700;">' + n + ' words</span>' +
+            '<span style="color:var(--text-muted);"> · target ' + targetWords + '</span>';
+    } else {
+        counter.innerHTML = '<span style="color:var(--text-muted);">' + n + ' words</span>';
     }
-    if (typeof stopLiveVision === 'function') stopLiveVision();
+    meta.classList.remove('hidden');
 }
 
-function closePromptEngine() {
-    const panel = document.getElementById('prompt-engine-panel');
-    if (panel) panel.classList.add('hidden');
-    const out = document.getElementById('prompt-engine-output');
-    if (out) { out.classList.add('hidden'); out.innerHTML = ''; }
-    const inp = document.getElementById('prompt-engine-input');
-    if (inp) inp.value = '';
-    // v19.4 — drop any attached screenshot so it can't leak into a later session
-    window._promptEngineImage = null;
-    const _badge = document.getElementById('prompt-engine-img-badge');
-    if (_badge) _badge.remove();
+// ── v234 · B-10 — follow-up actions ─────────────────────────────────────
+function englishGenRefine(kind) {
+    if (!window._engGenLast) { showToast('Generate something first.', 'warning'); return; }
+    const instructions = {
+        regenerate: 'Write it again from scratch. Same request, same format and length — a genuinely different take, not a reshuffle of the same sentences.',
+        longer: 'Rewrite this noticeably longer — roughly 50% more — by developing the ideas further. Do not pad with filler or restate points.',
+        shorter: 'Rewrite this noticeably shorter — roughly 40% less — keeping every important idea. Cut redundancy first.',
+        formal: 'Rewrite this in a more formal register: no contractions, no slang, precise word choice, measured tone. Keep the same content and length.'
+    };
+    const instr = instructions[kind];
+    if (!instr) return;
+    // Longer/shorter deliberately override the word target for this one run.
+    const wordsEl = document.getElementById('eng-gen-words');
+    if ((kind === 'longer' || kind === 'shorter') && wordsEl) wordsEl.value = '';
+    const prior = window._engGenLastOutput ? ('\n\nTHE CURRENT VERSION:\n' + String(window._engGenLastOutput).replace(/<[^>]+>/g, ' ').trim()) : '';
+    processEnglishPrompt(instr + prior);
 }
+
+function englishGenCopy() {
+    const out = document.getElementById('english-prompt-output');
+    const t = out ? (out.innerText || '').trim() : '';
+    if (!t) { showToast('Nothing to copy yet.', 'warning'); return; }
+    navigator.clipboard.writeText(t)
+        .then(() => showToast('Copied.', 'success', 2500))
+        .catch(() => showToast('Copy failed — select the text manually.', 'error'));
+}
+
+function englishGenDownload() {
+    const out = document.getElementById('english-prompt-output');
+    const t = out ? (out.innerText || '').trim() : '';
+    if (!t) { showToast('Nothing to download yet.', 'warning'); return; }
+    const blob = new Blob([t], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nexus-writing-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded.', 'success', 2500);
+}
+
+function englishGenToNotebook() {
+    const out = document.getElementById('english-prompt-output');
+    const html = out ? out.innerHTML : '';
+    if (!html.trim()) { showToast('Nothing to send yet.', 'warning'); return; }
+    const nb = document.getElementById('notebook-area');
+    if (!nb) { showToast('Notebook not available.', 'error'); return; }
+    nb.innerHTML += '<p><strong>— From English Generator, ' + new Date().toLocaleDateString() + '</strong></p>' + html;
+    if (typeof saveNotebook === 'function') { try { saveNotebook(); } catch (_) {} }
+    showToast('Sent to your Notebook.', 'success', 3000);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// v234 — PROMPT GENERATOR (was the standalone Command Center Prompt Engine)
+// ══════════════════════════════════════════════════════════════════════
+// The Prompt Engine card, its panel, and the Debate/Prompt toggle are gone.
+// Everything it could do now lives in English Generator → "Generate a prompt":
+// screenshot paste, the usage counter, quest progress, study-history logging,
+// and copy. The two prompt generators used to differ only in output length
+// (1-3 sentences vs 6-12), which is now a Short / Detailed toggle instead of
+// two tools in two places.
+//
+// Legacy names (openPromptEngine / processPromptEngine / closePromptEngine)
+// are kept as thin shims so any old link, bookmark, or Enter-key binding still
+// lands somewhere sensible instead of throwing.
 
 function refreshPromptEngineCounter() {
     const c = document.getElementById('prompt-engine-counter');
     if (c) c.textContent = parseInt(localStorage.getItem('prompt_engine_uses') || '0');
 }
 
-function buildPromptEngineSystemPrompt(mode, audience, format, depth, tone) {
-    const modeBriefs = {
-        forge:     "BUILD a complete, top-tier prompt from scratch based on the user's rough task.",
-        refine:    "TAKE the user's existing prompt and REFINE it — tighten language, add missing structure, eliminate ambiguity, raise the quality ceiling without changing the intent.",
-        decompose: "BREAK the user's task into a clear hierarchy of sub-tasks. Output ONLY the decomposition — numbered phases, each with sub-steps and the deliverable for that step.",
-        critique:  "AUDIT the user's existing prompt. List specific weaknesses (ambiguity, missing context, conflicting instructions, format gaps, tone misalignment), then provide a rewritten version that fixes each."
-    };
-    const audienceLine = audience === 'auto' ? "Detect the audience from context." : `Calibrate language and depth for: ${audience}.`;
-    const formatLine = format === 'auto' ? "Choose the format that best serves the task." : `Format the FORGED PROMPT (the body the user will copy) using: ${format}.`;
-    const depthLine = {
-        standard: "Use a balanced, professional reasoning depth.",
-        deep:     "Use deep reasoning. Embed explicit chain-of-thought scaffolding inside the forged prompt (e.g. 'Think step-by-step before answering. List your reasoning, then your final answer.').",
-        minimal:  "Keep the forged prompt lean — directives only, no scaffolding, no examples unless essential."
-    }[depth] || "Use balanced reasoning depth.";
-    const toneLine = tone === 'auto' ? "Match tone to audience." : `Tone of the forged prompt: ${tone}.`;
-
-    return `You are NEXUS PROMPT ENGINE v2 — an elite prompt-engineering specialist who ships prompts that beat first-try accuracy on frontier LLMs (GPT-4o, GPT-5, Claude Sonnet/Opus, Gemini, etc.). You combine the rigor of a senior research engineer, the craft of a professional copy editor, and the strategic eye of a senior product designer.
-
-MODE: ${mode.toUpperCase()}
-${modeBriefs[mode] || modeBriefs.forge}
-
-CALIBRATION:
-- ${audienceLine}
-- ${formatLine}
-- ${depthLine}
-- ${toneLine}
-
-═══════════════════════════════════════
-THE NEXUS PROMPT ENGINE PRINCIPLES (10)
-═══════════════════════════════════════
-Apply silently in this order before generating output:
-
-1. PARSE — Classify the task: code generation / analysis / planning / creative writing / data transformation / multi-step research / decision-making / education. Identify the explicit goal AND the implicit goal (what success ACTUALLY looks like vs what was literally said).
-2. DIAGNOSE GAPS — Inventory what's missing: context, input format, output format, constraints, examples, edge cases, success criteria, audience. Surface the top 3 most consequential gaps.
-3. STRUCTURE — Every forged prompt uses these sections in this exact order (omit only when truly irrelevant): ROLE → CONTEXT → GOAL → INPUT → TASK STEPS → CONSTRAINTS → OUTPUT FORMAT → QUALITY BAR → SELF-CHECK → (optional) EXAMPLE.
-4. SPECIFICITY — Replace every vague verb with a measurable directive. "make it better" → "rewrite paragraph 2 in active voice, ≤60 words, no semicolons". Numbers > adjectives.
-5. FAILURE MODES — For each task type, anticipate the 2-3 ways the receiving LLM typically fails (verbosity, hallucination, format drift, over-cautious refusals, missing context). Pre-empt each with an explicit constraint.
-6. ANCHOR EXAMPLES — If the task benefits from format-anchoring, embed a tight micro-example showing exactly the desired output structure.
-7. NEGATIVE CONSTRAINTS — State what NOT to do as clearly as what to do. ("DO NOT include preamble", "DO NOT add markdown fences", "DO NOT ask clarifying questions — proceed with stated assumptions").
-8. SELF-CHECK INSTRUCTION — End the forged prompt with a 1-line "Before responding, verify X, Y, Z" check the receiving model should perform.
-9. ROBUSTNESS — Make the prompt work even if input is partial or malformed. "If input is missing field X, default to Y."
-10. COPY-READY — The forged prompt body MUST be a clean text block the user can paste directly into ChatGPT/Claude/etc. without editing. Plain text + line breaks + ALL-CAPS section headers — never markdown.
-
-═══════════════════════════════════════
-QUALITY BAR FOR YOUR RESPONSE
-═══════════════════════════════════════
-- ZERO filler. No "Sure! Here's…" preamble. No restating what the user just said.
-- ZERO generic AI phrasing ("It's important to note…", "as an AI language model…").
-- Every section earns its place. Cut anything that doesn't make the prompt measurably better.
-- The forged prompt should read like a careful senior engineer wrote it, not a template.
-- Length: as long as it needs to be. A complex task gets a long prompt. A simple task gets a short one. NEVER artificially compress.
-
-═══════════════════════════════════════
-REQUIRED RESPONSE STRUCTURE — v10.7 COPILOT-STYLE (clean, single, focused)
-═══════════════════════════════════════
-Output ONLY two sections. No analysis sections, no decomposition, no edge-case lists, no variations. Like Microsoft Copilot's prompt builder: one clean refined prompt + one short why-it-works note.
-
-<div style="background:rgba(0,255,245,0.05);border-left:3px solid #00fff5;padding:16px 20px;border-radius:8px;margin:0 0 14px;font-family:'Consolas','Monaco',monospace;font-size:0.92rem;white-space:pre-wrap;line-height:1.6;" id="forged-prompt-body">
-[The refined ready-to-paste prompt goes here. Plain text only. Use ALL-CAPS section labels where they help (ROLE:, CONTEXT:, GOAL:, OUTPUT FORMAT:, CONSTRAINTS:). Use line breaks for readability. NEVER markdown. Keep it as long as the task requires — usually 8–20 lines. End with a single-line SELF-CHECK directive.]
-</div>
-
-<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(108,92,231,0.3);border-radius:8px;padding:12px 16px;font-size:0.88rem;line-height:1.55;color:#d8dce5;">
-<strong style="color:#a29bfe;">Why this works:</strong> [One short paragraph (3–5 sentences) explaining the key choices: why the role, the format, the constraints, and the self-check. No bullet lists, no headers — a focused inline explanation a colleague would write.]
-</div>
-
-═══════════════════════════════════════
-CRITICAL OUTPUT RULES
-═══════════════════════════════════════
-- Output ONLY the two divs above. Nothing else. No <h3>, no preamble, no closing remarks.
-- Output clean HTML. NO \`\`\`html fences. NO markdown.
-- The forged-prompt-body div MUST keep its id so the user can copy it.
-- The prompt body inside is plain text — NEVER markdown — it gets pasted directly into another LLM.
-- Be ruthlessly specific in the prompt; every sentence must do work.
-- If the user attached an image, USE IT to inform the prompt.`;
+// Short (default) or Detailed. Persisted so it survives a reload.
+function getPromptGenLength() {
+    return localStorage.getItem('prompt_gen_length') === 'detailed' ? 'detailed' : 'short';
 }
 
-// v12.1 — Prompt Generator: simplified. Takes "what do you want a prompt for?"
-// and returns ONE clean, paste-ready prompt as plain text. No modes, no
-// audience / format / depth / tone calibration. Output is the prompt itself —
-// nothing else. No ROLE/CONTEXT/GOAL/CONSTRAINTS scaffolding wrappers.
-async function processPromptEngine() {
-    if (!hasPaid()) { openPaymentModal('access'); return; }
-    const text = document.getElementById('prompt-engine-input').value.trim();
-    const output = document.getElementById('prompt-engine-output');
-    // v19.4 — a pasted screenshot is enough on its own; only refuse when there
-    // is neither text NOR an image. (Previously an image-only paste was
-    // rejected with "Type what you want a prompt for.")
-    const _peImage = window._promptEngineImage || null;
-    if (!text && !_peImage) { showToast('Type what you want a prompt for, or paste a screenshot (Ctrl+V).', 'warning'); return; }
+function setPromptGenLength(len) {
+    const isDetailed = len === 'detailed';
+    localStorage.setItem('prompt_gen_length', isDetailed ? 'detailed' : 'short');
+    const bS = document.getElementById('eng-gen-plen-short');
+    const bD = document.getElementById('eng-gen-plen-detailed');
+    const on = 'linear-gradient(135deg,#00fff5,#7c4dff)';
+    if (bS) { bS.style.background = isDetailed ? 'transparent' : on; bS.style.color = isDetailed ? 'var(--text-muted)' : '#fff'; }
+    if (bD) { bD.style.background = isDetailed ? on : 'transparent'; bD.style.color = isDetailed ? '#fff' : 'var(--text-muted)'; }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => { setPromptGenLength(getPromptGenLength()); refreshPromptEngineCounter(); }, 500);
+});
 
-    output.classList.remove('hidden');
-    output.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#00fff5;"></i><div style="margin-top:8px;font-size:0.9rem;">Generating…</div></div>`;
-
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        showToast('Add API key in Settings.', 'error');
-        output.innerHTML = '<span style="color:#ff6b6b;">API key required (Settings → Account & API).</span>';
-        return;
-    }
-
-    // v12.2 — Standalone Prompt Engine = SIMPLE form. Short, plain-words prompt.
-    // (The detailed structured version lives under English Generator → "Generate a prompt".)
-    const systemPrompt = `You write ONE short, plain-language prompt that the user can paste into any LLM. Keep it simple.
+const PROMPT_GEN_SYSTEM_SHORT = `You write ONE short, plain-language prompt that the user can paste into any LLM. Keep it simple.
 
 ABSOLUTE RULES:
 - Output ONLY the prompt itself. No greetings, no preamble, no "Here is your prompt:", no closing notes.
@@ -16767,65 +16943,19 @@ ABSOLUTE RULES:
 - No code fences, no markdown, no HTML.
 - Specific enough to be useful (subject + format if implied), but stripped down to essentials. Think "the one-liner version".`;
 
-    try {
-        output.innerHTML = '<span class="streaming-content" style="font-family:\'Fira Code\',monospace;font-size:0.92rem;white-space:pre-wrap;color:#e8eef8;"></span><span class="streaming-cursor">▍</span>';
-        const contentEl = output.querySelector('.streaming-content');
-        const cursorEl = output.querySelector('.streaming-cursor');
-        await streamChat({
-            apiKey,
-            // v19.4 — force the vision model when a screenshot is attached, so a
-            // saved non-vision preference can't drop the image.
-            model: _peImage ? 'gpt-4o' : (localStorage.getItem('ai_model') || 'gpt-4o'),
-            messages: [
-                { role: 'system', content: systemPrompt },
-                // v19.4 — actually SEND the pasted screenshot. The Ctrl+V handler
-                // stored it in window._promptEngineImage and toasted "Image
-                // attached", but the request only ever included the text, so
-                // screenshots silently did nothing.
-                { role: 'user', content: _peImage
-                    ? [
-                        { type: 'text', text: text || 'Write a prompt I can paste into an AI, based on what is shown in this screenshot.' },
-                        { type: 'image_url', image_url: { url: _peImage } }
-                      ]
-                    : text }
-            ],
-            max_tokens: 800,
-            temperature: 0.5,
-            onChunk: (_delta, full) => { contentEl.textContent = full; },
-            onDone: (full) => {
-                if (cursorEl) cursorEl.remove();
-                const clean = (full || '').replace(/^```[\w]*\n?/g, '').replace(/```\s*$/g, '').trim();
-                contentEl.textContent = clean;
-                const uses = parseInt(localStorage.getItem('prompt_engine_uses') || '0') + 1;
-                localStorage.setItem('prompt_engine_uses', String(uses));
-                if (typeof refreshPromptEngineCounter === 'function') refreshPromptEngineCounter();
-                if (typeof recordQuestProgress === 'function') recordQuestProgress('prompt_forged');
-                if (typeof addToHistory === 'function') addToHistory('prompt-engine', (text || '[screenshot]').substring(0, 200), clean.substring(0, 500));
-                // v19.4 — consume the attached screenshot so it doesn't silently
-                // carry over into the next, unrelated forge.
-                window._promptEngineImage = null;
-                var _peBadge = document.getElementById('prompt-engine-img-badge');
-                if (_peBadge) _peBadge.remove();
-                setTimeout(checkAchievements, 500);
-            },
-            onError: (err) => { output.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`; }
-        });
-    } catch (err) {
-        output.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`;
-    }
-}
+const PROMPT_GEN_SYSTEM_DETAILED = `You write a detailed, ready-to-paste prompt that the user can hand to any LLM and get an excellent result on the first try. The user describes what they want; you respond with the PROMPT ITSELF — written as natural, well-structured prose.
 
-function copyPromptEngineOutput() {
-    const out = document.getElementById('prompt-engine-output');
-    if (!out) return;
-    const text = (out.innerText || out.textContent || '').trim();
-    if (!text) { showToast('Generate a prompt first, then copy it.', 'warning'); return; }
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('✨ Prompt copied to clipboard.', 'success', 3000);
-    }).catch(() => {
-        showToast('Copy failed — select the text manually.', 'error');
-    });
-}
+ABSOLUTE RULES:
+- Output ONLY the prompt itself. No greetings, no preamble, no "Here is your prompt:", no closing notes.
+- LENGTH: 6 to 12 sentences. Detailed and specific, not padded.
+- WRITE THE PROMPT, don't describe it. The output IS the thing the user will paste.
+- WEAVE in (as natural sentences, NOT labeled sections): (a) the ROLE the AI should adopt, (b) what specifically you want produced, (c) audience/level/tone if relevant, (d) format/length constraints, (e) any quality bars or things to avoid, (f) what "done" looks like.
+- No code fences, no markdown headers, no bullet lists unless the deliverable itself is a bulleted thing.
+- Plain text only.
+
+EXAMPLE INPUT/OUTPUT (don't repeat this format literally — just match the depth):
+Input: "an essay outline on Of Mice and Men symbolism"
+Output: "Act as a high-school AP English Lit tutor. Build a detailed essay outline for a 5-paragraph analytical essay on the symbolism in Steinbeck's Of Mice and Men. The thesis should connect at least two distinct symbols (e.g., the rabbits, Lennie's hands, the river clearing, Candy's dog) to a single unifying claim about loneliness, the death of the American Dream, or fate. Provide a one-sentence thesis, then for each body paragraph give a topic sentence, two pieces of textual evidence with chapter references, and one analytical move tying the evidence back to the thesis. Close with a conclusion idea that goes beyond restating the thesis. Audience: 11th-grade student writing a 1000-word essay. Keep the tone academic but accessible — no jargon dumps."`;
 
 // v12.1 — English Generator sub-modes: Write vs Generate-a-Prompt
 function setEnglishGenMode(mode) {
@@ -16841,6 +16971,7 @@ function setEnglishGenMode(mode) {
         if (promptBtn) promptBtn.style.cssText = activeCyan;
         if (writePane) writePane.style.display = 'none';
         if (promptPane) promptPane.style.display = '';
+        refreshPromptEngineCounter();
     } else {
         if (writeBtn) writeBtn.style.cssText = activeStyle;
         if (promptBtn) promptBtn.style.cssText = inactive;
@@ -16851,53 +16982,67 @@ function setEnglishGenMode(mode) {
 
 async function generateEnglishGenPrompt() {
     if (!hasPaid()) { openPaymentModal('access'); return; }
-    const text = (document.getElementById('eng-gen-prompt-input') || {}).value;
+    const inputEl = document.getElementById('eng-gen-prompt-input');
+    const text = (inputEl ? inputEl.value : '').trim();
     const output = document.getElementById('eng-gen-prompt-output');
-    if (!text || !text.trim()) { showToast('Type what you want a prompt for.', 'warning'); return; }
+    // v234 — a pasted screenshot is enough on its own (carried over from the
+    // Prompt Engine, where image-only input used to be rejected outright).
+    const image = window._promptGenImage || null;
+    if (!text && !image) {
+        showToast('Type what you want a prompt for, or paste a screenshot (Ctrl+V).', 'warning');
+        return;
+    }
 
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
 
+    const detailed = getPromptGenLength() === 'detailed';
+    const systemPrompt = detailed ? PROMPT_GEN_SYSTEM_DETAILED : PROMPT_GEN_SYSTEM_SHORT;
+
     output.classList.remove('hidden');
-    output.innerHTML = '<span style="color:var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> Generating a detailed prompt…</span>';
+    output.innerHTML = '<span style="color:var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> Generating a ' + (detailed ? 'detailed' : 'short') + ' prompt…</span>';
 
-    // v12.2 — English Generator → "Generate a prompt" = DETAILED version.
-    // Builds a richer, structured prompt with role + context + goal + constraints
-    // baked in as natural sentences. The standalone Prompt Engine is the simple
-    // 1-3 sentence version for when the user just wants the gist.
-    const systemPrompt = `You write a detailed, ready-to-paste prompt that the user can hand to any LLM and get an excellent result on the first try. The user describes what they want; you respond with the PROMPT ITSELF — written as natural, well-structured prose.
-
-ABSOLUTE RULES:
-- Output ONLY the prompt itself. No greetings, no preamble, no "Here is your prompt:", no closing notes.
-- LENGTH: 6 to 12 sentences. Detailed and specific, not padded.
-- WRITE THE PROMPT, don't describe it. The output IS the thing the user will paste.
-- WEAVE in (as natural sentences, NOT labeled sections): (a) the ROLE the AI should adopt, (b) what specifically you want produced, (c) audience/level/tone if relevant, (d) format/length constraints, (e) any quality bars or things to avoid, (f) what "done" looks like.
-- No code fences, no markdown headers, no bullet lists unless the deliverable itself is a bulleted thing.
-- Plain text only.
-
-EXAMPLE INPUT/OUTPUT (don't repeat this format literally — just match the depth):
-Input: "an essay outline on Of Mice and Men symbolism"
-Output: "Act as a high-school AP English Lit tutor. Build a detailed essay outline for a 5-paragraph analytical essay on the symbolism in Steinbeck's Of Mice and Men. The thesis should connect at least two distinct symbols (e.g., the rabbits, Lennie's hands, the river clearing, Candy's dog) to a single unifying claim about loneliness, the death of the American Dream, or fate. Provide a one-sentence thesis, then for each body paragraph give a topic sentence, two pieces of textual evidence with chapter references, and one analytical move tying the evidence back to the thesis. Close with a conclusion idea that goes beyond restating the thesis. Audience: 11th-grade student writing a 1000-word essay. Keep the tone academic but accessible — no jargon dumps."`;
     try {
         await streamChat({
             apiKey,
-            model: localStorage.getItem('ai_model') || 'gpt-4o',
+            // Force the vision model when a screenshot is attached so a saved
+            // non-vision preference can't silently drop the image.
+            model: image ? 'gpt-4o' : (localStorage.getItem('ai_model') || 'gpt-4o'),
             messages: [
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: text.trim() }
+                { role: 'user', content: image
+                    ? [
+                        { type: 'text', text: text || 'Write a prompt I can paste into an AI, based on what is shown in this screenshot.' },
+                        { type: 'image_url', image_url: { url: image } }
+                      ]
+                    : text }
             ],
-            max_tokens: 1500,
-            temperature: 0.6,
+            max_tokens: detailed ? 1500 : 800,
+            temperature: detailed ? 0.6 : 0.5,
             onChunk: (_d, full) => { output.textContent = full; },
             onDone: (full) => {
                 const clean = (full || '').replace(/^```[\w]*\n?/g, '').replace(/```\s*$/g, '').trim();
                 output.textContent = clean;
+                const uses = parseInt(localStorage.getItem('prompt_engine_uses') || '0') + 1;
+                localStorage.setItem('prompt_engine_uses', String(uses));
+                refreshPromptEngineCounter();
+                if (typeof recordQuestProgress === 'function') recordQuestProgress('prompt_forged');
+                if (typeof addToHistory === 'function') addToHistory('prompt-engine', (text || '[screenshot]').substring(0, 200), clean.substring(0, 500));
+                // Consume the screenshot so it can't leak into the next, unrelated prompt.
+                clearPromptGenImage();
+                if (typeof checkAchievements === 'function') setTimeout(checkAchievements, 500);
             },
             onError: (err) => { output.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`; }
         });
     } catch (err) {
         output.innerHTML = `<span style="color:#ff6b6b;">Error: ${err.message}</span>`;
     }
+}
+
+function clearPromptGenImage() {
+    window._promptGenImage = null;
+    const badge = document.getElementById('eng-gen-prompt-img-badge');
+    if (badge) badge.remove();
 }
 
 function copyEnglishGenPromptOutput() {
@@ -16907,6 +17052,20 @@ function copyEnglishGenPromptOutput() {
     if (!text) { showToast('Generate a prompt first.', 'warning'); return; }
     navigator.clipboard.writeText(text).then(() => showToast('✨ Prompt copied.', 'success', 3000));
 }
+
+// ── Legacy shims — the standalone Prompt Engine is gone as of v234 ───────
+function openPromptEngine() {
+    if (typeof switchTab === 'function') switchTab('dashboard');
+    if (typeof openEnglishPrompt === 'function') openEnglishPrompt();
+    setEnglishGenMode('prompt');
+    setTimeout(() => {
+        const i = document.getElementById('eng-gen-prompt-input');
+        if (i) { i.focus(); try { i.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }
+    }, 180);
+}
+function closePromptEngine() { if (typeof closeEnglishPrompt === 'function') closeEnglishPrompt(); }
+function processPromptEngine() { return generateEnglishGenPrompt(); }
+function copyPromptEngineOutput() { return copyEnglishGenPromptOutput(); }
 
 // ============================================================
 // v7.0 COMMAND CENTER TOOLS
@@ -18520,27 +18679,29 @@ document.addEventListener('DOMContentLoaded', () => {
         'english-prompt-image-name'
     );
 
-    // ---- Prompt Engine: Ctrl+V image paste (universal coverage) ----
+    // ---- Prompt Generator: Ctrl+V image paste ----
+    // v234 — moved from the retired standalone Prompt Engine onto the English
+    // Generator's "Generate a prompt" textarea, which was previously the ONE
+    // text box in the app where Ctrl+V silently did nothing.
     attachImagePasteHandler(
-        'prompt-engine-input',
+        'eng-gen-prompt-input',
         (base64) => {
-            window._promptEngineImage = base64;
-            showToast('Screenshot attached — it will be read when you Forge.', 'success', 2500);
-            // v19.4 — show a PERSISTENT badge (with a remove button) instead of
-            // only a toast that disappears. Previously there was no way to tell
-            // whether an image was actually attached.
+            window._promptGenImage = base64;
+            showToast('Screenshot attached — it will be read when you generate.', 'success', 2500);
+            // Persistent badge with a remove button, not just a toast that
+            // vanishes: before v19.4 there was no way to tell an image was on.
             try {
-                var inp = document.getElementById('prompt-engine-input');
+                var inp = document.getElementById('eng-gen-prompt-input');
                 if (!inp) return;
-                var old = document.getElementById('prompt-engine-img-badge');
+                var old = document.getElementById('eng-gen-prompt-img-badge');
                 if (old) old.remove();
                 var badge = document.createElement('div');
-                badge.id = 'prompt-engine-img-badge';
+                badge.id = 'eng-gen-prompt-img-badge';
                 badge.style.cssText = 'display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:7px 10px;border-radius:8px;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.35);font-size:0.82rem;color:#00cec9;';
                 badge.innerHTML = '<img src="' + base64 + '" alt="attached screenshot" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;">'
-                    + '<span style="flex:1;">Screenshot attached — will be read when you Forge.</span>'
+                    + '<span style="flex:1;">Screenshot attached — will be read when you generate.</span>'
                     + '<button type="button" title="Remove screenshot" aria-label="Remove screenshot" style="background:none;border:none;color:#ff9a9a;cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px;" '
-                    + 'onclick="window._promptEngineImage=null;this.parentElement.remove();">&times;</button>';
+                    + 'onclick="window._promptGenImage=null;this.parentElement.remove();">&times;</button>';
                 inp.insertAdjacentElement('afterend', badge);
             } catch (_) {}
         },
@@ -18755,34 +18916,27 @@ document.addEventListener('DOMContentLoaded', _initQuickNotesDrag);
     else _v195RelocatePanels();
 })();
 
-// v19.5 — Command Center tool switch: Debate Practice ⇄ Prompt Generator as
-// two modes of one tool (mirrors setVisualizerMode's Function/Plot toggle).
+// v234 — the Debate ⇄ Prompt toggle is gone. Prompt Generator moved into
+// English Generator, and Debate Practice is a standalone Command Center
+// section again under its own heading. Before this, the always-visible toggle
+// and Debate panel sat flush against the bottom edge of whichever tool panel
+// was open (Live Vision, English Generator…), so Debate read as a mode of that
+// tool. setCommandTool survives as a shim because the Debate card, and any
+// older link, still calls it.
 function setCommandTool(mode) {
+    if (mode === 'prompt') { openPromptEngine(); return; }
     var debate = document.getElementById('command-debate-section');
-    var prompt = document.getElementById('prompt-engine-panel');
-    var bD = document.getElementById('ctool-mode-debate');
-    var bP = document.getElementById('ctool-mode-prompt');
-    var isPrompt = mode === 'prompt';
-    if (debate) {
-        debate.style.display = isPrompt ? 'none' : '';
-        if (!isPrompt) debate.open = true;
-    }
-    if (prompt) prompt.classList.toggle('hidden', !isPrompt);
-    var on = 'linear-gradient(135deg,#6C5CE7,#00CEC9)', off = 'transparent';
-    if (bD) { bD.style.background = isPrompt ? off : on; bD.style.color = isPrompt ? 'var(--text-muted)' : '#fff'; }
-    if (bP) { bP.style.background = isPrompt ? on : off; bP.style.color = isPrompt ? '#fff' : 'var(--text-muted)'; }
-    // Make sure the tool is actually on screen when triggered from a card.
     if (typeof switchTab === 'function' && document.getElementById('view-dashboard') &&
         !document.getElementById('view-dashboard').classList.contains('active')) {
         switchTab('dashboard');
     }
-    var target = isPrompt ? prompt : debate;
-    if (target) setTimeout(function () { try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 120);
-    if (isPrompt) setTimeout(function () { var i = document.getElementById('prompt-engine-input'); if (i) i.focus(); }, 200);
+    if (debate) {
+        debate.style.display = '';
+        debate.open = true;
+        setTimeout(function () { try { debate.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 120);
+    }
 }
 window.setCommandTool = setCommandTool;
-// Default the Command Center tool to Debate on load.
-document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { try { setCommandTool('debate'); } catch (_) {} }, 260); });
 
 // v16.5 — lightweight UI language switcher (navigation + footer labels). Full-app
 // and AI-response translation is out of scope; this covers the app's chrome.
@@ -19987,6 +20141,26 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v19.6',
+        date: 'July 22, 2026',
+        tag: 'UPDATE 19.6 — THE WRITING UPDATE',
+        tagColor: '#fd79a8',
+        changes: [
+            'ENGLISH GENERATOR IS PURE WRITING NOW — It writes the thing you asked for and nothing else. No more Claim/Reasoning/Evidence headings bolted onto a simple message, no preamble, no commentary. Analysis and feedback live in English Aid, where they belong.',
+            'PICK YOUR FORMAT — Two new dropdowns: Type of writing (Standard writing, Paragraph, Essay, Document) and Paragraphs. Paragraph count applies to essays only, and greys itself out otherwise.',
+            'WORD COUNT THAT ACTUALLY HOLDS — A Word count box sets a hard target. NEXUS counts the finished piece and, if it lands more than 10% off, fixes the length automatically. Asking for 100 words used to get you about 78.',
+            'CASUAL MODE NO LONGER SHRINKS YOUR WORK — Casual mode used to end every request with "keep it short and punchy", which silently overrode any length you asked for. It now yields whenever you specify a word count, paragraph count, or section layout. This also un-truncates the Region Explorer profiles.',
+            'TUTOR MODE NO LONGER BREAKS THE WRITING TOOLS — In Tutor mode, English Generator and all 7 English Aid tools were being told "do not give the answer, ask a guiding question instead" — so "write my essay" replied with a question, and "fix my grammar" was told to withhold the fix. Tutor mode now applies only where it belongs: Math Lab, Science Lab, Social Studies and Live Vision.',
+            'STUDY MODE IS VISIBLE — Every AI tool now shows a Casual/Tutor badge in its header. Click it to switch. No more wondering why an answer came out the way it did.',
+            'PROMPT GENERATOR MOVED IN — The standalone Prompt Engine card is gone; everything it did now lives in English Generator → "Generate a prompt", including screenshot paste (Ctrl+V), the counter and quest progress. New Short / Detailed toggle picks between a 1-3 sentence prompt and a 6-12 sentence one.',
+            'AI FLASHCARDS PROMOTED — Takes the freed Command Center slot. Turning a topic into a deck used to be three clicks deep in the Notebook.',
+            'DEBATE PRACTICE STANDS ON ITS OWN — It used to sit flush against the bottom of whichever tool panel you had open, so it looked like a mode of Live Vision or the English Generator. It now has its own labelled section.',
+            'MORE WAYS TO FINISH — Regenerate, Longer, Shorter, More formal, Copy, download as .txt, and Send to Notebook, all under the generated piece. Plus an optional "Match my voice" setting (Settings → AI) that styles generated writing after your own past work.',
+            'SHARPER ENGLISH AID — All seven writing tools moved from the mini model to full GPT-4o. Same upgrade the quiz generators got, for the same reason.',
+            'HOUSEKEEPING — Removed the last of the retired Homework Tracker (a blank, unreachable tab and ~315 lines behind it), and labelled English Aid\'s word limit as what it actually is: summary length.',
+        ]
+    },
     {
         version: 'v19.0',
         date: 'July 1, 2026',
@@ -25427,7 +25601,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bindEnterSubmit('math-text-input',     () => typeof processMathInput === 'function' && processMathInput());
         bindEnterSubmit('science-input',       () => typeof processScienceInput === 'function' && processScienceInput());
         bindEnterSubmit('english-prompt-input',() => typeof processEnglishPrompt === 'function' && processEnglishPrompt());
-        bindEnterSubmit('prompt-engine-input', () => typeof processPromptEngine === 'function' && processPromptEngine());
+        bindEnterSubmit('eng-gen-prompt-input', () => typeof generateEnglishGenPrompt === 'function' && generateEnglishGenPrompt());
     }, 600);
     // v10.6 — default subject on launch
     const defaultSub = localStorage.getItem('default_subject');
@@ -27157,324 +27331,13 @@ document.addEventListener('keydown', function _fcKeyNav(e) {
 // ════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────
-// HOMEWORK TRACKER
+// HOMEWORK TRACKER — REMOVED in v234
 // ─────────────────────────────────────────
-function getHomework() {
-    try { return JSON.parse(localStorage.getItem('hw_items') || '[]'); } catch { return []; }
-}
-function saveHomework(items) {
-    localStorage.setItem('hw_items', JSON.stringify(items));
-}
-function renderHomework() {
-    const container = document.getElementById('view-homework');
-    if (!container) return;
-    const items = getHomework();
-    const filter = document.getElementById('hw-filter') ? document.getElementById('hw-filter').value : 'all';
-    const sort   = document.getElementById('hw-sort')   ? document.getElementById('hw-sort').value   : 'due';
-    const PRIORITIES = { high:'#ff6b6b', medium:'#fdcb6e', low:'#00b894' };
-
-    let filtered = items.slice();
-    if (filter === 'pending')   filtered = filtered.filter(i => !i.completed);
-    if (filter === 'completed') filtered = filtered.filter(i =>  i.completed);
-    if (sort === 'due')         filtered.sort((a,b) => (a.dueDate||'9999') < (b.dueDate||'9999') ? -1 : 1);
-    if (sort === 'priority') {
-        const P = { high:0, medium:1, low:2 };
-        filtered.sort((a,b) => (P[a.priority]||1) - (P[b.priority]||1));
-    }
-    if (sort === 'subject')     filtered.sort((a,b) => (a.subject||'').localeCompare(b.subject||''));
-
-    const today = new Date().toISOString().slice(0,10);
-    const pending   = items.filter(i => !i.completed).length;
-    const overdue   = items.filter(i => !i.completed && i.dueDate && i.dueDate < today).length;
-    const doneToday = items.filter(i =>  i.completed && i.completedAt && i.completedAt.slice(0,10) === today).length;
-
-    const mainPanel = container.querySelector('#hw-main');
-    if (!mainPanel) return;
-    mainPanel.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
-        <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.25rem;font-weight:700;color:#fd79a8;">${pending}</div>
-            <div style="font-size:0.88rem;color:var(--text-muted);">Pending</div>
-        </div>
-        <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.25rem;font-weight:700;color:#ff6b6b;">${overdue}</div>
-            <div style="font-size:0.88rem;color:var(--text-muted);">Overdue</div>
-        </div>
-        <div class="glass-panel" style="padding:14px;text-align:center;">
-            <div style="font-size:1.25rem;font-weight:700;color:#00b894;">${doneToday}</div>
-            <div style="font-size:0.88rem;color:var(--text-muted);">Done Today</div>
-        </div>
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-        <select id="hw-filter" class="input-field" style="flex:1;min-width:110px;padding:8px 10px;font-size:0.85rem;" onchange="renderHomework()">
-            <option value="all"       ${filter==='all'       ?'selected':''}>All</option>
-            <option value="pending"   ${filter==='pending'   ?'selected':''}>Pending</option>
-            <option value="completed" ${filter==='completed' ?'selected':''}>Completed</option>
-        </select>
-        <select id="hw-sort" class="input-field" style="flex:1;min-width:110px;padding:8px 10px;font-size:0.85rem;" onchange="renderHomework()">
-            <option value="due"      ${sort==='due'     ?'selected':''}>Sort: Due Date</option>
-            <option value="priority" ${sort==='priority'?'selected':''}>Sort: Priority</option>
-            <option value="subject"  ${sort==='subject' ?'selected':''}>Sort: Subject</option>
-        </select>
-        <button class="btn-primary" style="padding:8px 14px;font-size:0.85rem;" onclick="openAddHwModal()">
-            <i class="ph ph-plus"></i> Add
-        </button>
-        <button class="btn-secondary" style="padding:8px 12px;font-size:0.85rem;" onclick="exportHomeworkPDF()" title="Print">
-            <i class="ph ph-printer"></i>
-        </button>
-    </div>
-    ` + (filtered.length === 0 ? `
-        <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
-            <i class="ph ph-clipboard-text" style="font-size:1.25rem;display:block;margin-bottom:12px;opacity:0.4;"></i>
-            <div style="font-size:1rem;">${filter==='completed'?'No completed assignments yet.'
-                :filter==='pending'?'All caught up! 🎉':'No assignments yet. Click Add to get started.'}</div>
-        </div>
-    ` : filtered.map(item => {
-        const isOverdue = !item.completed && item.dueDate && item.dueDate < today;
-        const dueLabel = item.dueDate
-            ? (item.dueDate === today ? '<span style="color:#fdcb6e;font-weight:600;">Due today</span>'
-               : isOverdue ? '<span style="color:#ff6b6b;font-weight:600;">Overdue ('+item.dueDate+')</span>'
-               : '<span style="color:var(--text-muted);">Due '+item.dueDate+'</span>')
-            : '<span style="color:var(--text-muted);">No due date</span>';
-        const pColor = PRIORITIES[item.priority] || '#00b894';
-        return `
-        <div class="glass-panel" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;${item.completed?'opacity:0.55;':''}border-left:3px solid ${pColor};">
-            <div style="flex-shrink:0;">
-                <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${item.completed?'#00b894':'rgba(255,255,255,0.3)'};background:${item.completed?'#00b894':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;"
-                     onclick="toggleHwComplete(${item.id})">
-                    ${item.completed ? '<i class="ph ph-check" style="color:white;font-size:0.85rem;"></i>' : ''}
-                </div>
-            </div>
-            <div style="flex:1;min-width:0;">
-                <div style="font-weight:600;color:white;${item.completed?'text-decoration:line-through;':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.title}</div>
-                <div style="font-size:0.9rem;margin-top:3px;display:flex;gap:12px;flex-wrap:wrap;">
-                    <span style="color:var(--accent);">${item.subject||'General'}</span>
-                    ${dueLabel}
-                </div>
-                ${item.notes ? '<div style="font-size:0.88rem;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+item.notes+'</div>' : ''}
-            </div>
-            <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;flex-wrap:nowrap;">
-                <button onclick="hwAiHelp(${item.id})" style="background:linear-gradient(135deg,rgba(108,92,231,0.2),rgba(0,206,201,0.15));border:1px solid rgba(108,92,231,0.3);border-radius:7px;color:var(--accent);cursor:pointer;font-size:0.85rem;padding:5px 9px;font-weight:600;white-space:nowrap;" title="AI Tutoring Help"><i class="ph ph-sparkle"></i> Help</button>
-                <button onclick="editHwItem(${item.id})" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;" title="Edit"><i class="ph ph-pencil-simple"></i></button>
-                <button onclick="deleteHwItem(${item.id})" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;padding:4px;" title="Delete"><i class="ph ph-trash"></i></button>
-            </div>
-        </div>`;
-    }).join(''));
-}
-
-function openAddHwModal(editId) {
-    const items = getHomework();
-    const editing = editId ? items.find(i => i.id === editId) : null;
-    const SUBJECTS = ['Math','Science','English','Social Studies','History','Art','PE','Other'];
-    const today = new Date().toISOString().slice(0,10);
-    const modal = document.createElement('div');
-    modal.id = 'hw-modal-overlay';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
-    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `
-    <div class="glass-panel" style="max-width:440px;width:100%;padding:28px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <h3 style="margin:0;color:white;">${editing ? 'Edit Assignment' : 'Add Assignment'}</h3>
-            <button class="btn-icon" onclick="document.getElementById('hw-modal-overlay').remove()"><i class="ph ph-x"></i></button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div>
-                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Title *</label>
-                <input id="hw-input-title" class="input-field" style="width:100%;padding:10px;" placeholder="e.g. Chapter 5 Worksheet" value="${editing ? editing.title : ''}">
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div>
-                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Subject</label>
-                    <select id="hw-input-subject" class="input-field" style="width:100%;padding:10px;">
-                        ${SUBJECTS.map(s => '<option '+(editing&&editing.subject===s?'selected':'')+'>'+s+'</option>').join('')}
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Priority</label>
-                    <select id="hw-input-priority" class="input-field" style="width:100%;padding:10px;">
-                        <option value="high"   ${editing&&editing.priority==='high'  ?'selected':''}>High</option>
-                        <option value="medium" ${!editing||editing.priority==='medium'?'selected':''}>Medium</option>
-                        <option value="low"    ${editing&&editing.priority==='low'   ?'selected':''}>Low</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Due Date</label>
-                <input id="hw-input-due" type="date" class="input-field" style="width:100%;padding:10px;" value="${editing ? editing.dueDate : today}">
-            </div>
-            <div>
-                <label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Notes (optional)</label>
-                <textarea id="hw-input-notes" class="input-field" style="width:100%;padding:10px;resize:vertical;min-height:60px;" placeholder="Any extra details...">${editing ? (editing.notes||'') : ''}</textarea>
-            </div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
-            <button class="btn-secondary" onclick="document.getElementById('hw-modal-overlay').remove()">Cancel</button>
-            <button class="btn-primary" onclick="saveHwItem(${editing ? editing.id : 'null'})">${editing ? 'Save Changes' : 'Add Assignment'}</button>
-        </div>
-    </div>`;
-    document.body.appendChild(modal);
-    setTimeout(function(){ var el = document.getElementById('hw-input-title'); if(el) el.focus(); }, 100);
-}
-
-function saveHwItem(editId) {
-    const title = document.getElementById('hw-input-title').value.trim();
-    if (!title) { showToast('Title is required.', 'error'); return; }
-    const items = getHomework();
-    if (editId) {
-        const idx = items.findIndex(i => i.id === editId);
-        if (idx >= 0) {
-            items[idx].title    = title;
-            items[idx].subject  = document.getElementById('hw-input-subject').value;
-            items[idx].priority = document.getElementById('hw-input-priority').value;
-            items[idx].dueDate  = document.getElementById('hw-input-due').value || '';
-            items[idx].notes    = document.getElementById('hw-input-notes').value.trim();
-        }
-    } else {
-        items.unshift({
-            id: Date.now(), title,
-            subject:  document.getElementById('hw-input-subject').value,
-            priority: document.getElementById('hw-input-priority').value,
-            dueDate:  document.getElementById('hw-input-due').value || '',
-            notes:    document.getElementById('hw-input-notes').value.trim(),
-            completed: false, createdAt: new Date().toISOString()
-        });
-    }
-    saveHomework(items);
-    document.getElementById('hw-modal-overlay').remove();
-    renderHomework();
-    showToast(editId ? 'Assignment updated!' : 'Assignment added!', 'success', 2000);
-}
-function editHwItem(id) { openAddHwModal(id); }
-function toggleHwComplete(id) {
-    const items = getHomework();
-    const idx = items.findIndex(i => i.id === id);
-    if (idx < 0) return;
-    items[idx].completed  = !items[idx].completed;
-    items[idx].completedAt = items[idx].completed ? new Date().toISOString() : null;
-    saveHomework(items);
-    renderHomework();
-    if (items[idx].completed) {
-        showToast('Done! +10 XP', 'success', 2000);
-        if (typeof awardXP === 'function') awardXP(10);
-        logStudyEvent('homework', `Completed: ${items[idx].title} (${items[idx].subject||'General'})`);
-    }
-}
-function deleteHwItem(id) {
-    if (!confirm('Delete this assignment?')) return;
-    saveHomework(getHomework().filter(i => i.id !== id));
-    renderHomework();
-    showToast('Deleted.', 'info', 1500);
-}
-function exportHomeworkPDF() {
-    const items = getHomework();
-    const pending = items.filter(i => !i.completed);
-    const done    = items.filter(i =>  i.completed);
-    const w = window.open('', '_blank');
-    if (!w) { showToast('Allow pop-ups to export.', 'error'); return; }
-    const rows = function(arr) { return arr.map(function(i){ return '<tr><td>'+i.title+'</td><td>'+(i.subject||'')+'</td><td>'+(i.dueDate||'—')+'</td><td>'+(i.priority||'')+'</td><td>'+(i.notes||'')+'</td></tr>'; }).join(''); };
-    w.document.write('<!DOCTYPE html><html><head><title>Homework — NEXUS</title><style>body{font-family:sans-serif;padding:24px;color:#111;}h2{color:#6C5CE7;}table{width:100%;border-collapse:collapse;margin-bottom:24px;}th,td{border:1px solid #ccc;padding:8px 10px;font-size:0.9rem;text-align:left;}th{background:#f0f0f0;}</style></head><body><h2>NEXUS Homework</h2><p>'+new Date().toLocaleDateString()+'</p><h3>Pending ('+pending.length+')</h3><table><tr><th>Title</th><th>Subject</th><th>Due</th><th>Priority</th><th>Notes</th></tr>'+rows(pending)+'</table><h3>Completed ('+done.length+')</h3><table><tr><th>Title</th><th>Subject</th><th>Due</th><th>Priority</th><th>Notes</th></tr>'+rows(done)+'</table></body></html>');
-    w.document.close(); w.print();
-}
-
-// ─────────────────────────────────────────
-// HOMEWORK AI TUTORING
-// ─────────────────────────────────────────
-async function hwAiHelp(itemId) {
-    const items = getHomework();
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        showToast('Add your API key in Settings to use AI tutoring.', 'error', 3500);
-        return;
-    }
-
-    // Create modal
-    const modal = document.createElement('div');
-    modal.id = 'hw-ai-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
-    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `
-    <div class="glass-panel" style="max-width:560px;width:100%;padding:0;border:1px solid rgba(108,92,231,0.4);overflow:hidden;max-height:85vh;display:flex;flex-direction:column;">
-        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,rgba(108,92,231,0.15),rgba(0,206,201,0.08));display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:0;">
-                <div style="font-size:0.9rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px;"><i class="ph ph-graduation-cap"></i> AI Homework Tutor</div>
-                <div style="font-size:0.9rem;color:white;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.title}</div>
-                <div style="font-size:0.85rem;color:var(--text-muted);">${item.subject||'General'}</div>
-            </div>
-            <button class="btn-icon" onclick="document.getElementById('hw-ai-modal').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button>
-        </div>
-        <div style="padding:20px;overflow-y:auto;flex:1;">
-            <div id="hw-ai-question-form">
-                <p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 12px;">Ask for help with this assignment. You can ask for hints, explanations, or how to approach the problem.</p>
-                <textarea id="hw-ai-question" class="input-field" style="height:90px;resize:vertical;width:100%;margin-bottom:12px;" placeholder="e.g. I don't understand how to start chapter 5 worksheet on quadratic equations…"></textarea>
-                <button class="btn-primary" style="width:100%;" onclick="hwAiAsk('${item.subject||'General'}', '${item.title.replace(/'/g,"\\'")}')">
-                    <i class="ph ph-sparkle"></i> Get Tutoring Help
-                </button>
-            </div>
-            <div id="hw-ai-response" style="margin-top:14px;"></div>
-        </div>
-    </div>`;
-    document.body.appendChild(modal);
-    setTimeout(() => { const el = document.getElementById('hw-ai-question'); if(el) el.focus(); }, 100);
-}
-
-async function hwAiAsk(subject, title) {
-    const question = (document.getElementById('hw-ai-question')||{}).value || '';
-    const responseDiv = document.getElementById('hw-ai-response');
-    const apiKey = getApiKey();
-    if (!apiKey || !responseDiv) return;
-
-    const modeSettings = localStorage.getItem('tutor_mode') === 'tutor';
-    responseDiv.innerHTML = '<div style="color:var(--accent);display:flex;align-items:center;gap:12px;padding:10px 0;"><i class="ph ph-spinner ph-spin"></i> Thinking…</div>';
-
-    const systemPrompt = `You are NEXUS — a patient, encouraging AI tutor helping a student with their homework.
-Subject: ${subject}
-Assignment: ${title}
-
-${modeSettings ? `TUTOR MODE (give hints, not answers):
-- Guide the student to discover the answer themselves
-- Give 1-2 directional hints
-- Ask a guiding question at the end` : `HELPER MODE:
-- Explain the concept clearly
-- Work through the approach step-by-step
-- Provide the answer with full explanation`}
-
-Use clear formatting: headings, short paragraphs, bullet points where helpful.
-Never be condescending. Keep your response focused and concise.
-Use HTML formatting (not markdown): <strong>, <em>, <ul><li>, <br>, etc.`;
-
-    try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: question || `Please help me with: ${title}` }
-                ],
-                temperature: 0.5,
-                max_tokens: 700
-            })
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        const answer = data.choices[0].message.content || '';
-        const cleaned = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(answer) : answer;
-        responseDiv.style.opacity = '0';
-        responseDiv.innerHTML = `
-            <div style="background:linear-gradient(135deg,rgba(108,92,231,0.1),rgba(0,206,201,0.06));border:1px solid rgba(108,92,231,0.25);border-radius:10px;padding:14px;line-height:1.6;font-size:0.9rem;color:#dde0ee;">${cleaned}</div>
-            <div style="margin-top:12px;display:flex;gap:12px;">
-                <button class="btn-secondary" style="flex:1;font-size:0.9rem;" onclick="document.getElementById('hw-ai-question').value='';document.getElementById('hw-ai-response').innerHTML='';">Ask another question</button>
-            </div>`;
-        requestAnimationFrame(() => { responseDiv.style.transition='opacity 0.35s'; responseDiv.style.opacity='1'; });
-        logActivity('study', `Homework AI help: ${title}`);
-    } catch (err) {
-        responseDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
-    }
-}
+// The Homework Tracker was retired in v13.0, but ~315 lines of it kept
+// shipping: getHomework/saveHomework/renderHomework, the add/edit/delete/
+// toggle handlers, exportHomeworkPDF, and hwAiHelp/hwAiAsk. None of it was
+// reachable — #view-homework had no nav entry and rendered as a blank tab.
+// Deleted along with that div. Nothing outside the block referenced it.
 
 // ─────────────────────────────────────────
 // GRADE CALCULATOR
@@ -28738,20 +28601,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // ════════════════════════════════════════════════════════════════════
 
 // ─── Home page daily challenge preview ────────────────────────────
-function updateHomeDailyChallenge() {
-    var card = document.getElementById('home-tip-text');
-    if (!card) return;
-    var ch = getTodayChallenge();
-    var state = getDailyChallengeState();
-    var today = new Date().toISOString().slice(0,10);
-    var done = state.date === today && state.completed;
-    card.innerHTML = done
-        ? '<span style="color:#00b894;">&#10003; Completed! Come back tomorrow for a new challenge.</span>'
-        : '<strong style="color:white;">' + ch.subject + ':</strong> ' + ch.question + ' <span style="color:var(--accent);font-size:0.88rem;">&#8594; Open Homework</span>';
-}
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(updateHomeDailyChallenge, 400);
-});
+// v234 — removed. #home-tip-text hasn't existed since the Home layout rework,
+// so this only ever hit its early return; its one visible string still pointed
+// at the Homework tab, which was retired in v13.0. The Daily Challenge now
+// renders inside the Quests modal (see _v195RelocatePanels).
 
 // ════════════════════════════════════════════════════════════════════
 // v15.0 — DEBATE PRACTICE (Feature 5)
