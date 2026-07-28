@@ -52,7 +52,7 @@ immediately, overriding the code defaults:
 
 | Secret | Default | What it controls |
 |---|---|---|
-| `ANON_MONTHLY_LIMIT` | 5 | Trial answers per **unverified** account |
+| `ANON_MONTHLY_LIMIT` | **0** | AI answers for **unverified** accounts. 0 = STRICT: no AI without a confirmed email (anonymous + unconfirmed both blocked). Raise (e.g. 2) to re-enable a taster. |
 | `IP_ANON_MONTHLY_LIMIT` | 25 | Unverified answers per **IP** per month |
 | `FREE_MONTHLY_LIMIT` | 1500 | Verified-email monthly allotment |
 | `PAID_MONTHLY_LIMIT` | 6000 | Paid monthly allotment |

@@ -1253,8 +1253,14 @@ async function streamChat({ apiKey, model, messages, temperature, response_forma
             signal: controller.signal
         });
         if (!res.ok) {
-            const err = await res.text();
-            throw new Error(`OpenAI ${res.status}: ${err.substring(0, 200)}`);
+            // Surface the human-readable message (e.g. the hosted proxy's
+            // "verify your email" / cap notice) instead of a raw "OpenAI 502: {json}"
+            // string. The hosted interceptor wraps errors as {error:{message}}; a
+            // direct OpenAI error is the same shape. Fall back to the raw text.
+            const raw = await res.text();
+            let msg = '';
+            try { const j = JSON.parse(raw); msg = (j.error && (j.error.message || j.error)) || j.message || ''; } catch (_) {}
+            throw new Error(msg || `AI request failed (${res.status}).`);
         }
 
         // Non-streaming path — wait for full JSON, return as a single chunk
@@ -20141,6 +20147,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v19.7',
+        date: 'July 28, 2026',
+        tag: 'UPDATE 19.7 — POLISH',
+        tagColor: '#74b9ff',
+        changes: [
+            'CLEARER AI MESSAGES — When AI needs you to verify your email or sign in, you now get a friendly, actionable prompt instead of a raw "Error: OpenAI 502" string. Fixed across every subject and tool at once.',
+        ]
+    },
     {
         version: 'v19.6',
         date: 'July 22, 2026',

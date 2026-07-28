@@ -29,19 +29,22 @@
 //     which is expensive to mass-create; per-IP limits + Turnstile blunt bulk signup.
 //   - The OpenAI hard spend cap (set in the OpenAI billing dashboard) is the
 //     absolute backstop no matter what.
-// BETA values below are generous so real testers aren't blocked. BEFORE PAID
-// LAUNCH, drop ANON_MONTHLY_LIMIT to ~30 (that's when farming has value to protect).
+// STRICT policy (v19.7): ANON_MONTHLY defaults to 0 — a CONFIRMED email is
+// required for any AI. Verified accounts get FREE_MONTHLY; the per-IP cap only
+// matters if ANON_MONTHLY is ever raised back above 0 for a taster.
 
 const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// v19.3 — trial questions for an account with NO verified email. Set to 5:
-// anonymous/unverified accounts are near-free to mint, so this is the main
-// account-farming lever. A confirmed email unlocks FREE_MONTHLY. Override live
-// (no redeploy) via the ANON_MONTHLY_LIMIT secret in Supabase.
-const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "5", 10);
+// v19.7 — STRICT: no AI at all without a CONFIRMED email. Default 0 means
+// anonymous accounts AND signed-up-but-unconfirmed accounts get zero AI; a
+// confirmed email unlocks FREE_MONTHLY. Anonymous/unverified accounts are
+// near-free to mint, so gating them entirely is the strongest account-farming
+// defense. To re-enable a small taster later, raise this (e.g. 2) — via the
+// ANON_MONTHLY_LIMIT secret in Supabase, no redeploy needed.
+const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "0", 10);
 const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "1500", 10);
 const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "6000", 10);
 const PER_MIN = parseInt(Deno.env.get("PER_MIN_LIMIT") ?? "12", 10);
@@ -192,12 +195,16 @@ Deno.serve(async (req) => {
         msg = "You've reached your free AI allotment for this month. Upgrade to keep going.";
       } else if (user?.email && user?.is_anonymous !== true) {
         // Signed up but hasn't clicked the confirmation link — this is the path
-        // to way more usage, so point them at it (not "upgrade").
-        msg = "You've used your free trial questions. Verify your email — check your inbox for the confirmation link — to unlock a lot more, free.";
+        // to usage, so point them at it (not "upgrade").
+        msg = ANON_MONTHLY === 0
+          ? "NEXUS AI needs a verified email. Check your inbox for the confirmation link — it's free, and unlocks AI right away."
+          : "You've used your free trial questions. Verify your email — check your inbox for the confirmation link — to unlock a lot more, free.";
         reason = "verify_email";
       } else {
         // Truly anonymous (never made an account).
-        msg = "You've used your free trial questions. Create a free account (with an email) to unlock a lot more.";
+        msg = ANON_MONTHLY === 0
+          ? "NEXUS AI needs a free account with a verified email. Sign up and confirm your email to unlock it."
+          : "You've used your free trial questions. Create a free account (with an email) to unlock a lot more.";
         reason = "make_account";
       }
     } else if (gate?.reason === "ip_month_limit") {
