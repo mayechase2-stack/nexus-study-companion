@@ -637,6 +637,39 @@ async function cloudGoogleSignIn() {
         if (typeof showToast === 'function') showToast('Google sign-in: ' + msg, 'error', 5000);
     }
 }
+// v236 — anti-duplicate safety net. When a Google/email login has no matching
+// local account but OTHER local accounts exist on this device, ask the user to
+// attach this login to one of them instead of silently minting a duplicate
+// (the Bug #7 family — the owner account was the classic victim). Not shown for
+// brand-new users (no local accounts) or already-linked accounts.
+function _nexusAttachOrCreatePrompt(email, accounts, onAttach, onCreate) {
+    if (document.getElementById('nexus-attach-modal')) return;
+    var esc = function (s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s) : String(s || ''); };
+    var opts = accounts.map(function (a) { return '<option value="' + esc(a) + '">' + esc(a) + '</option>'; }).join('');
+    var m = document.createElement('div');
+    m.id = 'nexus-attach-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.9);backdrop-filter:blur(8px);z-index:100070;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.innerHTML = '<div class="glass-panel" style="max-width:440px;width:100%;padding:26px 24px;border:1px solid rgba(108,92,231,0.4);border-radius:16px;">'
+        + '<div style="font-size:2rem;text-align:center;">👋</div>'
+        + '<h2 style="margin:8px 0 6px;font-size:1.2rem;color:#fff;text-align:center;">Is this you?</h2>'
+        + '<p style="margin:0 0 16px;color:var(--text-muted);font-size:0.88rem;line-height:1.6;text-align:center;">You\'re signing in as <strong>' + esc(email) + '</strong>. Attach it to an account you already have on this device so your progress carries over.</p>'
+        + '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Your existing account</label>'
+        + '<select id="nexus-attach-select" style="width:100%;box-sizing:border-box;padding:11px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:#fff;outline:none;font-size:0.95rem;margin-bottom:14px;">' + opts + '</select>'
+        + '<button id="nexus-attach-go" class="btn-primary" style="width:100%;"><i class="ph ph-link"></i> Attach &amp; sign in</button>'
+        + '<button id="nexus-attach-new" class="btn-secondary" style="width:100%;margin-top:8px;">This isn\'t me — create a new account</button>'
+        + '</div>';
+    document.body.appendChild(m);
+    document.getElementById('nexus-attach-go').onclick = function () {
+        var chosen = (document.getElementById('nexus-attach-select') || {}).value;
+        m.remove();
+        if (chosen && typeof onAttach === 'function') onAttach(chosen);
+    };
+    document.getElementById('nexus-attach-new').onclick = function () {
+        m.remove();
+        if (typeof onCreate === 'function') onCreate();
+    };
+}
+window._nexusAttachOrCreatePrompt = _nexusAttachOrCreatePrompt;
 // On return from Google OAuth there's a Supabase session but maybe no local
 // account yet — bootstrap one so the app opens signed in.
 async function _bootstrapCloudSession() {
@@ -689,15 +722,37 @@ async function _bootstrapCloudSession() {
             }
         } catch (_) { /* best-effort; fall through to a fresh profile */ }
 
-        // THIRD: genuinely new user — create a fresh local profile.
-        var uname = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || (email ? email.split('@')[0] : 'Scholar');
-        uname = String(uname).replace(/[^A-Za-z0-9_.\- ]/g, '').trim().slice(0, 32) || 'Scholar';
-        localStorage.setItem('auth_user', uname);
-        if (email) localStorage.setItem('auth_email_' + uname, email);
-        localStorage.setItem('auth_remember', '1');
-        if (typeof registerAuthAccount === 'function') registerAuthAccount(uname, 'oauth-google');
-        if (typeof completeLogin === 'function') completeLogin();
-        if (typeof showToast === 'function') showToast('Signed in as ' + uname + ' via Google', 'success', 4000);
+        // THIRD: no local link + no cloud backup. Mint a fresh profile — BUT
+        // first (v236) if this device already has other local accounts, ask the
+        // user whether to attach this login to one of them, so we never silently
+        // create a duplicate (the owner account's exact failure mode).
+        var mintFresh = function () {
+            var uname = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || (email ? email.split('@')[0] : 'Scholar');
+            uname = String(uname).replace(/[^A-Za-z0-9_.\- ]/g, '').trim().slice(0, 32) || 'Scholar';
+            localStorage.setItem('auth_user', uname);
+            if (email) localStorage.setItem('auth_email_' + uname, email);
+            localStorage.setItem('auth_remember', '1');
+            if (typeof registerAuthAccount === 'function') registerAuthAccount(uname, 'oauth-google');
+            if (typeof completeLogin === 'function') completeLogin();
+            if (typeof showToast === 'function') showToast('Signed in as ' + uname + ' via Google', 'success', 4000);
+        };
+        var reg = (typeof getAuthRegistry === 'function' ? getAuthRegistry() : null) || {};
+        var existing = Object.keys(reg);
+        if (existing.length && typeof _nexusAttachOrCreatePrompt === 'function') {
+            _nexusAttachOrCreatePrompt(email, existing, function (chosen) {
+                // ATTACH: bind this login to the chosen existing account so its
+                // progress carries over and future logins resolve via Step 1.
+                localStorage.setItem('auth_user', chosen);
+                if (email) { localStorage.setItem('auth_email_' + chosen, email); localStorage.setItem('auth_email', email); }
+                localStorage.setItem('auth_remember', '1');
+                if (typeof restoreAccountState === 'function') restoreAccountState(chosen);
+                if (typeof completeLogin === 'function') completeLogin();
+                try { if (typeof cloudUiBackup === 'function') cloudUiBackup(true); } catch (_) {}
+                if (typeof showToast === 'function') showToast('Signed in as ' + chosen + ' — this login is now linked to your account.', 'success', 4500);
+            }, mintFresh);
+        } else {
+            mintFresh();
+        }
     } catch (_) {}
 }
 document.addEventListener('DOMContentLoaded', function () { setTimeout(_bootstrapCloudSession, 900); });
@@ -20147,6 +20202,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v19.8',
+        date: 'July 28, 2026',
+        tag: 'UPDATE 19.8 — SIGN-IN SAFETY',
+        tagColor: '#55efc4',
+        changes: [
+            'NO MORE DUPLICATE ACCOUNTS — Signing in with Google when you already have an account on this device used to sometimes create a brand-new empty profile instead of opening your real one. Now it asks first: attach this login to your existing account (your progress carries over), or create a new one on purpose.',
+        ]
+    },
     {
         version: 'v19.7',
         date: 'July 28, 2026',
