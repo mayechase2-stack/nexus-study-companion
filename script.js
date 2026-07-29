@@ -855,6 +855,102 @@ async function cloudUiRestore() {
         });
     } catch (e) { showToast('Restore failed: ' + (e.message || e), 'error', 5000); }
 }
+
+// v237 — AUTOMATIC CLOUD SYNC. cloudUiBackup only fired on explicit events, so a
+// note saved and then opened on another device could be missing. This does a
+// silent pull-merge-push whenever the account's data actually changes (detected
+// cheaply on a timer + when the tab is hidden), so a device swap keeps the latest
+// notes/companion/flashcards. No-ops silently when there's no CLOUD session
+// (e.g. a local-only account) — those still get local per-account snapshots.
+var _cloudSyncing = false;
+function _cheapHash(str) { var h = 0; if (!str) return 0; for (var i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) | 0; } return h; }
+function _syncSignature() {
+    try {
+        var keys = ['notebook_notes', 'notebook_canvas', 'user_notes', 'companion_memory', 'nexus_mem_turns', 'nexus_profile_mem', 'flashcard_decks', 'tutor_session', 'total_xp', 'user_credits', 'user_inventory', 'study_sessions_v2', 'grade_courses'];
+        var sig = '';
+        for (var i = 0; i < keys.length; i++) { var v = localStorage.getItem(keys[i]); sig += keys[i] + ':' + (v ? v.length : 0) + ':' + _cheapHash(v) + '|'; }
+        return sig;
+    } catch (_) { return String(Date.now()); }
+}
+async function _autoCloudSync() {
+    if (_cloudSyncing) return;
+    _cloudSyncing = true;
+    try {
+        if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
+        if (!nexusSB) return;
+        var s = await nexusSB.auth.getSession();
+        var user = s && s.data && s.data.session && s.data.session.user;
+        if (!user) return; // no cloud session — nothing to push (local snapshot still protects this device)
+        var cloudBlob = await _fetchCloudBlob(user.id);
+        var merged = _mergeSyncBlobs(cloudBlob || {}, _collectSyncBlob(), true);
+        var up = await nexusSB.from('app_state').upsert({ user_id: user.id, data: merged, updated_at: new Date().toISOString() });
+        if (up && up.error) return;
+        localStorage.setItem('cloud_last_sync', new Date().toISOString());
+        localStorage.setItem('cloud_last_sig', _syncSignature());
+    } catch (_) { /* best-effort */ } finally { _cloudSyncing = false; }
+}
+window._autoCloudSync = _autoCloudSync;
+// Check every 15s; only touch the network when the data actually changed.
+setInterval(function () {
+    try {
+        if (!localStorage.getItem('auth_user')) return;
+        if (_syncSignature() !== (localStorage.getItem('cloud_last_sig') || '')) _autoCloudSync();
+    } catch (_) {}
+}, 15000);
+// Flush the moment the tab is hidden (closing / switching away / mobile background) —
+// more reliable than beforeunload for an async network call.
+document.addEventListener('visibilitychange', function () {
+    try {
+        if (document.visibilityState !== 'hidden') return;
+        if (!localStorage.getItem('auth_user')) return;
+        if (_syncSignature() !== (localStorage.getItem('cloud_last_sig') || '')) _autoCloudSync();
+    } catch (_) {}
+});
+
+// v237 — SERVER-SIDE SINGLE ACTIVE SESSION. Enforces "one person logged in at a
+// time": the newest login wins; an older session detects it was displaced and
+// signs out. Requires migration 0007_active_sessions.sql. Fails OPEN (no-op) if
+// the table is missing or there's no cloud session, so it can never lock a user
+// out by accident. The old enforceSingleSession() was localStorage-only and
+// couldn't see another device at all — this is the real, cross-device version.
+function _mySessionId() {
+    var id = sessionStorage.getItem('nexus_session_id');
+    if (!id) { id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); sessionStorage.setItem('nexus_session_id', id); }
+    return id;
+}
+async function _sessionUser() {
+    if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
+    if (!nexusSB) return null;
+    try { var s = await nexusSB.auth.getSession(); return (s && s.data && s.data.session && s.data.session.user) || null; } catch (_) { return null; }
+}
+async function _claimActiveSession() {
+    try {
+        var user = await _sessionUser(); if (!user) return;
+        await nexusSB.from('active_sessions').upsert({ user_id: user.id, session_id: _mySessionId(), updated_at: new Date().toISOString() });
+    } catch (_) { /* table missing / offline — fail open */ }
+}
+window._claimActiveSession = _claimActiveSession;
+var _sessionKicked = false;
+async function _checkActiveSession() {
+    if (_sessionKicked) return;
+    try {
+        var user = await _sessionUser(); if (!user) return;
+        var r = await nexusSB.from('active_sessions').select('session_id').eq('user_id', user.id).maybeSingle();
+        if (r && r.error) return;                                    // table missing etc → fail open
+        var owner = r && r.data && r.data.session_id;
+        if (!owner) { await _claimActiveSession(); return; }         // no row yet → claim it
+        if (owner === _mySessionId()) {                             // still mine → heartbeat the timestamp
+            try { await nexusSB.from('active_sessions').update({ updated_at: new Date().toISOString() }).eq('user_id', user.id); } catch (_) {}
+            return;
+        }
+        // Displaced by a newer login elsewhere → sign this device out.
+        _sessionKicked = true;
+        if (typeof showToast === 'function') showToast('Signed out — your account was just opened on another device. Only one active session is allowed at a time.', 'error', 9000);
+        setTimeout(function () { try { signOut(); } catch (_) {} }, 1800);
+    } catch (_) { /* fail open */ }
+}
+window._checkActiveSession = _checkActiveSession;
+setInterval(function () { if (localStorage.getItem('auth_user')) _checkActiveSession(); }, 30000);
 // Phase 2b — call the hosted AI proxy (Edge Function) using the signed-in cloud session.
 async function callHostedAI(opts) {
     opts = opts || {};
@@ -2857,6 +2953,13 @@ function completeLogin() {
     }
     // v11.0 — run single-session check shortly after login
     setTimeout(() => { enforceSingleSession(); }, 1500);
+    // v237 — claim the server-side single active session (newest login wins), then
+    // verify. Displaces any older device; no-ops without a cloud session/table.
+    setTimeout(() => {
+        if (typeof _claimActiveSession === 'function') {
+            _claimActiveSession().then(() => { if (typeof _checkActiveSession === 'function') _checkActiveSession(); });
+        }
+    }, 1800);
     // v10.7 — first-run onboarding tour
     if (!localStorage.getItem('onboarding_completed')) {
         setTimeout(() => { if (typeof startOnboarding === 'function') startOnboarding(); }, hasPaid() ? 800 : 4000);
@@ -2894,6 +2997,7 @@ const PER_USER_KEYS = [
     'quest_state', 'daily_claims_total', 'last_daily_claim',
     'last_app_open_day', 'difficulty_mode', 'notebook_notes',
     'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
+    'nexus_mem_turns', 'nexus_profile_mem', 'nexus_memory_enabled', // v237 — cross-tab "real memory" is now per-account too (was bleeding across accounts on a shared device)
     'study_planner', 'wod_saved_vocab', // v17.0
     'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
     'lv_awarded_problems', // v19 — Live Vision 30-credit awards are per problem per account
@@ -20202,6 +20306,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v19.9',
+        date: 'July 28, 2026',
+        tag: 'UPDATE 19.9 — YOUR DATA, EVERYWHERE',
+        tagColor: '#a29bfe',
+        changes: [
+            'AUTO CLOUD SYNC — Your notes, companion memory, and flashcards now save to the cloud automatically as you work and when you close the tab — so switching devices keeps your latest stuff instead of an older backup. (Needs a signed-in account.)',
+            'CLEANER ACCOUNT SEPARATION — On a shared device, your study memory (name, grade, recent topics) is now kept per-account like everything else, so different accounts never see each other\'s.',
+        ]
+    },
     {
         version: 'v19.8',
         date: 'July 28, 2026',
