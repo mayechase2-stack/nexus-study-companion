@@ -22,6 +22,16 @@
 -- SECTION 1 — SERVER-SIDE OWNER  (edit the email in BOTH lines below)
 -- Sign in to nexusasc.com at least once with this account first so it exists.
 -- ─────────────────────────────────────────────────────────────────────────
+-- Safety: older deployments created public.profiles before the tier/modules
+-- columns existed (create-table-if-not-exists then skipped them). Add any that
+-- are missing so the owner insert below can't fail with "column tier does not exist".
+alter table public.profiles add column if not exists tier text not null default 'free';
+alter table public.profiles add column if not exists modules text[] not null default '{}';
+alter table public.profiles add column if not exists username text;
+alter table public.profiles add column if not exists dob date;
+alter table public.profiles add column if not exists is_minor boolean default false;
+alter table public.profiles add column if not exists created_at timestamptz not null default now();
+
 insert into public.profiles (id, tier)
 select u.id, 'owner'
 from auth.users u
