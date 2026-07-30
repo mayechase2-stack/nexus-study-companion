@@ -1634,6 +1634,8 @@ html { scroll-behavior: smooth; font-size: 17px; } /* readability: raise rem bas
     border-radius: 16px;
     padding: 28px 32px;
     max-width: 380px;
+    max-height: 90vh;
+    overflow-y: auto;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }

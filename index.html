@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260728v237">
+    <link rel="stylesheet" href="style.css?v=20260728v238">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -748,7 +748,7 @@
 
         <!-- v12.0 — SIGN IN MODAL -->
         <div id="signin-modal" style="display:none;position:fixed;inset:0;background:rgba(5,5,15,0.85);backdrop-filter:blur(8px);z-index:99996;align-items:center;justify-content:center;padding:20px;">
-            <div class="glass-panel" style="max-width:440px;width:100%;padding:36px 32px;border:1px solid rgba(108,92,231,0.3);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+            <div class="glass-panel" style="max-width:440px;width:100%;padding:36px 32px;border:1px solid rgba(108,92,231,0.3);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6);max-height:90vh;overflow-y:auto;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
                     <h2 style="margin:0;color:white;font-size:1.6rem;">Welcome back</h2>
                     <button onclick="closeSignInModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;display:inline-flex;align-items:center;"><svg width="18" height="18"><use href="#ic-x"/></svg></button>
@@ -4946,7 +4946,7 @@ if __name__ == '__main__':
 
     <!-- Owner Pin Modal -->
     <div id="owner-pin-modal" class="modal hidden" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:999999;align-items:center;justify-content:center;padding:20px;">
-        <div class="glass-panel" style="max-width:420px;width:100%;padding:32px;border:1px solid rgba(255,215,0,0.3);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+        <div class="glass-panel" style="max-width:420px;width:100%;padding:32px;border:1px solid rgba(255,215,0,0.3);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6);max-height:90vh;overflow-y:auto;">
             <div style="text-align:center;margin-bottom:20px;">
                 <i class="ph ph-crown" style="font-size:2.5rem;color:#FFD700;"></i>
                 <h2 style="margin:12px 0 4px;color:white;font-size:1.4rem;">Owner Access</h2>
@@ -5162,7 +5162,7 @@ if __name__ == '__main__':
 
     <!-- ── CANCEL SUBSCRIPTION (v10.7) ── -->
     <div id="cancel-sub-modal" class="modal hidden" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:999998;align-items:center;justify-content:center;padding:20px;">
-        <div class="glass-panel" style="max-width:520px;width:100%;border:1px solid rgba(255,107,107,0.4);padding:24px;">
+        <div class="glass-panel" style="max-width:520px;width:100%;border:1px solid rgba(255,107,107,0.4);padding:24px;max-height:90vh;overflow-y:auto;">
             <h2 style="margin:0 0 8px;color:white;font-size:1.3rem;"><i class="ph ph-x-circle" style="color:#ff6b6b;"></i> Cancel subscription?</h2>
             <p style="color:var(--text-muted);font-size:0.9rem;margin:0 0 16px;line-height:1.55;">Your access will continue until the end of the current billing period. After that you'll lose Pro features (companions, achievements, leaderboard, command center, inventory).</p>
             <div style="background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:8px;padding:14px;margin-bottom:16px;">
@@ -5236,7 +5236,7 @@ if __name__ == '__main__':
 
     <!-- ── SUBMIT NEW SUGGESTION MODAL (v10.8) ── -->
     <div id="suggestion-submit-modal" class="modal hidden" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
-        <div class="glass-panel" style="max-width:560px;width:100%;border:1px solid rgba(108,92,231,0.4);padding:22px 24px;">
+        <div class="glass-panel" style="max-width:560px;width:100%;border:1px solid rgba(108,92,231,0.4);padding:22px 24px;max-height:90vh;overflow-y:auto;">
             <h2 style="margin:0 0 12px;color:white;font-size:1.2rem;"><i class="ph ph-plus-circle" style="color:var(--accent);"></i> Submit a suggestion</h2>
             <label style="color:var(--text-muted);font-size:0.78rem;display:block;margin-bottom:4px;">Category</label>
             <select id="sg-new-category" style="width:100%;padding:10px;margin-bottom:12px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:white;outline:none;">
@@ -5266,7 +5266,7 @@ if __name__ == '__main__':
 
     <!-- ── ACCOUNT BACKUP PROMPT (v12.0 — expanded explanation) ── -->
     <div id="account-backup-modal" class="modal hidden" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:999998;align-items:center;justify-content:center;padding:20px;">
-        <div class="glass-panel" style="max-width:560px;width:100%;border:1px solid rgba(0,206,201,0.5);padding:28px;">
+        <div class="glass-panel" style="max-width:560px;width:100%;border:1px solid rgba(0,206,201,0.5);padding:28px;max-height:90vh;overflow-y:auto;">
             <div style="text-align:center;">
                 <i class="ph ph-shield-warning" style="font-size:3rem;color:#FFD700;display:block;margin-bottom:10px;"></i>
                 <h2 style="margin:0 0 8px;color:white;font-size:1.3rem;">Save a backup of your account</h2>
@@ -5296,7 +5296,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260728v237"></script>
+    <script src="script.js?v=20260728v238"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

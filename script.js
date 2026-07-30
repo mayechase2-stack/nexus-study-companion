@@ -20307,6 +20307,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v19.9.1',
+        date: 'July 28, 2026',
+        tag: 'FIX — REACHABLE BUTTONS',
+        tagColor: '#ffeaa7',
+        changes: [
+            'POP-UPS NO LONGER CUT OFF — On shorter windows, a few dialogs (Sign In, confirmations, and others) could push their bottom buttons off the screen with no way to scroll to them. They now scroll inside the box so every button stays reachable.',
+        ]
+    },
+    {
         version: 'v19.9',
         date: 'July 28, 2026',
         tag: 'UPDATE 19.9 — YOUR DATA, EVERYWHERE',
