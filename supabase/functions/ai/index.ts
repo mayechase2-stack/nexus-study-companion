@@ -159,6 +159,21 @@ Deno.serve(async (req) => {
     else if (tier === "paid") monthlyLimit = PAID_MONTHLY;
   } catch { /* fall back to the verification-based limit */ }
 
+  // STRICT no-email gate (v19.7b): when monthlyLimit is 0 — i.e. ANON_MONTHLY=0
+  // and the caller is neither owner nor paid nor email-verified — block right
+  // here, BEFORE the ai_gate RPC. This is independent of how the deployed
+  // ai_gate function happens to treat a 0 limit (older versions allow it), so
+  // "no AI without a confirmed email" holds no matter the DB state.
+  if (monthlyLimit === 0) {
+    const hasUnconfirmedEmail = !!user?.email && user?.is_anonymous !== true;
+    return json({
+      error: hasUnconfirmedEmail
+        ? "NEXUS AI needs a verified email. Check your inbox for the confirmation link — it's free, and unlocks AI right away."
+        : "NEXUS AI needs a free account with a verified email. Sign up and confirm your email to unlock it.",
+      reason: hasUnconfirmedEmail ? "verify_email" : "make_account",
+    }, 429);
+  }
+
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
 
   // Per-IP monthly cap applies to the UNVERIFIED tier only; verified accounts
