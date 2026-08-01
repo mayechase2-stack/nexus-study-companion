@@ -1,0 +1,63 @@
+name: DB Backup
+
+# Free alternative to Supabase Pro backups. Dumps the public schema, encrypts it
+# (the repo is PUBLIC — a plaintext dump would leak user PII), and uploads it as
+# an artifact. Runs daily + on-demand.
+#
+# One-time setup — add two repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL   = the *Session pooler* connection string from Supabase
+#                       (Project Settings → Database → Connection string → Session
+#                       pooler). It is IPv4-compatible; the *direct* connection is
+#                       IPv6-only and will NOT work from GitHub runners. Put your DB
+#                       password in it (reset it under Settings → Database if unknown).
+#   BACKUP_PASSPHRASE = any passphrase you choose. SAVE IT (password manager) — you
+#                       need it to decrypt. Losing it means the backups are unreadable.
+#
+# To download + restore later:
+#   1. Actions → DB Backup → pick a run → download the artifact (a .sql.gz.gpg).
+#   2. gpg --decrypt --batch --passphrase 'YOURPASS' nexus-XXXX.sql.gz.gpg | gunzip > nexus.sql
+#   3. Restore into a Postgres DB with: psql "<target-db-url>" -f nexus.sql
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # daily at 06:17 UTC
+  workflow_dispatch: {}      # manual "Run workflow" button
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          set -euo pipefail
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump and encrypt
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ] || [ -z "${BACKUP_PASSPHRASE:-}" ]; then
+            echo "::error::Missing SUPABASE_DB_URL or BACKUP_PASSPHRASE secret — see the setup notes in this workflow file."
+            exit 1
+          fi
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          # --schema=public captures the app data (app_state, profiles, feedback,
+          # leaderboard, usage, active_sessions...). auth.* is Supabase-managed.
+          /usr/lib/postgresql/17/bin/pg_dump --no-owner --no-privileges --schema=public "$SUPABASE_DB_URL" \
+            | gzip \
+            | gpg --batch --yes --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 -o "nexus-$STAMP.sql.gz.gpg"
+          echo "Encrypted backup written: nexus-$STAMP.sql.gz.gpg ($(du -h "nexus-$STAMP.sql.gz.gpg" | cut -f1))"
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-db-backup-${{ env.STAMP }}
+          path: nexus-*.sql.gz.gpg
+          retention-days: 30
+          if-no-files-found: error
