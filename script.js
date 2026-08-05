@@ -190,6 +190,236 @@ async function fetchOwnerFeedback(limit) {
 }
 window.openFeedbackModal = openFeedbackModal;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTIFICATION & MESSAGING CENTER (v20.0)
+// One bell → three streams: Updates (owner announcements), Alerts (automated,
+// per-account, client-side), Support (two-way thread with the team).
+// SAFETY: every piece of user/owner text is rendered through escapeHtmlSafe —
+// nothing is ever injected as raw HTML (no XSS). Read isolation is enforced by
+// RLS in migration 0009 (a user can only ever read their own support thread).
+// ═══════════════════════════════════════════════════════════════════════════
+function _nEsc(s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s) : String(s == null ? '' : s); }
+async function _notifUser() {
+    try { if (!nexusSB && typeof _initSupabase === 'function') _initSupabase(); if (!nexusSB) return null;
+        var s = await nexusSB.auth.getSession(); return (s && s.data && s.data.session && s.data.session.user) || null; } catch (_) { return null; }
+}
+function _timeAgo(ts) {
+    var d = (typeof ts === 'number') ? ts : Date.parse(ts); if (!d) return '';
+    var s = Math.floor((Date.now() - d) / 1000);
+    if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago'; return Math.floor(s / 86400) + 'd ago';
+}
+
+// ---- Announcements (owner → everyone) ----
+async function fetchAnnouncements() {
+    try { if (!nexusSB && typeof _initSupabase === 'function') _initSupabase(); if (!nexusSB) return [];
+        var q = await nexusSB.from('announcements').select('id,title,body,created_at').eq('active', true).order('created_at', { ascending: false }).limit(30);
+        return (q && q.data) || []; } catch (_) { return []; }
+}
+async function postAnnouncement(title, body) {
+    try { if (!nexusSB) return { ok: false, error: 'offline' };
+        var r = await nexusSB.from('announcements').insert({ title: String(title || '').slice(0, 140), body: String(body || '').slice(0, 4000) });
+        return { ok: !(r && r.error), error: r && r.error && r.error.message }; } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+
+// ---- Alerts (system → user; client-side, per-account) ----
+function _getAlerts() { try { return JSON.parse(localStorage.getItem('nexus_alerts') || '[]'); } catch (_) { return []; } }
+function _saveAlerts(a) { try { localStorage.setItem('nexus_alerts', JSON.stringify(a.slice(0, 40))); } catch (_) {} }
+function pushLocalAlert(key, icon, text) {
+    var a = _getAlerts();
+    if (a.some(function (x) { return x.key === key; })) return false;   // dedupe
+    a.unshift({ key: key, icon: icon || 'ph-bell', text: String(text || '').slice(0, 220), ts: Date.now(), read: false });
+    _saveAlerts(a); if (typeof updateNotifBadge === 'function') updateNotifBadge(); return true;
+}
+function generateAutoAlerts() {
+    try {
+        if (!localStorage.getItem('auth_user')) return;
+        var today = new Date().toISOString().slice(0, 10);
+        try { var decks = JSON.parse(localStorage.getItem('flashcard_decks') || '[]'); var due = 0;
+            (decks || []).forEach(function (d) { (d.cards || []).forEach(function (c) { if (c && c.due && new Date(c.due) <= new Date()) due++; }); });
+            if (due > 0) pushLocalAlert('cards-due-' + today, 'ph-cards', due + ' flashcard' + (due > 1 ? 's' : '') + ' due for review today.'); } catch (_) {}
+        try { var streak = parseInt(localStorage.getItem('streak_count') || '0', 10); var last = localStorage.getItem('last_study_date') || '';
+            if (streak > 0 && last && last.slice(0, 10) !== today) pushLocalAlert('streak-' + today, 'ph-flame', 'Your ' + streak + '-day streak is at risk — study something today to keep it.'); } catch (_) {}
+    } catch (_) {}
+}
+
+// ---- Support (two-way user ↔ owner) ----
+async function sendSupportMessage(body) {
+    try { var user = await _notifUser(); if (!user) return { ok: false, error: 'Sign in to message support.' };
+        var r = await nexusSB.from('support_messages').insert({ user_id: user.id, sender: 'user', body: String(body || '').slice(0, 2000) });
+        return { ok: !(r && r.error), error: r && r.error && r.error.message }; } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+async function fetchMySupportThread() {
+    try { var user = await _notifUser(); if (!user) return [];
+        var q = await nexusSB.from('support_messages').select('id,sender,body,created_at').eq('user_id', user.id).order('created_at', { ascending: true }).limit(200);
+        return (q && q.data) || []; } catch (_) { return []; }
+}
+async function fetchAllSupportThreads() {   // owner
+    try { var q = await nexusSB.from('support_messages').select('id,user_id,sender,body,created_at').order('created_at', { ascending: false }).limit(400);
+        return (q && q.data) || []; } catch (_) { return []; }
+}
+async function ownerReplySupport(userId, body) {
+    try { var r = await nexusSB.from('support_messages').insert({ user_id: userId, sender: 'owner', body: String(body || '').slice(0, 2000) });
+        return { ok: !(r && r.error), error: r && r.error && r.error.message }; } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+
+// ---- Unread badge ----
+async function _computeUnread() {
+    var out = { updates: 0, alerts: 0, support: 0, _anns: [], _thread: [] };
+    try {
+        out._anns = await fetchAnnouncements();
+        var lastAnn = parseInt(localStorage.getItem('notif_last_seen_ann') || '0', 10);
+        out.updates = out._anns.filter(function (a) { return a.id > lastAnn; }).length;
+        out.alerts = _getAlerts().filter(function (x) { return !x.read; }).length;
+        out._thread = await fetchMySupportThread();
+        var lastSup = parseInt(localStorage.getItem('support_last_seen') || '0', 10);
+        out.support = out._thread.filter(function (m) { return m.sender === 'owner' && m.id > lastSup; }).length;
+    } catch (_) {}
+    return out;
+}
+async function updateNotifBadge() {
+    try { var u = await _computeUnread(); var total = u.updates + u.alerts + u.support;
+        var b = document.getElementById('notif-badge');
+        if (b) { if (total > 0) { b.textContent = total > 9 ? '9+' : String(total); b.style.display = 'flex'; } else { b.style.display = 'none'; } }
+    } catch (_) {}
+}
+window.updateNotifBadge = updateNotifBadge;
+
+// ---- Notification center UI ----
+var _notifTab = 'updates';
+async function openNotificationCenter() {
+    var existing = document.getElementById('notif-modal'); if (existing) existing.remove();
+    var owner = (typeof isOwner === 'function') && isOwner();
+    var m = document.createElement('div');
+    m.id = 'notif-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.82);backdrop-filter:blur(8px);z-index:100065;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:520px;width:100%;max-height:82vh;overflow-y:auto;padding:0;border:1px solid rgba(108,92,231,0.4);border-radius:16px;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--glass-border);position:sticky;top:0;background:rgba(20,20,35,0.96);z-index:2;">'
+        + '<h3 style="margin:0;color:#fff;font-size:1.05rem;"><i class="ph ph-bell" style="color:#a29bfe;"></i> Notifications</h3>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'notif-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div id="notif-tabs" style="display:flex;gap:4px;padding:10px 14px 0;"></div>'
+        + '<div id="notif-body" style="padding:12px 16px 18px;min-height:180px;">Loading…</div>'
+        + '</div>';
+    document.body.appendChild(m);
+    _renderNotifTabs(owner);
+    _renderNotifBody(owner);
+}
+window.openNotificationCenter = openNotificationCenter;
+function _renderNotifTabs(owner) {
+    var tabs = [['updates', 'Updates', 'ph-megaphone'], ['alerts', 'Alerts', 'ph-bell-ringing'], ['support', 'Support', 'ph-chat-teardrop-dots']];
+    var el = document.getElementById('notif-tabs'); if (!el) return;
+    el.innerHTML = tabs.map(function (t) {
+        var on = _notifTab === t[0];
+        return '<button onclick="_switchNotifTab(\'' + t[0] + '\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-size:0.82rem;font-weight:600;'
+            + (on ? 'background:rgba(108,92,231,0.25);color:#fff;' : 'background:transparent;color:var(--text-muted);') + '">'
+            + '<i class="ph ' + t[2] + '"></i> ' + t[1] + '</button>';
+    }).join('');
+}
+function _switchNotifTab(tab) { _notifTab = tab; var owner = (typeof isOwner === 'function') && isOwner(); _renderNotifTabs(owner); _renderNotifBody(owner); }
+window._switchNotifTab = _switchNotifTab;
+async function _renderNotifBody(owner) {
+    var body = document.getElementById('notif-body'); if (!body) return;
+    body.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:20px 0;text-align:center;">Loading…</div>';
+    if (_notifTab === 'updates') {
+        var anns = await fetchAnnouncements();
+        try { if (anns.length) localStorage.setItem('notif_last_seen_ann', String(anns[0].id)); } catch (_) {}
+        var composer = owner ? '<div style="margin-bottom:14px;padding:12px;background:rgba(108,92,231,0.08);border:1px solid rgba(108,92,231,0.3);border-radius:10px;">'
+            + '<div style="font-size:0.8rem;color:#fff;font-weight:600;margin-bottom:6px;"><i class="ph ph-paper-plane-tilt"></i> Post an announcement</div>'
+            + '<input id="ann-title" maxlength="140" placeholder="Title" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.85rem;">'
+            + '<textarea id="ann-body" maxlength="4000" placeholder="Message to all users…" style="width:100%;box-sizing:border-box;padding:8px;height:60px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.85rem;resize:vertical;"></textarea>'
+            + '<button class="btn-primary" style="width:100%;margin-top:6px;font-size:0.82rem;" onclick="_submitAnnouncement()">Broadcast to everyone</button></div>' : '';
+        var list = anns.length ? anns.map(function (a) {
+            return '<div style="padding:11px 12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border-left:3px solid #a29bfe;border-radius:8px;">'
+                + '<div style="display:flex;justify-content:space-between;gap:8px;"><strong style="color:#fff;font-size:0.9rem;">' + _nEsc(a.title) + '</strong>'
+                + '<span style="color:var(--text-muted);font-size:0.72rem;white-space:nowrap;">' + _timeAgo(a.created_at) + '</span></div>'
+                + '<div style="color:#cdd2e0;font-size:0.83rem;line-height:1.5;margin-top:4px;white-space:pre-wrap;">' + _nEsc(a.body) + '</div></div>';
+        }).join('') : '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px 0;">No announcements yet.</div>';
+        body.innerHTML = composer + list;
+        if (typeof updateNotifBadge === 'function') updateNotifBadge();
+    } else if (_notifTab === 'alerts') {
+        generateAutoAlerts();
+        var alerts = _getAlerts();
+        try { var a2 = alerts.map(function (x) { x.read = true; return x; }); _saveAlerts(a2); } catch (_) {}
+        body.innerHTML = alerts.length ? alerts.map(function (x) {
+            return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;margin-bottom:6px;background:rgba(255,255,255,0.03);border-radius:8px;">'
+                + '<i class="ph ' + _nEsc(x.icon) + '" style="color:#fdcb6e;font-size:1.1rem;margin-top:1px;"></i>'
+                + '<div style="flex:1;"><div style="color:#dde0ee;font-size:0.84rem;line-height:1.45;">' + _nEsc(x.text) + '</div>'
+                + '<div style="color:var(--text-muted);font-size:0.72rem;margin-top:2px;">' + _timeAgo(x.ts) + '</div></div></div>';
+        }).join('') + '<button class="btn-secondary" style="width:100%;margin-top:6px;font-size:0.78rem;" onclick="localStorage.removeItem(\'nexus_alerts\');_switchNotifTab(\'alerts\');">Clear alerts</button>'
+            : '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px 0;">No alerts right now — you\'re all caught up. 🎉</div>';
+        if (typeof updateNotifBadge === 'function') updateNotifBadge();
+    } else if (_notifTab === 'support') {
+        if (owner) { await _renderOwnerSupport(body); return; }
+        var thread = await fetchMySupportThread();
+        try { var maxOwner = 0; thread.forEach(function (mm) { if (mm.sender === 'owner' && mm.id > maxOwner) maxOwner = mm.id; }); if (maxOwner) localStorage.setItem('support_last_seen', String(maxOwner)); } catch (_) {}
+        var msgs = thread.length ? thread.map(function (mm) {
+            var me = mm.sender === 'user';
+            return '<div style="display:flex;justify-content:' + (me ? 'flex-end' : 'flex-start') + ';margin-bottom:8px;">'
+                + '<div style="max-width:78%;padding:9px 12px;border-radius:12px;font-size:0.84rem;line-height:1.45;white-space:pre-wrap;'
+                + (me ? 'background:rgba(108,92,231,0.35);color:#fff;border-bottom-right-radius:4px;' : 'background:rgba(255,255,255,0.06);color:#dde0ee;border-bottom-left-radius:4px;') + '">'
+                + (me ? '' : '<div style="font-size:0.68rem;color:#a29bfe;font-weight:700;margin-bottom:2px;">NEXUS Team</div>')
+                + _nEsc(mm.body) + '</div></div>';
+        }).join('') : '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:14px 0;">Questions or problems? Message the team — we read every one.</div>';
+        body.innerHTML = '<div style="max-height:38vh;overflow-y:auto;margin-bottom:10px;">' + msgs + '</div>'
+            + '<div style="display:flex;gap:6px;"><textarea id="support-input" maxlength="2000" placeholder="Type a message…" style="flex:1;box-sizing:border-box;padding:9px;height:44px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.85rem;resize:none;"></textarea>'
+            + '<button class="btn-primary" style="padding:0 14px;" onclick="_submitSupport()"><i class="ph ph-paper-plane-tilt"></i></button></div>';
+        if (typeof updateNotifBadge === 'function') updateNotifBadge();
+    }
+}
+async function _renderOwnerSupport(body) {
+    var all = await fetchAllSupportThreads();
+    var byUser = {};
+    all.forEach(function (mm) { (byUser[mm.user_id] = byUser[mm.user_id] || []).push(mm); });
+    var ids = Object.keys(byUser);
+    if (!ids.length) { body.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px 0;">No support messages yet (or table 0009 not created).</div>'; return; }
+    body.innerHTML = ids.map(function (uid) {
+        var msgs = byUser[uid].slice().sort(function (a, b) { return Date.parse(a.created_at) - Date.parse(b.created_at); });
+        var head = uid.slice(0, 8);
+        var thread = msgs.map(function (mm) {
+            var isU = mm.sender === 'user';
+            return '<div style="font-size:0.8rem;line-height:1.4;margin:3px 0;color:' + (isU ? '#dde0ee' : '#a29bfe') + ';"><strong>' + (isU ? 'User' : 'You') + ':</strong> ' + _nEsc(mm.body) + '</div>';
+        }).join('');
+        return '<div style="padding:10px 12px;margin-bottom:10px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;">'
+            + '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Thread · user ' + _nEsc(head) + '…</div>' + thread
+            + '<div style="display:flex;gap:6px;margin-top:6px;"><input data-uid="' + _nEsc(uid) + '" class="owner-reply-input" maxlength="2000" placeholder="Reply…" style="flex:1;box-sizing:border-box;padding:7px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:7px;color:#fff;font-size:0.82rem;">'
+            + '<button class="btn-primary" style="padding:0 12px;font-size:0.8rem;" onclick="_ownerReply(this)">Send</button></div></div>';
+    }).join('');
+}
+async function _submitAnnouncement() {
+    var t = (document.getElementById('ann-title') || {}).value || '';
+    var b = (document.getElementById('ann-body') || {}).value || '';
+    if (!t.trim() || !b.trim()) { if (typeof showToast === 'function') showToast('Add a title and message.', 'error'); return; }
+    var r = await postAnnouncement(t, b);
+    if (typeof showToast === 'function') showToast(r.ok ? '📣 Announcement posted to everyone.' : ('Failed: ' + (r.error || 'unknown')), r.ok ? 'success' : 'error', 4000);
+    if (r.ok) _switchNotifTab('updates');
+}
+window._submitAnnouncement = _submitAnnouncement;
+async function _submitSupport() {
+    var inp = document.getElementById('support-input'); if (!inp) return;
+    var v = inp.value || ''; if (!v.trim()) return;
+    inp.value = ''; inp.disabled = true;
+    var r = await sendSupportMessage(v);
+    inp.disabled = false;
+    if (!r.ok) { if (typeof showToast === 'function') showToast('Could not send: ' + (r.error || 'sign in first'), 'error', 4000); inp.value = v; return; }
+    _switchNotifTab('support');
+}
+window._submitSupport = _submitSupport;
+async function _ownerReply(btn) {
+    var inp = btn.previousElementSibling; if (!inp) return;
+    var uid = inp.getAttribute('data-uid'); var v = inp.value || ''; if (!v.trim()) return;
+    inp.disabled = true;
+    var r = await ownerReplySupport(uid, v); inp.disabled = false;
+    if (typeof showToast === 'function') showToast(r.ok ? 'Reply sent.' : ('Failed: ' + (r.error || '')), r.ok ? 'success' : 'error', 3000);
+    if (r.ok) _switchNotifTab('support');
+}
+window._ownerReply = _ownerReply;
+// Init: seed alerts + badge shortly after load, then refresh periodically.
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () { try { generateAutoAlerts(); updateNotifBadge(); } catch (_) {} }, 3500);
+    setInterval(function () { if (localStorage.getItem('auth_user')) { try { generateAutoAlerts(); updateNotifBadge(); } catch (_) {} } }, 120000);
+});
+
 // v19.3 — owner-only: pull the aggregated client-error feed from Supabase.
 // RLS returns rows only when the caller's profile tier is 'owner'; everyone
 // else gets an empty array. Used by the Diagnostics modal.
@@ -2092,7 +2322,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // TIER SYSTEM (Access / Pro / Owner) — v9.0
 // Free tier removed — paid-access only. Default tier for new buyers is 'access'.
 // ============================================================
-const OWNER_PIN_CODE = 'F@Mily4EVER';
+// v20.0 — PIN no longer stored in plaintext. SHA-256 hash only (matches
+// hashPassword). The plaintext lives in Chase's password manager. Anyone reading
+// script.js can no longer just read the PIN off the page.
+const OWNER_PIN_HASH = '5c54c1ca54cf334626f51b421387612c1f9cbe6074fbc9f0e43392018657f8bf';
 const OWNER_MAX_USERS = 5;
 const ACCESS_STARTER_GOLD = 100;
 const PRO_STARTER_GOLD = 300;
@@ -2164,8 +2397,8 @@ function getOwnerUsers() {
     catch { return []; }
 }
 
-function tryActivateOwnerAccess(username, pin) {
-    if (pin !== OWNER_PIN_CODE) return { ok: false, reason: 'invalid' };
+async function tryActivateOwnerAccess(username, pin) {
+    if ((await hashPassword(pin)) !== OWNER_PIN_HASH) return { ok: false, reason: 'invalid' };
     const users = getOwnerUsers();
     if (users.includes(username)) {
         // Already activated for this user — just refresh tier
@@ -2998,6 +3231,7 @@ const PER_USER_KEYS = [
     'last_app_open_day', 'difficulty_mode', 'notebook_notes',
     'streak_freeze_count', 'streak_freeze_pending_toast', 'companion_memory', // v16.5
     'nexus_mem_turns', 'nexus_profile_mem', 'nexus_memory_enabled', // v237 — cross-tab "real memory" is now per-account too (was bleeding across accounts on a shared device)
+    'nexus_alerts', 'notif_last_seen_ann', 'support_last_seen', // v20.0 — notification/messaging read-state is per-account
     'study_planner', 'wod_saved_vocab', // v17.0
     'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
     'lv_awarded_problems', // v19 — Live Vision 30-credit awards are per problem per account
@@ -3205,7 +3439,7 @@ function closeOwnerPinModal() {
     }
 }
 
-function submitOwnerPin() {
+async function submitOwnerPin() {
     const pin = document.getElementById('owner-pin-input').value;
     const freshCheckbox = document.getElementById('owner-fresh-account');
     const wantFresh = freshCheckbox ? freshCheckbox.checked : false;
@@ -3221,7 +3455,7 @@ function submitOwnerPin() {
         const desiredName = (document.getElementById('owner-fresh-username')?.value || '').trim();
         const newName = desiredName || ('owner-test-' + Date.now().toString(36));
 
-        if (pin !== OWNER_PIN_CODE) {
+        if ((await hashPassword(pin)) !== OWNER_PIN_HASH) {
             showToast('Invalid pin code.', 'error', 3000);
             return;
         }
@@ -3243,7 +3477,7 @@ function submitOwnerPin() {
         localStorage.setItem('auth_pass', 'TEST_ACCOUNT_NO_PASSWORD');
         registerAuthAccount(newName, 'TEST_ACCOUNT_NO_PASSWORD');
 
-        const result = tryActivateOwnerAccess(newName, pin);
+        const result = await tryActivateOwnerAccess(newName, pin);
         if (!result.ok) {
             showToast('Owner activation failed: ' + (result.reason || 'unknown'), 'error', 4000);
             return;
@@ -3260,7 +3494,7 @@ function submitOwnerPin() {
 
     // Original behavior — elevate the current account
     const user = localStorage.getItem('auth_user') || ('owner-' + (Date.now()).toString(36));
-    const result = tryActivateOwnerAccess(user, pin);
+    const result = await tryActivateOwnerAccess(user, pin);
     if (!result.ok) {
         if (result.reason === 'invalid') {
             showToast('Invalid pin code.', 'error', 3000);
@@ -20306,6 +20540,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v20.0',
+        date: 'July 28, 2026',
+        tag: 'UPDATE 20 — NOTIFICATIONS & MESSAGES',
+        tagColor: '#00cec9',
+        changes: [
+            'NOTIFICATION CENTER — A new bell in the sidebar with three streams: Updates (news from the NEXUS team), Alerts (your own reminders — flashcards due, streak at risk), and Support. An unread badge tells you when something\'s new.',
+            'MESSAGE THE TEAM — The Support tab is a real two-way conversation: send a question or problem and get a reply right in the app. We read every message.',
+            'SMART REMINDERS — NEXUS now nudges you when flashcards are due or your streak is about to break — automatically, and private to your account.',
+            'SECURITY — Hardened the owner sign-in (no secret stored in plain text anymore) and locked every message down so only you and the team can ever see your support thread.',
+        ]
+    },
     {
         version: 'v19.9.1',
         date: 'July 28, 2026',
