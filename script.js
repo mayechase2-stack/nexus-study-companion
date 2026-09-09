@@ -191,12 +191,14 @@ async function fetchOwnerFeedback(limit) {
 window.openFeedbackModal = openFeedbackModal;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// NOTIFICATION & MESSAGING CENTER (v20.0)
-// One bell → three streams: Updates (owner announcements), Alerts (automated,
-// per-account, client-side), Support (two-way thread with the team).
-// SAFETY: every piece of user/owner text is rendered through escapeHtmlSafe —
-// nothing is ever injected as raw HTML (no XSS). Read isolation is enforced by
-// RLS in migration 0009 (a user can only ever read their own support thread).
+// NOTIFICATION CENTER (v20.0, v20.3)
+// One bell → two streams: Updates (owner announcements) and Alerts (automated,
+// per-account, client-side). NO user↔owner messaging on purpose (v20.3) — a
+// private DM channel with minors is a predator/liability risk; students use the
+// one-way Feedback instead.
+// SAFETY: every piece of owner text is rendered through escapeHtmlSafe —
+// nothing is ever injected as raw HTML (no XSS). Only migration 0009's
+// `announcements` table is used (read-all / write-owner via RLS).
 // ═══════════════════════════════════════════════════════════════════════════
 function _nEsc(s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s) : String(s == null ? '' : s); }
 async function _notifUser() {
@@ -243,25 +245,10 @@ function generateAutoAlerts() {
     } catch (_) {}
 }
 
-// ---- Support (two-way user ↔ owner) ----
-async function sendSupportMessage(body) {
-    try { var user = await _notifUser(); if (!user) return { ok: false, error: 'Sign in to message support.' };
-        var r = await nexusSB.from('support_messages').insert({ user_id: user.id, sender: 'user', body: String(body || '').slice(0, 2000) });
-        return { ok: !(r && r.error), error: r && r.error && r.error.message }; } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
-}
-async function fetchMySupportThread() {
-    try { var user = await _notifUser(); if (!user) return [];
-        var q = await nexusSB.from('support_messages').select('id,sender,body,created_at').eq('user_id', user.id).order('created_at', { ascending: true }).limit(200);
-        return (q && q.data) || []; } catch (_) { return []; }
-}
-async function fetchAllSupportThreads() {   // owner
-    try { var q = await nexusSB.from('support_messages').select('id,user_id,sender,body,created_at').order('created_at', { ascending: false }).limit(400);
-        return (q && q.data) || []; } catch (_) { return []; }
-}
-async function ownerReplySupport(userId, body) {
-    try { var r = await nexusSB.from('support_messages').insert({ user_id: userId, sender: 'owner', body: String(body || '').slice(0, 2000) });
-        return { ok: !(r && r.error), error: r && r.error && r.error.message }; } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
-}
+// ---- (v20.3) Two-way Support messaging REMOVED on purpose. A private
+// back-and-forth channel between minors and an adult account is a
+// predator/liability risk we won't take on. Students still reach the team
+// through the existing ONE-WAY Feedback (send only, no DM channel opens). ----
 
 // ---- Unread badge ----
 async function _computeUnread() {
@@ -271,9 +258,6 @@ async function _computeUnread() {
         var lastAnn = parseInt(localStorage.getItem('notif_last_seen_ann') || '0', 10);
         out.updates = out._anns.filter(function (a) { return a.id > lastAnn; }).length;
         out.alerts = _getAlerts().filter(function (x) { return !x.read; }).length;
-        out._thread = await fetchMySupportThread();
-        var lastSup = parseInt(localStorage.getItem('support_last_seen') || '0', 10);
-        out.support = out._thread.filter(function (m) { return m.sender === 'owner' && m.id > lastSup; }).length;
     } catch (_) {}
     return out;
 }
@@ -307,7 +291,7 @@ async function openNotificationCenter() {
 }
 window.openNotificationCenter = openNotificationCenter;
 function _renderNotifTabs(owner) {
-    var tabs = [['updates', 'Updates', 'ph-megaphone'], ['alerts', 'Alerts', 'ph-bell-ringing'], ['support', 'Support', 'ph-chat-teardrop-dots']];
+    var tabs = [['updates', 'Updates', 'ph-megaphone'], ['alerts', 'Alerts', 'ph-bell-ringing']];
     var el = document.getElementById('notif-tabs'); if (!el) return;
     el.innerHTML = tabs.map(function (t) {
         var on = _notifTab === t[0];
@@ -349,42 +333,7 @@ async function _renderNotifBody(owner) {
         }).join('') + '<button class="btn-secondary" style="width:100%;margin-top:6px;font-size:0.78rem;" onclick="localStorage.removeItem(\'nexus_alerts\');_switchNotifTab(\'alerts\');">Clear alerts</button>'
             : '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px 0;">No alerts right now — you\'re all caught up. 🎉</div>';
         if (typeof updateNotifBadge === 'function') updateNotifBadge();
-    } else if (_notifTab === 'support') {
-        if (owner) { await _renderOwnerSupport(body); return; }
-        var thread = await fetchMySupportThread();
-        try { var maxOwner = 0; thread.forEach(function (mm) { if (mm.sender === 'owner' && mm.id > maxOwner) maxOwner = mm.id; }); if (maxOwner) localStorage.setItem('support_last_seen', String(maxOwner)); } catch (_) {}
-        var msgs = thread.length ? thread.map(function (mm) {
-            var me = mm.sender === 'user';
-            return '<div style="display:flex;justify-content:' + (me ? 'flex-end' : 'flex-start') + ';margin-bottom:8px;">'
-                + '<div style="max-width:78%;padding:9px 12px;border-radius:12px;font-size:0.84rem;line-height:1.45;white-space:pre-wrap;'
-                + (me ? 'background:rgba(108,92,231,0.35);color:#fff;border-bottom-right-radius:4px;' : 'background:rgba(255,255,255,0.06);color:#dde0ee;border-bottom-left-radius:4px;') + '">'
-                + (me ? '' : '<div style="font-size:0.68rem;color:#a29bfe;font-weight:700;margin-bottom:2px;">NEXUS Team</div>')
-                + _nEsc(mm.body) + '</div></div>';
-        }).join('') : '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:14px 0;">Questions or problems? Message the team — we read every one.</div>';
-        body.innerHTML = '<div style="max-height:38vh;overflow-y:auto;margin-bottom:10px;">' + msgs + '</div>'
-            + '<div style="display:flex;gap:6px;"><textarea id="support-input" maxlength="2000" placeholder="Type a message…" style="flex:1;box-sizing:border-box;padding:9px;height:44px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:0.85rem;resize:none;"></textarea>'
-            + '<button class="btn-primary" style="padding:0 14px;" onclick="_submitSupport()"><i class="ph ph-paper-plane-tilt"></i></button></div>';
-        if (typeof updateNotifBadge === 'function') updateNotifBadge();
     }
-}
-async function _renderOwnerSupport(body) {
-    var all = await fetchAllSupportThreads();
-    var byUser = {};
-    all.forEach(function (mm) { (byUser[mm.user_id] = byUser[mm.user_id] || []).push(mm); });
-    var ids = Object.keys(byUser);
-    if (!ids.length) { body.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:20px 0;">No support messages yet (or table 0009 not created).</div>'; return; }
-    body.innerHTML = ids.map(function (uid) {
-        var msgs = byUser[uid].slice().sort(function (a, b) { return Date.parse(a.created_at) - Date.parse(b.created_at); });
-        var head = uid.slice(0, 8);
-        var thread = msgs.map(function (mm) {
-            var isU = mm.sender === 'user';
-            return '<div style="font-size:0.8rem;line-height:1.4;margin:3px 0;color:' + (isU ? '#dde0ee' : '#a29bfe') + ';"><strong>' + (isU ? 'User' : 'You') + ':</strong> ' + _nEsc(mm.body) + '</div>';
-        }).join('');
-        return '<div style="padding:10px 12px;margin-bottom:10px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;">'
-            + '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Thread · user ' + _nEsc(head) + '…</div>' + thread
-            + '<div style="display:flex;gap:6px;margin-top:6px;"><input data-uid="' + _nEsc(uid) + '" class="owner-reply-input" maxlength="2000" placeholder="Reply…" style="flex:1;box-sizing:border-box;padding:7px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:7px;color:#fff;font-size:0.82rem;">'
-            + '<button class="btn-primary" style="padding:0 12px;font-size:0.8rem;" onclick="_ownerReply(this)">Send</button></div></div>';
-    }).join('');
 }
 async function _submitAnnouncement() {
     var t = (document.getElementById('ann-title') || {}).value || '';
@@ -395,25 +344,6 @@ async function _submitAnnouncement() {
     if (r.ok) _switchNotifTab('updates');
 }
 window._submitAnnouncement = _submitAnnouncement;
-async function _submitSupport() {
-    var inp = document.getElementById('support-input'); if (!inp) return;
-    var v = inp.value || ''; if (!v.trim()) return;
-    inp.value = ''; inp.disabled = true;
-    var r = await sendSupportMessage(v);
-    inp.disabled = false;
-    if (!r.ok) { if (typeof showToast === 'function') showToast('Could not send: ' + (r.error || 'sign in first'), 'error', 4000); inp.value = v; return; }
-    _switchNotifTab('support');
-}
-window._submitSupport = _submitSupport;
-async function _ownerReply(btn) {
-    var inp = btn.previousElementSibling; if (!inp) return;
-    var uid = inp.getAttribute('data-uid'); var v = inp.value || ''; if (!v.trim()) return;
-    inp.disabled = true;
-    var r = await ownerReplySupport(uid, v); inp.disabled = false;
-    if (typeof showToast === 'function') showToast(r.ok ? 'Reply sent.' : ('Failed: ' + (r.error || '')), r.ok ? 'success' : 'error', 3000);
-    if (r.ok) _switchNotifTab('support');
-}
-window._ownerReply = _ownerReply;
 // Init: seed alerts + badge shortly after load, then refresh periodically.
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () { try { generateAutoAlerts(); updateNotifBadge(); } catch (_) {} }, 3500);
@@ -20900,6 +20830,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v20.3',
+        date: 'September 9, 2026',
+        tag: 'SAFETY',
+        tagColor: '#ff7675',
+        changes: [
+            'SAFER BY DESIGN — Removed the in-app two-way messaging channel. A private back-and-forth between students and staff isn\'t a risk we\'ll take in a study app for minors. You can still send feedback anytime (one-way), and team announcements still show up in your Notifications bell.',
+        ]
+    },
+    {
         version: 'v20.2',
         date: 'September 9, 2026',
         tag: 'FIX — TEACHING BOARD POLISH',
@@ -20925,8 +20864,7 @@ const UPDATE_LOG = [
         tag: 'UPDATE 20 — NOTIFICATIONS & MESSAGES',
         tagColor: '#00cec9',
         changes: [
-            'NOTIFICATION CENTER — A new bell in the sidebar with three streams: Updates (news from the NEXUS team), Alerts (your own reminders — flashcards due, streak at risk), and Support. An unread badge tells you when something\'s new.',
-            'MESSAGE THE TEAM — The Support tab is a real two-way conversation: send a question or problem and get a reply right in the app. We read every message.',
+            'NOTIFICATION CENTER — A new bell in the sidebar with two streams: Updates (news from the NEXUS team) and Alerts (your own reminders — flashcards due, streak at risk). An unread badge tells you when something\'s new.',
             'SMART REMINDERS — NEXUS now nudges you when flashcards are due or your streak is about to break — automatically, and private to your account.',
             'SECURITY — Hardened the owner sign-in (no secret stored in plain text anymore) and locked every message down so only you and the team can ever see your support thread.',
         ]

@@ -1,9 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- NEXUS — 0009 MESSAGING (announcements + two-way support)  v20.0
+-- NEXUS — 0009 ANNOUNCEMENTS  (v20.0 → trimmed v20.3)
 -- Run once in Supabase → SQL Editor. Idempotent. No `ai` redeploy needed.
 --
--- SAFETY IS THE POINT of this migration. The RLS policies below are what stop
--- one student from reading another's support messages. Do not loosen them.
+-- v20.3: the two-way support_messages table was REMOVED from this migration.
+-- A private DM channel between minors and an adult account is a predator/
+-- liability risk we won't take on. Only owner→everyone announcements remain.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ── announcements: owner broadcasts, everyone reads ────────────────────────
@@ -34,42 +35,4 @@ create policy announcements_owner_del on public.announcements
 
 create index if not exists announcements_created_idx on public.announcements (created_at desc);
 
--- ── support_messages: two-way user <-> owner threads ───────────────────────
-create table if not exists public.support_messages (
-  id            bigint generated always as identity primary key,
-  user_id       uuid not null references auth.users(id) on delete cascade,
-  sender        text not null check (sender in ('user', 'owner')),
-  body          text not null,
-  read_by_user  boolean not null default false,
-  read_by_owner boolean not null default false,
-  created_at    timestamptz not null default now()
-);
-alter table public.support_messages enable row level security;
-
--- READ: a user sees ONLY their own thread; the owner sees all.
-drop policy if exists support_read on public.support_messages;
-create policy support_read on public.support_messages
-  for select using (
-    auth.uid() = user_id
-    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.tier = 'owner')
-  );
-
--- INSERT: a user may post to their OWN thread only, and only as 'user'. The
--- owner may post to any thread, and only as 'owner'. (This is what prevents a
--- user from forging an owner reply or writing into someone else's thread.)
-drop policy if exists support_insert on public.support_messages;
-create policy support_insert on public.support_messages
-  for insert with check (
-    (auth.uid() = user_id and sender = 'user')
-    or (sender = 'owner' and exists (select 1 from public.profiles p where p.id = auth.uid() and p.tier = 'owner'))
-  );
-
--- UPDATE: mark-as-read only — a user on their own rows, the owner on any.
-drop policy if exists support_update on public.support_messages;
-create policy support_update on public.support_messages
-  for update using (
-    auth.uid() = user_id
-    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.tier = 'owner')
-  );
-
-create index if not exists support_user_idx on public.support_messages (user_id, created_at);
+-- (support_messages table intentionally omitted — see header note, v20.3.)
