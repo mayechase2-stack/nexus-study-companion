@@ -25,7 +25,7 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="NEXUS">
     <meta property="og:title" content="NEXUS — AI Tutor &amp; Study Companion">
-    <meta property="og:description" content="An AI study companion that teaches, not just answers — tutoring, flashcards, quizzes, a grade calculator, and focus tools for grades 9 through college. Free during beta.">
+    <meta property="og:description" content="An AI study companion that teaches, not just answers — tutoring, a deep-dive Teaching Board, flashcards, quizzes, and focus tools for grades 9 through college. Free during beta.">
     <meta property="og:url" content="https://nexusasc.com/">
     <meta property="og:image" content="https://nexusasc.com/assets/feature-command-center.jpeg">
     <meta name="twitter:card" content="summary_large_image">
@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260728v239">
+    <link rel="stylesheet" href="style.css?v=20260909v240">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1031,10 +1031,10 @@
                     <span>Inventory</span>
                 </li>
                 <!-- v16.5 — Homework feature removed -->
-                <!-- v13.0 — New study tools -->
-                <li onclick="switchTab('grades')">
-                    <i class="ph ph-chart-bar"></i>
-                    <span>Grade Calc</span>
+                <!-- v239 — Grade Calculator removed, replaced by the Teaching Board -->
+                <li onclick="switchTab('teach')">
+                    <i class="ph ph-graduation-cap"></i>
+                    <span>Teaching Board</span>
                 </li>
                 <!-- v16.0 — Study Tools nav removed: Quiz Gen + Flashcards are in Notebook, Study History on Command Center -->
                 <!-- v15.0 — Practice Test -->
@@ -3435,41 +3435,69 @@
                  this div had been rendering as an empty, unreachable tab ever since. -->
 
 
-            <!-- ══ v13.0: Grade Calculator ══════════════════════════════════ -->
-            <div id="view-grades" class="view">
+            <!-- ══ v239: Teaching Board — replaces the old Grade Calculator ══ -->
+            <div id="view-teach" class="view">
                 <header style="background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.05));padding:24px;border-radius:12px;margin-bottom:20px;border:1px solid rgba(0,206,201,0.3);">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="font-size:2.5rem;">📊</div>
+                            <div style="font-size:2.5rem;">🎓</div>
                             <div>
-                                <h1 style="margin:0;background:linear-gradient(135deg,#00CEC9,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Grade Calculator</h1>
-                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">Know where you stand in every class — and what you need to hit your goal.</p>
+                                <h1 style="margin:0;background:linear-gradient(135deg,#00CEC9,#6c5ce7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Teaching Board</h1>
+                                <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.95rem;">A real, deep-dive tutor conversation — full explanations, real examples, and follow-up questions until it actually clicks.</p>
                             </div>
                         </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button onclick="openUniversalTutor({subject:'Grades & GPA',topic:'',question:''})" style="background:linear-gradient(135deg,rgba(0,206,201,0.25),rgba(108,92,231,0.15));border:1px solid rgba(0,206,201,0.4);border-radius:10px;color:#00CEC9;padding:9px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;">🎓 Ask Tutor</button>
-                            <button class="btn-secondary" onclick="exportGradesPDF()" style="font-size:0.85rem;"><i class="ph ph-printer"></i> Export</button>
-                            <button class="btn-primary" onclick="openAddCourseModal()"><i class="ph ph-plus"></i> Add Course</button>
-                        </div>
+                        <button class="btn-secondary" onclick="resetTeachingBoard()" style="font-size:0.85rem;"><i class="ph ph-arrow-counter-clockwise"></i> New Topic</button>
                     </div>
                 </header>
 
-                <!-- v16.5 — purpose & how-to explainer -->
-                <details class="glass-panel" style="padding:16px 20px;margin-bottom:18px;border:1px solid rgba(0,206,201,0.25);background:linear-gradient(135deg,rgba(0,206,201,0.06),rgba(108,92,231,0.04));" open>
-                    <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-weight:700;color:white;user-select:none;"><i class="ph ph-info" style="color:#00CEC9;font-size:1.1rem;"></i> What this is &amp; how to use it</summary>
-                    <p style="margin:10px 0 10px;font-size:0.88rem;color:#cfd4e2;line-height:1.55;">A running average for each class so you always know your grade — and exactly what you need on the next assignment to hit your goal. It's a personal planner, not your school's official gradebook.</p>
-                    <ol style="margin:0;padding-left:20px;color:#cfd4e2;font-size:0.86rem;line-height:1.75;">
-                        <li><strong style="color:#fff;">Add a course</strong> (e.g. "Biology") and, optionally, a <strong style="color:#fff;">target grade</strong> — the % you're aiming for.</li>
-                        <li><strong style="color:#fff;">Add each grade</strong> as you get it: a score out of 100 and an optional <strong style="color:#fff;">weight</strong> (so tests can count more than homework). Leave weights blank for a plain average.</li>
-                        <li>NEXUS shows your <strong style="color:#fff;">current %, letter grade, and 4.0 GPA</strong>, and — if you set a target — the <strong style="color:#fff;">score you need next</strong> to reach it.</li>
-                    </ol>
-                    <p style="margin:10px 0 0;font-size:0.8rem;color:var(--text-muted);">Tip: weights don't have to add up to 100 — they're normalized automatically. Stuck? Hit 🎓 Ask Tutor.</p>
+                <details class="glass-panel" style="padding:16px 20px;margin-bottom:18px;border:1px solid rgba(0,206,201,0.25);background:linear-gradient(135deg,rgba(0,206,201,0.06),rgba(108,92,231,0.04));">
+                    <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-weight:700;color:white;user-select:none;"><i class="ph ph-info" style="color:#00CEC9;font-size:1.1rem;"></i> How this is different from Concept Board</summary>
+                    <p style="margin:10px 0 0;font-size:0.88rem;color:#cfd4e2;line-height:1.55;">The Concept Board (in Math Lab) gives one quick explanation for a single problem. Teaching Board is a full conversation: tell it anything you want to understand, it teaches it in depth with real worked examples, checks that it's landing, and you can keep asking "why", "show me another example", or "I'm still confused" for as long as you need.</p>
                 </details>
 
-                <!-- Seasonal shop banner -->
-                <div id="seasonal-shop-banner" style="display:none;"></div>
-                <!-- Grade cards injected by JS -->
-                <div id="grade-calc-panel"></div>
+                <div id="teach-board-body">
+                    <!-- Intro / topic-starter state — replaced with the chat once a session starts -->
+                    <div id="teach-intro" class="glass-panel" style="padding:32px 24px;text-align:center;max-width:640px;margin:0 auto;">
+                        <div style="font-size:2.4rem;margin-bottom:10px;">🧑‍🏫</div>
+                        <h3 style="margin:0 0 8px;color:white;">What do you want to learn?</h3>
+                        <p style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem;">Type a topic, a concept, or a question — as specific or as broad as you like.</p>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:14px;">
+                            <select id="teach-subject" class="input-field" style="padding:10px 12px;min-width:160px;">
+                                <option value="">Any subject</option>
+                                <option value="Math">Math</option>
+                                <option value="Science">Science</option>
+                                <option value="English">English</option>
+                                <option value="Social Studies">Social Studies</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:10px;">
+                            <input id="teach-topic-input" class="input-field" style="flex:1;padding:12px;" placeholder="e.g. Solving inequalities, the causes of WWI, cell division..." onkeydown="if(event.key==='Enter')startTeachingTopic()">
+                            <button class="btn-primary" onclick="startTeachingTopic()"><i class="ph ph-sparkle"></i> Teach Me</button>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;">
+                            <button class="btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="startTeachingTopic('Solving and graphing inequalities')">Inequalities</button>
+                            <button class="btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="startTeachingTopic('Photosynthesis')">Photosynthesis</button>
+                            <button class="btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="startTeachingTopic('The causes of World War I')">WWI causes</button>
+                            <button class="btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="startTeachingTopic('Thesis statements')">Thesis statements</button>
+                        </div>
+                    </div>
+
+                    <!-- Chat session (hidden until a topic starts) -->
+                    <div id="teach-session" class="glass-panel" style="display:none;flex-direction:column;height:min(640px,70vh);padding:0;overflow:hidden;">
+                        <div style="padding:12px 18px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <i class="ph ph-graduation-cap" style="color:#00CEC9;font-size:1.1rem;"></i>
+                                <span id="teach-session-title" style="color:white;font-weight:600;font-size:0.95rem;">Teaching Board</span>
+                            </div>
+                        </div>
+                        <div id="teach-chat-messages" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;"></div>
+                        <div id="teach-quick-actions" style="padding:0 18px 10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
+                        <div style="padding:14px 18px;border-top:1px solid var(--glass-border);display:flex;gap:10px;flex-shrink:0;">
+                            <textarea id="teach-chat-input" class="input-field" rows="1" style="flex:1;resize:none;padding:12px;" placeholder="Ask a follow-up, or say you're confused..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendTeachingBoardMessage();}"></textarea>
+                            <button class="btn-primary" onclick="sendTeachingBoardMessage()"><i class="ph ph-paper-plane-tilt"></i></button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- v16.0 — Study Tools split up: Quiz Gen + Flashcards moved into Notebook; Study History moved to the Command Center. This stub redirects any old links. -->
@@ -5301,7 +5329,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260728v239"></script>
+    <script src="script.js?v=20260909v240"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

@@ -2340,7 +2340,7 @@ const PRO_PRICE = 6.00;
 const FREE_BETA = true;
 
 function tabLabel(tabId) {
-    const labels = { dashboard: 'Command Center', history: 'History', achievements: 'Achievements', leaderboard: 'Leaderboard', shop: 'Shop', inventory: 'Inventory', homework: 'Homework', grades: 'Grade Calculator', tools: 'Study Tools', profile: 'Profile' };
+    const labels = { dashboard: 'Command Center', history: 'History', achievements: 'Achievements', leaderboard: 'Leaderboard', shop: 'Shop', inventory: 'Inventory', homework: 'Homework', teach: 'Teaching Board', tools: 'Study Tools', profile: 'Profile' };
     return labels[tabId] || tabId;
 }
 
@@ -2774,17 +2774,92 @@ function _decodeJwt(t) {
             .split('').map(function (c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
     } catch (e) { return {}; }
 }
+// v238 — FIX: Google sign-in used to just overwrite auth_user with the Google
+// display name and stop there. That skipped the same snapshot/clear/restore
+// cycle every other login path uses, which caused two bugs:
+//   1) Whatever account was active before clicking "Sign in with Google" kept
+//      its data loaded under the NEW Google-labeled pseudo-account (nothing
+//      was cleared or reassigned). The NEXT sign-out then snapshotted that
+//      data under the Google display name instead of the real username, so
+//      the following email/password sign-in restored a stale/empty snapshot
+//      — gold, XP, and streak appeared to "reset."
+//   2) Because the Google session was never tied to the same local account
+//      bucket (or a real Supabase session) as the email/password account,
+//      owner tier just bled over from whatever was left in memory rather
+//      than being genuinely linked to that email — hence "locked to owner"
+//      but not actually connected to the account.
+// Fix: resolve to the SAME stable username as any existing local account
+// registered under this email, snapshot the outgoing account first, then
+// restore the target — exactly like every other account switch — and make
+// a best-effort attempt to establish a real Supabase session for the email
+// so server-verified tier + cloud sync work for Google sign-ins too.
 function handleGoogleCredential(response) {
     var d = _decodeJwt((response && response.credential) || '');
-    var name = d.name || (d.email ? d.email.split('@')[0] : 'Scholar');
-    localStorage.setItem('auth_user', name);
+    var email = d.email || '';
+    var fallbackName = email ? email.split('@')[0] : 'Scholar';
+    var name = d.name || fallbackName;
+
+    // Reuse the existing local account for this email if one is already
+    // registered (e.g. the user originally signed up with email/password,
+    // and is now also using "Sign in with Google"). Never invent a second
+    // bucket for the same person.
+    var targetUser = name;
+    try {
+        var registryLookup = getAuthRegistry();
+        var existing = Object.keys(registryLookup).find(function (u) {
+            return email && (localStorage.getItem('auth_email_' + u) || '').toLowerCase() === email.toLowerCase();
+        });
+        if (existing) targetUser = existing;
+    } catch (_) {}
+
+    var prevUser = localStorage.getItem('auth_user');
+    if (prevUser && prevUser !== targetUser) snapshotAccountState(prevUser);
+    clearCurrentAccountState();
+
+    // Register this account in the normal registry (if not already) so it
+    // behaves like any other known account for switching/restoring. The
+    // marker is not a valid hashPassword() output (wrong length/charset), so
+    // a typed password can never collide with it.
+    try {
+        var reg = getAuthRegistry();
+        if (!reg[targetUser]) registerAuthAccount(targetUser, 'GOOGLE_OAUTH::no-local-password');
+    } catch (_) {}
+
+    localStorage.setItem('auth_user', targetUser);
     localStorage.setItem('auth_pass', 'google');      // marker so logged-in checks pass
     localStorage.setItem('auth_provider', 'google');
-    if (d.email) localStorage.setItem('auth_email', d.email);
+    if (email) {
+        localStorage.setItem('auth_email', email);
+        localStorage.setItem('auth_email_' + targetUser, email);
+    }
+
+    var restored = restoreAccountState(targetUser);
+
     isSignUpMode = false;
     closeSignInModal();
     if (typeof completeLogin === 'function') completeLogin();
-    showToast('Signed in with Google as ' + name, 'success');
+
+    // Best-effort: link this Google identity to a real Supabase session so
+    // checkServerOwner() and cross-device cloud sync work for Google sign-ins
+    // the same way they already do for email/password sign-ins. No-ops
+    // quietly if the Google provider isn't enabled in the Supabase project
+    // yet (Authentication → Providers → Google, same Client ID as
+    // GOOGLE_CLIENT_ID) — everything above this point still works either way.
+    try {
+        if (!nexusSB && typeof _initSupabase === 'function') _initSupabase();
+        if (nexusSB && nexusSB.auth && typeof nexusSB.auth.signInWithIdToken === 'function' && response && response.credential) {
+            nexusSB.auth.signInWithIdToken({ provider: 'google', token: response.credential }).then(function (r) {
+                if (!r || !r.error) {
+                    if (typeof checkServerOwner === 'function') checkServerOwner();
+                    if (typeof _cloudRefreshUi === 'function') _cloudRefreshUi();
+                } else if (window._logNexusError) {
+                    window._logNexusError('google-cloud-link', r.error.message);
+                }
+            }).catch(function (e) { if (window._logNexusError) window._logNexusError('google-cloud-link', e && e.message); });
+        }
+    } catch (_) {}
+
+    showToast((restored ? 'Welcome back, ' : 'Signed in with Google as ') + targetUser, 'success');
 }
 function _initGoogleSignIn() {
     var cont = document.getElementById('google-signin-container');
@@ -3239,7 +3314,9 @@ const PER_USER_KEYS = [
     // v19.1 — were missing: flashcard decks + the tutor chat transcript survived
     // both account-switching AND "Delete My Account & All Data" (privacy leak on
     // shared computers — the delete modal explicitly promises decks are erased).
-    'flashcard_decks', 'tutor_session', 'store_history', 'refund_count'
+    'flashcard_decks', 'tutor_session', 'store_history', 'refund_count',
+    'teaching_board_session', // v239 — Teaching Board chat history is per-account too
+    'season_num', 'season_xp', 'season_best_rank', 'season_trophies' // v240 — Leaderboard Seasons state is per-account
 ];
 
 function snapshotAccountState(username) {
@@ -4517,6 +4594,8 @@ function awardXP(amount, reason) {
     if (newLevel > prevLevel) {
         for (let lvl = prevLevel + 1; lvl <= newLevel; lvl++) _onLevelUp(lvl);
     }
+    // v240 — mirror this XP gain into the current Season's counter (Leaderboard Seasons).
+    if (typeof _bumpSeasonXP === 'function') _bumpSeasonXP(amount);
     if (typeof updateHomeStats === 'function') updateHomeStats();
 }
 // Milestone bonuses make leveling feel rewarding (one-time big gold drops at key levels).
@@ -4563,6 +4642,53 @@ function _onLevelUp(level) {
             showToast('🎁 New flair unlocked: ' + LEVEL_UNLOCKS[level].icon + ' ' + LEVEL_UNLOCKS[level].name + '! Equip it on your Profile.', 'success', 6500);
         }, 900);
     }
+    // v240 — grant any Level-Locked EXCLUSIVE gear that just became reachable.
+    if (typeof syncLevelGearUnlocks === 'function') setTimeout(function () { syncLevelGearUnlocks(level); }, 1400);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v240 — LEVEL-LOCKED EXCLUSIVE GEAR (Nitro-Type-style "garage"). These are
+// real SHOP_ITEMS cosmetics (tagged exclusive:true + levelReq:N) that can
+// NEVER be bought with gold — the only way in is reaching the level. They
+// stay visible (locked/greyed, with the level requirement shown) in the
+// normal Shop grid so players can see what they're working toward, which is
+// the whole point: aspiration drives retention. This function is idempotent
+// and safe to call often — it scans every category, grants anything the
+// player's current level qualifies for that they don't already own, and is
+// called both right after a level-up AND opportunistically from
+// checkAchievements() so anyone already past a threshold (e.g. an existing
+// high-level account after this update ships) gets backfilled automatically.
+// ════════════════════════════════════════════════════════════════════
+function syncLevelGearUnlocks(level) {
+    if (typeof SHOP_ITEMS !== 'object' || typeof userInventory === 'undefined') return false;
+    level = level || (typeof getLevelFromXP === 'function' ? getLevelFromXP(getTotalXP()) : 0);
+    var granted = false;
+    Object.keys(SHOP_ITEMS).forEach(function (cat) {
+        (SHOP_ITEMS[cat] || []).forEach(function (item) {
+            if (item.exclusive && item.levelReq && level >= item.levelReq && userInventory.indexOf(item.id) === -1) {
+                userInventory.push(item.id);
+                granted = true;
+                if (typeof showToast === 'function') {
+                    showToast('🔓 EXCLUSIVE unlocked: ' + item.name + ' (Level ' + item.levelReq + ')! Only players who reach this level ever get it — equip it in the Shop.', 'success', 7000);
+                }
+                if (typeof logActivity === 'function') logActivity('achievement', 'Unlocked exclusive gear "' + item.name + '" at Level ' + item.levelReq);
+            }
+        });
+    });
+    if (granted) { try { localStorage.setItem('user_inventory', JSON.stringify(userInventory)); } catch (_) {} }
+    return granted;
+}
+function getLevelGearTrack() {
+    var xp = (typeof getTotalXP === 'function') ? getTotalXP() : parseInt(localStorage.getItem('total_xp') || '0', 10);
+    var level = (typeof getLevelFromXP === 'function') ? getLevelFromXP(xp) : 1;
+    var items = [];
+    Object.keys(SHOP_ITEMS || {}).forEach(function (cat) {
+        (SHOP_ITEMS[cat] || []).forEach(function (item) {
+            if (item.exclusive && item.levelReq) items.push(Object.assign({ category: cat }, item));
+        });
+    });
+    items.sort(function (a, b) { return a.levelReq - b.levelReq; });
+    return { level: level, items: items };
 }
 
 // ============================================================
@@ -6729,7 +6855,9 @@ const SHOP_ITEMS = {
         { id: 'crimson', name: 'Crimson Blaze', price: 200, desc: 'Inferno red aesthetic', accent: '#e84118', grad: '#c0392b', rarity: 'epic' },
         { id: 'void', name: 'Void Walker', price: 250, desc: '✨ LEGENDARY Abyssal darkness energy', accent: '#8c7ae6', grad: '#2c2c54', rarity: 'legendary' },
         { id: 'aurora', name: 'Aurora Dreams', price: 0, desc: '✨ LEGENDARY Northern lights', accent: '#a29bfe', grad: '#00cec9', rarity: 'legendary', secret: true },
-        { id: 'nexus-prime', name: 'Nexus Prime', price: 0, desc: '🔮 NEXUS The original essence', accent: '#00fff5', grad: '#7c4dff', rarity: 'nexus', secret: true, nexus: true }
+        { id: 'nexus-prime', name: 'Nexus Prime', price: 0, desc: '🔮 NEXUS The original essence', accent: '#00fff5', grad: '#7c4dff', rarity: 'nexus', secret: true, nexus: true },
+        // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
+        { id: 'radiant-ascension', name: 'Radiant Ascension', price: 0, desc: '🌟 EXCLUSIVE — A blinding gold-white theme. Never for sale — only Level 40 scholars ever wear it.', accent: '#fff4d6', grad: '#ffb300', rarity: 'mythic', secret: true, exclusive: true, levelReq: 40 }
     ],
     cursors: [
         { id: 'default', name: 'Arrow', price: 0, desc: 'Standard pointer', rarity: 'common' },
@@ -6751,9 +6879,11 @@ const SHOP_ITEMS = {
         // v16.5 — Sakura cursor: a cherry-blossom pointer that leaves a falling-petal trail
         { id: 'sakura-cursor', name: 'Sakura Petal', price: 150, desc: '🌸 A cherry-blossom pointer that drifts a trail of falling petals as you move', rarity: 'epic' },
         // v17.0 — Compass cursor
-        { id: 'compass-cursor', name: 'Compass Rose', price: 110, desc: '🧭 A vintage compass — red north needle on a brass ring', rarity: 'rare' }
+        { id: 'compass-cursor', name: 'Compass Rose', price: 110, desc: '🧭 A vintage compass — red north needle on a brass ring', rarity: 'rare' },
         // v12.1 — Chidori cursor removed from the shop. SVG + click VFX kept
         // for legacy inventory holders, but no surface in the app mentions it.
+        // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
+        { id: 'cursor_ascendant', name: 'Ascendant Blade', price: 0, desc: '⚔️ EXCLUSIVE — A blade forged from pure XP. Never for sale — only Level 12 students ever wield it.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 12 }
     ],
     fonts: [
         { id: 'default', name: 'Inter', price: 0, desc: 'Modern sans-serif (default)', rarity: 'common' },
@@ -6793,7 +6923,9 @@ const SHOP_ITEMS = {
         // ghibli-forest removed in v12.8 (users who own it will be refunded via shop)
         { id: 'nexus-void', name: 'Nexus Void', price: 0, desc: '🔮 NEXUS Dimensional rift — refined for v10.6', rarity: 'nexus', secret: true, nexus: true },
         // v12.8 — Custom Wallpaper upload (15,000 credits)
-        { id: 'custom-wallpaper', name: 'My Wallpaper', price: 15000, desc: '🖼️ Upload any image from your device as a full-screen wallpaper. Your image stays local — only you see it.', rarity: 'epic' }
+        { id: 'custom-wallpaper', name: 'My Wallpaper', price: 15000, desc: '🖼️ Upload any image from your device as a full-screen wallpaper. Your image stays local — only you see it.', rarity: 'epic' },
+        // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
+        { id: 'skyfall-citadel', name: 'Skyfall Citadel', price: 0, desc: '🏰 EXCLUSIVE — A floating citadel above the clouds. Never for sale — only Level 32 students ever see it from home.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 32 }
     ],
     badges: [
         { id: 'none', name: 'No Badge', price: 0, desc: 'No badge equipped', rarity: 'common' },
@@ -6806,7 +6938,14 @@ const SHOP_ITEMS = {
         { id: 'rising-star', name: 'Rising Star', price: 140, desc: '🌠 On the rise — for climbing scholars', rarity: 'rare' },
         { id: 'level-master', name: 'Level Master', price: 230, desc: '🏅 EPIC Earned through the grind', rarity: 'epic' },
         { id: 'champion', name: 'Grand Champion', price: 0, desc: '👑 LEGENDARY Royal crown', rarity: 'legendary', secret: true },
-        { id: 'nexus-emblem', name: 'Nexus Emblem', price: 0, desc: '🔮 NEXUS The founder seal', rarity: 'nexus', secret: true, nexus: true }
+        { id: 'nexus-emblem', name: 'Nexus Emblem', price: 0, desc: '🔮 NEXUS The founder seal', rarity: 'nexus', secret: true, nexus: true },
+        // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
+        { id: 'elite-scholar', name: 'Elite Scholar', price: 0, desc: '🏵️ EXCLUSIVE — Never for sale — only Level 24 students carry this badge.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 24 },
+        // v240 — achievement-gated rare items (see ACHIEVEMENTS below). Not level-locked —
+        // the ONLY way in is unlocking the matching achievement, permanently.
+        { id: 'phoenix-crown', name: 'Phoenix Crown', price: 0, desc: '🔥 RARE ACHIEVEMENT DROP — Worn only by students who never broke a 100-day streak.', rarity: 'mythic', secret: true, exclusive: true },
+        { id: 'season-champion', name: 'Hall of Famer', price: 0, desc: '🏆 EXCLUSIVE — Earned by finishing Top 3 on a Season leaderboard. A permanent mark of prestige that never expires.', rarity: 'mythic', secret: true, exclusive: true },
+        { id: 'trailblazer', name: 'Trailblazer', price: 0, desc: '🚀 RARE ACHIEVEMENT DROP — For the first students to collect every piece of Exclusive gear.', rarity: 'mythic', secret: true, exclusive: true }
     ],
     effects: [
         // v12.1 — Pruned + reorganized. Removed: glow (annoying), snowfall (heavy
@@ -6841,7 +6980,11 @@ const SHOP_ITEMS = {
         { id: 'aurora-veil', name: 'Aurora Veil', price: 260, desc: '🌌 LEGENDARY Northern-lights ribbon trail', rarity: 'legendary' },
         { id: 'galaxy-burst', name: 'Galaxy Aura', price: 350, desc: '🌠 MYTHIC — nebula bursts on every click AND spirals behind your cursor', rarity: 'mythic' },
         { id: 'phoenix-flame', name: 'Phoenix Aura', price: 350, desc: '🔥 MYTHIC — embers burst on every click AND blaze a trail behind your cursor', rarity: 'mythic' },
-        { id: 'nexus-aura', name: 'Nexus Aura', price: 0, desc: '🔮 NEXUS Dimensional energy field', rarity: 'nexus', secret: true, nexus: true }
+        { id: 'nexus-aura', name: 'Nexus Aura', price: 0, desc: '🔮 NEXUS Dimensional energy field', rarity: 'nexus', secret: true, nexus: true },
+        // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
+        { id: 'prestige-aura', name: 'Prestige Aura', price: 0, desc: '💠 EXCLUSIVE — A shifting prism ripple on every click. Never for sale — only Level 18 students ever glow like this.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 18 },
+        // v240 — achievement-gated rare item (see ACHIEVEMENTS below).
+        { id: 'ascension-burst', name: 'Ascension Burst', price: 0, desc: '✨ RARE ACHIEVEMENT DROP — A radiant shockwave, earned only by solving 500 problems.', rarity: 'mythic', secret: true, exclusive: true }
     ],
     companions: [
         // v12.1 — NEXUS Sprite is the only public companion. The 6 legacy
@@ -6862,7 +7005,9 @@ const SHOP_ITEMS = {
         { id: 'nexus-orb-scientist', name: 'Sprite — Scientist', price: 200, desc: '🥼 Lab coat, safety goggles, and a clipboard. Switches to a STEM-focused, scientific-method voice.', rarity: 'epic', outfit: 'nexus-orb' },
         // v17.0 — Wizard + Athlete outfits
         { id: 'nexus-orb-wizard', name: 'Sprite — Wizard', price: 200, desc: '🧙 Star robe, pointy hat, and a glowing staff. Speaks as a mystical mentor who turns problems into quests.', rarity: 'epic', outfit: 'nexus-orb' },
-        { id: 'nexus-orb-athlete', name: 'Sprite — Athlete', price: 180, desc: '🏃 Headband and stopwatch. Short, focused, training-style coaching — treats studying like reps.', rarity: 'rare', outfit: 'nexus-orb' }
+        { id: 'nexus-orb-athlete', name: 'Sprite — Athlete', price: 180, desc: '🏃 Headband and stopwatch. Short, focused, training-style coaching — treats studying like reps.', rarity: 'rare', outfit: 'nexus-orb' },
+        // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
+        { id: 'nexus-orb-ascended', name: 'Sprite — Ascended', price: 0, desc: '🌌 EXCLUSIVE — A radiant, ascended form of the Sprite. Never for sale — only Level 50 legends ever unlock it.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 50, outfit: 'nexus-orb' }
     ]
 };
 
@@ -8212,8 +8357,13 @@ function renderShopContent(tab, targetContainer) {
 
     // Filter out secret items from normal shop view
     // v12.7: staging items are only visible to the owner
+    // v240 — EXCEPTION: level-locked exclusive gear (exclusive:true + levelReq)
+    // stays visible even while locked, greyed out with its requirement shown,
+    // so players can see what they're working toward (Nitro-Type-style
+    // aspiration). Non-level exclusives (achievement/season drops) stay
+    // hidden here — those are discovered via the Achievements tab instead.
     let visibleItems = items.filter(item => {
-        if (item.secret) return false;
+        if (item.secret && !(item.exclusive && item.levelReq)) return false;
         if (item.staging && !isOwner()) return false;
         return true;
     });
@@ -8221,7 +8371,8 @@ function renderShopContent(tab, targetContainer) {
     // in the user's inventory once granted, but they're no longer publicly buyable.
     if (tab === 'companions') {
         // v17.0 — Outfits hub: surface every Sprite outfit variant in one browsable place
-        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist', 'nexus-orb-wizard', 'nexus-orb-athlete', 'nexus-orb-ember', 'nexus-orb-aurora', 'nexus-orb-rose']);
+        // v240 — nexus-orb-ascended (Level 50 exclusive) stays visible (locked) so it's aspirational, same as the others.
+        const SHOP_VISIBLE_COMPANIONS = new Set(['none', 'nexus-orb', 'nexus-orb-scientist', 'nexus-orb-wizard', 'nexus-orb-athlete', 'nexus-orb-ember', 'nexus-orb-aurora', 'nexus-orb-rose', 'nexus-orb-ascended']);
         visibleItems = visibleItems.filter(item => SHOP_VISIBLE_COMPANIONS.has(item.id));
     }
 
@@ -8254,6 +8405,9 @@ function renderShopContent(tab, targetContainer) {
     visibleItems.forEach(item => {
         const owned = userInventory.includes(item.id);
         const equipped = Object.values(userLoadout).includes(item.id);
+        // v240 — locked exclusive: a level-gated item this player hasn't reached yet.
+        const curLevelForShop = (typeof getLevelFromXP === 'function') ? getLevelFromXP(getTotalXP()) : 0;
+        const isLockedExclusive = !!(item.exclusive && item.levelReq && !owned && curLevelForShop < item.levelReq);
 
         // Rarity colors
         const rarityColors = {
@@ -8261,7 +8415,8 @@ function renderShopContent(tab, targetContainer) {
             rare: '#60a5fa',
             epic: '#a855f7',
             legendary: '#fbbf24',
-            nexus: '#00fff5'
+            nexus: '#00fff5',
+            mythic: '#ff4d8d'
         };
         const rarityColor = rarityColors[item.rarity] || rarityColors.common;
         const rarityBorder = (item.rarity === 'legendary' || item.rarity === 'nexus' || item.rarity === 'mythic') ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : rarityColor;
@@ -8273,6 +8428,7 @@ function renderShopContent(tab, targetContainer) {
             background:rgba(255,255,255,0.03);
             border:2px solid ${(item.rarity === 'legendary' || item.rarity === 'nexus' || item.rarity === 'mythic') ? 'transparent' : rarityColor};
             ${item.rarity === 'mythic' ? `background:linear-gradient(135deg, rgba(255,77,141,0.18), rgba(124,77,255,0.08));border:2px solid #ff4d8d;animation:nexusPulse 3s ease-in-out infinite;box-shadow:0 0 24px rgba(255,77,141,0.35);` : item.rarity === 'nexus' ? `background:linear-gradient(135deg, rgba(124,77,255,0.15), rgba(0,255,245,0.05));border:2px solid #7c4dff;animation:nexusPulse 3s ease-in-out infinite;` : item.rarity === 'legendary' ? `background:linear-gradient(135deg, rgba(251,191,36,0.1), rgba(245,158,11,0.05));border:2px solid #fbbf24;animation:legendaryPulse 3s ease-in-out infinite;` : ''}
+            ${isLockedExclusive ? 'filter:grayscale(0.85);opacity:0.72;animation:none !important;box-shadow:none !important;' : ''}
             border-radius:12px;
             padding:16px;
             cursor:pointer;
@@ -8283,17 +8439,22 @@ function renderShopContent(tab, targetContainer) {
         // v10.10 — removed hover live-preview (user wanted click-only)
         card.onmouseenter = () => {
             card.style.transform = 'translateY(-4px)';
-            card.style.boxShadow = `0 8px 24px ${rarityColor}40`;
+            card.style.boxShadow = isLockedExclusive ? 'none' : `0 8px 24px ${rarityColor}40`;
         };
         card.onmouseleave = () => {
             card.style.transform = 'translateY(0)';
             card.style.boxShadow = 'none';
         };
-        card.onclick = () => previewItem(item.id, tab);
+        // v240 — a locked exclusive can't be previewed/bought like a normal item;
+        // clicking just explains how to unlock it instead of opening the buy modal.
+        card.onclick = isLockedExclusive
+            ? () => { if (typeof showToast === 'function') showToast('🔒 Reach Level ' + item.levelReq + ' to unlock ' + item.name + ' — it can\'t be bought.', 'info', 3500); }
+            : () => previewItem(item.id, tab);
 
-        // Rarity badge (+ STAGING overlay for owner-only items)
+        // Rarity badge (+ STAGING overlay for owner-only items, EXCLUSIVE overlay for level-locked gear)
         const stagingBadge = item.staging ? `<div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:0.78rem;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:1px;">⚙ STAGING</div>` : '';
-        const rarityBadge = `${stagingBadge}<div style="position:absolute;top:8px;right:8px;background:${rarityColor};color:#000;font-size:0.88rem;font-weight:700;padding:4px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px;">${item.rarity}</div>`;
+        const exclusiveBadge = (item.exclusive && item.levelReq) ? `<div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#ff4d8d,#7c4dff);color:#fff;font-size:0.78rem;font-weight:900;padding:3px 8px;border-radius:6px;letter-spacing:0.5px;">${isLockedExclusive ? '🔒 LV.' + item.levelReq : '✨ EXCLUSIVE'}</div>` : '';
+        const rarityBadge = `${stagingBadge}${exclusiveBadge}<div style="position:absolute;top:8px;right:8px;background:${rarityColor};color:#000;font-size:0.88rem;font-weight:700;padding:4px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px;">${item.rarity}</div>`;
 
         // Preview section based on type
         let previewSection = '';
@@ -8339,7 +8500,11 @@ function renderShopContent(tab, targetContainer) {
             <div style="position:absolute;top:8px;left:8px;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;font-size:0.78rem;font-weight:700;padding:3px 7px;border-radius:5px;letter-spacing:0.5px;display:flex;align-items:center;gap:4px;">
                 <i class="ph ph-lock-key" style="font-size:0.9rem;"></i> PRO
             </div>` : '';
-        const buttonHtml = accessOnly
+        // v240 — locked exclusive gear can't be bought at any price; the button
+        // explains the level requirement instead of showing a cost.
+        const buttonHtml = isLockedExclusive
+            ? `<button class="btn-secondary" onclick="event.stopPropagation();showToast('🔒 Reach Level ${item.levelReq} to unlock ${item.name.replace(/'/g, "\\'")} — it can\\'t be bought.','info',3500)" style="width:100%;opacity:0.85;cursor:not-allowed;"><i class="ph ph-lock-key"></i> Reach Level ${item.levelReq}</button>`
+            : accessOnly
             ? `<button class="btn-primary" onclick="event.stopPropagation();openPaymentModal('pro')" style="width:100%;background:linear-gradient(135deg, #6C5CE7, #00CEC9);"><i class="ph ph-star"></i> Upgrade to Pro to Unlock</button>`
             : `<button class="btn-primary" onclick="event.stopPropagation();${owned ? (equipped ? '' : `equipItem('${tab.slice(0,-1)}', '${item.id}')`) : `previewItem('${item.id}','${tab}')`}"
                 style="width:100%;${owned && equipped ? 'background:#00b894;cursor:default;' : owned ? 'background:var(--accent);' : ''}">
@@ -8919,22 +9084,11 @@ function applyTheme(colorName) {
 
 // ── Owner-pinned roadmap items — always shown, never expire ──────────────────
 // IDs match dp_XX pool IDs so they don't duplicate when the pool loads them.
+// v239 — cleared. Every entry here was already shipped/in-progress/planned,
+// so it just permanently cluttered the Suggestions tab with old, already-
+// handled items instead of leaving room for fresh community suggestions.
+// Add new owner-pinned roadmap items here only while they're genuinely open.
 const OWNER_PINNED_SUGGESTIONS = [
-    // ── From community pool — pinned by chase_owner ──
-    { id: 'dp_19', title: 'Sign in with Google',             body: "SHIPPED (v16.5): a 'Continue with Google' button on the sign-in screen, using Google Identity Services entirely in your browser (no password to remember). Your name/email become your local NEXUS identity. (Cross-device sync still needs the backend on the roadmap below.)", category: 'features', votes: 45, voted: false, ownerApproved: true, status: 'shipped', author: 'sso_please', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_22', title: 'Timed practice test mode',        body: 'SHIPPED (v15.0): the Practice Test tab lets you pick a subject, difficulty, question count, and a time limit. The AI generates a full multiple-choice test, a countdown turns red under 2 minutes, and you get an instant score card with per-question explanations.', category: 'features', votes: 38, voted: false, ownerApproved: true, status: 'shipped', author: 'testmode', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_16', title: 'Study music integration',         body: 'SHIPPED: the Lo-fi Player (sidebar → Lo-fi Music) streams ad-free, royalty-free lo-fi tracks bundled right into the app. Play/pause, previous/next/skip song, volume, a sleep timer, and it remembers your last track — no login or YouTube ads.', category: 'features', votes: 30, voted: false, ownerApproved: true, status: 'shipped', author: 'lo_fi_chill', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_08', title: 'Spanish + French language packs', body: 'SHIPPED (v16.5): a language switcher in Settings → Appearance (English / Español / Français) that translates the app\'s navigation and labels. A deeper pass to translate every screen can follow; AI answers always match the language you write in.', category: 'features', votes: 23, voted: false, ownerApproved: true, status: 'shipped', author: 'globalist', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_30', title: 'Debate practice mode',            body: 'SHIPPED: now a permanent Command Center feature. Enter any topic, pick a side (For/Against), and the AI argues the opposite across several sharp exchanges, then delivers a verdict on who made the stronger case. Great for English and Social Studies prep.', category: 'ai', votes: 23, voted: false, ownerApproved: true, status: 'shipped', author: 'debate_me', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_27', title: 'Multiple companion personalities',body: 'SHIPPED (v15.0): Settings → Companion lets you choose how your Sprite talks — Default, Drill Sergeant (tough love), Best Friend (casual + encouraging), Sherlock (analytical, never hands you the answer), and Chill Sensei (calm, metaphor-driven).', category: 'companions', votes: 20, voted: false, ownerApproved: true, status: 'shipped', author: 'tone_setter', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_40', title: 'Accessible high-contrast mode',   body: 'SHIPPED: a pure high-contrast theme for visual-accessibility needs, with WCAG-AA-compliant text contrast across every panel, modal, and input.', category: 'themes', votes: 16, voted: false, ownerApproved: true, status: 'shipped', author: 'a11y_matters', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'dp_23', title: 'Pixel art cursor set',            body: 'SHIPPED (v15.0): three 8-bit cursors in the Shop — Pixel Arrow, Pixel Sword, and Pixel Heart — drawn as crisp SVG data URIs so they stay sharp at any size.', category: 'cursors', votes: 15, voted: false, ownerApproved: true, status: 'shipped', author: 'retro_px', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    // ── Owner's own roadmap items ──
-    { id: 'pin_01', title: 'Real .com launch — custom domain',      body: 'IN PROGRESS: NEXUS has moved off Netlify onto GitHub Pages and now auto-deploys on every update. Next step is pointing a proper .com at it so the app has a clean, professional, easy-to-share address (and HTTPS) instead of a long subdomain.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'in-progress', author: 'chase_owner', createdAt: Date.now() - 1*86400000, isUserSubmitted: false },
-    { id: 'pin_02', title: 'Real accounts — cross-device login',    body: 'PLANNED: today your account, history, XP, and shop items live only in this browser (localStorage). The plan is a real backend database + secure login so your progress follows you to any device, with a path to recover your account if you clear your browser.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned', author: 'chase_owner', createdAt: Date.now() - 2*86400000, isUserSubmitted: false },
-    { id: 'pin_03', title: 'Stripe payments — real subscriptions',  body: 'PLANNED: the current checkout is a mock. Real billing will run through Stripe with proper receipts, a billing portal, easy cancellation, and a free tier — paired with a small server-side proxy so Pro users get AI without pasting their own API key.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'planned', author: 'chase_owner', createdAt: Date.now() - 3*86400000, isUserSubmitted: false },
-    { id: 'pin_04', title: 'Live Vision improvements',              body: 'SHIPPED (v16.5): Live Vision now reads more question types straight from your screen — graphs/charts (values, slopes, intercepts), labeled diagrams, and data tables — on top of fill-in-the-blank, multiple choice, matching, and computation, with cleaner LaTeX/math output.', category: 'ai', votes: 0, voted: false, ownerApproved: true, status: 'shipped', author: 'chase_owner', createdAt: Date.now() - 4*86400000, isUserSubmitted: false },
-    { id: 'pin_05', title: 'Mobile app / PWA polish',              body: 'SHIPPED (v16.5): NEXUS is now a proper installable PWA with a service worker — add it to your home screen and it keeps working offline (network-first, so online you still get the freshest version), plus bigger tap targets on phones.', category: 'features', votes: 0, voted: false, ownerApproved: true, status: 'shipped', author: 'chase_owner', createdAt: Date.now() - 5*86400000, isUserSubmitted: false },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 // All non-approved suggestions expire after 4 days. Manual-only mode (post-release)
@@ -8945,41 +9099,28 @@ const SUGGESTION_DAILY_POOL = [
     { id: 'dp_03', title: 'Dark purple theme variant', body: 'Deeper, richer purple alternative to the default — less blue, more midnight violet.', category: 'themes', votes: 38, author: 'night_owl' },
     { id: 'dp_04', title: 'Sniper crosshair cursor', body: 'Tactical crosshair that zooms in slightly on click with a tiny scope ring effect.', category: 'cursors', votes: 31, author: 'aim_god' },
     { id: 'dp_05', title: 'Howl\'s Moving Castle wallpaper', body: 'Calcifer flame flickering in the hearth, Sophie at the window, castle walking across hills at dusk.', category: 'wallpapers', votes: 29, author: 'ghibli_fan' },
-    { id: 'dp_06', title: 'Voice input for questions', body: 'Click a mic icon and speak your question instead of typing — browser SpeechRecognition sends it to the AI.', category: 'ai', votes: 27, author: 'handsfreeler' },
     { id: 'dp_07', title: 'Group study rooms', body: 'Share a session link with classmates so you\'re all seeing the same problem and can chat alongside the AI tutor.', category: 'features', votes: 25, author: 'study_squad' },
-    { id: 'dp_08', title: 'Spanish + French language packs', body: 'Localize the full UI for non-English students. Auto-detect from browser locale on first launch.', category: 'features', votes: 23, author: 'globalist' },
     { id: 'dp_09', title: 'NEXUS mobile app', body: 'Native iOS + Android app with push reminders for streaks and flashcard review.', category: 'features', votes: 41, author: 'phonefirst' },
     { id: 'dp_10', title: 'AI essay outline generator', body: 'Type a thesis and get a full essay outline with supporting points, evidence slots, and a counter-argument section.', category: 'ai', votes: 20, author: 'essaycraft' },
     { id: 'dp_11', title: 'Sakura cursor with petal trail', body: 'Pink petals drift behind the cursor as you move. Click = burst of blossoms.', category: 'cursors', votes: 18, author: 'cherry_trail' },
     { id: 'dp_12', title: 'Neon cityscape wallpaper', body: 'Lo-fi cyberpunk city at night — rain on neon signs, slow traffic below, planes blinking in the sky.', category: 'wallpapers', votes: 36, author: 'synthwave99' },
     { id: 'dp_13', title: 'Math step-by-step mode', body: 'Instead of giving the full answer, the AI shows one step at a time and waits for me to try the next.', category: 'ai', votes: 33, author: 'mathgrind' },
-    { id: 'dp_14', title: 'Streak freeze item in shop', body: 'Spendable item that protects your streak if you miss a day. Limited to 1 active at a time.', category: 'features', votes: 28, author: 'streak_guard' },
     { id: 'dp_15', title: 'Companion dorm room background', body: 'Cozy desk setup — lamp, sticky notes, textbooks, window with rain. The companion sits at the desk.', category: 'wallpapers', votes: 22, author: 'dorm_vibes' },
-    { id: 'dp_16', title: 'Study music integration', body: 'Built-in playlist of copyright-free lo-fi tracks. No login required. Skip/volume controls.', category: 'features', votes: 30, author: 'lo_fi_chill' },
     { id: 'dp_17', title: 'Companion outfit: Scientist', body: 'Lab coat, safety goggles, clipboard. Different dialogue for STEM questions when this outfit is worn.', category: 'companions', votes: 19, author: 'lab_coat' },
-    { id: 'dp_18', title: 'Word of the day widget', body: 'New vocabulary word on the dashboard each morning with definition, etymology, and example sentence.', category: 'features', votes: 16, author: 'vocab_build' },
-    { id: 'dp_19', title: 'Sign in with Google', body: 'One-click Google OAuth sign-in so new users don\'t have to create a separate password.', category: 'features', votes: 45, author: 'sso_please' },
     { id: 'dp_20', title: 'Ocean deep wallpaper', body: 'Bioluminescent deep sea — jellyfish pulsing, rays of light from above, fish drifting past.', category: 'wallpapers', votes: 26, author: 'deepdive' },
     { id: 'dp_21', title: 'Companion outfit: Wizard', body: 'Star robe, pointy hat, magic staff. AI persona shifts to mystical mentor mode.', category: 'companions', votes: 21, author: 'spellbook' },
-    { id: 'dp_22', title: 'Timed practice test mode', body: 'Set a time limit, pick a subject, and get a mock test with auto-grading and a score card at the end.', category: 'features', votes: 38, author: 'testmode' },
-    { id: 'dp_23', title: 'Pixel art cursor set', body: 'Classic 8-bit cursor, sword cursor for action clicks, heart cursor for hovered buttons.', category: 'cursors', votes: 15, author: 'retro_px' },
     { id: 'dp_24', title: 'Companion memory summary card', body: 'Settings → Companion → "What does my companion know?" — shows a bullet summary of stored memory so I can review/edit it.', category: 'ai', votes: 24, author: 'memo_lens' },
     { id: 'dp_25', title: 'Formula cheat sheet printer', body: 'One-click print/PDF of the formula library in a clean two-column format — great for exams that allow reference sheets.', category: 'features', votes: 17, author: 'print_formula' },
     { id: 'dp_26', title: 'Northern lights wallpaper', body: 'Aurora borealis over snow — shifting green/purple waves, stars, still lake below.', category: 'wallpapers', votes: 32, author: 'aurora_chase' },
-    { id: 'dp_27', title: 'Multiple companion personalities', body: 'Beyond moods — let me pick "drill sergeant" mode that pushes hard or "best friend" mode that keeps it casual.', category: 'companions', votes: 20, author: 'tone_setter' },
     { id: 'dp_28', title: 'Social studies map mode', body: 'Clickable world map — click a country to get AI-generated context on its history, government, and economy.', category: 'features', votes: 27, author: 'geo_nerd' },
     { id: 'dp_29', title: 'Anime library wallpaper', body: 'Towering cathedral library with floating books, anime aesthetic, warm candlelight, moons through stained glass.', category: 'wallpapers', votes: 34, author: 'book_tower' },
-    { id: 'dp_30', title: 'Debate practice mode', body: 'Pick a topic, pick a side, and the AI argues the opposite. Great for English and Social Studies prep.', category: 'ai', votes: 23, author: 'debate_me' },
     { id: 'dp_31', title: 'Companion outfit: Athlete', body: 'Track uniform with stopwatch. Short, focused answers — treats studying like training. "One more rep. Do the problem."', category: 'companions', votes: 14, author: 'sprint_mode' },
     { id: 'dp_32', title: 'AI plagiarism checker', body: 'Paste essay text and get an originality score + flagged phrases with suggested rewrites.', category: 'ai', votes: 29, author: 'orig_check' },
     { id: 'dp_33', title: 'NEXUS friend list', body: 'Add classmates by username. See their streaks and weekly XP on your dashboard. No chat — just friendly competition.', category: 'features', votes: 22, author: 'friend_hud' },
     { id: 'dp_34', title: 'Vintage maps cursor', body: 'Old compass needle cursor — rotates to point at north as you move around the screen.', category: 'cursors', votes: 12, author: 'compass_rose' },
     { id: 'dp_35', title: 'Space station wallpaper', body: 'ISS interior window view — Earth below, astronaut passing by, solar panels in frame.', category: 'wallpapers', votes: 28, author: 'iss_fan' },
-    { id: 'dp_36', title: 'Grammar checker in notebook', body: 'Highlight text in the notebook and click "Check Grammar" — AI returns corrections inline.', category: 'features', votes: 26, author: 'grammar_fix' },
     { id: 'dp_37', title: 'Companion: Rival mode', body: 'A companion that acts like your academic rival — competitive, just competitive enough to keep you pushing.', category: 'companions', votes: 18, author: 'rival_mode' },
     { id: 'dp_38', title: 'Animated rain + thunder ambiance', body: 'Full-screen rain overlay (not a wallpaper replacement). Toggle over any wallpaper for atmosphere.', category: 'features', votes: 35, author: 'rainyday' },
-    { id: 'dp_39', title: 'Concept map generator', body: 'Describe a topic and the AI generates a visual concept map with branches and sub-nodes.', category: 'ai', votes: 31, author: 'mindmap_me' },
-    { id: 'dp_40', title: 'Accessible high-contrast mode', body: 'Pure black/white high-contrast theme for users with visual accessibility needs. WCAG AA compliant text.', category: 'themes', votes: 16, author: 'a11y_matters' }
 ];
 
 // Local profanity blacklist (light first-pass; OpenAI moderation does the heavy lifting)
@@ -15784,6 +15925,7 @@ async function helpMeLiveVision() {
 RULES:
 - READ THE IMAGE CAREFULLY FIRST. Reconstruct the EXACT problem (numbers, signs, exponents, coordinates). Most wrong answers come from misreading the screen — do not guess. If genuinely unreadable: concept="", strategy="", steps=[], answer="", and put a note in concept asking them to retype it.
 - ACCURACY IS THE TOP PRIORITY. Silently SOLVE the whole problem yourself first, then build the steps to match YOUR verified solution. Recompute the final answer a second, independent way and confirm both agree. Substitute the answer back into the original problem to check it works. Watch the classic slips: SIGNS (negatives), fraction order, exponents, and units. For slope/rate: m = (y₂−y₁)/(x₂−x₁) — keep the subtraction order consistent, mind the sign, and NEVER round a fraction to a whole number. If your check fails, fix it before returning. A wrong answer is worse than no answer.
+- INEQUALITIES — a common source of wrong answers, follow exactly: (1) FLIP the inequality symbol whenever you multiply OR divide both sides by a NEGATIVE number (e.g. −2x < 6 → x > −3, NOT x < −3). Never flip for addition/subtraction or for multiplying/dividing by a positive. (2) Compound inequalities (a < x < b): isolate the variable by applying the same operation to ALL THREE parts at once, and flip BOTH symbols together if that operation is multiplying/dividing by a negative. (3) "AND" compound inequalities (two conditions both true) intersect the ranges; "OR" compound inequalities (either true) union them — do not merge these two cases. (4) Endpoints: < or > is an OPEN circle / parenthesis (value excluded); ≤ or ≥ is a CLOSED circle / bracket (value included) — state this correctly in interval notation, e.g. x > 3 → (3, ∞), x ≤ −1 → (−∞, −1]. (5) Absolute-value inequalities split into two cases (|x| < a → −a < x < a; |x| > a → x < −a OR x > a) — get the AND/OR right per case. (6) ABSOLUTE VALUE EQUATIONS (not inequalities): |expr| = a with a > 0 splits into TWO separate equations — expr = a OR expr = −a — solve BOTH, and if a < 0 there is NO solution (an absolute value can never equal a negative number). ALWAYS check both resulting values in the ORIGINAL equation afterward — isolating the absolute value before splitting can introduce an extraneous solution that must be rejected. (7) VERIFY by plugging a number from your solution set (and one just outside it) back into the ORIGINAL inequality before finalizing — if the check fails, you likely missed a sign flip.
 - Teaching quality matters: "concept" and each "why" should help the student actually UNDERSTAND, not just see labels. Be clear and encouraging, but keep it readable on a phone (short paragraphs, no walls of text).
 - Break the solution into 2–5 real steps. Each "instruction" is a task the student performs; the RESULT goes ONLY in "expect" (hidden from them).
 - "hints" MUST escalate: Hint 1 = nudge, Hint 2 = specific method, Hint 3 = near-complete. 2–3 hints per step, and they must not just restate the instruction.
@@ -16295,7 +16437,8 @@ REASONING (apply silently — this is where accuracy comes from; DO NOT skip it 
 2. Strip all UI noise (buttons, progress bars) to isolate the academic question.
 3. Reconstruct garbled OCR words using subject context.
 4. ACTUALLY SOLVE IT — never guess or approximate. For math/science: state the correct formula/law, plug in the given values, carry the UNITS through, and compute step by step. For chemistry: balance equations, use molar masses, watch significant figures. For physics: check the formula and unit consistency. For recall: retrieve the specific fact, not a vague nearby one.
-5. VERIFY before answering: recompute a second way OR substitute your answer back into the problem, and sanity-check the sign, units, and magnitude. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
+4b. INEQUALITIES (algebra's most-missed problem type — follow exactly): FLIP the inequality symbol whenever you multiply OR divide both sides by a NEGATIVE number (−2x < 6 → x > −3, never x < −3); never flip for addition/subtraction or a positive multiply/divide. For a compound inequality (a < x < b), apply each operation to all three parts together, flipping both symbols together if that step multiplies/divides by a negative. "AND" compounds intersect the two ranges; "OR" compounds union them — don't conflate the two. < / > means an OPEN endpoint (parenthesis, excluded value); ≤ / ≥ means a CLOSED endpoint (bracket, included value) — get interval notation right, e.g. x > 3 → (3, ∞), x ≤ −1 → (−∞, −1]. Absolute-value inequalities split into two cases: |x| < a → −a < x < a; |x| > a → x < −a OR x > a. For ABSOLUTE VALUE EQUATIONS (not inequalities), |expr| = a splits into TWO equations (expr = a OR expr = −a) when a > 0, solve both, and reject any that fails when checked back in the ORIGINAL equation (extraneous solutions happen); if a < 0 there is no solution at all.
+5. VERIFY before answering: recompute a second way OR substitute your answer back into the problem, and sanity-check the sign, units, and magnitude. For an inequality specifically, plug in a value from inside your solution set AND one from outside it into the ORIGINAL inequality — if either check fails, you likely missed a sign flip. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
 5b. IF MULTIPLE CHOICE: re-read the on-screen option at the exact position/label you are about to cite and confirm its text is the answer you chose. A right answer paired with a wrong option number makes the student click the wrong box — treat that as a wrong answer. If the label isn't printed on screen, do not invent one.
 6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
 
@@ -17624,14 +17767,77 @@ function drawGraphGrid(ctx, width, height) {
     ctx.fillText('y', centerX + 5, 15);
 }
 
-function plotEquation() {
-    const input = document.getElementById('math-equation-input').value.trim();
-    if (!input) {
-        showToast('Please enter an equation', 'warning');
-        return;
+// v239 — REWRITTEN. The old plotEquation() textually substituted the typed
+// value into "x" (e.g. "2x" -> "2(0.5)"), which is not valid JS and threw on
+// almost any equation with an implied multiplication ("2x+3", "3x^2-1", ...)
+// — the #1 reason graphing looked broken. It also only special-cased a
+// literal "x^2"/"x²" (so x^3, 2^x, (x+1)^2 etc. silently produced garbage via
+// JS's ^ = bitwise XOR), could only honor ONE of sin/cos/tan/abs per equation
+// (ignoring the rest of a compound expression), and aborted the ENTIRE plot
+// on the first NaN/Infinity (e.g. an asymptote in tan(x) or 1/x).
+//
+// This version compiles the expression ONCE into a real JS function of x
+// (so "2x" just needs an inserted "*", handled below, instead of ever being
+// turned into invalid syntax), maps named functions to Math.*, converts ANY
+// "^" exponent via Math.pow (sidesteps JS's "-x**2 is a syntax error" rule
+// too, so "y = -x^2" works), and skips unplottable points instead of
+// crashing the whole graph.
+function _mathExprToJs(rawInput) {
+    let expr = rawInput.toLowerCase().replace(/\s+/g, '');
+    expr = expr.replace(/^y=/, '');
+    if (!expr) throw new Error('Empty equation');
+
+    // Longer/more-specific names first so e.g. "asin(" isn't mangled by an
+    // earlier "sin(" replacement.
+    const fnMap = [
+        ['asin', 'Math.asin'], ['acos', 'Math.acos'], ['atan', 'Math.atan'],
+        ['sin', 'Math.sin'], ['cos', 'Math.cos'], ['tan', 'Math.tan'],
+        ['sqrt', 'Math.sqrt'], ['abs', 'Math.abs'],
+        ['ln', 'Math.log'], ['log', 'Math.log10']
+    ];
+    fnMap.forEach(function (pair) { expr = expr.split(pair[0] + '(').join(pair[1] + '('); });
+    // "2pi" has no word boundary between the digit and "pi" (both are \w), so
+    // handle a digit/paren directly touching "pi" first (inserting the *), then
+    // the plain standalone case.
+    expr = expr.replace(/(\d|\))(pi)\b/g, '$1*Math.PI');
+    expr = expr.replace(/\bpi\b/g, 'Math.PI');
+
+    // Implicit multiplication FIRST (before exponents), so a coefficient right
+    // next to the base — "3x^2" — doesn't get swallowed into the exponent's
+    // base token below (which would wrongly compute (3x)^2 instead of 3*(x^2)).
+    // Covers: 2x, 2(x+1), x(x+1), )2, )x, )(, and a digit/x/paren directly
+    // touching a Math.* call (e.g. "2sin(x)" -> "2*Math.sin(x)").
+    expr = expr.replace(/(\d)(x)/g, '$1*$2');
+    expr = expr.replace(/(\d)(\()/g, '$1*(');
+    expr = expr.replace(/(\d)(Math\.)/g, '$1*$2');
+    expr = expr.replace(/(x)(\d)/g, '$1*$2');
+    expr = expr.replace(/x\(/g, 'x*(');
+    expr = expr.replace(/(x)(Math\.)/g, '$1*$2');
+    expr = expr.replace(/(\))(\d)/g, '$1*$2');
+    expr = expr.replace(/(\))(x)/g, '$1*$2');
+    expr = expr.replace(/(\))(\()/g, '$1*(');
+    expr = expr.replace(/(\))(Math\.)/g, '$1*$2');
+
+    // base^exp -> Math.pow(base, exp) for a single token or one parenthesized
+    // group on each side. Looped so chained/nested carets resolve. Doing this
+    // AFTER implicit multiplication also sidesteps JS's "-x**2 is a syntax
+    // error" grammar rule, since Math.pow has no such restriction.
+    for (let i = 0; i < 6 && expr.indexOf('^') !== -1; i++) {
+        const next = expr.replace(/(\([^()]*\)|[a-z0-9.]+)\^(\([^()]*\)|[a-z0-9.]+)/, 'Math.pow($1,$2)');
+        if (next === expr) break; // couldn't match a caret — leave it for the syntax error to surface
+        expr = next;
     }
 
+    return expr;
+}
+
+function plotEquation() {
+    const inputEl = document.getElementById('math-equation-input');
+    const input = inputEl ? inputEl.value.trim() : '';
+    if (!input) { showToast('Please enter an equation', 'warning'); return; }
+
     const canvas = document.getElementById('math-graph-canvas');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -17639,54 +17845,42 @@ function plotEquation() {
     const centerY = height / 2;
     const scale = 40;
 
-    // Redraw grid
     drawGraphGrid(ctx, width, height);
 
+    let fn;
     try {
-        // Parse equation (simple y = f(x) format)
-        let equation = input.toLowerCase().replace(/\s/g, '');
-        equation = equation.replace('y=', '').replace('x^2', 'x*x').replace('x²', 'x*x');
-
-        // Plot the function
-        ctx.strokeStyle = '#00cec9';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-
-        let firstPoint = true;
-        for (let px = 0; px < width; px++) {
-            const x = (px - centerX) / scale;
-            let y;
-
-            // Evaluate different function types
-            if (equation.includes('sin')) {
-                y = Math.sin(x);
-            } else if (equation.includes('cos')) {
-                y = Math.cos(x);
-            } else if (equation.includes('tan')) {
-                y = Math.tan(x);
-            } else if (equation.includes('abs')) {
-                const expr = equation.replace('abs(x)', 'Math.abs(x)');
-                y = eval(expr.replace(/x/g, `(${x})`));
-            } else {
-                // General expression
-                y = eval(equation.replace(/x/g, `(${x})`));
-            }
-
-            const py = centerY - (y * scale);
-
-            if (firstPoint) {
-                ctx.moveTo(px, py);
-                firstPoint = false;
-            } else {
-                ctx.lineTo(px, py);
-            }
-        }
-
-        ctx.stroke();
-        showToast('Equation plotted successfully!', 'success');
+        const jsExpr = _mathExprToJs(input);
+        fn = new Function('x', 'return (' + jsExpr + ');');
+        const probe = fn(1);
+        if (typeof probe !== 'number') throw new Error('Expression is not a function of x');
     } catch (err) {
-        showToast('Invalid equation format', 'error');
+        showToast('Couldn\'t read that equation — try a format like "2x + 3", "x^2 - 4", or "sin(x)".', 'error', 5000);
         console.error(err);
+        return;
+    }
+
+    ctx.strokeStyle = '#00cec9';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    let drawing = false;
+    let plottedAny = false;
+    for (let px = 0; px < width; px++) {
+        const x = (px - centerX) / scale;
+        let y;
+        try { y = fn(x); } catch (_) { y = NaN; }
+        if (typeof y !== 'number' || !isFinite(y)) { drawing = false; continue; }
+        const py = centerY - (y * scale);
+        // Skip points that shoot wildly off-canvas (asymptotes) so the line
+        // doesn't draw a near-vertical streak across the whole graph.
+        if (py < -height * 3 || py > height * 4) { drawing = false; continue; }
+        if (!drawing) { ctx.moveTo(px, py); drawing = true; } else { ctx.lineTo(px, py); }
+        plottedAny = true;
+    }
+    ctx.stroke();
+    if (plottedAny) {
+        showToast('Equation plotted successfully!', 'success');
+    } else {
+        showToast('That equation has no visible points in this view — check the format.', 'info', 4500);
     }
 }
 
@@ -18831,7 +19025,7 @@ function renderDashboardStats() {
 
     document.getElementById('stat-problems-solved').textContent = stats.problemsSolved;
     document.getElementById('stat-current-streak').textContent = stats.currentStreak;
-    document.getElementById('stat-total-xp').textContent = stats.totalXP.toLocaleString();
+    document.getElementById('stat-total-xp').textContent = (stats.totalXP || 0).toLocaleString();
 
     // Update daily goal
     document.getElementById('daily-goal-percentage').textContent = `${stats.dailyGoalProgress}%`;
@@ -20275,6 +20469,116 @@ window.addEventListener('resize', () => {
 let _realLeaderboard = null;
 
 // Current signed-in user's live public stats, from local storage.
+// ════════════════════════════════════════════════════════════════════
+// v240 — LEADERBOARD SEASONS & PRESTIGE (Nitro-Type-style). Seasons are
+// fixed 60-day windows computed from a fixed epoch — no server cron needed.
+// `season_xp` mirrors XP earned THIS season only (bumped from awardXP) and
+// is what the Season tab ranks by. While a season is live we keep a running
+// note of the best rank this account has held on the real cloud board
+// (season_best_rank); when the season rolls over, if that best rank was
+// Top 3 we permanently record it (season_trophies, shown on Profile) and
+// grant the equippable "Hall of Famer" badge. This is inherently
+// best-effort without server infra — an account that never opens the
+// Leaderboard tab during a season has no best-rank on file — but it needs
+// zero backend changes to work per-device, and syncs across devices once
+// the optional `season_xp`/`season_num` columns exist on the cloud
+// `leaderboard` table (see fetchSeasonLeaderboard — it fails silently and
+// harmlessly if those columns aren't there yet).
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_SEASON_EPOCH = Date.UTC(2026, 0, 1); // Jan 1, 2026
+const SEASON_LENGTH_DAYS = 60;
+function getCurrentSeasonInfo() {
+    const dayMs = 86400000;
+    const elapsedDays = Math.floor((Date.now() - NEXUS_SEASON_EPOCH) / dayMs);
+    const number = Math.max(1, Math.floor(elapsedDays / SEASON_LENGTH_DAYS) + 1);
+    const startMs = NEXUS_SEASON_EPOCH + (number - 1) * SEASON_LENGTH_DAYS * dayMs;
+    const endMs = startMs + SEASON_LENGTH_DAYS * dayMs;
+    const daysLeft = Math.max(0, Math.ceil((endMs - Date.now()) / dayMs));
+    return { number: number, startMs: startMs, endMs: endMs, daysLeft: daysLeft };
+}
+const SEASON_MEDALS = { 1: { icon: '🥇', label: '1st Place', color: '#FFD700' }, 2: { icon: '🥈', label: '2nd Place', color: '#C0C0C0' }, 3: { icon: '🥉', label: '3rd Place', color: '#CD7F32' } };
+// If the season on record for this device is behind the currently-computed
+// one, a season just ended here — settle it (award a trophy if eligible)
+// before anything starts counting the new season.
+function _settleSeasonIfEnded() {
+    try {
+        const info = getCurrentSeasonInfo();
+        const storedNum = parseInt(localStorage.getItem('season_num') || '0', 10);
+        if (!storedNum || storedNum >= info.number) return;
+        const bestRank = parseInt(localStorage.getItem('season_best_rank') || '0', 10);
+        if (bestRank >= 1 && bestRank <= 3 && localStorage.getItem('auth_user')) {
+            const medal = SEASON_MEDALS[bestRank];
+            const trophies = JSON.parse(localStorage.getItem('season_trophies') || '[]');
+            trophies.push({ season: storedNum, rank: bestRank, icon: medal.icon, label: medal.label, at: Date.now() });
+            localStorage.setItem('season_trophies', JSON.stringify(trophies));
+            if (typeof userInventory !== 'undefined' && userInventory.indexOf('season-champion') === -1) {
+                userInventory.push('season-champion');
+                localStorage.setItem('user_inventory', JSON.stringify(userInventory));
+            }
+            if (typeof showToast === 'function') {
+                setTimeout(function () {
+                    showToast('🏆 Season ' + storedNum + ' ended — you placed ' + medal.label + '! The Hall of Famer badge is yours, permanently.', 'success', 8000);
+                }, 1200);
+            }
+        }
+        localStorage.setItem('season_best_rank', '0');
+    } catch (_) {}
+}
+function getSeasonXP() {
+    const info = getCurrentSeasonInfo();
+    const storedNum = parseInt(localStorage.getItem('season_num') || '0', 10);
+    if (storedNum !== info.number) return 0; // stale counter from a prior season, not yet rolled over
+    return parseInt(localStorage.getItem('season_xp') || '0', 10);
+}
+// The only writer of season_xp — called from awardXP() every time XP is earned.
+function _bumpSeasonXP(amount) {
+    try {
+        const info = getCurrentSeasonInfo();
+        const storedNum = parseInt(localStorage.getItem('season_num') || '0', 10);
+        if (storedNum && storedNum !== info.number) _settleSeasonIfEnded();
+        const cur = getSeasonXP();
+        localStorage.setItem('season_num', String(info.number));
+        localStorage.setItem('season_xp', String(cur + amount));
+    } catch (_) {}
+}
+function getSeasonTrophies() {
+    try { return JSON.parse(localStorage.getItem('season_trophies') || '[]'); } catch (_) { return []; }
+}
+// Best-effort, isolated fetch of season standings — wrapped separately from
+// the main leaderboard query so a missing season_xp/season_num column on the
+// cloud table (before the one-time migration is run) can never break the
+// regular all-time leaderboard.
+async function fetchSeasonLeaderboard() {
+    try {
+        if (!nexusSB) return null;
+        const q = await nexusSB.from('leaderboard')
+            .select('user_id,username,season_xp,season_num')
+            .order('season_xp', { ascending: false })
+            .limit(100);
+        if (q && !q.error && Array.isArray(q.data) && q.data.length) return q.data;
+        return null;
+    } catch (_) { return null; }
+}
+// Records the best (lowest-number) rank this account has held on the live
+// season board so far this season. Called every time the season board is
+// successfully fetched while a season is active on this device.
+function _trackSeasonBestRank(rows) {
+    try {
+        if (!rows || !rows.length || typeof rows[0].season_xp !== 'number') return; // migration not run yet — don't guess
+        const info = getCurrentSeasonInfo();
+        const storedNum = parseInt(localStorage.getItem('season_num') || '0', 10);
+        if (storedNum !== info.number) return;
+        const myName = localStorage.getItem('auth_user');
+        if (!myName) return;
+        const sorted = rows.slice().sort(function (a, b) { return (b.season_xp || 0) - (a.season_xp || 0); });
+        const idx = sorted.findIndex(function (r) { return r.username === myName; });
+        if (idx === -1) return;
+        const rank = idx + 1;
+        const best = parseInt(localStorage.getItem('season_best_rank') || '0', 10);
+        if (!best || rank < best) localStorage.setItem('season_best_rank', String(rank));
+    } catch (_) {}
+}
+
 function _myLeaderboardStats() {
     const stats = getStudyStats();
     let userMins = 0, userAch = 0;
@@ -20287,7 +20591,8 @@ function _myLeaderboardStats() {
         streak: stats.currentStreak || 0,
         minutes: userMins,
         achievements: userAch,
-        badge: (userLoadout && userLoadout.badge) || 'none'
+        badge: (userLoadout && userLoadout.badge) || 'none',
+        seasonXp: (typeof getSeasonXP === 'function') ? getSeasonXP() : 0
     };
 }
 
@@ -20307,6 +20612,13 @@ async function publishLeaderboardStats() {
             streak: s.streak, minutes: s.minutes, achievements: s.achievements,
             badge: s.badge, updated_at: new Date().toISOString()
         });
+        // v240 — season fields published separately, best-effort: if the
+        // one-time column migration hasn't been run yet on this project this
+        // just fails silently and the all-time board above is unaffected.
+        try {
+            const info = getCurrentSeasonInfo();
+            await nexusSB.from('leaderboard').update({ season_xp: s.seasonXp, season_num: info.number }).eq('user_id', u.id);
+        } catch (_) {}
     } catch (_) { /* best-effort */ }
 }
 
@@ -20332,7 +20644,13 @@ function getLeaderboardData() {
     if (_realLeaderboard && _realLeaderboard.length) {
         const myName = localStorage.getItem('auth_user');
         // Normalize username → name (the render loop uses entry.name).
-        const rows = _realLeaderboard.map(r => Object.assign({}, r, { name: r.username, isUser: r.username === myName }));
+        // v240 — `season` sort key: use the row's real season_xp once the
+        // migration is live; until then, fill in just the current user's own
+        // local season_xp so their own Season progress is still visible.
+        const rows = _realLeaderboard.map(r => Object.assign({}, r, {
+            name: r.username, isUser: r.username === myName,
+            season: (typeof r.season_xp === 'number') ? r.season_xp : (r.username === myName && typeof getSeasonXP === 'function' ? getSeasonXP() : 0)
+        }));
         const sortKey = window._lbSort || 'xp';
         rows.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
         return rows;
@@ -20347,21 +20665,21 @@ function getLeaderboardData() {
     try { userAch = JSON.parse(localStorage.getItem('achievements_completed') || '[]').length; } catch (e) {}
 
     const leaderboard = [
-        { name: username, problems: stats.problemsSolved || 0, streak: stats.currentStreak || 0, xp: parseInt(localStorage.getItem('total_xp') || '0'), minutes: userMins, achievements: userAch, isUser: true },
-        { name: 'StudyChamp',    problems: 312, streak: 31, xp: 10250, minutes: 2480, achievements: 24 },
-        { name: 'NexusElite',    problems: 220, streak: 26, xp: 9100,  minutes: 2010, achievements: 21 },
-        { name: 'CalcKing',      problems: 265, streak: 20, xp: 8800,  minutes: 1980, achievements: 20 },
-        { name: 'MathWizard99',  problems: 247, streak: 14, xp: 8420,  minutes: 1760, achievements: 18 },
-        { name: 'ScienceNerd',   problems: 198, streak: 22, xp: 7150,  minutes: 1890, achievements: 19 },
-        { name: 'BrainiacX',     problems: 175, streak: 18, xp: 6400,  minutes: 1320, achievements: 15 },
-        { name: 'HistoryBuff',   problems: 156, streak: 9,  xp: 5800,  minutes: 1140, achievements: 13 },
-        { name: 'NightOwl',      problems: 142, streak: 16, xp: 5200,  minutes: 1450, achievements: 12 },
-        { name: 'AcePilot',      problems: 134, streak: 7,  xp: 4900,  minutes: 980,  achievements: 11 },
-        { name: 'LangPro',       problems: 118, streak: 11, xp: 4300,  minutes: 1020, achievements: 10 },
-        { name: 'GalaxyLearner', problems: 103, streak: 12, xp: 3800,  minutes: 870,  achievements: 9 },
-        { name: 'NovaScholar',   problems: 95,  streak: 8,  xp: 3500,  minutes: 760,  achievements: 7 },
-        { name: 'QuizMaster',    problems: 89,  streak: 5,  xp: 3200,  minutes: 640,  achievements: 8 },
-        { name: 'PaperAce',      problems: 77,  streak: 4,  xp: 2600,  minutes: 520,  achievements: 6 }
+        { name: username, problems: stats.problemsSolved || 0, streak: stats.currentStreak || 0, xp: parseInt(localStorage.getItem('total_xp') || '0'), minutes: userMins, achievements: userAch, season: (typeof getSeasonXP === 'function' ? getSeasonXP() : 0), isUser: true },
+        { name: 'StudyChamp',    problems: 312, streak: 31, xp: 10250, minutes: 2480, achievements: 24, season: 3100 },
+        { name: 'NexusElite',    problems: 220, streak: 26, xp: 9100,  minutes: 2010, achievements: 21, season: 2600 },
+        { name: 'CalcKing',      problems: 265, streak: 20, xp: 8800,  minutes: 1980, achievements: 20, season: 2450 },
+        { name: 'MathWizard99',  problems: 247, streak: 14, xp: 8420,  minutes: 1760, achievements: 18, season: 1900 },
+        { name: 'ScienceNerd',   problems: 198, streak: 22, xp: 7150,  minutes: 1890, achievements: 19, season: 2200 },
+        { name: 'BrainiacX',     problems: 175, streak: 18, xp: 6400,  minutes: 1320, achievements: 15, season: 1700 },
+        { name: 'HistoryBuff',   problems: 156, streak: 9,  xp: 5800,  minutes: 1140, achievements: 13, season: 1200 },
+        { name: 'NightOwl',      problems: 142, streak: 16, xp: 5200,  minutes: 1450, achievements: 12, season: 1550 },
+        { name: 'AcePilot',      problems: 134, streak: 7,  xp: 4900,  minutes: 980,  achievements: 11, season: 950 },
+        { name: 'LangPro',       problems: 118, streak: 11, xp: 4300,  minutes: 1020, achievements: 10, season: 1050 },
+        { name: 'GalaxyLearner', problems: 103, streak: 12, xp: 3800,  minutes: 870,  achievements: 9,  season: 1100 },
+        { name: 'NovaScholar',   problems: 95,  streak: 8,  xp: 3500,  minutes: 760,  achievements: 7,  season: 800 },
+        { name: 'QuizMaster',    problems: 89,  streak: 5,  xp: 3200,  minutes: 640,  achievements: 8,  season: 650 },
+        { name: 'PaperAce',      problems: 77,  streak: 4,  xp: 2600,  minutes: 520,  achievements: 6,  season: 500 }
     ];
 
     const sortKey = window._lbSort || 'xp';
@@ -20378,9 +20696,14 @@ async function refreshLeaderboardFromCloud() {
     if (window._lbRefreshing) return;
     window._lbRefreshing = true;
     try {
+        if (typeof _settleSeasonIfEnded === 'function') _settleSeasonIfEnded();
         await publishLeaderboardStats();
         const rows = await fetchLeaderboard();
         if (rows) { _realLeaderboard = rows; renderLeaderboard(); }
+        if (typeof fetchSeasonLeaderboard === 'function') {
+            const seasonRows = await fetchSeasonLeaderboard();
+            if (seasonRows && typeof _trackSeasonBestRank === 'function') _trackSeasonBestRank(seasonRows);
+        }
     } catch (_) { /* keep fallback */ }
     finally { window._lbRefreshing = false; }
 }
@@ -20395,8 +20718,10 @@ function renderLeaderboard() {
     const filtered = searchVal ? data.filter(e => e.name.toLowerCase().includes(searchVal)) : data;
 
     // v16.5 — rank by any of these categories
+    // v240 — added Season XP as its own rankable metric (Leaderboard Seasons)
     const LB_METRICS = [
-        { key: 'xp', label: 'XP', icon: 'ph-star' },
+        { key: 'xp', label: 'All-Time XP', icon: 'ph-star' },
+        { key: 'season', label: 'Season XP', icon: 'ph-trophy' },
         { key: 'problems', label: 'Problems', icon: 'ph-brain' },
         { key: 'streak', label: 'Streak', icon: 'ph-flame' },
         { key: 'minutes', label: 'Minutes', icon: 'ph-clock' },
@@ -20411,7 +20736,18 @@ function renderLeaderboard() {
         ? '<div style="font-size:0.78rem;color:#00b894;margin-bottom:12px;"><i class="ph ph-broadcast"></i> Live — ' + _realLeaderboard.length + ' student' + (_realLeaderboard.length === 1 ? '' : 's') + ' on the board. Rankings update as you study.</div>'
         : '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;"><i class="ph ph-info"></i> Sample leaderboard — real rankings appear here as students join. You\'re on it (opt out in Settings → Privacy).</div>';
 
-    let html = _statusBanner + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">'
+    // v240 — Season banner: current season number + countdown, plus a link to
+    // this account's permanent trophy case (only shown once it has one).
+    const _seasonInfo = (typeof getCurrentSeasonInfo === 'function') ? getCurrentSeasonInfo() : null;
+    const _trophies = (typeof getSeasonTrophies === 'function') ? getSeasonTrophies() : [];
+    const _seasonBanner = _seasonInfo ? (
+        '<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid rgba(255,215,0,0.25);background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,77,141,0.05));">'
+        + '<div style="font-size:0.85rem;color:white;"><i class="ph ph-trophy" style="color:#FFD700;"></i> <strong>Season ' + _seasonInfo.number + '</strong> · ends in <strong>' + _seasonInfo.daysLeft + '</strong> day' + (_seasonInfo.daysLeft === 1 ? '' : 's') + ' · Top 3 finishers earn a permanent Hall of Famer badge</div>'
+        + (_trophies.length ? '<button class="btn-secondary" onclick="openSeasonTrophyCase()" style="font-size:0.78rem;padding:6px 12px;">🏆 My Trophy Case (' + _trophies.length + ')</button>' : '')
+        + '</div>'
+    ) : '';
+
+    let html = _statusBanner + _seasonBanner + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">'
         + LB_METRICS.map(m => '<button onclick="_lbSetSort(\'' + m.key + '\')" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;cursor:pointer;font-size:0.83rem;font-weight:600;transition:all .15s;border:1px solid ' + (m.key === sortKey ? 'transparent' : 'var(--glass-border)') + ';background:' + (m.key === sortKey ? 'linear-gradient(135deg,#6C5CE7,#00CEC9)' : 'rgba(255,255,255,0.05)') + ';color:' + (m.key === sortKey ? '#fff' : 'var(--text-muted)') + ';"><i class="ph ' + m.icon + '"></i> ' + m.label + '</button>').join('')
         + '</div>';
     html += `<div style="margin-bottom:16px;display:flex;gap:12px;">
@@ -20465,6 +20801,29 @@ function renderLeaderboard() {
 
     container.innerHTML = html;
 }
+
+// v240 — Trophy Case modal: this account's permanent record of every Season
+// it finished Top 3 in. Trophies never expire and never move once earned,
+// even if a later season goes badly — that permanence is the whole appeal.
+function openSeasonTrophyCase() {
+    const trophies = (typeof getSeasonTrophies === 'function') ? getSeasonTrophies() : [];
+    const modal = document.createElement('div');
+    modal.id = 'season-trophy-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    const rows = trophies.length ? trophies.slice().reverse().map(function (t) {
+        return '<div class="glass-panel" style="padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;">'
+            + '<div style="font-size:1.8rem;">' + t.icon + '</div>'
+            + '<div style="flex:1;"><div style="color:white;font-weight:700;">Season ' + t.season + '</div><div style="color:var(--text-muted);font-size:0.85rem;">Finished ' + t.label + '</div></div>'
+            + '</div>';
+    }).join('') : '<div style="text-align:center;padding:20px;color:var(--text-muted);">No trophies yet — finish Top 3 on the Season leaderboard to earn one. They never expire once earned.</div>';
+    modal.innerHTML = '<div class="glass-panel" style="max-width:440px;width:100%;padding:28px;max-height:80vh;overflow-y:auto;border:1px solid rgba(255,215,0,0.3);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;"><i class="ph ph-trophy" style="color:#FFD700;"></i> Trophy Case</h3><button class="btn-icon" onclick="document.getElementById(\'season-trophy-overlay\').remove()"><i class="ph ph-x"></i></button></div>'
+        + rows
+        + '</div>';
+    document.body.appendChild(modal);
+}
+window.openSeasonTrophyCase = openSeasonTrophyCase;
 
 function showUserProfile(name, problems, streak, xp, pic, badge, isUser) {
     const badgeNames = { none: 'None', scholar: 'Scholar Elite', 'streak-king': 'Streak King', 'quiz-master': 'Quiz Master', speedster: 'Speed Reader', 'night-owl': 'Night Owl', diamond: 'Diamond Mind', champion: 'Grand Champion', 'nexus-emblem': 'Nexus Emblem' };
@@ -20540,6 +20899,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v20.1',
+        date: 'September 9, 2026',
+        tag: 'UPDATE 20.1 — SEASONS & TEACHING BOARD',
+        tagColor: '#ffeaa7',
+        changes: [
+            'TEACHING BOARD — A new tab: a deep-dive tutor conversation that gives full, thorough explanations and real answers when you want to truly understand a topic (not just a hint).',
+            'COMPETITIVE SEASONS — The leaderboard now runs in seasons: earn season XP, climb the ranks, and collect trophies each season in your new Trophy Case.',
+            'LEVEL GEAR — Unlock cosmetic gear as you level up, tied to your progression.',
+        ]
+    },
     {
         version: 'v20.0',
         date: 'July 28, 2026',
@@ -21920,7 +22290,16 @@ const ACHIEVEMENTS = [
     { id: 'lore-keeper',        name: 'Lore Keeper',         desc: 'Open the Update Log and read the changelog', icon: '📖', check: () => localStorage.getItem('update_log_opened') === '1', reward: 200 },
     { id: 'night-owl-coder',    name: 'Night Owl',           desc: 'Use NEXUS between 11pm and 4am', icon: '🌙', check: () => { const h = new Date().getHours(); return (h >= 23 || h < 4) && parseInt(localStorage.getItem('total_xp') || '0') > 0; }, reward: 250 },
     { id: 'early-bird',         name: 'Early Bird',          desc: 'Use NEXUS between 5am and 7am', icon: '🌅', check: () => { const h = new Date().getHours(); return (h >= 5 && h < 7) && parseInt(localStorage.getItem('total_xp') || '0') > 0; }, reward: 250 },
-    { id: 'puzzle-breaker',     name: 'Puzzle Breaker',      desc: 'Solve 25 problems', icon: '🧩', check: () => (getStudyStats().problemsSolved || 0) >= 25, reward: 250 }
+    { id: 'puzzle-breaker',     name: 'Puzzle Breaker',      desc: 'Solve 25 problems', icon: '🧩', check: () => (getStudyStats().problemsSolved || 0) >= 25, reward: 250 },
+    // ── v240 — RARE ACHIEVEMENT DROPS ──────────────────────────────────────
+    // Unlike every achievement above (gold only), these four also permanently
+    // grant a unique cosmetic (grantsItem → a SHOP_ITEMS id flagged
+    // exclusive:true with NO levelReq) that can never be bought or earned any
+    // other way — see checkAchievements() below for the grant logic.
+    { id: 'unbreakable',       name: 'Unbreakable',         desc: 'Reach a 100-day study streak', icon: '🔥', check: () => (getStudyStats().currentStreak || 0) >= 100, reward: 2000, grantsItem: 'phoenix-crown' },
+    { id: 'grandmaster',       name: 'Grandmaster',         desc: 'Solve 500 problems', icon: '🎓', check: () => (getStudyStats().problemsSolved || 0) >= 500, reward: 1500, grantsItem: 'ascension-burst' },
+    { id: 'gear-collector',    name: 'Fully Geared',        desc: 'Own every Level-Locked Exclusive item', icon: '🛡️', check: () => (typeof getLevelGearTrack === 'function') && getLevelGearTrack().items.length > 0 && getLevelGearTrack().items.every(function (it) { return userInventory.includes(it.id); }), reward: 1500, grantsItem: 'trailblazer' },
+    { id: 'completionist',     name: 'Completionist',       desc: 'Unlock every other achievement', icon: '🌌', check: () => { var done = JSON.parse(localStorage.getItem('achievements_completed') || '[]'); return ACHIEVEMENTS.filter(function (a) { return a.id !== 'completionist'; }).every(function (a) { return done.indexOf(a.id) >= 0; }); }, reward: 3000 }
 ];
 
 function getUserAchievements() {
@@ -21956,8 +22335,23 @@ function checkAchievements() {
                 updateCredits(a.reward);
                 showToast(`🏆 Achievement: ${a.name}! +${a.reward} credits`, 'success', 5000);
                 logActivity('achievement', `Unlocked "${a.name}" - ${a.desc}`);
+                // v240 — rare achievement drops: a small set of achievements also
+                // grant a unique cosmetic, obtainable no other way.
+                if (a.grantsItem && typeof userInventory !== 'undefined' && userInventory.indexOf(a.grantsItem) === -1) {
+                    userInventory.push(a.grantsItem);
+                    localStorage.setItem('user_inventory', JSON.stringify(userInventory));
+                    var _dropItem = null;
+                    for (var _cat in SHOP_ITEMS) { var _f = SHOP_ITEMS[_cat].find(function (i) { return i.id === a.grantsItem; }); if (_f) { _dropItem = _f; break; } }
+                    setTimeout(function () {
+                        showToast('🎁 RARE DROP: ' + (_dropItem ? _dropItem.name : 'a unique item') + '! Only holders of this achievement will ever own it — equip it in the Shop.', 'success', 7500);
+                    }, 700);
+                }
             });
         }
+        // v240 — opportunistically backfill any Level-Locked exclusive gear
+        // the player already qualifies for (covers existing high-level accounts
+        // right after this update ships, since they won't hit a fresh level-up).
+        if (typeof syncLevelGearUnlocks === 'function') syncLevelGearUnlocks();
     } finally {
         _checkAchievementsRunning = false;
     }
@@ -21969,7 +22363,10 @@ const ACHIEVEMENT_CATEGORIES = {
     streak:      { label: '🔥 Streaks',  color: '#FFD700' },
     collection:  { label: '📦 Collection', color: '#00CEC9' },
     exploration: { label: '🔭 Exploration', color: '#00b894' },
-    secrets:     { label: '🔮 Secrets', color: '#ff4d8d' }
+    secrets:     { label: '🔮 Secrets', color: '#ff4d8d' },
+    // v240 — the 4 rare-drop achievements get their own tab so their unique
+    // cosmetic rewards stand out from ordinary gold-only achievements.
+    legendary:   { label: '👑 Legendary Drops', color: '#ff4d8d' }
 };
 
 const ACHIEVEMENT_META = {
@@ -21999,7 +22396,12 @@ const ACHIEVEMENT_META = {
     'prompt-virtuoso':  { cat: 'exploration', getCurrent: () => parseInt(localStorage.getItem('prompt_engine_uses') || '0'), max: 50 },
     'lore-keeper':      { cat: 'exploration', getCurrent: null, max: null },
     'night-owl-coder':  { cat: 'exploration', getCurrent: null, max: null },
-    'early-bird':       { cat: 'exploration', getCurrent: null, max: null }
+    'early-bird':       { cat: 'exploration', getCurrent: null, max: null },
+    // v240 — rare achievement drops
+    'unbreakable':      { cat: 'legendary', getCurrent: () => getStudyStats().currentStreak || 0, max: 100 },
+    'grandmaster':      { cat: 'legendary', getCurrent: () => getStudyStats().problemsSolved || 0, max: 500 },
+    'gear-collector':   { cat: 'legendary', getCurrent: () => (typeof getLevelGearTrack === 'function') ? getLevelGearTrack().items.filter(function (it) { return userInventory.includes(it.id); }).length : 0, max: (typeof getLevelGearTrack === 'function') ? getLevelGearTrack().items.length : null },
+    'completionist':    { cat: 'legendary', getCurrent: null, max: null }
 };
 
 function renderAchievementsTab() {
@@ -27788,12 +28190,14 @@ document.addEventListener('keydown', function _fcKeyNav(e) {
 // Deleted along with that div. Nothing outside the block referenced it.
 
 // ─────────────────────────────────────────
-// GRADE CALCULATOR
+// GRADE CALCULATOR — removed (v239), replaced by the Teaching Board below.
+// getGradeCourses/calcCourseAvg are kept as tiny read-only helpers so the
+// Profile page's overall-average stat still works for anyone with grades
+// entered from before the removal; nothing writes new grade data anymore.
 // ─────────────────────────────────────────
 function getGradeCourses() {
     try { return JSON.parse(localStorage.getItem('grade_courses') || '[]'); } catch { return []; }
 }
-function saveGradeCourses(c) { localStorage.setItem('grade_courses', JSON.stringify(c)); }
 function calcCourseAvg(course) {
     if (!course.grades || course.grades.length === 0) return null;
     const hasWeights = course.grades.some(function(g){ return g.weight > 0; });
@@ -27805,343 +28209,216 @@ function calcCourseAvg(course) {
     }
     return course.grades.reduce(function(s,g){ return s+(parseFloat(g.score)||0); },0) / course.grades.length;
 }
-function letterGrade(avg) {
-    if (avg === null) return '—';
-    if (avg >= 90) return 'A'; if (avg >= 80) return 'B';
-    if (avg >= 70) return 'C'; if (avg >= 60) return 'D'; return 'F';
-}
-function gradeColor(avg) {
-    if (avg === null) return 'var(--text-muted)';
-    if (avg >= 90) return '#00b894'; if (avg >= 80) return '#00CEC9';
-    if (avg >= 70) return '#fdcb6e'; if (avg >= 60) return '#e17055'; return '#ff6b6b';
-}
+// The Grade Calculator's UI (course cards, add-grade modals, AI advice,
+// PDF export) was fully removed in v239 in favor of the Teaching Board.
+// letterGrade/gradeColor/letterGradeDetailed/pctToGpa4/calcNeededScore/
+// GRADE_CATEGORY_COLORS and all grade-modal functions (openAddCourseModal,
+// addCourse, openAddGradeModal, addGrade, openTargetModal, deleteGrade,
+// deleteCourse, openGradeAiAnalysis, exportGradesPDF) were only ever used
+// by that UI and are gone with it.
 
-// v13.1 — Category colors for assignment types
-var GRADE_CATEGORY_COLORS = { test:'#ff6b6b', quiz:'#fdcb6e', homework:'#00CEC9', project:'#a855f7', lab:'#00b894', participation:'#74b9ff', other:'var(--text-muted)' };
+// ════════════════════════════════════════════════════════════════════
+// TEACHING BOARD (v239) — a deep, conversational tutor: full explanations,
+// real worked examples, and open-ended follow-up questions. Replaces the
+// old Grade Calculator tab. Session history is per-account (see
+// PER_USER_KEYS) so it never bleeds between accounts on a shared device.
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_TEACHING_BOARD_PROMPT = `You are the NEXUS Teaching Board — a patient, expert tutor whose only goal is for the student to deeply UNDERSTAND a topic, not just get a quick answer.
 
-function letterGradeDetailed(avg) {
-    if (avg === null) return '—';
-    if (avg >= 97) return 'A+'; if (avg >= 93) return 'A'; if (avg >= 90) return 'A−';
-    if (avg >= 87) return 'B+'; if (avg >= 83) return 'B'; if (avg >= 80) return 'B−';
-    if (avg >= 77) return 'C+'; if (avg >= 73) return 'C'; if (avg >= 70) return 'C−';
-    if (avg >= 67) return 'D+'; if (avg >= 60) return 'D';
-    return 'F';
+HOW YOU TEACH:
+- Go deep. Don't give a one-line dictionary definition — explain the idea, why it works, and connect it to something the student likely already knows.
+- ALWAYS include at least one concrete worked example with real specifics (real numbers, a real scenario, real text) — never just "for example...". Offer a second, different example if it would help understanding.
+- After explaining, check understanding with ONE short, specific question or a tiny try-it-yourself prompt — don't interrogate, and if the student seems lost, re-explain a different way (a new analogy or angle) instead of repeating yourself verbatim.
+- Follow-up questions are the most important part of this conversation, not a distraction. If the student asks "why" or "what if" or seems confused, treat that as exactly what you're here for.
+- Adapt depth to the student: if they show they already get the basics, go further (edge cases, common misconceptions, harder examples); if they're lost, back up and simplify.
+- You are not a strict Socratic tutor that withholds everything, and you are not a quick-answer tool either — give full explanations and full worked examples, but keep it conversational, not a wall of text, and check in.
+- Never say "As an AI..." or use filler like "Great question!". Talk like a great human tutor who's genuinely into the subject.
+
+FORMAT: Clean, light HTML only (<strong>, <em>, <ul><li>, <br>, <code> for math/code). Never markdown syntax (**, #), never LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ for math. Keep paragraphs short.`;
+
+let _teachHistory = [];
+let _teachSubject = '';
+
+function _teachLoadHistory() {
+    try { return JSON.parse(localStorage.getItem('teaching_board_session') || 'null'); } catch (_) { return null; }
 }
-
-// v16.5 — standard percent → 4.0 GPA conversion (replaces the rough (pct-60)/10)
-function pctToGpa4(p) {
-    if (p === null || isNaN(p)) return 0;
-    if (p >= 93) return 4.0; if (p >= 90) return 3.7; if (p >= 87) return 3.3; if (p >= 83) return 3.0;
-    if (p >= 80) return 2.7; if (p >= 77) return 2.3; if (p >= 73) return 2.0; if (p >= 70) return 1.7;
-    if (p >= 67) return 1.3; if (p >= 63) return 1.0; if (p >= 60) return 0.7; return 0.0;
-}
-
-function calcNeededScore(course) {
-    if (!course.targetGrade || course.grades.length === 0) return null;
-    var target = course.targetGrade;
-    var n = course.grades.length;
-    var currentSum = course.grades.reduce(function(s,g){ return s+(parseFloat(g.score)||0); }, 0);
-    // What do I need on the next exam to reach my target given existing grades?
-    // (currentSum + needed) / (n+1) >= target => needed = target*(n+1) - currentSum
-    var needed = target * (n + 1) - currentSum;
-    return Math.min(needed, 100).toFixed(1);
+function _teachSaveHistory() {
+    try { localStorage.setItem('teaching_board_session', JSON.stringify({ history: _teachHistory, subject: _teachSubject })); } catch (_) {}
 }
 
-function renderGradeCalc() {
-    var panel = document.getElementById('grade-calc-panel');
-    if (!panel) return;
-    var courses = getGradeCourses();
-    if (courses.length === 0) {
-        panel.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--text-muted);"><i class="ph ph-chart-bar" style="font-size:1.25rem;display:block;margin-bottom:12px;opacity:0.4;"></i><div style="font-size:1rem;">No courses yet.</div><div style="font-size:0.85rem;margin-top:6px;">Click <strong style="color:white;">Add Course</strong> above to get started.</div></div>';
+function initTeachingBoard() {
+    const saved = _teachLoadHistory();
+    if (saved && Array.isArray(saved.history) && saved.history.length) {
+        _teachHistory = saved.history;
+        _teachSubject = saved.subject || '';
+        _teachRenderExisting();
+    } else {
+        _teachShowIntro();
+    }
+}
+
+function _teachShowIntro() {
+    const intro = document.getElementById('teach-intro');
+    const session = document.getElementById('teach-session');
+    if (intro) intro.style.display = '';
+    if (session) session.style.display = 'none';
+}
+
+function _teachRenderExisting() {
+    const intro = document.getElementById('teach-intro');
+    const session = document.getElementById('teach-session');
+    const msgs = document.getElementById('teach-chat-messages');
+    if (!msgs) return;
+    if (intro) intro.style.display = 'none';
+    if (session) session.style.display = 'flex';
+    msgs.innerHTML = '';
+    _teachHistory.forEach(function (m) {
+        if (m.role === 'user' || m.role === 'assistant') {
+            addTeachMessage(m.role === 'user' ? 'user' : 'ai', typeof m.content === 'string' ? m.content : '');
+        }
+    });
+    _teachShowQuickActions();
+    const title = document.getElementById('teach-session-title');
+    if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
+}
+
+function resetTeachingBoard() {
+    _teachHistory = [];
+    _teachSubject = '';
+    try { localStorage.removeItem('teaching_board_session'); } catch (_) {}
+    const msgs = document.getElementById('teach-chat-messages');
+    if (msgs) msgs.innerHTML = '';
+    const qa = document.getElementById('teach-quick-actions');
+    if (qa) qa.innerHTML = '';
+    const input = document.getElementById('teach-topic-input');
+    if (input) input.value = '';
+    _teachShowIntro();
+}
+
+function addTeachMessage(role, text) {
+    const msgs = document.getElementById('teach-chat-messages');
+    if (!msgs) return null;
+    const div = document.createElement('div');
+    div.className = role === 'user' ? 'companion-msg-user' : 'companion-msg-ai';
+    div.style.maxWidth = '85%';
+    div.style.alignSelf = role === 'user' ? 'flex-end' : 'flex-start';
+    div.innerHTML = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+}
+
+function _teachShowQuickActions() {
+    const qa = document.getElementById('teach-quick-actions');
+    if (!qa) return;
+    if (!_teachHistory.length) { qa.innerHTML = ''; return; }
+    const chips = [
+        { label: 'Give another example', text: 'Can you give me another example of this?' },
+        { label: 'Explain differently', text: "I'm still not getting it — can you explain it a different way?" },
+        { label: 'Quiz me on this', text: 'Quiz me with one question on what we just covered.' },
+        { label: "I'm confused", text: "I'm confused, can you back up and simplify?" }
+    ];
+    qa.innerHTML = chips.map(function (c) {
+        return '<button class="btn-secondary" style="font-size:0.78rem;padding:6px 10px;" onclick="sendTeachingBoardMessage(' + JSON.stringify(c.text) + ')">' + c.label + '</button>';
+    }).join('');
+}
+
+function startTeachingTopic(presetTopic) {
+    const input = document.getElementById('teach-topic-input');
+    const subjectSel = document.getElementById('teach-subject');
+    const topic = (typeof presetTopic === 'string' && presetTopic) ? presetTopic : (input ? input.value.trim() : '');
+    if (!topic) { if (typeof showToast === 'function') showToast('Type a topic or question first.', 'error'); return; }
+    _teachSubject = subjectSel ? subjectSel.value : '';
+    _teachHistory = [];
+    const intro = document.getElementById('teach-intro');
+    const session = document.getElementById('teach-session');
+    if (intro) intro.style.display = 'none';
+    if (session) session.style.display = 'flex';
+    const title = document.getElementById('teach-session-title');
+    if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
+    const msgs = document.getElementById('teach-chat-messages');
+    if (msgs) msgs.innerHTML = '';
+    const openingAsk = 'I want to learn: ' + topic + ". Please teach me this deeply — explain the concept, why it works, give at least one full worked example, then check whether I'm following.";
+    _sendTeachingBoardTurn(openingAsk, topic);
+}
+
+async function sendTeachingBoardMessage(presetText) {
+    const input = document.getElementById('teach-chat-input');
+    const text = (typeof presetText === 'string' && presetText) ? presetText : (input ? input.value.trim() : '');
+    if (!text) return;
+    if (input && !(typeof presetText === 'string' && presetText)) { input.value = ''; input.style.height = ''; }
+    await _sendTeachingBoardTurn(text);
+}
+
+async function _sendTeachingBoardTurn(sendText, displayOverride) {
+    const msgs = document.getElementById('teach-chat-messages');
+    if (!msgs) return;
+    const esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    addTeachMessage('user', esc(displayOverride || sendText));
+    _teachHistory.push({ role: 'user', content: sendText });
+
+    const apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) {
+        addTeachMessage('ai', "I need an OpenAI API key first — add one (or sign in) in Settings, then come back.");
         return;
     }
-    var avgs = courses.map(calcCourseAvg).filter(function(a){ return a!==null; });
-    var overallPct = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length) : null;
-    var overallGPA = overallPct !== null ? overallPct.toFixed(1) : '—';
-    var overallLetter = letterGradeDetailed(overallPct);
-    // 4.0 scale: standard letter-grade conversion
-    var gpa4 = overallPct !== null ? pctToGpa4(overallPct).toFixed(1) : '—';
-    var bestCourse = courses.reduce(function(b,c){ var a=calcCourseAvg(c); return (a!==null&&(b===null||a>b.avg))?{name:c.name,avg:a}:b; }, null);
 
-    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px;">'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.25rem;font-weight:700;color:'+gradeColor(overallPct)+';">'+overallGPA+'%</div>'
-            +'<div style="font-size:0.88rem;color:var(--text-muted);">Overall Avg</div>'
-        +'</div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.25rem;font-weight:700;color:#a855f7;">'+overallLetter+'</div>'
-            +'<div style="font-size:0.88rem;color:var(--text-muted);">Letter Grade</div>'
-        +'</div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.25rem;font-weight:700;color:#00CEC9;">'+gpa4+'</div>'
-            +'<div style="font-size:0.88rem;color:var(--text-muted);">GPA (4.0)</div>'
-        +'</div>'
-        +'<div class="glass-panel" style="padding:14px;text-align:center;">'
-            +'<div style="font-size:1.25rem;font-weight:700;color:#fdcb6e;">'+courses.length+'</div>'
-            +'<div style="font-size:0.88rem;color:var(--text-muted);">Courses</div>'
-        +'</div>'
-    +'</div>';
+    const typing = document.createElement('div');
+    typing.className = 'companion-msg-ai';
+    typing.id = 'teach-typing';
+    typing.innerHTML = '<i class="ph ph-spinner ph-spin"></i> thinking…';
+    msgs.appendChild(typing);
+    msgs.scrollTop = msgs.scrollHeight;
 
-    // Overall grade progress bar
-    if (overallPct !== null) {
-        var barColor = gradeColor(overallPct);
-        html += '<div class="glass-panel" style="padding:14px;margin-bottom:16px;">'
-            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
-                +'<span style="font-size:0.9rem;font-weight:600;color:white;">Overall Progress</span>'
-                +(bestCourse?'<span style="font-size:0.85rem;color:var(--text-muted);">Best: '+bestCourse.name+' ('+bestCourse.avg.toFixed(1)+'%)</span>':'')
-            +'</div>'
-            +'<div style="height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;">'
-                +'<div style="height:100%;width:'+Math.min(100,overallPct)+'%;background:linear-gradient(90deg,'+barColor+','+barColor+'cc);border-radius:5px;transition:width 0.5s;"></div>'
-            +'</div>'
-            +'<div style="display:flex;justify-content:space-between;font-size:0.9rem;color:var(--text-muted);margin-top:4px;">'
-                +'<span>0%</span><span>60% (D)</span><span>70% (C)</span><span>80% (B)</span><span>90% (A)</span><span>100%</span>'
-            +'</div>'
-        +'</div>';
-    }
-
-    courses.forEach(function(course) {
-        var avg = calcCourseAvg(course);
-        var letter = letterGradeDetailed(avg);
-        var color  = gradeColor(avg);
-        var pct    = avg !== null ? avg.toFixed(1) : '—';
-
-        // Target tracking
-        var targetNote = '';
-        if (avg !== null && course.targetGrade) {
-            var needed = calcNeededScore(course);
-            if (avg >= course.targetGrade) {
-                targetNote = '<div style="font-size:0.9rem;color:#00b894;padding:7px 10px;background:rgba(0,184,148,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:9px;"><i class="ph ph-check-circle"></i> On track for your '+course.targetGrade+'% target</div>';
-            } else if (needed !== null) {
-                targetNote = '<div style="font-size:0.9rem;color:#fdcb6e;padding:7px 10px;background:rgba(253,203,110,0.1);border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:9px;"><i class="ph ph-warning"></i> Need '+needed+'% on next assessment to reach '+course.targetGrade+'%</div>';
-            }
-        }
-
-        // Grade progress bar
-        var barWidth = avg !== null ? Math.min(100, avg).toFixed(0) : 0;
-        var gradeBar = '<div style="height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;margin-bottom:10px;">'
-            +'<div style="height:100%;width:'+barWidth+'%;background:linear-gradient(90deg,'+color+','+color+'aa);border-radius:3px;transition:width 0.5s;"></div>'
-            +'</div>';
-
-        // Category type breakdown
-        var catCounts = {};
-        (course.grades||[]).forEach(function(g){ var c=g.category||'other'; catCounts[c]=(catCounts[c]||0)+1; });
-        var catBreakdown = Object.keys(catCounts).length > 1
-            ? '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px;">'
-                + Object.keys(catCounts).map(function(c){ return '<span style="font-size:0.88rem;padding:2px 8px;border-radius:10px;background:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'22;color:'+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+';border:1px solid '+(GRADE_CATEGORY_COLORS[c]||'var(--text-muted)')+'44;">'+c+': '+catCounts[c]+'</span>'; }).join('')
-              + '</div>'
-            : '';
-
-        var gradesHtml = (course.grades||[]).map(function(g,gi){
-            var catColor = GRADE_CATEGORY_COLORS[g.category||'other'] || 'var(--text-muted)';
-            var catTag = g.category ? '<span style="font-size:0.88rem;padding:1px 6px;border-radius:8px;background:'+catColor+'22;color:'+catColor+';border:1px solid '+catColor+'44;margin-right:4px;">'+g.category+'</span>' : '';
-            return '<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);">'
-                +'<div style="flex:1;font-size:0.85rem;color:white;min-width:0;">'
-                    +'<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+catTag+(g.name||'Grade '+(gi+1))+'</div>'
-                +'</div>'
-                +'<div style="display:flex;align-items:center;gap:9px;flex-shrink:0;">'
-                    +'<div style="font-size:0.85rem;font-weight:600;color:'+gradeColor(parseFloat(g.score))+';">'+g.score+'%</div>'
-                    +(g.weight&&g.weight!==1?'<div style="font-size:0.9rem;color:var(--text-muted);">×'+g.weight+'</div>':'')
-                    +'<button onclick="deleteGrade('+course.id+','+gi+')" style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.9rem;padding:2px 4px;" title="Delete"><i class="ph ph-x"></i></button>'
-                +'</div>'
-            +'</div>';
-        }).join('');
-
-        html += '<div class="glass-panel" style="padding:16px;margin-bottom:12px;">'
-            // Course header
-            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:12px;">'
-                +'<div style="min-width:0;flex:1;">'
-                    +'<div style="font-weight:700;color:white;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+course.name+'</div>'
-                    +'<div style="font-size:0.88rem;color:var(--text-muted);">'+course.grades.length+' grade'+(course.grades.length!==1?'s':'')+' entered'+(course.targetGrade?' &bull; Target: '+course.targetGrade+'%':'')+'</div>'
-                +'</div>'
-                +'<div style="text-align:right;flex-shrink:0;">'
-                    +'<div style="font-size:1.35rem;font-weight:700;line-height:1;color:'+color+';">'+letter+'</div>'
-                    +'<div style="font-size:0.9rem;color:'+color+';">'+pct+'%</div>'
-                +'</div>'
-            +'</div>'
-            + gradeBar
-            + targetNote
-            + catBreakdown
-            + (course.grades.length > 0 ? '<div style="margin-bottom:12px;max-height:200px;overflow-y:auto;">'+gradesHtml+'</div>' : '')
-            +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
-                +'<button class="btn-primary" style="font-size:0.9rem;padding:7px 12px;" onclick="openAddGradeModal('+course.id+')"><i class="ph ph-plus"></i> Add Grade</button>'
-                +'<button class="btn-secondary" style="font-size:0.9rem;padding:7px 10px;" onclick="openTargetModal('+course.id+')"><i class="ph ph-target"></i> Target</button>'
-                +'<button class="btn-secondary" style="font-size:0.9rem;padding:7px 10px;" onclick="openGradeAiAnalysis('+course.id+')"><i class="ph ph-sparkle"></i> AI Advice</button>'
-                +'<button style="background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:0.9rem;padding:7px 10px;" onclick="deleteCourse('+course.id+')"><i class="ph ph-trash"></i> Remove</button>'
-            +'</div>'
-        +'</div>';
-    });
-    panel.innerHTML = html;
-}
-
-function openAddCourseModal() {
-    var modal = document.createElement('div');
-    modal.id = 'grade-modal-overlay';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
-    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = '<div class="glass-panel" style="max-width:380px;width:100%;padding:28px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><h3 style="margin:0;color:white;">Add Course</h3><button class="btn-icon" onclick="document.getElementById(\'grade-modal-overlay\').remove()"><i class="ph ph-x"></i></button></div><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Course Name *</label><input id="grade-course-name" class="input-field" style="width:100%;padding:10px;margin-bottom:14px;" placeholder="e.g. Algebra 1"><label style="font-size:0.9rem;color:var(--text-muted);display:block;margin-bottom:4px;">Target Grade (%)</label><input id="grade-course-target" class="input-field" type="number" min="0" max="100" style="width:100%;padding:10px;margin-bottom:18px;" placeholder="e.g. 85"><div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn-secondary" onclick="document.getElementById(\'grade-modal-overlay\').remove()">Cancel</button><button class="btn-primary" onclick="addCourse()">Add Course</button></div></div>';
-    document.body.appendChild(modal);
-    setTimeout(function(){ var el=document.getElementById('grade-course-name'); if(el) el.focus(); }, 100);
-}
-function addCourse() {
-    var name = document.getElementById('grade-course-name').value.trim();
-    if (!name) { showToast('Course name required.', 'error'); return; }
-    var target = parseFloat(document.getElementById('grade-course-target').value) || 0;
-    var courses = getGradeCourses();
-    courses.push({ id: Date.now(), name: name, targetGrade: target||null, grades: [] });
-    saveGradeCourses(courses);
-    document.getElementById('grade-modal-overlay').remove();
-    renderGradeCalc();
-    showToast('Course "'+name+'" added!', 'success', 2000);
-}
-function openAddGradeModal(courseId) {
-    var modal = document.createElement('div');
-    modal.id = 'grade-modal-overlay';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
-    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `
-    <div class="glass-panel" style="max-width:400px;width:100%;padding:28px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-            <h3 style="margin:0;color:white;"><i class="ph ph-plus-circle" style="color:var(--accent);"></i> Add Grade</h3>
-            <button class="btn-icon" onclick="document.getElementById('grade-modal-overlay').remove()"><i class="ph ph-x"></i></button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div>
-                <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Assignment Name</label>
-                <input id="grade-name" class="input-field" placeholder="e.g. Unit 3 Test">
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div>
-                    <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Category</label>
-                    <select id="grade-category" class="input-field">
-                        <option value="test">Test / Exam</option>
-                        <option value="quiz">Quiz</option>
-                        <option value="homework" selected>Homework</option>
-                        <option value="project">Project</option>
-                        <option value="lab">Lab</option>
-                        <option value="participation">Participation</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Score (%)*</label>
-                    <input id="grade-score" class="input-field" type="number" min="0" max="100" placeholder="e.g. 87">
-                </div>
-            </div>
-            <div>
-                <label style="font-size:0.88rem;color:var(--text-muted);display:block;margin-bottom:4px;">Weight (optional — 1 = normal)</label>
-                <input id="grade-weight" class="input-field" type="number" min="0" max="10" step="0.5" placeholder="1">
-            </div>
-        </div>
-        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:18px;">
-            <button class="btn-secondary" onclick="document.getElementById('grade-modal-overlay').remove()">Cancel</button>
-            <button class="btn-primary" onclick="addGrade(${courseId})">Add Grade</button>
-        </div>
-    </div>`;
-    document.body.appendChild(modal);
-    setTimeout(function(){ var el=document.getElementById('grade-name'); if(el) el.focus(); }, 100);
-}
-function addGrade(courseId) {
-    var score = parseFloat(document.getElementById('grade-score').value);
-    if (isNaN(score)||score<0||score>100) { showToast('Enter a valid score (0-100).', 'error'); return; }
-    var name     = (document.getElementById('grade-name').value||'').trim() || 'Grade';
-    var category = (document.getElementById('grade-category')||{}).value || 'other';
-    var weight   = parseFloat(document.getElementById('grade-weight').value)||1;
-    var courses = getGradeCourses();
-    var idx = courses.findIndex(function(c){ return c.id===courseId; });
-    if (idx<0) return;
-    courses[idx].grades.push({ name: name, score: score, weight: weight, category: category });
-    saveGradeCourses(courses);
-    document.getElementById('grade-modal-overlay').remove();
-    renderGradeCalc();
-    showToast('Grade added!', 'success', 2000);
-    logStudyEvent('grade', `${courses[idx].name}: ${name} — ${score}% (${category})`);
-}
-function openTargetModal(courseId) {
-    var courses = getGradeCourses();
-    var course = courses.find(function(c){ return c.id===courseId; });
-    if (!course) return;
-    var t = prompt('Set target grade (%) for "'+course.name+'":', course.targetGrade||'');
-    if (t === null) return;
-    var val = parseFloat(t);
-    course.targetGrade = isNaN(val) ? null : Math.max(0,Math.min(100,val));
-    saveGradeCourses(courses);
-    renderGradeCalc();
-    showToast('Target updated!', 'success', 1800);
-}
-function deleteGrade(courseId, gradeIdx) {
-    var courses = getGradeCourses();
-    var idx = courses.findIndex(function(c){ return c.id===courseId; });
-    if (idx<0) return;
-    courses[idx].grades.splice(gradeIdx, 1);
-    saveGradeCourses(courses);
-    renderGradeCalc();
-}
-function deleteCourse(courseId) {
-    if (!confirm('Remove this course and all its grades?')) return;
-    saveGradeCourses(getGradeCourses().filter(function(c){ return c.id!==courseId; }));
-    renderGradeCalc();
-    showToast('Course removed.', 'info', 1500);
-}
-
-// v13.1 — AI academic advice for a specific course
-async function openGradeAiAnalysis(courseId) {
-    var courses = getGradeCourses();
-    var course = courses.find(function(c){ return c.id===courseId; });
-    if (!course) return;
-    var apiKey = getApiKey();
-    if (!apiKey) { showToast('Add your API key in Settings to use AI analysis.','error',3000); return; }
-
-    var avg = calcCourseAvg(course);
-    var letter = letterGradeDetailed(avg);
-    var gradeList = (course.grades||[]).map(function(g){ return g.category+': '+g.name+' = '+g.score+'%'+(g.weight&&g.weight!==1?' (weight: '+g.weight+')':''); }).join(', ');
-
-    var modal = document.createElement('div');
-    modal.id = 'grade-ai-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
-    modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
-    modal.innerHTML = '<div class="glass-panel" style="max-width:500px;width:100%;padding:0;border:1px solid rgba(0,206,201,0.35);overflow:hidden;">'
-        +'<div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.1);background:linear-gradient(135deg,rgba(0,206,201,0.1),rgba(108,92,231,0.08));display:flex;align-items:center;gap:10px;">'
-            +'<div style="flex:1;"><div style="font-size:0.9rem;color:var(--accent);font-weight:700;letter-spacing:1.2px;margin-bottom:2px;">AI ACADEMIC ADVISOR</div><div style="color:white;font-size:0.92rem;font-weight:600;">'+course.name+'</div></div>'
-            +'<button class="btn-icon" onclick="document.getElementById(\'grade-ai-modal\').remove()"><i class="ph ph-x"></i></button>'
-        +'</div>'
-        +'<div style="padding:20px;" id="grade-ai-body"><div style="color:var(--accent);display:flex;align-items:center;gap:12px;"><i class="ph ph-spinner ph-spin"></i> Analyzing your grades…</div></div>'
-    +'</div>';
-    document.body.appendChild(modal);
+    const subjectLine = _teachSubject ? ('\n\nThe student says this is for: ' + _teachSubject + '.') : '';
+    const messages = [
+        { role: 'system', content: NEXUS_TEACHING_BOARD_PROMPT + subjectLine }
+    ].concat(_teachHistory.slice(-16));
 
     try {
-        var res = await fetch('https://api.openai.com/v1/chat/completions', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-            body: JSON.stringify({
-                model:'gpt-4o-mini',
-                messages:[
-                    {role:'system', content:`You are NEXUS academic advisor. Analyze a student's grade data and give actionable, encouraging advice.
-Format your response as clean HTML (no markdown). Use <strong>, <ul><li>, <br>.
-Be specific and practical. Keep it under 250 words.`},
-                    {role:'user', content:`Course: ${course.name}\nCurrent average: ${avg!==null?avg.toFixed(1)+'%':'Not enough grades'} (${letter})\nTarget: ${course.targetGrade?course.targetGrade+'%':'Not set'}\nGrades: ${gradeList||'No grades yet.'}\n\nGive me: 1) What my grade trend shows 2) Specific things to focus on 3) How to reach my target if set.`}
-                ],
-                temperature:0.6,max_tokens:400
-            })
+        const typingEl = document.getElementById('teach-typing');
+        if (typingEl) typingEl.remove();
+        const liveBubble = document.createElement('div');
+        liveBubble.className = 'companion-msg-ai';
+        liveBubble.style.alignSelf = 'flex-start';
+        liveBubble.style.maxWidth = '85%';
+        liveBubble.innerHTML = '<span class="streaming-content"></span><span class="streaming-cursor">▍</span>';
+        msgs.appendChild(liveBubble);
+        msgs.scrollTop = msgs.scrollHeight;
+        const contentEl = liveBubble.querySelector('.streaming-content');
+        const cursorEl = liveBubble.querySelector('.streaming-cursor');
+
+        await streamChat({
+            apiKey: apiKey,
+            model: localStorage.getItem('ai_model') || 'gpt-4o',
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 1400,
+            onChunk: function (delta, full) {
+                contentEl.textContent = (typeof stripHtmlForStream === 'function') ? stripHtmlForStream(full) : full;
+                msgs.scrollTop = msgs.scrollHeight;
+            },
+            onDone: function (full) {
+                if (cursorEl) cursorEl.remove();
+                const formatted = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(full) : full.replace(/\n/g, '<br>');
+                contentEl.innerHTML = formatted;
+                _teachHistory.push({ role: 'assistant', content: full });
+                _teachSaveHistory();
+                _teachShowQuickActions();
+                if (typeof recordQuestProgress === 'function') recordQuestProgress('teaching_board');
+                if (typeof logActivity === 'function') logActivity('study', 'Used Teaching Board' + (_teachSubject ? (': ' + _teachSubject) : ''));
+                if (typeof updateStudyStats === 'function') updateStudyStats('problem_solved');
+            },
+            onError: function (err) {
+                if (cursorEl) cursorEl.remove();
+                contentEl.textContent = 'I hit an error: ' + err.message;
+            }
         });
-        var data = await res.json();
-        if(data.error) throw new Error(data.error.message);
-        var answer = data.choices[0].message.content||'';
-        var cleaned = typeof convertMarkdownLeaks==='function'?convertMarkdownLeaks(answer):answer;
-        var body = document.getElementById('grade-ai-body');
-        if(body){ body.style.opacity='0'; body.innerHTML='<div style="line-height:1.65;font-size:0.88rem;color:#dde0ee;">'+cleaned+'</div>'; requestAnimationFrame(function(){body.style.transition='opacity 0.35s';body.style.opacity='1';}); }
-    } catch(err) {
-        var b=document.getElementById('grade-ai-body'); if(b) b.innerHTML='<p style="color:#ff6b6b;">Error: '+err.message+'</p>';
+    } catch (err) {
+        const typingEl2 = document.getElementById('teach-typing');
+        if (typingEl2) typingEl2.remove();
+        addTeachMessage('ai', 'I hit an error: ' + err.message);
     }
-}
-function exportGradesPDF() {
-    var courses = getGradeCourses();
-    var w = window.open('', '_blank');
-    if (!w) { showToast('Allow pop-ups to export.', 'error'); return; }
-    var avgs = courses.map(calcCourseAvg).filter(function(a){ return a!==null; });
-    var overall = avgs.length ? (avgs.reduce(function(s,a){return s+a;},0)/avgs.length).toFixed(1) : '—';
-    var rows = courses.map(function(c){ var avg=calcCourseAvg(c); return '<tr><td>'+c.name+'</td><td>'+c.grades.length+'</td><td>'+(avg!==null?avg.toFixed(1)+'%':'—')+'</td><td>'+letterGrade(avg)+'</td><td>'+(c.targetGrade?c.targetGrade+'%':'—')+'</td></tr>'; }).join('');
-    w.document.write('<!DOCTYPE html><html><head><title>Grades — NEXUS</title><style>body{font-family:sans-serif;padding:24px;}h2{color:#6C5CE7;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}th{background:#f0f0f0;}</style></head><body><h2>NEXUS Grade Report</h2><p>'+new Date().toLocaleDateString()+' | Overall: '+overall+'%</p><table><tr><th>Course</th><th>Grades</th><th>Average</th><th>Letter</th><th>Target</th></tr>'+rows+'</table></body></html>');
-    w.document.close(); w.print();
 }
 
 // ─────────────────────────────────────────
@@ -28693,7 +28970,7 @@ function renderStudyHistoryChart(canvasId) {
         if(STUDY.indexOf(tabId)>=0){ endStudySession(); startStudySession(tabId.charAt(0).toUpperCase()+tabId.slice(1)); }
         else endStudySession();
         _orig(tabId);
-        if(tabId==='grades')   setTimeout(renderGradeCalc,80);
+        if(tabId==='teach')    setTimeout(initTeachingBoard,80);
         // v19.5 — Study History moved to Profile (achievements); Daily Challenge
         // moved into the Quests modal (rendered by openQuestsModal instead).
         if(tabId==='achievements') setTimeout(function(){ if(typeof renderStudyHistoryChart==='function') renderStudyHistoryChart('study-history-canvas'); },120);
@@ -28941,6 +29218,29 @@ function renderBetterProfile() {
         +(_nf?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Next: '+_nf.unlock.icon+' <strong style="color:#fff;">'+_nf.unlock.name+'</strong> at Level '+_nf.level+'</div>':'<div style="font-size:0.78rem;color:#c89bff;margin-top:8px;font-weight:700;">🏆 You\'ve collected every flair!</div>')
         +'</div>';
 
+    // v240 — EXCLUSIVE GEAR track: real Shop cosmetics (not emoji flairs) that
+    // can ONLY be earned by reaching a level — the Nitro-Type "garage" wall.
+    var _gearTrackData=(typeof getLevelGearTrack==='function')?getLevelGearTrack():{level:level,items:[]};
+    var _gearNext=_gearTrackData.items.filter(function(it){return it.levelReq>level;})[0]||null;
+    var _gearItemsHtml=_gearTrackData.items.map(function(it){
+        var has=userInventory.indexOf(it.id)>=0, eq=(userLoadout&&Object.values(userLoadout).indexOf(it.id)>=0);
+        return '<div title="'+(has?it.name:('Unlocks at Level '+it.levelReq))+'" style="flex:0 0 auto;text-align:center;width:78px;padding:8px 6px;border-radius:10px;border:1px solid '+(eq?'#ff4d8d':'rgba(255,255,255,0.08)')+';background:'+(eq?'rgba(255,77,141,0.12)':'rgba(255,255,255,0.03)')+';opacity:'+(has?'1':'0.4')+';">'
+            +'<div style="font-size:1.4rem;filter:'+(has?'none':'grayscale(1)')+';">'+(has?'✨':'🔒')+'</div>'
+            +'<div style="font-size:0.6rem;color:'+(eq?'#ff4d8d':'var(--text-muted)')+';margin-top:3px;font-weight:600;line-height:1.2;">'+it.name+'</div>'
+            +'<div style="font-size:0.56rem;color:var(--text-muted);opacity:0.7;">Lv.'+it.levelReq+'</div></div>';
+    }).join('');
+    var _gearTrack=_gearTrackData.items.length?('<div class="glass-panel" style="padding:16px;margin-bottom:14px;border:1px solid rgba(255,77,141,0.15);"><h4 style="margin:0 0 10px;color:white;font-size:0.9rem;"><i class="ph ph-shield-star" style="color:#ff4d8d;"></i> Exclusive Gear — never for sale, only earned by leveling up</h4>'
+        +'<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;">'+_gearItemsHtml+'</div>'
+        +(_gearNext?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">Next: <strong style="color:#fff;">'+_gearNext.name+'</strong> at Level '+_gearNext.levelReq+'</div>':'<div style="font-size:0.78rem;color:#ff4d8d;margin-top:8px;font-weight:700;">🛡️ You own every piece of Exclusive Gear!</div>')
+        +'</div>'):'';
+
+    // v240 — Season summary: current season progress + a link to the trophy case.
+    var _seasonInfoP=(typeof getCurrentSeasonInfo==='function')?getCurrentSeasonInfo():null;
+    var _seasonTrophiesP=(typeof getSeasonTrophies==='function')?getSeasonTrophies():[];
+    var _seasonBlock=_seasonInfoP?('<div class="glass-panel" style="padding:16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;"><div><h4 style="margin:0 0 4px;color:white;font-size:0.9rem;"><i class="ph ph-trophy" style="color:#FFD700;"></i> Season '+_seasonInfoP.number+'</h4><div style="font-size:0.82rem;color:var(--text-muted);">'+(typeof getSeasonXP==='function'?getSeasonXP().toLocaleString():'0')+' Season XP · ends in '+_seasonInfoP.daysLeft+' day'+(_seasonInfoP.daysLeft===1?'':'s')+' · Top 3 = permanent Hall of Famer badge</div></div>'
+        +(_seasonTrophiesP.length?'<button class="btn-secondary" onclick="openSeasonTrophyCase()" style="font-size:0.82rem;padding:7px 14px;">🏆 Trophy Case ('+_seasonTrophiesP.length+')</button>':'<span style="font-size:0.78rem;color:var(--text-muted);">No trophies yet</span>')
+        +'</div>'):'';
+
     container.innerHTML='<div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:22px;flex-wrap:wrap;">'
         +'<div style="text-align:center;"><div style="font-size:1.4rem;cursor:pointer;transition:transform 0.2s;display:inline-block;" onclick="openProfilePicPicker()" onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'" title="Click to change">'+pic+'</div><div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;">click to change</div></div>'
         +'<div style="flex:1;min-width:200px;">'
@@ -28961,7 +29261,9 @@ function renderBetterProfile() {
         +'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;font-size:0.85rem;color:var(--text-muted);"><span><i class="ph ph-calendar-blank"></i> Member since <strong style="color:#fff;">'+joinedStr+'</strong></span><span><i class="ph ph-bookmark-simple"></i> Most studied: <strong style="color:#fff;">'+favSubject+'</strong></span><span><i class="ph ph-target"></i> Daily streak: <strong style="color:#fff;">'+dcStreak+'</strong></span>'+(_nm?'<span><i class="ph ph-gift" style="color:#fdcb6e;"></i> Next milestone: <strong style="color:#fff;">Lv.'+_nm.level+' → +'+_nm.reward.toLocaleString()+'g</strong></span>':'')+'</div>'
         +(dueCards>0?'<div class="glass-panel" style="padding:12px 16px;margin-bottom:14px;border:1px solid rgba(253,203,110,0.3);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchTab(\'notebook\');setTimeout(function(){switchNotebookTab(\'cards\');},80)" ><i class="ph ph-cards" style="font-size:1.4rem;color:#fdcb6e;"></i><div style="flex:1;"><div style="font-weight:600;color:white;">'+dueCards+' flashcard'+(dueCards!==1?'s':'')+' due for review</div><div style="font-size:0.9rem;color:var(--text-muted);">Tap to start spaced repetition review</div></div><i class="ph ph-arrow-right" style="color:var(--text-muted);"></i></div>':'')
         +'<div class="glass-panel" style="padding:16px;margin-bottom:14px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h4 style="margin:0;color:white;font-size:0.9rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> Today\'s Quests</h4><button onclick="openQuestsModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:0.78rem;cursor:pointer;padding:0;font-weight:600;">All quests</button></div><div id="profile-quests-list" style="display:grid;gap:10px;"></div></div>'
+        +_seasonBlock
         +_rewardTrack
+        +_gearTrack
         +'<div class="glass-panel" style="padding:16px;"><h4 style="margin:0 0 12px;color:white;font-size:0.9rem;"><i class="ph ph-chart-bar"></i> 7-Day Study Activity</h4><canvas id="profile-study-canvas" style="width:100%;height:140px;display:block;"></canvas></div>';
 
     setTimeout(function(){
