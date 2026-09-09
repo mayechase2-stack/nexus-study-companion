@@ -20830,6 +20830,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v20.4',
+        date: 'September 9, 2026',
+        tag: 'TEACHING BOARD — BIGGER & CLEARER',
+        tagColor: '#00cec9',
+        changes: [
+            'A BIGGER STUDY SPACE — The Teaching Board now fills the screen, so a real, grindy study session has room to breathe. This is the tab for going deep.',
+            'NO MORE CUT-OFF TEXT — Fixed lessons running off the right edge; everything wraps cleanly at any screen size.',
+            'CLEARER, BETTER LESSONS — Lessons now walk through two worked examples (an easy one, then a harder one), show each step, and use simple text diagrams so ideas are demonstrated, not just described. Stray formatting codes are cleaned up so the math always reads right.',
+        ]
+    },
+    {
         version: 'v20.3',
         date: 'September 9, 2026',
         tag: 'SAFETY',
@@ -28179,15 +28190,16 @@ WRITE SO IT'S EASY AND ENJOYABLE TO READ:
 
 WHAT EVERY EXPLANATION INCLUDES:
 - The idea in plain terms, and WHY it works (not just what it is).
-- At least ONE fully worked example with real specifics — real numbers, a real scenario. Show each step and say what you're doing and why.
-- MINI PROBLEMS: end with 1–2 quick "try it yourself" problems so they practice. Wrap each in <div class="teach-tryit"><strong>💪 Try it</strong><br>…the problem…</div>, then immediately give the worked answer under it as <div class="teach-tryit"><strong>✅ Answer</strong><br>…</div> so they can attempt it, then check. Keep the problems small and doable from what you just taught.
+- DEMONSTRATE, don't just tell. Give at least TWO worked examples with real specifics: one simple to show the pattern, then a slightly harder one so it really lands. Put EACH step on its own line (use <br> or an <ol><li>), and after each step add a few words on what you did and why — never dump a finished answer with no steps.
+- SHOW IT VISUALLY when it helps. Sketch a simple picture in text/Unicode — a number line (—2——1——0——1——2→), a small aligned table with <code>, a labelled shape, a quick before→after — so they can SEE the idea, not only read it.
+- MINI PROBLEMS: end with 1–2 quick "try it yourself" problems so they practice. Wrap each in <div class="teach-tryit"><strong>💪 Try it</strong><br>…the problem…</div>, then immediately give the fully-worked answer under it as <div class="teach-tryit"><strong>✅ Answer</strong><br>…step by step…</div> so they can attempt it, then check. Keep them doable from what you just taught.
 - One short check-in question at the very end (e.g. "Want me to go deeper on X, or try a harder one?").
 
-ADAPT:
-- If they already get the basics, go further — edge cases, common mistakes, harder examples.
-- If they're confused or say so, back up and re-explain a DIFFERENT way (new analogy/angle), don't repeat yourself. Their follow-ups are the whole point — lean into them.
+ADAPT (this is the "ultimate" study tab — students come here for real, deep sessions):
+- If they already get the basics, go further — edge cases, common mistakes, harder examples, and how it connects to the next topic.
+- If they're confused or say so, back up and re-explain a DIFFERENT way (new analogy/angle/example), don't repeat yourself. Their follow-ups are the whole point — lean into them.
 
-FORMAT: Clean, light HTML only (<h4>, <strong>, <em>, <ul><li>, <br>, <code> for math/code, and the <div class="teach-tryit"> boxes above). Never markdown syntax (**, #, backticks), never LaTeX commands — use Unicode ≥ ≤ ÷ × √ ² ³ π θ for math. Keep paragraphs short.`;
+FORMAT — READ THIS CAREFULLY: Clean, light HTML only: <h4> for mini-headings, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code> for math/formulas/small tables, and the <div class="teach-tryit"> boxes above. NEVER use markdown (no **bold**, no # headings, no backticks) — use <strong> and <h4> instead. NEVER use LaTeX or its delimiters (no \\( \\) \\[ \\] \\frac). Write ALL math with plain characters and Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ ½ π θ → , e.g. write "m = (y₂ − y₁) / (x₂ − x₁)" inside <code>. Keep paragraphs short.`;
 
 let _teachHistory = [];
 let _teachSubject = '';
@@ -28248,6 +28260,15 @@ function resetTeachingBoard() {
     _teachShowIntro();
 }
 
+// Clean up LaTeX/markdown the model sometimes leaks despite the prompt, so the
+// student never sees raw \( \) or **bold** on screen.
+function _teachCleanHtml(s) {
+    s = String(s == null ? '' : s);
+    s = s.replace(/\\\(|\\\)|\\\[|\\\]/g, '');            // strip LaTeX delimiters
+    s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>'); // **bold** -> <strong>
+    s = s.replace(/(^|<br>|\n)\s*#{1,4}\s*([^\n<]+)/g, '$1<strong>$2</strong>'); // stray markdown headings -> bold
+    return s;
+}
 function addTeachMessage(role, text) {
     const msgs = document.getElementById('teach-chat-messages');
     if (!msgs) return null;
@@ -28255,7 +28276,8 @@ function addTeachMessage(role, text) {
     div.className = role === 'user' ? 'companion-msg-user' : 'companion-msg-ai';
     div.style.maxWidth = role === 'user' ? '80%' : '100%';   // lesson uses full width; questions stay compact
     div.style.alignSelf = role === 'user' ? 'flex-end' : 'flex-start';
-    div.innerHTML = text;
+    if (role === 'user') { div.textContent = text; }        // plain + XSS-safe
+    else { div.innerHTML = _teachCleanHtml(text); }          // model HTML, delimiters cleaned
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
     return div;

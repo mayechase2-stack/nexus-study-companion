@@ -3243,11 +3243,16 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
    classes (built for a narrow floating window); in the wide Teaching Board that
    caused horizontal overflow (drag-to-see) and cramped text. Scoped to
    #teach-chat-messages so the companion chat is untouched. */
+/* min-width:0 down the whole chain — the real fix for the cutoff. Flex items
+   default to min-width:auto, so a single wide child (a long line, a formula)
+   forces the column wider than the screen. min-width:0 makes them wrap. */
+#view-teach, #teach-board-body, #teach-session, #teach-chat-messages,
+#teach-chat-messages > * { min-width: 0; max-width: 100%; }
 #teach-chat-messages { overflow-x: hidden; }
 #teach-chat-messages .companion-msg-ai {
     max-width: 100% !important;          /* the lesson uses the full width */
-    font-size: 1.02rem;
-    line-height: 1.7;
+    font-size: 1.05rem;
+    line-height: 1.72;
     box-sizing: border-box;
 }
 #teach-chat-messages .companion-msg-user {
