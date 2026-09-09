@@ -3239,6 +3239,47 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
     animation: companionMsgFloatUp 0.32s cubic-bezier(0.34, 1.06, 0.64, 1) both;
 }
 
+/* v20.2 — Teaching Board readability. The bubbles reuse the companion-chat
+   classes (built for a narrow floating window); in the wide Teaching Board that
+   caused horizontal overflow (drag-to-see) and cramped text. Scoped to
+   #teach-chat-messages so the companion chat is untouched. */
+#teach-chat-messages { overflow-x: hidden; }
+#teach-chat-messages .companion-msg-ai {
+    max-width: 100% !important;          /* the lesson uses the full width */
+    font-size: 1.02rem;
+    line-height: 1.7;
+    box-sizing: border-box;
+}
+#teach-chat-messages .companion-msg-user {
+    max-width: 80% !important;           /* the student's questions stay compact, right side */
+    box-sizing: border-box;
+}
+#teach-chat-messages .companion-msg-ai,
+#teach-chat-messages .companion-msg-user {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+#teach-chat-messages .companion-msg-ai *,
+#teach-chat-messages .companion-msg-user * { max-width: 100%; box-sizing: border-box; }
+#teach-chat-messages code,
+#teach-chat-messages pre {
+    white-space: pre-wrap;               /* long formulas wrap instead of overflowing */
+    overflow-x: auto;
+    max-width: 100%;
+}
+#teach-chat-messages .companion-msg-ai strong { font-size: 1.06em; }
+#teach-chat-messages .companion-msg-ai h3,
+#teach-chat-messages .companion-msg-ai h4 { font-size: 1.1rem; margin: 12px 0 6px; }
+#teach-chat-messages .companion-msg-ai ul { padding-left: 1.25em; margin: 6px 0; }
+#teach-chat-messages .companion-msg-ai li { margin: 4px 0; }
+#teach-chat-messages .teach-tryit {
+    background: rgba(0, 206, 201, 0.10);
+    border-left: 3px solid #00cec9;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+}
+
 /* ════════════════════════════════════════════════════════════════
    v12.1 — COMPANION DIM-WHEN-IDLE
    When the user toggles "idle glow" off, the companion fades to a
