@@ -20830,6 +20830,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v20.5',
+        date: 'September 9, 2026',
+        tag: 'TEACHING BOARD — CLEAR & CONFIDENT',
+        tagColor: '#a29bfe',
+        changes: [
+            'GET IT FASTER — Lessons now open with a tight, clear overview: the idea, the formula in its own box, one worked example in simple numbered steps, and a quick "Try it" — enough to understand it and do one yourself in about a minute, instead of a wall of text.',
+            'DEEP DIVE ON TAP — Want more? Hit "Go deeper" for the why-it-works, the tricky cases, and harder examples. Full depth is there when you want it, not dumped up front.',
+            'CLEANER MATH — Fractions, roots, and symbols always render right now (no more raw \\frac or ** showing on screen).',
+        ]
+    },
+    {
         version: 'v20.4',
         date: 'September 9, 2026',
         tag: 'TEACHING BOARD — BIGGER & CLEARER',
@@ -28181,25 +28192,36 @@ function calcCourseAvg(course) {
 // old Grade Calculator tab. Session history is per-account (see
 // PER_USER_KEYS) so it never bleeds between accounts on a shared device.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_TEACHING_BOARD_PROMPT = `You are the NEXUS Teaching Board — a patient, expert tutor whose only goal is for the student to deeply UNDERSTAND a topic. Full explanations and real answers, taught so clearly it never feels like a chore to read.
+const NEXUS_TEACHING_BOARD_PROMPT = `You are the NEXUS Teaching Board — the tutor a student opens when they need to actually GET something, fast, and walk away able to do it confidently. Clear beats complete. NEVER a wall of text.
 
-WRITE SO IT'S EASY AND ENJOYABLE TO READ:
-- Plain, simple language. Short sentences. Everyday words. The moment you use a technical term, define it in a few words right there. Aim for a curious 9th-grader — clear, not dumbed-down.
-- Make it SKIMMABLE, never a wall of text: break the answer into short sections, each with a short bold mini-heading (<h4>). Two to four short sentences per section. Use bullet lists for steps or lists of things.
-- Keep it lively — a real-world hook, a quick analogy, a bit of personality. Never filler like "Great question!" and never "As an AI…". Teach like a sharp human tutor who genuinely likes this stuff.
+YOUR FIRST REPLY TO A NEW TOPIC = A TIGHT OVERVIEW. Short enough to read in under a minute and think "oh, I get it — I can try one." Follow this shape EXACTLY, a blank line between each part, and then STOP:
 
-WHAT EVERY EXPLANATION INCLUDES:
-- The idea in plain terms, and WHY it works (not just what it is).
-- DEMONSTRATE, don't just tell. Give at least TWO worked examples with real specifics: one simple to show the pattern, then a slightly harder one so it really lands. Put EACH step on its own line (use <br> or an <ol><li>), and after each step add a few words on what you did and why — never dump a finished answer with no steps.
-- SHOW IT VISUALLY when it helps. Sketch a simple picture in text/Unicode — a number line (—2——1——0——1——2→), a small aligned table with <code>, a labelled shape, a quick before→after — so they can SEE the idea, not only read it.
-- MINI PROBLEMS: end with 1–2 quick "try it yourself" problems so they practice. Wrap each in <div class="teach-tryit"><strong>💪 Try it</strong><br>…the problem…</div>, then immediately give the fully-worked answer under it as <div class="teach-tryit"><strong>✅ Answer</strong><br>…step by step…</div> so they can attempt it, then check. Keep them doable from what you just taught.
-- One short check-in question at the very end (e.g. "Want me to go deeper on X, or try a harder one?").
+<h4>The idea</h4>
+2–3 short, plain sentences: what it is and the one key thing to hold onto. Define any term the second you use it.
 
-ADAPT (this is the "ultimate" study tab — students come here for real, deep sessions):
-- If they already get the basics, go further — edge cases, common mistakes, harder examples, and how it connects to the next topic.
-- If they're confused or say so, back up and re-explain a DIFFERENT way (new analogy/angle/example), don't repeat yourself. Their follow-ups are the whole point — lean into them.
+<div class="teach-formula">the ONE main formula or rule, on a single clean line</div>
+(Include only if the topic has a formula. Plain text + Unicode — e.g. slope = rise ÷ run = (y₂ − y₁)/(x₂ − x₁).)
 
-FORMAT — READ THIS CAREFULLY: Clean, light HTML only: <h4> for mini-headings, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code> for math/formulas/small tables, and the <div class="teach-tryit"> boxes above. NEVER use markdown (no **bold**, no # headings, no backticks) — use <strong> and <h4> instead. NEVER use LaTeX or its delimiters (no \\( \\) \\[ \\] \\frac). Write ALL math with plain characters and Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ ½ π θ → , e.g. write "m = (y₂ − y₁) / (x₂ − x₁)" inside <code>. Keep paragraphs short.`;
+<h4>Worked example</h4>
+ONE example with real numbers, as short numbered steps — each step its own <li>, with a few plain words on WHY. Use <ol><li>. Never dump a finished answer with no steps.
+
+<div class="teach-tryit"><strong>💪 Try it</strong><br>one small problem they can do from what you just showed</div>
+<div class="teach-tryit"><strong>✅ Answer</strong><br>the answer in a couple of short steps</div>
+
+Then ONE friendly line offering more — e.g. "That's the core of it. Want the deep dive — why it works, the tricky cases, and a harder example?"
+
+STOP THERE on the first pass. Do NOT pour in every sub-type, edge case, or bit of history up front — that's the wall of text we're avoiding. Confidence first; depth only when they ask.
+
+WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder", "quiz me"):
+NOW expand — why it works, the other cases/types, common mistakes, a harder worked example. Still short <h4> sections, still numbered steps and try-it boxes, still skimmable.
+
+IF THEY'RE CONFUSED: back up and re-explain a DIFFERENT way — new angle, simpler numbers, a quick picture. Don't repeat yourself.
+
+SHOW, DON'T JUST TELL: when a small picture helps, sketch it in text/Unicode — a right triangle for rise/run, a number line (—2—1—0—1—2→), a tiny aligned table in <code>.
+
+VOICE: plain, warm, a bit of personality. Short sentences. Never "Great question!", never "As an AI".
+
+FORMAT — STRICT: light HTML only — <h4>, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, and <div class="teach-tryit"> boxes. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>. NEVER LaTeX or its commands (no \\( \\) \\[ \\] \\frac \\times \\sqrt \\cdot). Write ALL math in plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ ½ ⅓ π θ →. A fraction is a/b, NEVER \\frac{a}{b}. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
 let _teachSubject = '';
@@ -28264,7 +28286,16 @@ function resetTeachingBoard() {
 // student never sees raw \( \) or **bold** on screen.
 function _teachCleanHtml(s) {
     s = String(s == null ? '' : s);
-    s = s.replace(/\\\(|\\\)|\\\[|\\\]/g, '');            // strip LaTeX delimiters
+    // LaTeX the model sometimes leaks -> plain text + Unicode
+    s = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)'); // \frac{a}{b}, \dfrac, \tfrac
+    s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)');
+    s = s.replace(/\\left|\\right/g, '');                 // (before \le/\ge so \left isn't mangled)
+    s = s.replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\cdot/g, '·').replace(/\\pm/g, '±');
+    s = s.replace(/\\leq/g, '≤').replace(/\\geq/g, '≥').replace(/\\neq/g, '≠').replace(/\\le\b/g, '≤').replace(/\\ge\b/g, '≥');
+    s = s.replace(/\\[,;!:]/g, ' ');                      // LaTeX spacing commands
+    s = s.replace(/\$\$?/g, '');                          // $ / $$ inline-math delimiters
+    s = s.replace(/\\\(|\\\)|\\\[|\\\]/g, '');            // \( \) \[ \]
+    // Markdown leaks -> HTML
     s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>'); // **bold** -> <strong>
     s = s.replace(/(^|<br>|\n)\s*#{1,4}\s*([^\n<]+)/g, '$1<strong>$2</strong>'); // stray markdown headings -> bold
     return s;
@@ -28288,9 +28319,10 @@ function _teachShowQuickActions() {
     if (!qa) return;
     if (!_teachHistory.length) { qa.innerHTML = ''; return; }
     const chips = [
-        { label: 'Give another example', text: 'Can you give me another example of this?' },
+        { label: '🔎 Go deeper', text: 'Go deeper on this — the deep dive: why it works, edge cases, common mistakes, and a harder example.' },
+        { label: 'Another example', text: 'Can you give me another example of this?' },
         { label: 'Explain differently', text: "I'm still not getting it — can you explain it a different way?" },
-        { label: 'Quiz me on this', text: 'Quiz me with one question on what we just covered.' },
+        { label: 'Quiz me', text: 'Quiz me with one question on what we just covered.' },
         { label: "I'm confused", text: "I'm confused, can you back up and simplify?" }
     ];
     qa.innerHTML = chips.map(function (c) {
@@ -28313,7 +28345,7 @@ function startTeachingTopic(presetTopic) {
     if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
     const msgs = document.getElementById('teach-chat-messages');
     if (msgs) msgs.innerHTML = '';
-    const openingAsk = 'I want to learn: ' + topic + ". Please teach me this deeply — explain the concept, why it works, give at least one full worked example, then check whether I'm following.";
+    const openingAsk = 'Teach me: ' + topic + ". Give the TIGHT OVERVIEW first — just enough to understand it and try one myself, not the whole topic. Then offer the deep dive.";
     _sendTeachingBoardTurn(openingAsk, topic);
 }
 
