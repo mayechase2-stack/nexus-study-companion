@@ -20830,6 +20830,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v20.5.2',
+        date: 'September 9, 2026',
+        tag: 'FIX — BLANK ANSWERS',
+        tagColor: '#ff7675',
+        changes: [
+            'NO MORE BLANK LESSONS — Sometimes the tutor\'s reply came back empty and left a blank gap that stuck around. Now it quietly retries once (you usually won\'t even notice), and if it\'s still blank it says so clearly instead of leaving a void — and it never saves a blank answer, so reloading won\'t bring the empty back.',
+        ]
+    },
+    {
         version: 'v20.5.1',
         date: 'September 9, 2026',
         tag: 'FIX — TEACHING BOARD',
@@ -28376,6 +28385,15 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
     const esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
     addTeachMessage('user', esc(displayOverride || sendText));
     _teachHistory.push({ role: 'user', content: sendText });
+    await _teachGenerate(0);
+}
+
+// Generates the assistant reply from the CURRENT _teachHistory (the user turn is
+// already appended). Separated so a blank reply can auto-retry without adding a
+// duplicate user message. retryCount guards against infinite retries.
+async function _teachGenerate(retryCount) {
+    const msgs = document.getElementById('teach-chat-messages');
+    if (!msgs) return;
     _teachBusy = true;
 
     const apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
@@ -28422,6 +28440,16 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
             },
             onDone: function (full) {
                 if (cursorEl) cursorEl.remove();
+                // Blank reply (the model returned nothing). NEVER leave a silent
+                // void or save an empty turn — auto-retry once, then show a clear note.
+                if (!full || !String(full).trim()) {
+                    liveBubble.remove();
+                    if (retryCount < 1) { _teachGenerate(retryCount + 1); return; }
+                    addTeachMessage('ai', '<em style="color:#ff9a9a;">That reply came back blank — the AI hiccuped. Tap "Another example" or send your question again and it\'ll come through.</em>');
+                    _teachBusy = false;
+                    _teachShowQuickActions();
+                    return;
+                }
                 let formatted = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(full) : full.replace(/\n/g, '<br>');
                 formatted = _teachCleanHtml(formatted);   // strip leaked LaTeX \frac/**, etc. in the live reply too
                 contentEl.innerHTML = formatted;
@@ -28435,7 +28463,7 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
             },
             onError: function (err) {
                 if (cursorEl) cursorEl.remove();
-                contentEl.textContent = 'I hit an error: ' + err.message;
+                contentEl.innerHTML = '<em style="color:#ff9a9a;">Hit a snag: ' + esc0(err && err.message) + '. Try sending again.</em>';
                 _teachBusy = false;
             }
         });
@@ -28443,9 +28471,10 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
         _teachBusy = false;
         const typingEl2 = document.getElementById('teach-typing');
         if (typingEl2) typingEl2.remove();
-        addTeachMessage('ai', 'I hit an error: ' + err.message);
+        addTeachMessage('ai', 'Hit a snag: ' + ((err && err.message) || err) + '. Try sending again.');
     }
 }
+function esc0(s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s == null ? '' : s) : String(s == null ? '' : s); }
 
 // ─────────────────────────────────────────
 // CITATION GENERATOR
