@@ -20830,6 +20830,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v20.5.1',
+        date: 'September 9, 2026',
+        tag: 'FIX — TEACHING BOARD',
+        tagColor: '#ff7675',
+        changes: [
+            'ANSWERS NO LONGER VANISH — Typing a new message while the tutor was still replying could wipe the answer in progress. It now waits for the current answer to finish (and keeps whatever you were typing), so nothing gets lost.',
+        ]
+    },
+    {
         version: 'v20.5',
         date: 'September 9, 2026',
         tag: 'TEACHING BOARD — CLEAR & CONFIDENT',
@@ -28225,6 +28234,7 @@ FORMAT — STRICT: light HTML only — <h4>, <strong>, <em>, <ul>/<ol>/<li>, <br
 
 let _teachHistory = [];
 let _teachSubject = '';
+let _teachBusy = false;   // true while a reply is generating — blocks overlapping turns that void the answer
 
 function _teachLoadHistory() {
     try { return JSON.parse(localStorage.getItem('teaching_board_session') || 'null'); } catch (_) { return null; }
@@ -28353,6 +28363,9 @@ async function sendTeachingBoardMessage(presetText) {
     const input = document.getElementById('teach-chat-input');
     const text = (typeof presetText === 'string' && presetText) ? presetText : (input ? input.value.trim() : '');
     if (!text) return;
+    // Don't start a new turn while one is still generating — overlapping turns
+    // were wiping the in-progress answer. Keep the student's text so it's not lost.
+    if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2500); return; }
     if (input && !(typeof presetText === 'string' && presetText)) { input.value = ''; input.style.height = ''; }
     await _sendTeachingBoardTurn(text);
 }
@@ -28363,10 +28376,12 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
     const esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
     addTeachMessage('user', esc(displayOverride || sendText));
     _teachHistory.push({ role: 'user', content: sendText });
+    _teachBusy = true;
 
     const apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
     if (!apiKey) {
         addTeachMessage('ai', "I need an OpenAI API key first — add one (or sign in) in Settings, then come back.");
+        _teachBusy = false;
         return;
     }
 
@@ -28388,7 +28403,7 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
         const liveBubble = document.createElement('div');
         liveBubble.className = 'companion-msg-ai';
         liveBubble.style.alignSelf = 'flex-start';
-        liveBubble.style.maxWidth = '85%';
+        liveBubble.style.maxWidth = '100%';
         liveBubble.innerHTML = '<span class="streaming-content"></span><span class="streaming-cursor">▍</span>';
         msgs.appendChild(liveBubble);
         msgs.scrollTop = msgs.scrollHeight;
@@ -28407,8 +28422,10 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
             },
             onDone: function (full) {
                 if (cursorEl) cursorEl.remove();
-                const formatted = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(full) : full.replace(/\n/g, '<br>');
+                let formatted = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(full) : full.replace(/\n/g, '<br>');
+                formatted = _teachCleanHtml(formatted);   // strip leaked LaTeX \frac/**, etc. in the live reply too
                 contentEl.innerHTML = formatted;
+                _teachBusy = false;
                 _teachHistory.push({ role: 'assistant', content: full });
                 _teachSaveHistory();
                 _teachShowQuickActions();
@@ -28419,9 +28436,11 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
             onError: function (err) {
                 if (cursorEl) cursorEl.remove();
                 contentEl.textContent = 'I hit an error: ' + err.message;
+                _teachBusy = false;
             }
         });
     } catch (err) {
+        _teachBusy = false;
         const typingEl2 = document.getElementById('teach-typing');
         if (typingEl2) typingEl2.remove();
         addTeachMessage('ai', 'I hit an error: ' + err.message);
