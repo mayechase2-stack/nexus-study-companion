@@ -3325,6 +3325,79 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
   #teach-chat-messages .teach-formula { font-size: 0.94rem; }
 }
 
+/* v21.1 — Teaching Board TOPIC CARDS. Each topic the tutor covers is its own
+   boxed section: title → what it is → steps → why → tips → practice. Makes a
+   multi-topic answer scannable instead of one long scroll. */
+#teach-chat-messages .teach-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+  border: 1px solid rgba(108,92,231,0.28);
+  border-left: 4px solid #6c5ce7;
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  margin: 14px 0;
+  box-shadow: 0 3px 16px rgba(0,0,0,0.20);
+}
+#teach-chat-messages .teach-card:first-child { margin-top: 2px; }
+#teach-chat-messages .teach-card > h4:first-child,
+#teach-chat-messages .teach-card > h4.teach-card-title {
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  color: #b8aaff;
+  font-size: 1.14rem;
+}
+#teach-chat-messages .teach-card h5 {
+  margin: 14px 0 5px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #00cec9;
+  font-weight: 700;
+}
+#teach-chat-messages .teach-what {
+  font-size: 1.02em;
+  color: #eef0f7;
+  margin: 2px 0 4px;
+}
+#teach-chat-messages .teach-tip {
+  background: rgba(255, 190, 90, 0.11);
+  border-left: 3px solid #ffbe5a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0 2px;
+  color: #ffe9c7;
+}
+#teach-chat-messages .teach-tip strong { color: #ffcf85; }
+#teach-chat-messages .teach-practice {
+  background: rgba(0, 206, 201, 0.09);
+  border: 1px dashed rgba(0, 206, 201, 0.45);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin: 14px 0 2px;
+}
+#teach-chat-messages .teach-practice > strong { color: #7ff0ec; }
+#teach-chat-messages .teach-practice details {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  padding-top: 8px;
+}
+#teach-chat-messages .teach-practice summary {
+  cursor: pointer;
+  color: #00cec9;
+  font-weight: 600;
+  font-size: 0.9rem;
+  list-style: none;
+  user-select: none;
+}
+#teach-chat-messages .teach-practice summary::-webkit-details-marker { display: none; }
+#teach-chat-messages .teach-practice summary::before { content: '▸ '; }
+#teach-chat-messages .teach-practice details[open] summary::before { content: '▾ '; }
+@media (max-width: 1400px) {
+  #teach-chat-messages .teach-card { padding: 12px 13px 13px; }
+  #teach-chat-messages .teach-card > h4:first-child { font-size: 1.06rem; }
+  #teach-chat-messages .teach-card h5 { font-size: 0.78rem; }
+}
+
 /* ════════════════════════════════════════════════════════════════
    v12.1 — COMPANION DIM-WHEN-IDLE
    When the user toggles "idle glow" off, the companion fades to a
