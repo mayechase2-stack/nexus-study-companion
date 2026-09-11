@@ -28244,23 +28244,86 @@ FORMAT — STRICT: light HTML only — <h4>, <strong>, <em>, <ul>/<ol>/<li>, <br
 let _teachHistory = [];
 let _teachSubject = '';
 let _teachBusy = false;   // true while a reply is generating — blocks overlapping turns that void the answer
+let _teachSessionId = '';  // id of the in-progress session (used to upsert into the archive)
+let _teachTitle = '';      // human title of the current session (the first topic)
+
+const _TEACH_ARCHIVE_KEY = 'teaching_board_archive';
+const _TEACH_ARCHIVE_CAP = 30;
+
+// v20.7 — a session is only worth keeping / continuing if it has at least one
+// REAL assistant answer. Strip empty/whitespace turns and any trailing user turn
+// that never got answered (that dangling turn is what "poisoned" sessions and
+// made follow-ups come back blank). Also collapse accidental double-user turns.
+function _teachSanitizeHistory(hist) {
+    if (!Array.isArray(hist)) return [];
+    const out = [];
+    hist.forEach(function (m) {
+        if (!m || (m.role !== 'user' && m.role !== 'assistant')) return;
+        const c = typeof m.content === 'string' ? m.content : '';
+        if (!c.trim()) return;                       // drop blank turns
+        out.push({ role: m.role, content: c });
+    });
+    while (out.length && out[out.length - 1].role === 'user') out.pop();  // drop dangling unanswered question(s)
+    return out;
+}
+function _teachHasRealAnswer(hist) {
+    return _teachSanitizeHistory(hist).some(function (m) { return m.role === 'assistant'; });
+}
 
 function _teachLoadHistory() {
     try { return JSON.parse(localStorage.getItem('teaching_board_session') || 'null'); } catch (_) { return null; }
 }
 function _teachSaveHistory() {
-    try { localStorage.setItem('teaching_board_session', JSON.stringify({ history: _teachHistory, subject: _teachSubject })); } catch (_) {}
+    try {
+        localStorage.setItem('teaching_board_session', JSON.stringify({
+            id: _teachSessionId, title: _teachTitle, history: _teachHistory, subject: _teachSubject
+        }));
+    } catch (_) {}
+}
+
+function _teachLoadArchive() {
+    try { const a = JSON.parse(localStorage.getItem(_TEACH_ARCHIVE_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; }
+}
+function _teachSaveArchive(arr) {
+    try { localStorage.setItem(_TEACH_ARCHIVE_KEY, JSON.stringify(arr.slice(0, _TEACH_ARCHIVE_CAP))); } catch (_) {}
+}
+// Upsert the current in-progress session into the archive (dedup by id). Only
+// archives sessions that actually contain a real answer.
+function _teachArchiveCurrent() {
+    const clean = _teachSanitizeHistory(_teachHistory);
+    if (!clean.some(function (m) { return m.role === 'assistant'; })) return;
+    if (!_teachSessionId) _teachSessionId = 'ts_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const title = _teachTitle || _teachDeriveTitle(clean) || 'Lesson';
+    const arr = _teachLoadArchive().filter(function (s) { return s.id !== _teachSessionId; });
+    arr.unshift({ id: _teachSessionId, title: title, subject: _teachSubject || '', history: clean, ts: Date.now() });
+    _teachSaveArchive(arr);
+}
+function _teachDeriveTitle(hist) {
+    const firstUser = (hist || []).find(function (m) { return m.role === 'user'; });
+    if (!firstUser) return '';
+    let t = String(firstUser.content || '').replace(/^Teach me:\s*/i, '').replace(/\.\s*Give the TIGHT OVERVIEW.*$/is, '').trim();
+    return t.slice(0, 70);
 }
 
 function initTeachingBoard() {
+    // v20.7 — default: FRESH board every time you refresh or come back. The old
+    // behavior (auto-restoring the last live session) is now opt-in via the
+    // "Auto-open last session" toggle in the Past sessions menu.
+    const autoResume = localStorage.getItem('teach_autoresume') === '1';
     const saved = _teachLoadHistory();
-    if (saved && Array.isArray(saved.history) && saved.history.length) {
-        _teachHistory = saved.history;
+    if (autoResume && saved && Array.isArray(saved.history) && _teachHasRealAnswer(saved.history)) {
+        _teachHistory = _teachSanitizeHistory(saved.history);
         _teachSubject = saved.subject || '';
+        _teachSessionId = saved.id || '';
+        _teachTitle = saved.title || _teachDeriveTitle(_teachHistory);
         _teachRenderExisting();
     } else {
+        // Fresh start — but keep any prior session safely in the archive first.
+        _teachArchiveCurrent();
+        _teachHistory = []; _teachSubject = ''; _teachSessionId = ''; _teachTitle = '';
         _teachShowIntro();
     }
+    _teachRenderHistoryPanel();
 }
 
 function _teachShowIntro() {
@@ -28268,6 +28331,10 @@ function _teachShowIntro() {
     const session = document.getElementById('teach-session');
     if (intro) intro.style.display = '';
     if (session) session.style.display = 'none';
+    const msgs = document.getElementById('teach-chat-messages');
+    if (msgs) msgs.innerHTML = '';
+    const qa = document.getElementById('teach-quick-actions');
+    if (qa) qa.innerHTML = '';
 }
 
 function _teachRenderExisting() {
@@ -28288,9 +28355,19 @@ function _teachRenderExisting() {
     if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
 }
 
+// Called when leaving the Teaching Board tab or on page unload — parks the
+// current session in the archive so nothing is lost, without auto-reopening it.
+function _teachStashOnLeave() {
+    _teachArchiveCurrent();
+    _teachSaveHistory();   // keep the live copy too, in case auto-resume is on
+}
+
 function resetTeachingBoard() {
+    _teachArchiveCurrent();                     // keep the old convo in Past sessions
     _teachHistory = [];
     _teachSubject = '';
+    _teachSessionId = '';
+    _teachTitle = '';
     try { localStorage.removeItem('teaching_board_session'); } catch (_) {}
     const msgs = document.getElementById('teach-chat-messages');
     if (msgs) msgs.innerHTML = '';
@@ -28299,6 +28376,88 @@ function resetTeachingBoard() {
     const input = document.getElementById('teach-topic-input');
     if (input) input.value = '';
     _teachShowIntro();
+    _teachRenderHistoryPanel();
+}
+
+// ── Past-sessions dropdown ────────────────────────────────────────────────
+function toggleTeachHistory() {
+    const panel = document.getElementById('teach-history-panel');
+    if (!panel) return;
+    if (panel.style.display === 'none' || !panel.style.display) { _teachRenderHistoryPanel(); panel.style.display = 'block'; }
+    else { panel.style.display = 'none'; }
+}
+function _teachCloseHistory() {
+    const panel = document.getElementById('teach-history-panel');
+    if (panel) panel.style.display = 'none';
+}
+function _teachRenderHistoryPanel() {
+    const panel = document.getElementById('teach-history-panel');
+    if (!panel) return;
+    const esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    const arr = _teachLoadArchive();
+    const autoOn = localStorage.getItem('teach_autoresume') === '1';
+    let html = '';
+    // auto-resume toggle
+    html += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.82rem;color:#cfd4e2;">'
+        + '<input type="checkbox" ' + (autoOn ? 'checked' : '') + ' onchange="_teachSetAutoResume(this.checked)" style="width:16px;height:16px;accent-color:#6c5ce7;">'
+        + 'Auto-open my last session when I come back</label>';
+    html += '<div style="height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;"></div>';
+    if (!arr.length) {
+        html += '<div style="padding:14px 10px;color:var(--text-muted);font-size:0.82rem;text-align:center;">No past sessions yet. They\'ll show up here after you learn something.</div>';
+    } else {
+        html += arr.map(function (s) {
+            const when = _teachTimeAgo(s.ts);
+            const subj = s.subject ? (' · ' + esc(s.subject)) : '';
+            return '<div style="display:flex;align-items:center;gap:6px;padding:8px 8px;border-radius:8px;" '
+                + 'onmouseover="this.style.background=\'rgba(108,92,231,0.14)\'" onmouseout="this.style.background=\'transparent\'">'
+                + '<button onclick="_teachOpenArchived(\'' + s.id + '\')" style="flex:1;text-align:left;background:none;border:none;color:#e8eaf2;cursor:pointer;font-size:0.85rem;line-height:1.3;padding:0;">'
+                + '<div style="font-weight:600;">' + esc(s.title || 'Lesson') + '</div>'
+                + '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">' + when + subj + '</div></button>'
+                + '<button onclick="_teachDeleteArchived(\'' + s.id + '\')" title="Delete" style="background:none;border:none;color:#ff7a7a;cursor:pointer;font-size:1rem;padding:2px 4px;">×</button>'
+                + '</div>';
+        }).join('');
+        html += '<div style="height:1px;background:rgba(255,255,255,0.08);margin:6px 4px;"></div>';
+        html += '<button onclick="_teachClearArchive()" style="width:100%;background:none;border:none;color:#ff9a9a;cursor:pointer;font-size:0.8rem;padding:8px;">Clear all history</button>';
+    }
+    panel.innerHTML = html;
+}
+function _teachTimeAgo(ts) {
+    if (!ts) return '';
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    if (s < 604800) return Math.floor(s / 86400) + 'd ago';
+    try { return new Date(ts).toLocaleDateString(); } catch (_) { return ''; }
+}
+function _teachSetAutoResume(on) {
+    try { localStorage.setItem('teach_autoresume', on ? '1' : '0'); } catch (_) {}
+    if (typeof showToast === 'function') showToast(on ? 'Your last session will reopen when you return.' : 'The board will start fresh each time.', 'info', 2500);
+}
+function _teachOpenArchived(id) {
+    _teachArchiveCurrent();                        // park whatever is open now
+    const s = _teachLoadArchive().find(function (x) { return x.id === id; });
+    if (!s) { _teachRenderHistoryPanel(); return; }
+    _teachHistory = _teachSanitizeHistory(s.history);
+    _teachSubject = s.subject || '';
+    _teachSessionId = s.id;
+    _teachTitle = s.title || _teachDeriveTitle(_teachHistory);
+    _teachSaveHistory();
+    _teachRenderExisting();
+    _teachCloseHistory();
+}
+function _teachDeleteArchived(id) {
+    _teachSaveArchive(_teachLoadArchive().filter(function (x) { return x.id !== id; }));
+    _teachRenderHistoryPanel();
+}
+function _teachClearArchive() {
+    if (typeof showConfirm === 'function') {
+        showConfirm('Clear all past sessions?', 'This permanently removes your Teaching Board history on this device.', function () {
+            _teachSaveArchive([]); _teachRenderHistoryPanel();
+        });
+    } else {
+        _teachSaveArchive([]); _teachRenderHistoryPanel();
+    }
 }
 
 // Clean up LaTeX/markdown the model sometimes leaks despite the prompt, so the
@@ -28354,8 +28513,11 @@ function startTeachingTopic(presetTopic) {
     const subjectSel = document.getElementById('teach-subject');
     const topic = (typeof presetTopic === 'string' && presetTopic) ? presetTopic : (input ? input.value.trim() : '');
     if (!topic) { if (typeof showToast === 'function') showToast('Type a topic or question first.', 'error'); return; }
+    _teachArchiveCurrent();                         // park any prior session before starting a new one
     _teachSubject = subjectSel ? subjectSel.value : '';
     _teachHistory = [];
+    _teachSessionId = 'ts_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    _teachTitle = topic.slice(0, 70);
     const intro = document.getElementById('teach-intro');
     const session = document.getElementById('teach-session');
     if (intro) intro.style.display = 'none';
@@ -28445,7 +28607,11 @@ async function _teachGenerate(retryCount) {
                 if (!full || !String(full).trim()) {
                     liveBubble.remove();
                     if (retryCount < 1) { _teachGenerate(retryCount + 1); return; }
-                    addTeachMessage('ai', '<em style="color:#ff9a9a;">That reply came back blank — the AI hiccuped. Tap "Another example" or send your question again and it\'ll come through.</em>');
+                    // Give up gracefully: drop the unanswered user turn from history so
+                    // it can't poison later turns, and tell the student clearly.
+                    if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
+                    _teachSaveHistory();
+                    addTeachMessage('ai', '<em style="color:#ff9a9a;">That reply came back blank — the AI hiccuped. Send your question again and it\'ll come through.</em>');
                     _teachBusy = false;
                     _teachShowQuickActions();
                     return;
@@ -28455,7 +28621,10 @@ async function _teachGenerate(retryCount) {
                 contentEl.innerHTML = formatted;
                 _teachBusy = false;
                 _teachHistory.push({ role: 'assistant', content: full });
+                if (!_teachTitle) _teachTitle = _teachDeriveTitle(_teachHistory);
                 _teachSaveHistory();
+                _teachArchiveCurrent();               // keep Past sessions current after each real answer
+                _teachRenderHistoryPanel();
                 _teachShowQuickActions();
                 if (typeof recordQuestProgress === 'function') recordQuestProgress('teaching_board');
                 if (typeof logActivity === 'function') logActivity('study', 'Used Teaching Board' + (_teachSubject ? (': ' + _teachSubject) : ''));
@@ -28463,6 +28632,9 @@ async function _teachGenerate(retryCount) {
             },
             onError: function (err) {
                 if (cursorEl) cursorEl.remove();
+                // Drop the unanswered question so the failed turn can't poison the next one.
+                if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
+                _teachSaveHistory();
                 contentEl.innerHTML = '<em style="color:#ff9a9a;">Hit a snag: ' + esc0(err && err.message) + '. Try sending again.</em>';
                 _teachBusy = false;
             }
@@ -28471,6 +28643,8 @@ async function _teachGenerate(retryCount) {
         _teachBusy = false;
         const typingEl2 = document.getElementById('teach-typing');
         if (typingEl2) typingEl2.remove();
+        if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
+        _teachSaveHistory();
         addTeachMessage('ai', 'Hit a snag: ' + ((err && err.message) || err) + '. Try sending again.');
     }
 }
@@ -29024,6 +29198,13 @@ function renderStudyHistoryChart(canvasId) {
         var STUDY=['math','science','english','social','dashboard','notebook'];
         if(STUDY.indexOf(tabId)>=0){ endStudySession(); startStudySession(tabId.charAt(0).toUpperCase()+tabId.slice(1)); }
         else endStudySession();
+        // v20.7 — leaving the Teaching Board parks the current convo in Past
+        // sessions (never lost) but the board comes back FRESH next time (unless
+        // the auto-open toggle is on). This is what "reset when you leave" means.
+        try {
+            var leavingTeach = document.getElementById('view-teach') && document.getElementById('view-teach').classList.contains('active');
+            if (leavingTeach && tabId !== 'teach' && typeof _teachStashOnLeave === 'function') _teachStashOnLeave();
+        } catch(_){}
         _orig(tabId);
         if(tabId==='teach')    setTimeout(initTeachingBoard,80);
         // v19.5 — Study History moved to Profile (achievements); Daily Challenge
@@ -29032,6 +29213,16 @@ function renderStudyHistoryChart(canvasId) {
         if(tabId==='profile') { switchTab('achievements'); return; } // v16.0 — Profile merged into the Achievements tab
     };
 })();
+
+// v20.7 — archive the Teaching Board session on refresh/close so it lands in
+// Past sessions, and close the dropdown when clicking outside it.
+window.addEventListener('beforeunload', function(){ try { if (typeof _teachArchiveCurrent==='function') _teachArchiveCurrent(); } catch(_){} });
+document.addEventListener('click', function(e){
+    var panel = document.getElementById('teach-history-panel');
+    if (!panel || panel.style.display === 'none') return;
+    if (e.target.closest && (e.target.closest('#teach-history-panel') || (e.target.closest('button') && /Past sessions/i.test(e.target.closest('button').textContent||'')))) return;
+    panel.style.display = 'none';
+});
 
 // ─────────────────────────────────────────
 // DAILY CHALLENGES
