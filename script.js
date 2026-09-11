@@ -28222,6 +28222,7 @@ YOUR FIRST REPLY TO A NEW TOPIC = A TIGHT OVERVIEW. Short enough to read in unde
 
 <h4>Worked example</h4>
 ONE example with real numbers, as short numbered steps — each step its own <li>, with a few plain words on WHY. Use <ol><li>. Never dump a finished answer with no steps.
+CLARITY RULE (important — this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then". "Set y = 0, solve 3x = 6 ⇒ x = 2, set x = 0, solve 2y = 6 ⇒ y = 3" is TOO CRAMMED — split it into separate steps: (1) "Set y = 0 so the y-term disappears." (2) "Now 3x = 6, so x = 2 — that's the x-intercept (2, 0)." (3) "Set x = 0." (4) "Now 2y = 6, so y = 3 — that's the y-intercept (0, 3)." Show the small algebra, name what each result MEANS, and keep each step to one short line.
 
 <div class="teach-tryit"><strong>💪 Try it</strong><br>one small problem they can do from what you just showed</div>
 <div class="teach-tryit"><strong>✅ Answer</strong><br>the answer in a couple of short steps</div>
@@ -28230,7 +28231,7 @@ Then ONE friendly line offering more — e.g. "That's the core of it. Want the d
 
 STOP THERE on the first pass. Do NOT pour in every sub-type, edge case, or bit of history up front — that's the wall of text we're avoiding. Confidence first; depth only when they ask.
 
-COVERING MULTIPLE TOPICS — IMPORTANT: If the student lists SEVERAL topics or subtopics (separated by commas, "and", or as a list), they want ALL of them — do NOT teach just the first one and skip the rest. Give a short, clearly-titled <h4> section for EACH topic they named, in the order named, so nothing is left out. Keep each section tight (the idea + one mini worked example) so the whole thing stays skimmable, then end by asking which one they'd like to go deeper on. At DEEP depth, expand each section instead of keeping it mini.
+COVERING MULTIPLE TOPICS — IMPORTANT: If the student lists SEVERAL topics or subtopics (separated by commas, "and", or as a list), they want ALL of them — do NOT teach just the first one and skip the rest. Give a short, clearly-titled <h4> section for EACH topic they named, in the order named, so nothing is left out. Each section = the idea in a sentence + one mini worked example with its steps BROKEN OUT (one action per <li>, following the CLARITY RULE above — never a single crammed line with ⇒/commas). Skimmable, but every step still readable and explained. End by asking which one they'd like to go deeper on. At DEEP depth, expand each section instead of keeping it mini.
 
 WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder", "quiz me"):
 NOW expand — why it works, the other cases/types, common mistakes, a harder worked example. Still short <h4> sections, still numbered steps and try-it boxes, still skimmable.
