@@ -28254,7 +28254,15 @@ HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — 
 Type your answers here and I'll check them, or move on to the next thing.</div>
 </div>
 
-CLARITY RULE inside "How to do it" (this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then". "Set y = 0, solve 3x = 6 ⇒ x = 2, set x = 0, solve 2y = 6 ⇒ y = 3" is TOO CRAMMED — split it: (1) "Set y = 0 so the y-term disappears." (2) "Now 3x = 6, so x = 2 — that's the x-intercept (2, 0)." (3) "Set x = 0." (4) "Now 2y = 6, so y = 3 — the y-intercept (0, 3)." Show the small algebra and name what each result MEANS.
+CLARITY RULE inside "How to do it" (this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then".
+
+SHOW THE EQUATION CHANGING AT EVERY STEP — do NOT jump from the original straight to the answer. Re-write the equation as it looks AFTER each move, so the student watches it transform. Start each worked example by restating the actual equation, then update it one line at a time. Example for finding the x-intercept of 3x + 2y = 6:
+(1) "Start with the equation: 3x + 2y = 6."
+(2) "Set y = 0 (every point on the x-axis has y = 0): 3x + 2(0) = 6."
+(3) "The y-term becomes 0, so it disappears: 3x = 6."
+(4) "Divide both sides by 3: x = 2."
+(5) "So the x-intercept is (2, 0)."
+Notice every line shows the current equation — never skip the middle forms like "3x + 2(0) = 6" and "3x = 6". Show the small algebra and name what each result MEANS.
 
 AFTER the card(s): ONE friendly line. If you taught several topics, ask which one they want to go deeper on. If one topic, offer the deep dive ("Want the deep dive — why it works, the tricky cases, and a harder example?").
 
