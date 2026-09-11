@@ -28276,7 +28276,8 @@ SHOW, DON'T JUST TELL: when a small picture helps, sketch it in text/Unicode —
 
 VOICE: plain, warm, a bit of personality. Short sentences. Never "Great question!", never "As an AI".
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>. NEVER LaTeX or its commands (no \\( \\) \\[ \\] \\frac \\times \\sqrt \\cdot). Write ALL math in plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ ½ ⅓ π θ →. A fraction is a/b, NEVER \\frac{a}{b}. Keep every paragraph to 1–3 short sentences.`;
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+FRACTIONS — make them clean: write ANY real fraction as \\frac{numerator}{denominator} and it will render as a proper stacked fraction (numerator over a bar over denominator) — this is REQUIRED for slope/rate-of-change/ratio math so it looks neat instead of cramped. E.g. write slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4, NOT "(20 − 8)/(5 − 2)". \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
 let _teachSubject = '';
@@ -28552,8 +28553,13 @@ function _teachClearArchive() {
 // student never sees raw \( \) or **bold** on screen.
 function _teachCleanHtml(s) {
     s = String(s == null ? '' : s);
-    // LaTeX the model sometimes leaks -> plain text + Unicode
-    s = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)'); // \frac{a}{b}, \dfrac, \tfrac
+    // v21.4 — render \frac{a}{b} as a clean STACKED fraction (numerator over
+    // denominator with a bar), not cramped "(a)/(b)". Loop a few times so a
+    // fraction nested one level inside another still converts.
+    for (var _fi = 0; _fi < 3 && /\\[dt]?frac\s*\{[^{}]*\}\s*\{[^{}]*\}/.test(s); _fi++) {
+        s = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g,
+            '<span class="frac"><span class="fnum">$1</span><span class="fden">$2</span></span>');
+    }
     s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)');
     s = s.replace(/\\left|\\right/g, '');                 // (before \le/\ge so \left isn't mangled)
     s = s.replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\cdot/g, '·').replace(/\\pm/g, '±');
@@ -28711,8 +28717,12 @@ async function _teachGenerate(retryCount) {
                     _teachShowQuickActions();
                     return;
                 }
-                let formatted = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(full) : full.replace(/\n/g, '<br>');
-                formatted = _teachCleanHtml(formatted);   // strip leaked LaTeX \frac/**, etc. in the live reply too
+                // _teachCleanHtml FIRST so \frac{}{} becomes a stacked fraction
+                // before convertMarkdownLeaks would flatten it to "(a)/(b)".
+                let formatted = _teachCleanHtml(full);
+                if (typeof convertMarkdownLeaks === 'function') formatted = convertMarkdownLeaks(formatted);
+                else formatted = formatted.replace(/\n/g, '<br>');
+                formatted = _teachCleanHtml(formatted);   // second pass: tidy anything markdown-conversion surfaced
                 contentEl.innerHTML = formatted;
                 _teachBusy = false;
                 _teachHistory.push({ role: 'assistant', content: full });

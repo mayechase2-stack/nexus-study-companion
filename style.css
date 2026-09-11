@@ -3398,6 +3398,20 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
   #teach-chat-messages .teach-card h5 { font-size: 0.78rem; }
 }
 
+/* v21.4 — clean STACKED FRACTIONS. Inline "(20−8)/(5−2)" reads cramped; render
+   real numerator-over-denominator with a bar instead. The tutor writes
+   \frac{a}{b} and _teachCleanHtml converts it to this markup. */
+#teach-chat-messages .frac {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  text-align: center;
+  margin: 0 4px;
+  line-height: 1.15;
+}
+#teach-chat-messages .frac > .fnum { padding: 0 7px 1px; border-bottom: 1.6px solid currentColor; }
+#teach-chat-messages .frac > .fden { padding: 2px 7px 0; }
+
 /* ════════════════════════════════════════════════════════════════
    v12.1 — COMPANION DIM-WHEN-IDLE
    When the user toggles "idle glow" off, the companion fades to a
