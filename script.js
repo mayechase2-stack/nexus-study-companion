@@ -28277,7 +28277,7 @@ SHOW, DON'T JUST TELL: when a small picture helps, sketch it in text/Unicode —
 VOICE: plain, warm, a bit of personality. Short sentences. Never "Great question!", never "As an AI".
 
 FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
-FRACTIONS — make them clean: write ANY real fraction as \\frac{numerator}{denominator} and it will render as a proper stacked fraction (numerator over a bar over denominator) — this is REQUIRED for slope/rate-of-change/ratio math so it looks neat instead of cramped. E.g. write slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4, NOT "(20 − 8)/(5 − 2)". \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
+FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
 let _teachSubject = '';
@@ -28567,6 +28567,18 @@ function _teachCleanHtml(s) {
     s = s.replace(/\\[,;!:]/g, ' ');                      // LaTeX spacing commands
     s = s.replace(/\$\$?/g, '');                          // $ / $$ inline-math delimiters
     s = s.replace(/\\\(|\\\)|\\\[|\\\]/g, '');            // \( \) \[ \]
+    // v21.5 — SAFETY NET: the model (and older saved answers) sometimes write a
+    // fraction with a slash — "(8 − 2) / (3 − 0)" or "6 / 3" — instead of \frac.
+    // Convert those to the SAME stacked look so nothing renders cramped. Runs
+    // twice to catch a second fraction that shared a boundary with the first.
+    // [^()<>] keeps it from crossing HTML tags or an already-built .frac span.
+    for (var _pi = 0; _pi < 2; _pi++) {
+        s = s.replace(/\(([^()<>]{1,60})\)\s*\/\s*\(([^()<>]{1,60})\)/g,
+            '<span class="frac"><span class="fnum">$1</span><span class="fden">$2</span></span>');
+        // bare number / number, anchored at boundaries so we don't split dates like 9/11/2001
+        s = s.replace(/(^|[\s=(>])(\d{1,4})\s*\/\s*(\d{1,4})(?=$|[\s=)<.,;!?])/g,
+            '$1<span class="frac"><span class="fnum">$2</span><span class="fden">$3</span></span>');
+    }
     // Markdown leaks -> HTML
     s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>'); // **bold** -> <strong>
     s = s.replace(/(^|<br>|\n)\s*#{1,4}\s*([^\n<]+)/g, '$1<strong>$2</strong>'); // stray markdown headings -> bold
