@@ -28230,6 +28230,8 @@ Then ONE friendly line offering more — e.g. "That's the core of it. Want the d
 
 STOP THERE on the first pass. Do NOT pour in every sub-type, edge case, or bit of history up front — that's the wall of text we're avoiding. Confidence first; depth only when they ask.
 
+COVERING MULTIPLE TOPICS — IMPORTANT: If the student lists SEVERAL topics or subtopics (separated by commas, "and", or as a list), they want ALL of them — do NOT teach just the first one and skip the rest. Give a short, clearly-titled <h4> section for EACH topic they named, in the order named, so nothing is left out. Keep each section tight (the idea + one mini worked example) so the whole thing stays skimmable, then end by asking which one they'd like to go deeper on. At DEEP depth, expand each section instead of keeping it mini.
+
 WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder", "quiz me"):
 NOW expand — why it works, the other cases/types, common mistakes, a harder worked example. Still short <h4> sections, still numbered steps and try-it boxes, still skimmable.
 
@@ -28246,6 +28248,55 @@ let _teachSubject = '';
 let _teachBusy = false;   // true while a reply is generating — blocks overlapping turns that void the answer
 let _teachSessionId = '';  // id of the in-progress session (used to upsert into the archive)
 let _teachTitle = '';      // human title of the current session (the first topic)
+let _teachDepth = (function(){ try { return localStorage.getItem('teach_depth') || 'standard'; } catch(_) { return 'standard'; } })();  // quick | standard | deep
+
+// v20.9 — depth control. The student picks how much detail they want up front
+// (and can change it mid-lesson to re-teach the current topic deeper/tighter).
+function _teachDepthDirective() {
+    if (_teachDepth === 'quick') {
+        return '\n\nDEPTH = QUICK. The student wants just the gist. Give only: "The idea" (1–2 sentences), the one formula if there is one, and ONE tiny example. Skip the try-it/answer boxes unless they take one line. A few lines total. Then offer more.';
+    }
+    if (_teachDepth === 'deep') {
+        return '\n\nDEPTH = DEEP DIVE. Teach it thoroughly NOW (do not wait for them to ask): the idea, WHY it works, the main cases/sub-types, the common mistakes, TWO worked examples (make the second one harder), a Try-it + Answer, and finish with one "quiz me" question. Still use short <h4> sections and numbered steps — thorough but never a wall of text. If several topics were listed, expand EACH one this way.';
+    }
+    return '';  // standard = the default tight-overview shape already in the base prompt
+}
+// Sets depth. fromSession=true means the change came from the in-lesson dropdown,
+// so if a topic is open we re-teach it at the new depth right away.
+function _teachSetDepth(val, fromSession) {
+    if (val !== 'quick' && val !== 'standard' && val !== 'deep') val = 'standard';
+    _teachDepth = val;
+    try { localStorage.setItem('teach_depth', val); } catch (_) {}
+    _teachSyncDepthSelects();
+    if (fromSession && _teachTitle && !_teachBusy) {
+        _teachRedoAtDepth();
+    }
+}
+function _teachSyncDepthSelects() {
+    ['teach-depth', 'teach-depth-session'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && el.value !== _teachDepth) el.value = _teachDepth;
+    });
+}
+// Re-teach the CURRENT topic from scratch at the newly-chosen depth.
+function _teachRedoAtDepth() {
+    if (!_teachTitle) return;
+    const topic = _teachTitle;
+    _teachHistory = [];
+    const msgs = document.getElementById('teach-chat-messages');
+    if (msgs) msgs.innerHTML = '';
+    _sendTeachingBoardTurn(_teachOpeningAsk(topic), topic);
+}
+// Builds the opening request, tuned to depth + multi-topic coverage.
+function _teachOpeningAsk(topic) {
+    const multi = /,| and /i.test(topic);
+    let ask = 'Teach me: ' + topic + '. ';
+    if (_teachDepth === 'quick') ask += 'Just the gist — the quickest overview that lets me try one. Keep it short.';
+    else if (_teachDepth === 'deep') ask += 'Give me the FULL deep dive right now — thorough but still skimmable.';
+    else ask += 'Give the TIGHT OVERVIEW first — just enough to understand it and try one myself, not the whole topic. Then offer the deep dive.';
+    if (multi) ask += ' I listed several things — cover EACH one I named, do not skip any.';
+    return ask;
+}
 
 const _TEACH_ARCHIVE_KEY = 'teaching_board_archive';
 const _TEACH_ARCHIVE_CAP = 30;
@@ -28323,6 +28374,7 @@ function initTeachingBoard() {
         _teachHistory = []; _teachSubject = ''; _teachSessionId = ''; _teachTitle = '';
         _teachShowIntro();
     }
+    _teachSyncDepthSelects();
     _teachRenderHistoryPanel();
 }
 
@@ -28351,6 +28403,7 @@ function _teachRenderExisting() {
         }
     });
     _teachShowQuickActions();
+    _teachSyncDepthSelects();
     const title = document.getElementById('teach-session-title');
     if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
 }
@@ -28521,6 +28574,8 @@ function startTeachingTopic(presetTopic) {
     if (!topic) { if (typeof showToast === 'function') showToast('Type a topic or question first.', 'error'); return; }
     _teachArchiveCurrent();                         // park any prior session before starting a new one
     _teachSubject = subjectSel ? subjectSel.value : '';
+    const depthSel = document.getElementById('teach-depth');
+    if (depthSel && depthSel.value) _teachSetDepth(depthSel.value, false);   // honor the intro depth pick
     _teachHistory = [];
     _teachSessionId = 'ts_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     _teachTitle = topic.slice(0, 70);
@@ -28530,10 +28585,10 @@ function startTeachingTopic(presetTopic) {
     if (session) session.style.display = 'flex';
     const title = document.getElementById('teach-session-title');
     if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
+    _teachSyncDepthSelects();
     const msgs = document.getElementById('teach-chat-messages');
     if (msgs) msgs.innerHTML = '';
-    const openingAsk = 'Teach me: ' + topic + ". Give the TIGHT OVERVIEW first — just enough to understand it and try one myself, not the whole topic. Then offer the deep dive.";
-    _sendTeachingBoardTurn(openingAsk, topic);
+    _sendTeachingBoardTurn(_teachOpeningAsk(topic), topic);
 }
 
 async function sendTeachingBoardMessage(presetText) {
@@ -28580,7 +28635,7 @@ async function _teachGenerate(retryCount) {
 
     const subjectLine = _teachSubject ? ('\n\nThe student says this is for: ' + _teachSubject + '.') : '';
     const messages = [
-        { role: 'system', content: NEXUS_TEACHING_BOARD_PROMPT + subjectLine }
+        { role: 'system', content: NEXUS_TEACHING_BOARD_PROMPT + subjectLine + _teachDepthDirective() }
     ].concat(_teachHistory.slice(-16));
 
     try {

@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260910v249">
+    <link rel="stylesheet" href="style.css?v=20260911v250">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -3468,12 +3468,17 @@
                         <h3 style="margin:0 0 8px;color:white;">What do you want to learn?</h3>
                         <p style="margin:0 0 18px;color:var(--text-muted);font-size:0.9rem;">Type a topic, a concept, or a question — as specific or as broad as you like.</p>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:14px;">
-                            <select id="teach-subject" class="input-field" style="padding:10px 12px;min-width:160px;">
+                            <select id="teach-subject" class="input-field" style="padding:10px 12px;min-width:150px;">
                                 <option value="">Any subject</option>
                                 <option value="Math">Math</option>
                                 <option value="Science">Science</option>
                                 <option value="English">English</option>
                                 <option value="Social Studies">Social Studies</option>
+                            </select>
+                            <select id="teach-depth" class="input-field" style="padding:10px 12px;min-width:200px;" title="How much detail you want" onchange="_teachSetDepth(this.value,false)">
+                                <option value="quick">⚡ Quick — just the gist</option>
+                                <option value="standard" selected>📘 Standard — overview + try it</option>
+                                <option value="deep">🔬 Deep dive — full &amp; thorough</option>
                             </select>
                         </div>
                         <div style="display:flex;gap:10px;">
@@ -3490,11 +3495,16 @@
 
                     <!-- Chat session (hidden until a topic starts) -->
                     <div id="teach-session" class="glass-panel" style="display:none;flex-direction:column;height:calc(100vh - 200px);min-height:540px;padding:0;overflow:hidden;min-width:0;max-width:100%;">
-                        <div style="padding:12px 18px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <i class="ph ph-graduation-cap" style="color:#00CEC9;font-size:1.1rem;"></i>
-                                <span id="teach-session-title" style="color:white;font-weight:600;font-size:0.95rem;">Teaching Board</span>
+                        <div style="padding:12px 18px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px;">
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                                <i class="ph ph-graduation-cap" style="color:#00CEC9;font-size:1.1rem;flex-shrink:0;"></i>
+                                <span id="teach-session-title" style="color:white;font-weight:600;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Teaching Board</span>
                             </div>
+                            <select id="teach-depth-session" class="input-field" style="padding:6px 8px;font-size:0.8rem;min-width:130px;flex-shrink:0;" title="Change the depth and re-teach this topic" onchange="_teachSetDepth(this.value,true)">
+                                <option value="quick">⚡ Quick</option>
+                                <option value="standard" selected>📘 Standard</option>
+                                <option value="deep">🔬 Deep dive</option>
+                            </select>
                         </div>
                         <div id="teach-chat-messages" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:18px;"></div>
                         <div id="teach-quick-actions" style="padding:0 18px 10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
@@ -5335,7 +5345,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260910v249"></script>
+    <script src="script.js?v=20260911v250"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
