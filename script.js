@@ -28483,10 +28483,16 @@ function addTeachMessage(role, text) {
     if (!msgs) return null;
     const div = document.createElement('div');
     div.className = role === 'user' ? 'companion-msg-user' : 'companion-msg-ai';
-    div.style.maxWidth = role === 'user' ? '80%' : '100%';   // lesson uses full width; questions stay compact
-    div.style.alignSelf = role === 'user' ? 'flex-end' : 'flex-start';
-    if (role === 'user') { div.textContent = text; }        // plain + XSS-safe
-    else { div.innerHTML = _teachCleanHtml(text); }          // model HTML, delimiters cleaned
+    // v20.8 — block-flow alignment (NOT flexbox). A flex column with mixed
+    // align-self forced horizontal overflow and shoved the lesson off the right
+    // edge when a reply was wide. Block layout + auto margins can't overflow.
+    if (role === 'user') {
+        div.style.cssText = 'max-width:80%;width:fit-content;margin:0 0 12px auto;';   // compact, right
+        div.textContent = text;                              // plain + XSS-safe
+    } else {
+        div.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';                    // full width, left
+        div.innerHTML = _teachCleanHtml(text);               // model HTML, delimiters cleaned
+    }
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
     return div;
@@ -28582,8 +28588,7 @@ async function _teachGenerate(retryCount) {
         if (typingEl) typingEl.remove();
         const liveBubble = document.createElement('div');
         liveBubble.className = 'companion-msg-ai';
-        liveBubble.style.alignSelf = 'flex-start';
-        liveBubble.style.maxWidth = '100%';
+        liveBubble.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';   // v20.8 block-flow, full width, left
         liveBubble.innerHTML = '<span class="streaming-content"></span><span class="streaming-cursor">▍</span>';
         msgs.appendChild(liveBubble);
         msgs.scrollTop = msgs.scrollHeight;
