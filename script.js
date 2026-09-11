@@ -1213,6 +1213,26 @@ function _nexusAILangDirective(body) {
             'language, still answer in ' + name + ' unless they ask otherwise.';
     } catch (_) { return null; }
 }
+
+// v21.0 — app-wide TEACHING QUALITY. Chase wants every explanation across NEXUS
+// to teach the WHY (not just the steps), surface the tips/tricks/gotchas a
+// student trips on (e.g. dividing an inequality by a negative flips the sign),
+// and drop a memory hook when it genuinely helps. Injected via the fetch
+// interceptor into free-form (non-JSON) chat calls, and phrased to be
+// self-limiting so it never hijacks a pure write/generate task (essays,
+// messages, citations) or a structured tool. Kept short — it hits every call.
+const NEXUS_TEACHING_QUALITY = 'TEACHING QUALITY — apply this WHENEVER your reply explains, tutors, or works a problem (IGNORE it if the user only asked you to write, generate, translate, or format a finished piece such as an essay, message, list, or citation — just do that task):\n' +
+    '• Explain the WHY, not only the what. When a step "just happens", say why it works — e.g. why you set y = 0 to find an x-intercept (every point on the x-axis has y = 0), why you do the same thing to both sides.\n' +
+    '• Surface the key tips, tricks, and gotchas for this exact concept — the things students get wrong. E.g. "dividing or multiplying BOTH sides of an inequality by a negative flips the sign", "a negative exponent means reciprocal, not a negative answer", "keep-change-flip when dividing fractions".\n' +
+    '• When a real memory hook or mnemonic helps it stick, give one (PEMDAS, "SOH-CAH-TOA", a vivid association for a date/person/term) — only if it genuinely aids recall, never forced.\n' +
+    '• Weave these in naturally and briefly; do not bolt on a big separate appendix or pad the answer.';
+function _nexusTeachingQualityDirective(body) {
+    try {
+        if (body && body.response_format) return null;   // structured/JSON tools keep their schema
+        if (localStorage.getItem('teach_quality_off') === '1') return null;   // escape hatch
+        return NEXUS_TEACHING_QUALITY;
+    } catch (_) { return null; }
+}
 // v19 (#7) — cross-tab "real memory". A compact, always-on student profile plus a
 // rolling log of recent study topics, injected into every AI system prompt so the
 // tutor, companion, and subject tabs all remember who the student is and what
@@ -1347,7 +1367,9 @@ window.showStudyMemory = showStudyMemory;
                         const extras = [];
                         const dir = _nexusAILangDirective(pb);
                         if (dir) extras.push(dir);
-                        if (!pb.response_format) {   // memory only for free-form replies
+                        if (!pb.response_format) {   // memory + teaching quality only for free-form replies
+                            const tq = _nexusTeachingQualityDirective(pb);
+                            if (tq) extras.push(tq);
                             const mem = NexusMemory.buildContext();
                             if (mem) extras.push(mem);
                             // Capture the latest student question for cross-tab memory.
