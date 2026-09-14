@@ -19745,8 +19745,57 @@ function spRender() {
             + '<input id="sp-input-' + i + '" placeholder="+ add task" style="width:100%;margin-top:8px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;color:#fff;padding:5px 8px;font-size:0.76rem;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')spAddTask(\'' + day + '\',' + i + ')">'
             + '</div>';
     }).join('');
-    body.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 12px;">Plan your week — tasks repeat weekly and progress saves automatically. Check items off as you finish them.</p>'
+    body.innerHTML = '<div id="sg-panel" style="margin-bottom:16px;"></div>'
+        + '<p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 12px;">Plan your week — tasks repeat weekly and progress saves automatically. Check items off as you finish them.</p>'
         + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' + cols + '</div>';
+    renderStudyGoals();
+}
+
+// v21.7 — STUDY GOALS (gap-board pick). A goal + target date with a live
+// countdown, a readiness bar from this week's plan completion, and a daily
+// target with today's progress. Sits on top of the Weekly Planner; saved to
+// localStorage (so it also rides the cloud-sync blob) — no streak rewrite.
+function _sgLoad() { try { return JSON.parse(localStorage.getItem('study_goals') || '{}'); } catch (_) { return {}; } }
+function _sgSave(d) { try { localStorage.setItem('study_goals', JSON.stringify(d)); } catch (_) {} }
+function sgSet(field, val) { var g = _sgLoad(); if (val === '' || val == null) delete g[field]; else g[field] = val; _sgSave(g); renderStudyGoals(); }
+function _sgDaysLeft(dateStr) {
+    if (!dateStr) return null;
+    var t = new Date(dateStr + 'T23:59:59'); if (isNaN(t)) return null;
+    return Math.ceil((t - new Date()) / 86400000);
+}
+function renderStudyGoals() {
+    var el = document.getElementById('sg-panel'); if (!el) return;
+    var g = _sgLoad(), data = _spLoad();
+    var all = 0, done = 0;
+    SP_DAYS.forEach(function (d) { (data[d] || []).forEach(function (t) { all++; if (t.done) done++; }); });
+    var readiness = all ? Math.round(done / all * 100) : 0;
+    var todayIdx = (new Date().getDay() + 6) % 7, today = SP_DAYS[todayIdx];
+    var todayTasks = data[today] || [], todayDone = todayTasks.filter(function (t) { return t.done; }).length;
+    var dt = parseInt(g.dailyTarget || '0', 10) || 0;
+    var days = _sgDaysLeft(g.date);
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var countdown = '';
+    if (g.date && days != null) {
+        var cd = days > 1 ? (days + ' days left') : days === 1 ? 'tomorrow!' : days === 0 ? 'today — go!' : Math.abs(days) + ' days ago';
+        var cdColor = days < 0 ? '#ff9a9a' : days <= 3 ? '#ffbe5a' : '#00CEC9';
+        countdown = '<span style="color:' + cdColor + ';font-weight:700;font-size:0.9rem;white-space:nowrap;"><i class="ph ph-calendar-dots"></i> ' + cd + '</span>';
+    }
+    var dailyLine = dt ? ('<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+        + '<span style="font-size:0.8rem;color:var(--text-muted);">Today: <b style="color:' + (todayDone >= dt ? '#45c78d' : '#fff') + ';">' + todayDone + ' / ' + dt + '</b> tasks'
+        + (todayDone >= dt ? ' <span style="color:#45c78d;">✓ daily goal hit</span>' : '') + '</span></div>') : '';
+    el.innerHTML = '<div class="glass-panel" style="padding:16px;border:1px solid rgba(108,92,231,0.4);background:linear-gradient(135deg,rgba(108,92,231,0.10),rgba(0,206,201,0.06));">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">'
+        + '<h4 style="margin:0;color:#fff;font-size:0.95rem;"><i class="ph ph-target" style="color:#6C5CE7;"></i> Your goal</h4>' + countdown + '</div>'
+        + '<input value="' + esc(g.goal || '') + '" placeholder="What are you working toward? e.g. Ace the Algebra 1 final" maxlength="120" '
+        + 'onchange="sgSet(\'goal\',this.value.trim())" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;">'
+        + '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">'
+        + '<label style="font-size:0.78rem;color:var(--text-muted);flex:1;min-width:150px;">Target date<br><input type="date" value="' + esc(g.date || '') + '" onchange="sgSet(\'date\',this.value)" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;box-sizing:border-box;color-scheme:dark;"></label>'
+        + '<label style="font-size:0.78rem;color:var(--text-muted);flex:1;min-width:150px;">Daily goal (tasks/day)<br><input type="number" min="0" max="50" value="' + (dt || '') + '" placeholder="e.g. 3" onchange="sgSet(\'dailyTarget\',this.value)" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;box-sizing:border-box;"></label>'
+        + '</div>'
+        + '<div style="margin-top:14px;"><div style="display:flex;justify-content:space-between;font-size:0.76rem;color:var(--text-muted);margin-bottom:5px;"><span>This week\'s plan</span><span style="font-weight:700;color:#fff;">' + readiness + '% done (' + done + '/' + all + ')</span></div>'
+        + '<div style="height:9px;background:rgba(0,0,0,0.35);border-radius:6px;overflow:hidden;"><div style="height:100%;width:' + readiness + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:6px;transition:width .3s;"></div></div></div>'
+        + dailyLine
+        + '</div>';
 }
 function spAddTask(day, i) {
     var inp = document.getElementById('sp-input-' + i); if (!inp) return;
