@@ -1233,6 +1233,19 @@ function _nexusTeachingQualityDirective(body) {
         return NEXUS_TEACHING_QUALITY;
     } catch (_) { return null; }
 }
+
+// v23.1 — APP-WIDE VISUALS. Chase wants labeled diagrams (like DNA) for
+// EVERYTHING, not just the Teaching Board. Injected into free-form chat calls so
+// any feature (Math/Science/Social/English tutoring, companion, subjects) can
+// draw a figure when it helps. Self-limiting; skips JSON tools and pure writing.
+const NEXUS_VISUAL_DIAGRAMS = 'VISUALS — when what you\'re explaining has a STRUCTURE, shape, or process a picture would clarify (DNA, a cell and its organelles, an atom, the water cycle, the parts of the heart, a labeled triangle or graph, a food chain, a circuit, a timeline…), draw ONE clean, labeled diagram as inline <svg>. Rules: set viewBox (about "0 0 360 260"); keep it a simple schematic, not photorealistic; use strokes/fills that read on a DARK background — #a29bfe, #00cec9, #ff8fa3, #ffbe5a, #7ff0ec — and LABEL the key parts with <text fill="#e6e3ff" font-size="12">…</text> plus thin leader lines. Shapes, paths, and text ONLY — never <script>, <image>, <foreignObject>, or href/on* attributes. Include it only when it genuinely aids understanding (skip for pure writing/generation tasks); one diagram per reply is plenty.';
+function _nexusVisualDirective(body) {
+    try {
+        if (body && body.response_format) return null;
+        if (localStorage.getItem('visuals_off') === '1') return null;   // escape hatch
+        return NEXUS_VISUAL_DIAGRAMS;
+    } catch (_) { return null; }
+}
 // v19 (#7) — cross-tab "real memory". A compact, always-on student profile plus a
 // rolling log of recent study topics, injected into every AI system prompt so the
 // tutor, companion, and subject tabs all remember who the student is and what
@@ -1370,6 +1383,8 @@ window.showStudyMemory = showStudyMemory;
                         if (!pb.response_format) {   // memory + teaching quality only for free-form replies
                             const tq = _nexusTeachingQualityDirective(pb);
                             if (tq) extras.push(tq);
+                            const vd = _nexusVisualDirective(pb);
+                            if (vd) extras.push(vd);
                             const mem = NexusMemory.buildContext();
                             if (mem) extras.push(mem);
                             // Capture the latest student question for cross-tab memory.
@@ -5088,6 +5103,11 @@ window.popOutTutor = popOutTutor;
 function convertMarkdownLeaks(html) {
     if (!html) return html;
     let s = String(html);
+    // v23.1 — shield any labeled <svg> diagram from the markdown/LaTeX passes so
+    // its path data & coordinates aren't mangled (app-wide visuals). Restored at
+    // the end. Reuses the teach protect/restore helpers.
+    var _svgStore = [];
+    if (typeof _teachProtectSvg === 'function' && s.indexOf('<svg') !== -1) s = _teachProtectSvg(s, _svgStore);
     // **bold** → <strong>bold</strong>
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
     // *italic* but skip already-converted strong tags
@@ -5133,11 +5153,17 @@ function convertMarkdownLeaks(html) {
     s = s.replace(/\^3\b/g, '³');
     // Remove stray closing braces left from \vec{, \hat{ etc.
     s = s.replace(/([a-zA-Z0-9])\}/g, '$1');
+    if (_svgStore.length && typeof _teachRestoreSvg === 'function') s = _teachRestoreSvg(s, _svgStore);
     return s;
 }
 
 function sanitizeHTML(html) {
-    const allowedTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'code', 'pre', 'a', 'img', 'iframe', 'div', 'span', 'b', 'i', 'u', 'blockquote', 'table', 'tr', 'td', 'th', 'thead', 'tbody'];
+    // v23.1 — SVG diagram tags are allowed app-wide so the tutor can draw labeled
+    // figures. Scripts, event handlers, <foreignObject>, <use>, and href/xlink on
+    // SVG are still stripped below, so no active content gets through.
+    const SVG_TAGS = ['svg', 'g', 'path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'text', 'tspan', 'defs', 'lineargradient', 'radialgradient', 'stop', 'marker', 'title'];
+    const SVG_ATTRS = ['viewbox', 'xmlns', 'width', 'height', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'd', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'points', 'transform', 'opacity', 'fill-opacity', 'stroke-opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor', 'dominant-baseline', 'dx', 'dy', 'offset', 'stop-color', 'stop-opacity', 'gradientunits', 'gradienttransform', 'preserveaspectratio', 'marker-end', 'marker-start', 'id'];
+    const allowedTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'br', 'code', 'pre', 'a', 'img', 'iframe', 'div', 'span', 'b', 'i', 'u', 'blockquote', 'table', 'tr', 'td', 'th', 'thead', 'tbody'].concat(SVG_TAGS);
     const allowedAttributes = {
         'a': ['href', 'title', 'target'],
         'img': ['src', 'alt', 'title', 'width', 'height'],
@@ -5153,17 +5179,19 @@ function sanitizeHTML(html) {
     // Remove disallowed tags
     const allElements = tempDiv.querySelectorAll('*');
     allElements.forEach(el => {
-        if (!allowedTags.includes(el.tagName.toLowerCase())) {
+        const tag = el.tagName.toLowerCase();
+        if (!allowedTags.includes(tag)) {
             el.remove();
             return;
         }
+        const isSvg = SVG_TAGS.includes(tag);
 
         // Remove disallowed attributes
-        const allowed = allowedAttributes[el.tagName.toLowerCase()] || [];
+        const allowed = allowedAttributes[tag] || [];
         Array.from(el.attributes).forEach(attr => {
-            if (!allowed.includes(attr.name) && !attr.name.startsWith('data-') && attr.name !== 'style') {
-                el.removeAttribute(attr.name);
-            }
+            const an = attr.name.toLowerCase();
+            const ok = allowed.includes(attr.name) || an.startsWith('data-') || an === 'style' || (isSvg && SVG_ATTRS.includes(an));
+            if (!ok) el.removeAttribute(attr.name);
         });
 
         // Remove event handlers (onclick, onerror, etc.)
