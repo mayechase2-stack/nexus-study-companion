@@ -28368,11 +28368,16 @@ function _teachSpeak(text) {
     });
     if (buf) chunks.push(buf);
     var voice = (typeof _getBestTTSVoice === 'function') ? _getBestTTSVoice() : null;
-    chunks.slice(0, 40).forEach(function (c) {
+    var list = chunks.slice(0, 40);
+    list.forEach(function (c, i) {
         try {
             var u = new SpeechSynthesisUtterance(c);
             u.lang = 'en-US'; u.rate = 0.98; u.pitch = 1.03; u.volume = 1.0;
             if (voice) u.voice = voice;
+            if (i === list.length - 1) {
+                // hands-free loop: once the lesson finishes reading, listen for the next question
+                u.onend = function () { if (_teachHandsFree && !_teachBusy && !_teachListening) setTimeout(_teachStartListen, 250); };
+            }
             window.speechSynthesis.speak(u);
         } catch (_) {}
     });
@@ -28398,6 +28403,54 @@ function toggleTeachTTS() {
         _teachStopSpeak();
         if (typeof showToast === 'function') showToast('🔇 Read-aloud off.', 'info', 1600);
     }
+}
+
+// v21.9 — HANDS-FREE VOICE STUDY (gap-board pick). Mic dictates your question
+// into the input; when read-aloud is on, it loops: the lesson is spoken, then
+// the mic auto-listens and auto-sends, then the reply is spoken — a hands-free
+// study session. Reuses the same Web Speech API as the Companion voice mode.
+let _teachRecog = null, _teachListening = false, _teachHandsFree = false;
+function _teachSyncMicBtn() {
+    var b = document.getElementById('teach-mic-btn'); if (!b) return;
+    b.innerHTML = '<i class="ph ' + (_teachListening ? 'ph-microphone-slash' : 'ph-microphone') + '"></i>';
+    b.style.background = _teachListening ? 'linear-gradient(135deg,#ff6b6b,#c0392b)' : '';
+    b.style.color = _teachListening ? '#fff' : '';
+    b.title = _teachListening ? 'Listening… tap to stop' : 'Speak your question (hands-free when read-aloud is on)';
+}
+function _teachStopListen() {
+    _teachHandsFree = false;
+    if (_teachRecog) { try { _teachRecog.stop(); } catch (_) {} }
+    _teachListening = false; _teachSyncMicBtn();
+}
+function _teachStartListen() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { if (typeof showToast === 'function') showToast('Voice input needs Chrome or Edge.', 'error', 3500); return; }
+    if (_teachListening || _teachBusy) return;
+    var inp = document.getElementById('teach-chat-input');
+    var finalT = '';
+    _teachRecog = new SR();
+    _teachRecog.lang = navigator.language || 'en-US';
+    _teachRecog.interimResults = true; _teachRecog.continuous = false; _teachRecog.maxAlternatives = 1;
+    _teachRecog.onresult = function (e) {
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+            var t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalT += (t.endsWith(' ') ? t : t + ' '); else interim += t;
+        }
+        if (inp) inp.value = (finalT + interim).trim();
+    };
+    _teachRecog.onerror = function () {};
+    _teachRecog.onend = function () {
+        _teachListening = false; _teachSyncMicBtn();
+        if (inp && inp.value.trim()) sendTeachingBoardMessage();   // auto-send what was heard
+    };
+    try { _teachRecog.start(); _teachListening = true; _teachSyncMicBtn(); } catch (_) {}
+}
+function toggleTeachMic() {
+    if (_teachListening) { _teachStopListen(); return; }
+    _teachHandsFree = isTeachTTSOn();   // if lessons are read aloud, keep the loop going
+    _teachStopSpeak();
+    _teachStartListen();
 }
 
 // Sets depth. fromSession=true means the change came from the in-lesson dropdown,
@@ -28554,12 +28607,14 @@ function _teachRenderExisting() {
 // current session in the archive so nothing is lost, without auto-reopening it.
 function _teachStashOnLeave() {
     _teachStopSpeak();
+    _teachStopListen();
     _teachArchiveCurrent();
     _teachSaveHistory();   // keep the live copy too, in case auto-resume is on
 }
 
 function resetTeachingBoard() {
     _teachStopSpeak();
+    _teachStopListen();
     _teachArchiveCurrent();                     // keep the old convo in Past sessions
     _teachHistory = [];
     _teachSubject = '';
