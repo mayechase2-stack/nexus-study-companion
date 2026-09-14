@@ -29589,6 +29589,74 @@ function trackStudySession(subject,duration){ if(duration<1)duration=1; var s=ge
     }, 60000);
 })();
 
+// v22.3 — PROGRESS & MASTERY DASHBOARD (gap-board pick). A per-subject view of
+// where the student is strong vs. neglected, built from real study-session data
+// (study_sessions_v2, last 30 days) + aggregate stats. Highlights weak spots to
+// steer the study plan.
+function openMasteryDashboard() {
+    var existing = document.getElementById('mastery-modal'); if (existing) existing.remove();
+    var sessions = (typeof getStudySessions === 'function') ? getStudySessions() : [];
+    var stats = (typeof getStudyStats === 'function') ? getStudyStats() : {};
+    var xp = (typeof getTotalXP === 'function') ? getTotalXP() : (parseInt(localStorage.getItem('total_xp') || '0', 10) || 0);
+    var NAMES = { math: 'Math', science: 'Science', english: 'English', social: 'Social Studies', teach: 'Teaching Board', notebook: 'Notebook', dashboard: 'Command Center' };
+    var COL = { math: '#6C5CE7', science: '#00CEC9', english: '#fd79a8', social: '#ffbe5a', teach: '#a29bfe', notebook: '#55efc4' };
+    var CORE = ['math', 'science', 'english', 'social'];
+    var cut = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    var bySubj = {}, lastSeen = {};
+    sessions.forEach(function (s) {
+        if (!s || (s.date && s.date < cut)) return;
+        var key = String(s.subject || 'General').toLowerCase();
+        bySubj[key] = (bySubj[key] || 0) + (s.duration || 0);
+        if (!lastSeen[key] || (s.date || '') > lastSeen[key]) lastSeen[key] = s.date || '';
+    });
+    var rows = Object.keys(bySubj).map(function (k) { return { key: k, name: NAMES[k] || (k.charAt(0).toUpperCase() + k.slice(1)), min: bySubj[k], last: lastSeen[k] }; });
+    rows.sort(function (a, b) { return b.min - a.min; });
+    var maxMin = rows.length ? Math.max(1, rows[0].min) : 1;
+    var totalMin = rows.reduce(function (s, r) { return s + r.min; }, 0);
+    function fmtMin(m) { return m >= 60 ? (Math.floor(m / 60) + 'h ' + (m % 60) + 'm') : (m + 'm'); }
+    function ago(d) { if (!d) return 'never'; var days = Math.round((Date.now() - new Date(d + 'T12:00:00')) / 86400000); return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + 'd ago'; }
+
+    var barsHtml = rows.length ? rows.map(function (r) {
+        var pct = Math.round(r.min / maxMin * 100);
+        var c = COL[r.key] || '#6C5CE7';
+        return '<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:4px;"><span style="color:#fff;font-weight:600;">' + escapeHtmlSafe(r.name) + '</span><span style="color:var(--text-muted);">' + fmtMin(r.min) + ' · ' + ago(r.last) + '</span></div>'
+            + '<div style="height:10px;background:rgba(0,0,0,0.35);border-radius:6px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + c + ';border-radius:6px;"></div></div></div>';
+    }).join('') : '<p style="color:var(--text-muted);text-align:center;padding:24px;font-size:0.9rem;">No study time logged yet in the last 30 days. Study any subject and it\'ll show up here — the more you use a subject, the taller its bar.</p>';
+
+    // weak spots: core subjects with the least time (incl. zero)
+    var weak = CORE.map(function (k) { return { key: k, name: NAMES[k], min: bySubj[k] || 0 }; }).sort(function (a, b) { return a.min - b.min; }).slice(0, 2);
+    var weakHtml = '';
+    if (totalMin > 0) {
+        weakHtml = '<div style="background:rgba(255,190,90,0.10);border:1px solid rgba(255,190,90,0.35);border-radius:10px;padding:12px 14px;margin-top:6px;">'
+            + '<div style="font-weight:700;color:#ffbe5a;font-size:0.86rem;margin-bottom:6px;">🎯 Focus here next</div>'
+            + '<div style="font-size:0.84rem;color:#ffe9c7;line-height:1.5;">' + weak.map(function (w) { return w.name + (w.min ? ' (' + fmtMin(w.min) + ' lately)' : ' — not touched lately'); }).join(', ') + '. A little time here evens you out.</div></div>';
+    }
+
+    var tiles = [
+        ['🔥', (stats.currentStreak || 0), 'day streak', '#FFD700'],
+        ['⏱️', fmtMin(totalMin), 'studied (30d)', '#00CEC9'],
+        ['✅', (stats.problemsSolved || 0), 'problems solved', '#a29bfe'],
+        ['⭐', xp, 'total XP', '#fd79a8']
+    ].map(function (t) {
+        return '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:1.1rem;">' + t[0] + '</div><div style="font-size:1.3rem;font-weight:800;color:' + t[3] + ';line-height:1.2;margin-top:2px;">' + t[1] + '</div><div style="font-size:0.68rem;color:var(--text-muted);">' + t[2] + '</div></div>';
+    }).join('');
+
+    var modal = document.createElement('div');
+    modal.id = 'mastery-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="glass-panel" style="max-width:620px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> Progress &amp; Mastery</h3><button class="btn-icon" onclick="document.getElementById(\'mastery-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:18px 20px;overflow:auto;">'
+        + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">' + tiles + '</div>'
+        + '<h4 style="margin:0 0 12px;color:#fff;font-size:0.92rem;">Time by subject <span style="color:var(--text-muted);font-weight:400;font-size:0.8rem;">· last 30 days</span></h4>'
+        + barsHtml + weakHtml
+        + '<p style="font-size:0.75rem;color:var(--text-muted);margin:14px 0 0;">Bars show where your time goes — the more you practice a subject, the stronger it gets. Pair this with your goal in the Study Planner.</p>'
+        + '</div></div>';
+    document.body.appendChild(modal);
+}
+window.openMasteryDashboard = openMasteryDashboard;
+
 function renderStudyHistoryChart(canvasId) {
     var canvas=document.getElementById(canvasId||'study-history-canvas');
     if(!canvas) return;
