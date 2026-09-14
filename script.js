@@ -14100,6 +14100,99 @@ function _studyUploadSaveDeck() {
 }
 window._studyUploadSaveDeck = _studyUploadSaveDeck;
 
+// ════════════════════════════════════════════════════════════════════
+// v22.9 — EXAM PREP (gap-board pick). AI-generated, exam-style practice sets for
+// SAT / ACT / AP — pick the test + section, get timed-style questions with
+// scoring and explanations. Builds on the quiz JSON pattern.
+// ════════════════════════════════════════════════════════════════════
+var _examTest = 'SAT', _examSet = null, _examAnswered = {}, _examScore = 0;
+var _examDefaults = { SAT: 'Math', ACT: 'Science', AP: 'AP Biology' };
+function openExamPrep() {
+    var ex = document.getElementById('exam-modal'); if (ex) ex.remove();
+    _examSet = null; _examAnswered = {}; _examScore = 0;
+    var m = document.createElement('div');
+    m.id = 'exam-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:660px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(253,121,168,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-exam" style="color:#fd79a8;"></i> Exam Prep</h3><button class="btn-icon" onclick="document.getElementById(\'exam-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow:auto;">'
+        + '<p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 12px;">Pick a test and section — I\'ll generate a realistic, exam-style practice set with scoring and explanations.</p>'
+        + '<div id="exam-test-btns" style="display:flex;gap:8px;margin-bottom:12px;">'
+        + ['SAT', 'ACT', 'AP'].map(function (t) { return '<button id="exam-t-' + t + '" class="btn-secondary" style="flex:1;font-weight:700;" onclick="_examSetTest(\'' + t + '\')">' + t + '</button>'; }).join('')
+        + '</div>'
+        + '<label style="font-size:0.78rem;color:var(--text-muted);">Section / subject</label>'
+        + '<input id="exam-section" value="' + _examDefaults.SAT + '" style="width:100%;margin:5px 0 12px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:9px 11px;font-size:0.9rem;box-sizing:border-box;">'
+        + '<button class="btn-primary" style="width:100%;" onclick="_examGenerate()"><i class="ph ph-sparkle"></i> Generate practice set</button>'
+        + '<div id="exam-result" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    _examSetTest('SAT');
+}
+window.openExamPrep = openExamPrep;
+function _examSetTest(t) {
+    _examTest = t;
+    ['SAT', 'ACT', 'AP'].forEach(function (x) { var b = document.getElementById('exam-t-' + x); if (b) b.style.background = x === t ? 'linear-gradient(135deg,#fd79a8,#6C5CE7)' : ''; });
+    var sec = document.getElementById('exam-section'); if (sec) sec.value = _examDefaults[t] || '';
+}
+window._examSetTest = _examSetTest;
+async function _examGenerate() {
+    var section = (document.getElementById('exam-section') || {}).value || '';
+    section = String(section).trim() || _examDefaults[_examTest];
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) { showToast('Sign in (or add an API key) to generate a practice set.', 'error', 4000); return; }
+    _examSet = null; _examAnswered = {}; _examScore = 0;
+    var res = document.getElementById('exam-result');
+    if (res) res.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;"><i class="ph ph-spinner ph-spin"></i> Building a ' + escapeHtmlSafe(_examTest) + ' ' + escapeHtmlSafe(section) + ' set…</div>';
+    var sys = 'You are an expert ' + _examTest + ' tutor. Generate a realistic ' + _examTest + ' ' + section + ' practice set: 6 multiple-choice questions matching the real exam\'s style, format, and difficulty. Return ONLY valid JSON: {"questions":[{"question":"","options":["","","",""],"answer":0,"why":"1-2 line explanation of the correct choice"}]}. "answer" is the 0-based index of the correct option. Make questions authentic to the ' + _examTest + ', not generic. No prose outside JSON.';
+    try {
+        var r = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o', temperature: 0.5, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content: 'Generate the ' + _examTest + ' ' + section + ' practice set.' }] })
+        });
+        var data = await r.json();
+        if (!r.ok) throw new Error((data.error && (data.error.message || data.error)) || 'Request failed');
+        _examSet = JSON.parse(data.choices[0].message.content);
+        _examRender();
+    } catch (e) {
+        if (res) res.innerHTML = '<div style="color:#ff9a9a;font-size:0.86rem;padding:10px;">Couldn\'t build it: ' + escapeHtmlSafe((e && e.message) || 'error') + '. Try again.</div>';
+    }
+}
+window._examGenerate = _examGenerate;
+function _examRender() {
+    var res = document.getElementById('exam-result'); if (!res || !_examSet) return;
+    var qs = Array.isArray(_examSet.questions) ? _examSet.questions : [];
+    var esc = escapeHtmlSafe;
+    var html = '<div id="exam-scorebar" style="font-weight:700;color:#fd79a8;font-size:0.9rem;margin-bottom:10px;">Score: 0 / ' + qs.length + '</div>';
+    html += qs.map(function (q, qi) {
+        var opts = (q.options || []).map(function (o, oi) {
+            return '<button onclick="_examAnswer(' + qi + ',' + oi + ')" data-eq="' + qi + '" data-eo="' + oi + '" style="display:block;width:100%;text-align:left;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:7px;color:#dde0ee;padding:8px 11px;margin-bottom:5px;font-size:0.85rem;cursor:pointer;">' + String.fromCharCode(65 + oi) + '. ' + esc(o) + '</button>';
+        }).join('');
+        return '<div data-examq="' + qi + '" style="margin-bottom:16px;"><div style="font-size:0.88rem;color:#fff;font-weight:600;margin-bottom:7px;">' + (qi + 1) + '. ' + esc(q.question) + '</div>' + opts + '<div class="ex-why" style="display:none;font-size:0.8rem;color:#7ff0ec;margin-top:3px;"></div></div>';
+    }).join('');
+    res.innerHTML = html;
+}
+function _examAnswer(qi, oi) {
+    if (!_examSet || _examAnswered[qi]) return;
+    _examAnswered[qi] = true;
+    var q = _examSet.questions[qi]; if (!q) return;
+    var wrap = document.querySelector('[data-examq="' + qi + '"]'); if (!wrap) return;
+    var correct = q.answer;
+    if (oi === correct) _examScore++;
+    wrap.querySelectorAll('button[data-eo]').forEach(function (b) {
+        var o = parseInt(b.getAttribute('data-eo'), 10);
+        if (o === correct) { b.style.background = 'rgba(69,199,141,0.25)'; b.style.borderColor = '#45c78d'; }
+        else if (o === oi) { b.style.background = 'rgba(239,122,114,0.2)'; b.style.borderColor = '#ef7a72'; }
+        b.style.pointerEvents = 'none';
+    });
+    var why = wrap.querySelector('.ex-why');
+    if (why) { why.style.display = 'block'; why.textContent = (oi === correct ? '✓ Correct. ' : '✗ Correct answer: ' + String.fromCharCode(65 + correct) + '. ') + (q.why || ''); }
+    var sb = document.getElementById('exam-scorebar');
+    var totalAnswered = Object.keys(_examAnswered).length, total = _examSet.questions.length;
+    if (sb) sb.textContent = 'Score: ' + _examScore + ' / ' + total + (totalAnswered === total ? '  —  done! ' + Math.round(_examScore / total * 100) + '%' : '');
+}
+window._examAnswer = _examAnswer;
+
 // v19.3 — export a deck as CSV (round-trips with the existing Import CSV: one
 // "front,back" row per card, quotes escaped per RFC 4180). Complements import
 // so decks are portable in/out of Quizlet, Anki, spreadsheets, etc.
@@ -29890,6 +29983,82 @@ function openMasteryDashboard() {
     document.body.appendChild(modal);
 }
 window.openMasteryDashboard = openMasteryDashboard;
+
+// v22.8 — INTERACTIVE SIMULATION: FUNCTION EXPLORER (gap-board pick). Drag
+// sliders for a line's or parabola's coefficients and watch the graph change
+// live — reuses _teachDrawPlot. First of the "interactive simulations" set.
+var _feState = { type: 'linear', m: 1, b: 0, a: 1, bq: 0, c: 0 };
+function openFunctionExplorer() {
+    var ex = document.getElementById('fnexp-modal'); if (ex) ex.remove();
+    var m = document.createElement('div');
+    m.id = 'fnexp-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:560px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(0,206,201,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-sliders" style="color:#00CEC9;"></i> Function Explorer</h3><button class="btn-icon" onclick="document.getElementById(\'fnexp-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow:auto;">'
+        + '<div style="display:flex;gap:8px;margin-bottom:12px;">'
+        + '<button id="fe-t-linear" class="btn-secondary" style="flex:1;font-size:0.85rem;" onclick="_feSetType(\'linear\')">Line  y = mx + b</button>'
+        + '<button id="fe-t-quad" class="btn-secondary" style="flex:1;font-size:0.85rem;" onclick="_feSetType(\'quad\')">Parabola  y = ax² + bx + c</button></div>'
+        + '<canvas id="fnexp-canvas" width="380" height="260" style="width:100%;max-width:380px;height:auto;display:block;margin:0 auto;border-radius:10px;"></canvas>'
+        + '<div id="fnexp-eq" style="text-align:center;font-family:var(--font-mono,monospace);font-size:1.05rem;color:#e6e3ff;margin:12px 0 4px;"></div>'
+        + '<div id="fnexp-feat" style="text-align:center;font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;"></div>'
+        + '<div id="fnexp-controls"></div>'
+        + '<p style="font-size:0.76rem;color:var(--text-muted);margin:12px 0 0;text-align:center;">Drag the sliders — the graph updates live so you can SEE what each number does.</p>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    _feBuildControls(); _feDraw();
+}
+window.openFunctionExplorer = openFunctionExplorer;
+function _feSetType(t) { _feState.type = t; _feBuildControls(); _feDraw(); }
+window._feSetType = _feSetType;
+function _feSlider(key, label, min, max, step, val) {
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><span style="font-family:monospace;color:#00CEC9;width:18px;font-weight:700;">' + label + '</span>'
+        + '<input type="range" min="' + min + '" max="' + max + '" step="' + step + '" value="' + val + '" oninput="_feSet(\'' + key + '\',this.value)" style="flex:1;accent-color:#6C5CE7;">'
+        + '<span id="fe-val-' + key + '" style="font-family:monospace;color:#fff;width:44px;text-align:right;">' + val + '</span></div>';
+}
+function _feBuildControls() {
+    var c = document.getElementById('fnexp-controls'); if (!c) return;
+    document.getElementById('fe-t-linear').style.background = _feState.type === 'linear' ? 'linear-gradient(135deg,#00CEC9,#6C5CE7)' : '';
+    document.getElementById('fe-t-quad').style.background = _feState.type === 'quad' ? 'linear-gradient(135deg,#00CEC9,#6C5CE7)' : '';
+    if (_feState.type === 'linear') {
+        c.innerHTML = _feSlider('m', 'm', -5, 5, 0.5, _feState.m) + _feSlider('b', 'b', -10, 10, 1, _feState.b);
+    } else {
+        c.innerHTML = _feSlider('a', 'a', -3, 3, 0.5, _feState.a) + _feSlider('bq', 'b', -6, 6, 1, _feState.bq) + _feSlider('c', 'c', -6, 6, 1, _feState.c);
+    }
+}
+function _feSet(key, val) { _feState[key] = parseFloat(val); var el = document.getElementById('fe-val-' + key); if (el) el.textContent = val; _feDraw(); }
+window._feSet = _feSet;
+function _feDraw() {
+    var cv = document.getElementById('fnexp-canvas'); if (!cv || typeof _teachDrawPlot !== 'function') return;
+    var eq = document.getElementById('fnexp-eq'), feat = document.getElementById('fnexp-feat');
+    var fn, eqText, featText;
+    // pretty term: coefficient×variable with sign, dropping 1s and 0s
+    var term = function (coef, v, first) {
+        if (coef === 0) return '';
+        var sign = coef < 0 ? (first ? '−' : ' − ') : (first ? '' : ' + ');
+        var mag = Math.abs(coef);
+        var num = (v && mag === 1) ? '' : String(mag);
+        return sign + num + v;
+    };
+    var constTerm = function (c, first) { if (c === 0) return first ? '0' : ''; return (c < 0 ? (first ? '−' : ' − ') : (first ? '' : ' + ')) + Math.abs(c); };
+    if (_feState.type === 'linear') {
+        var m = _feState.m, b = _feState.b;
+        fn = 'y=' + m + 'x+' + b;
+        eqText = 'y = ' + (m === 0 ? constTerm(b, true) : (term(m, 'x', true) + constTerm(b, false)) || '0');
+        featText = 'slope = ' + m + '   ·   y-intercept = (0, ' + b + ')' + (m !== 0 ? '   ·   x-intercept = (' + (Math.round(-b / m * 100) / 100) + ', 0)' : '');
+    } else {
+        var a = _feState.a, bq = _feState.bq, cc = _feState.c;
+        fn = 'y=' + a + 'x^2+' + bq + 'x+' + cc;
+        eqText = 'y = ' + ((term(a, 'x²', true) + term(bq, 'x', false) + constTerm(cc, false)) || '0');
+        var vx = a !== 0 ? Math.round(-bq / (2 * a) * 100) / 100 : 0;
+        var vy = a !== 0 ? Math.round((a * vx * vx + bq * vx + cc) * 100) / 100 : cc;
+        featText = a !== 0 ? ('vertex = (' + vx + ', ' + vy + ')   ·   opens ' + (a > 0 ? 'up' : 'down')) : 'a = 0 makes it a straight line';
+    }
+    if (eq) eq.textContent = eqText;
+    if (feat) feat.textContent = featText;
+    _teachDrawPlot(cv.getContext('2d'), 380, 260, [fn], []);
+}
 
 function renderStudyHistoryChart(canvasId) {
     var canvas=document.getElementById(canvasId||'study-history-canvas');

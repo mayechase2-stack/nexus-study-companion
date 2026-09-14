@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260914v269">
+    <link rel="stylesheet" href="style.css?v=20260914v270">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1247,6 +1247,18 @@
                         </div>
                         <i class="ph ph-arrow-right" style="color:#a29bfe;font-size:1.2rem;flex-shrink:0;"></i>
                     </button>
+
+                    <!-- v22.8/22.9 — Function Explorer + Exam Prep -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;">
+                        <button onclick="openFunctionExplorer()" style="display:flex;align-items:center;gap:12px;text-align:left;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.35);border-radius:14px;padding:13px 15px;cursor:pointer;" onmouseover="this.style.borderColor='rgba(0,206,201,0.7)'" onmouseout="this.style.borderColor='rgba(0,206,201,0.35)'">
+                            <span style="font-size:1.3rem;flex-shrink:0;">🎛️</span>
+                            <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Function explorer</div><div style="color:var(--text-muted);font-size:0.78rem;">Sliders → live graph</div></div>
+                        </button>
+                        <button onclick="openExamPrep()" style="display:flex;align-items:center;gap:12px;text-align:left;background:rgba(253,121,168,0.10);border:1px solid rgba(253,121,168,0.35);border-radius:14px;padding:13px 15px;cursor:pointer;" onmouseover="this.style.borderColor='rgba(253,121,168,0.7)'" onmouseout="this.style.borderColor='rgba(253,121,168,0.35)'">
+                            <span style="font-size:1.3rem;flex-shrink:0;">🎓</span>
+                            <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Exam prep</div><div style="color:var(--text-muted);font-size:0.78rem;">SAT · ACT · AP practice</div></div>
+                        </button>
+                    </div>
 
                     <!-- Main 2-col grid -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
@@ -5378,7 +5390,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260914v269"></script>
+    <script src="script.js?v=20260914v270"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
