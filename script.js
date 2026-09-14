@@ -28335,6 +28335,8 @@ Notice every line shows the current equation — never skip the middle forms lik
 
 AFTER the card(s): ONE friendly line. If you taught several topics, ask which one they want to go deeper on. If one topic, offer the deep dive ("Want the deep dive — why it works, the tricky cases, and a harder example?").
 
+LEARNING PATH — when you TEACH a topic (not for a direct follow-up question), end your reply with <div class="teach-next" data-topics="Next topic;Another next topic;A third"></div> listing 2-3 logical NEXT topics that build on what you just taught, in a sensible learning order (e.g. after "slope" → "Writing linear equations;Slope-intercept graphing;Systems of equations"). These render as tap-to-continue buttons so the student can move through a path. Keep each topic short (a few words). Omit this for a direct clarifying question.
+
 DEPTH scales the SAME card shape: QUICK = a lean card (topic, what-it-is, one short "How to do it", skip the practice or give just one) — a few lines. STANDARD = the full card above. DEEP = expand each card: add a second, harder worked example, more on the "why", the main sub-types/cases and common mistakes, and keep the 3 practice.
 
 WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder", "quiz me"): expand the current topic's card — why it works, other cases, common mistakes, a harder worked example. Still a clean card, still skimmable.
@@ -28347,7 +28349,7 @@ VOICE: plain, warm, a bit of personality. Short sentences. Never "Great question
 
 GRAPHS — when a topic is genuinely visual (a line, a parabola, plotting points, slope, intercepts, a system of equations), DRAW it: emit <div class="teach-plot" data-fns="y=2x+3;y=-x+1" data-points="2,7;0,3" data-caption="short label"></div> and it renders as a real coordinate-plane graph in the lesson. Use data-fns for one or more functions of x (semicolon-separated, e.g. "y=x^2-4"), data-points for dots "x,y;x,y", and an optional short data-caption. Only include a plot when it truly helps understanding — never force one, and never for non-graphable topics.
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, <div class="teach-plot" ...>, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-next" data-topics="...">, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
 FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
@@ -28797,7 +28799,39 @@ function _teachEnhanceCards(el) {
             };
         });
         _teachRenderPlots(el);
+        _teachRenderNext(el);
     } catch (_) {}
+}
+
+// v22.4 — LEARNING PATHS (gap-board pick). The tutor ends a lesson with
+// <div class="teach-next" data-topics="A;B;C"></div>; we render those as
+// clickable chips that start the next lesson — turning one-off lessons into a
+// sequence ("you did slope → next: writing linear equations").
+function _teachRenderNext(el) {
+    if (!el) return;
+    el.querySelectorAll('.teach-next').forEach(function (node) {
+        if (node.dataset.rendered) return; node.dataset.rendered = '1';
+        var topics = (node.getAttribute('data-topics') || '').split(';').map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 3);
+        if (!topics.length) { node.remove(); return; }
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'margin-top:14px;padding:12px 14px;border:1px solid rgba(0,206,201,0.35);border-radius:10px;background:rgba(0,206,201,0.06);';
+        var h = document.createElement('div');
+        h.style.cssText = 'font-size:0.82rem;font-weight:700;color:#00CEC9;margin-bottom:8px;';
+        h.textContent = '🧭 Continue your path';
+        wrap.appendChild(h);
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+        topics.forEach(function (t) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.style.cssText = 'background:rgba(0,206,201,0.14);border:1px solid rgba(0,206,201,0.5);color:#7ff0ec;border-radius:8px;padding:7px 12px;font-size:0.82rem;cursor:pointer;font-family:inherit;';
+            b.textContent = '➜ ' + t;
+            b.onclick = function () { if (typeof startTeachingTopic === 'function') startTeachingTopic(t); };
+            row.appendChild(b);
+        });
+        wrap.appendChild(row);
+        node.innerHTML = ''; node.appendChild(wrap);
+    });
 }
 
 // v22.0 — AUTO-GRAPHS INSIDE LESSONS (gap-board pick). The tutor emits
