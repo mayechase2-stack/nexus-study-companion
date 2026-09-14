@@ -1842,11 +1842,19 @@ function updateHomeStats() {
     }
 
     // v12.7 — "Continue where you left off" bar
+    // v22.1 — a recent Teaching Board lesson takes priority: reopen the EXACT
+    // lesson (by title) instead of just the tab.
     const lastTab = localStorage.getItem('last_tab');
     const continueBar = el('home-continue-bar');
     const continueLabel = el('home-continue-label');
     const continueBtn = el('home-continue-btn');
-    if (continueBar && lastTab && lastTab !== 'home' && lastTab !== 'dashboard') {
+    let _teachResume = null;
+    try { _teachResume = (typeof _teachLoadArchive === 'function') ? (_teachLoadArchive()[0] || null) : null; } catch (_) {}
+    if (continueBar && _teachResume && _teachResume.id) {
+        if (continueLabel) continueLabel.textContent = '📘 ' + (_teachResume.title || 'Teaching Board lesson');
+        if (continueBtn) continueBtn.setAttribute('onclick', "switchTab('teach');setTimeout(function(){if(typeof _teachOpenArchived==='function')_teachOpenArchived('" + _teachResume.id + "');},160)");
+        continueBar.style.display = 'flex';
+    } else if (continueBar && lastTab && lastTab !== 'home' && lastTab !== 'dashboard') {
         const tabNames = { math:'Math Solver', science:'Science Lab', english:'English Aid', social:'Social Studies', notebook:'Notebook', history:'Study History', achievements:'Achievements', leaderboard:'Leaderboard', shop:'Shop', inventory:'Inventory', suggestions:'Suggestions', updates:'Updates' };
         const label = tabNames[lastTab] || lastTab;
         if (continueLabel) continueLabel.textContent = label;
