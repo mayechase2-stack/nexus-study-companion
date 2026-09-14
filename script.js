@@ -5289,10 +5289,10 @@ async function checkNotebookGrammar() {
 }
 
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
-function openConceptMap() {
+function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
-    var seed = '';
-    var area = document.getElementById('notebook-area');
+    var seed = (typeof seedTopic === 'string' && seedTopic) ? seedTopic.slice(0, 80) : '';
+    var area = !seed && document.getElementById('notebook-area');
     if (area) {
         var sel = window.getSelection ? String(window.getSelection()) : '';
         seed = (sel && sel.trim()) ? sel.trim().slice(0, 80) : (area.innerText || '').trim().split('\n')[0].slice(0, 80);
@@ -28692,6 +28692,47 @@ function _teachCleanHtml(s) {
     s = s.replace(/(^|<br>|\n)\s*#{1,4}\s*([^\n<]+)/g, '$1<strong>$2</strong>'); // stray markdown headings -> bold
     return s;
 }
+// v21.8 — ANIMATED STEP-BY-STEP REVEAL (gap-board pick). Adds a "Walk me
+// through it" button above each multi-step "How to do it" list so a student can
+// reveal one step at a time (tap to advance) instead of seeing them all at once.
+// Opt-in per list — default still shows the full worked example.
+function _teachEnhanceCards(el) {
+    if (!el) return;
+    try {
+        el.querySelectorAll('.teach-card ol, .companion-msg-ai > ol').forEach(function (ol) {
+            const items = ol.querySelectorAll(':scope > li');
+            if (items.length < 3 || ol.dataset.walk) return;   // only worth it for 3+ steps
+            ol.dataset.walk = '1';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'teach-walk-btn';
+            btn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin:4px 0 8px;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:6px 12px;font-size:0.82rem;cursor:pointer;font-family:inherit;';
+            btn.textContent = '👣 Walk me through it';
+            ol.parentNode.insertBefore(btn, ol);
+            let shown = 0;   // 0 = not started (all visible)
+            const list = [].slice.call(items);
+            const paint = function () { list.forEach(function (li, i) { li.style.display = (i < shown) ? '' : 'none'; }); };
+            btn.onclick = function () {
+                if (shown === 0) { shown = 1; paint(); }            // enter walk mode
+                else if (shown < list.length) { shown++; paint(); } // next step
+                else { shown = 0; list.forEach(function (li) { li.style.display = ''; }); btn.textContent = '👣 Walk me through it'; return; }
+                btn.textContent = shown >= list.length ? '✓ Done — tap to show all at once' : ('Next step ▸  ' + shown + ' / ' + list.length);
+            };
+        });
+    } catch (_) {}
+}
+
+// v21.8 — MIND-MAP THIS LESSON (gap-board pick). Reuses the Concept Map tool,
+// seeded with the current Teaching Board topic, and auto-generates it.
+function _teachMindMap() {
+    if (!_teachTitle) { if (typeof showToast === 'function') showToast('Start a topic first, then map it.', 'info'); return; }
+    if (typeof openConceptMap !== 'function') return;
+    openConceptMap(_teachTitle);
+    setTimeout(function () {
+        if (document.getElementById('concept-map-topic') && typeof generateConceptMap === 'function') generateConceptMap();
+    }, 80);
+}
+
 function addTeachMessage(role, text) {
     const msgs = document.getElementById('teach-chat-messages');
     if (!msgs) return null;
@@ -28706,6 +28747,7 @@ function addTeachMessage(role, text) {
     } else {
         div.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';                    // full width, left
         div.innerHTML = _teachCleanHtml(text);               // model HTML, delimiters cleaned
+        _teachEnhanceCards(div);                             // add step-by-step walk buttons
     }
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
@@ -28725,7 +28767,8 @@ function _teachShowQuickActions() {
     ];
     qa.innerHTML = chips.map(function (c) {
         return '<button class="btn-secondary" style="font-size:0.78rem;padding:6px 10px;" onclick="sendTeachingBoardMessage(' + JSON.stringify(c.text) + ')">' + c.label + '</button>';
-    }).join('');
+    }).join('')
+        + '<button class="btn-secondary" style="font-size:0.78rem;padding:6px 10px;" onclick="_teachMindMap()" title="Turn this lesson into a visual mind-map">🕸 Mind-map</button>';
 }
 
 function startTeachingTopic(presetTopic) {
@@ -28846,6 +28889,7 @@ async function _teachGenerate(retryCount) {
                 else formatted = formatted.replace(/\n/g, '<br>');
                 formatted = _teachCleanHtml(formatted);   // second pass: tidy anything markdown-conversion surfaced
                 contentEl.innerHTML = formatted;
+                _teachEnhanceCards(liveBubble);            // step-by-step walk buttons on the fresh lesson
                 _teachBusy = false;
                 _teachHistory.push({ role: 'assistant', content: full });
                 if (!_teachTitle) _teachTitle = _teachDeriveTitle(_teachHistory);
