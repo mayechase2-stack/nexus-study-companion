@@ -28640,9 +28640,11 @@ SHOW, DON'T JUST TELL: when a small picture helps, sketch it in text/Unicode —
 
 VOICE: plain, warm, a bit of personality. Short sentences. Never "Great question!", never "As an AI".
 
+DIAGRAMS — when a topic has a STRUCTURE or process worth seeing (DNA, a cell and its organelles, an atom, the water cycle, the parts of the heart, a labeled triangle, a food chain…), draw ONE clean, labeled schematic as inline <svg>. Rules: set viewBox (about "0 0 360 260"), keep it simple and diagram-like (not photorealistic); draw with strokes/fills that read on a DARK background — use #a29bfe, #00cec9, #ff8fa3, #ffbe5a, #7ff0ec — and LABEL the important parts with <text fill="#e6e3ff" font-size="12">…</text> (and thin leader lines to what they point at). No external images, no <foreignObject>, no scripts — just shapes, paths, and text. Include a diagram only when it genuinely helps understanding.
+
 GRAPHS — when a topic is genuinely visual (a line, a parabola, plotting points, slope, intercepts, a system of equations), DRAW it: emit <div class="teach-plot" data-fns="y=2x+3;y=-x+1" data-points="2,7;0,3" data-caption="short label"></div> and it renders as a real coordinate-plane graph in the lesson. Use data-fns for one or more functions of x (semicolon-separated, e.g. "y=x^2-4"), data-points for dots "x,y;x,y", and an optional short data-caption. Only include a plot when it truly helps understanding — never force one, and never for non-graphable topics.
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-next" data-topics="...">, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
 FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
@@ -29031,6 +29033,22 @@ function _teachClearArchive() {
 
 // Clean up LaTeX/markdown the model sometimes leaks despite the prompt, so the
 // student never sees raw \( \) or **bold** on screen.
+// v23.0 — VISUAL DIAGRAMS (Chase request). The tutor can draw a labeled inline
+// <svg> for a structure (DNA, a cell, an atom, the water cycle, geometry…).
+// These helpers pull the SVG out before the text-cleaning runs and put it back
+// after, so path data and coordinates aren't mangled by the markdown/LaTeX/
+// fraction passes.
+function _teachProtectSvg(html, store) {
+    return String(html == null ? '' : html).replace(/<svg[\s\S]*?<\/svg>/gi, function (m) {
+        store.push(m); return 'SVG' + (store.length - 1) + '';
+    });
+}
+function _teachRestoreSvg(html, store) {
+    return String(html == null ? '' : html).replace(/SVG(\d+)/g, function (_m, i) {
+        return store[parseInt(i, 10)] || '';
+    });
+}
+
 function _teachCleanHtml(s) {
     s = String(s == null ? '' : s);
     // v21.4 — render \frac{a}{b} as a clean STACKED fraction (numerator over
@@ -29230,7 +29248,8 @@ function addTeachMessage(role, text) {
         div.textContent = text;                              // plain + XSS-safe
     } else {
         div.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';                    // full width, left
-        div.innerHTML = _teachCleanHtml(text);               // model HTML, delimiters cleaned
+        var _svgS = [];                                      // protect labeled <svg> diagrams from cleaning
+        div.innerHTML = _teachRestoreSvg(_teachCleanHtml(_teachProtectSvg(text, _svgS)), _svgS);
         _teachEnhanceCards(div);                             // add step-by-step walk buttons
     }
     msgs.appendChild(div);
@@ -29366,12 +29385,16 @@ async function _teachGenerate(retryCount) {
                     _teachShowQuickActions();
                     return;
                 }
-                // _teachCleanHtml FIRST so \frac{}{} becomes a stacked fraction
+                // Protect any labeled <svg> diagram from the text-cleaning passes,
+                // then _teachCleanHtml FIRST so \frac{}{} becomes a stacked fraction
                 // before convertMarkdownLeaks would flatten it to "(a)/(b)".
-                let formatted = _teachCleanHtml(full);
+                var _svgStore = [];
+                let formatted = _teachProtectSvg(full, _svgStore);
+                formatted = _teachCleanHtml(formatted);
                 if (typeof convertMarkdownLeaks === 'function') formatted = convertMarkdownLeaks(formatted);
                 else formatted = formatted.replace(/\n/g, '<br>');
                 formatted = _teachCleanHtml(formatted);   // second pass: tidy anything markdown-conversion surfaced
+                formatted = _teachRestoreSvg(formatted, _svgStore);
                 contentEl.innerHTML = formatted;
                 _teachEnhanceCards(liveBubble);            // step-by-step walk buttons on the fresh lesson
                 _teachBusy = false;
