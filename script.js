@@ -6644,6 +6644,37 @@ function startQuiz() {
 let _currentQuizData = null;
 let _quizAnswered = [];
 
+// v22.7 — ADAPTIVE DIFFICULTY (gap-board pick). Tracks rolling quiz accuracy
+// (last 10 answers) and auto-shifts an easier/on-level/harder band that's fed
+// into quiz generation, so questions track the student's actual level.
+function _adaptiveGet() { try { return JSON.parse(localStorage.getItem('nexus_adaptive') || '{}') || {}; } catch (_) { return {}; } }
+function _adaptiveRecord(correct) {
+    var a = _adaptiveGet();
+    var prev = a.band || 'on-level';
+    var hist = Array.isArray(a.recent) ? a.recent : [];
+    hist.push(correct ? 1 : 0); if (hist.length > 10) hist = hist.slice(-10);
+    var acc = hist.reduce(function (s, v) { return s + v; }, 0) / hist.length;
+    a.recent = hist; a.total = (a.total || 0) + 1; a.correct = (a.correct || 0) + (correct ? 1 : 0);
+    a.band = hist.length < 4 ? 'on-level' : (acc >= 0.8 ? 'harder' : acc < 0.5 ? 'easier' : 'on-level');
+    a.acc = Math.round(acc * 100);
+    try { localStorage.setItem('nexus_adaptive', JSON.stringify(a)); } catch (_) {}
+    if (a.band !== prev && hist.length >= 4 && typeof showToast === 'function') {
+        if (a.band === 'harder') showToast('📈 You\'re on a roll — quizzes will step up a level.', 'success', 3500);
+        else if (a.band === 'easier') showToast('📉 Easing the difficulty a bit to rebuild confidence.', 'info', 3500);
+    }
+    return a;
+}
+function _adaptiveDirective() {
+    var a = _adaptiveGet();
+    if (!a.band || !Array.isArray(a.recent) || a.recent.length < 4) return '';
+    var map = {
+        easier: 'The student has been struggling lately (' + a.acc + '% correct on recent questions) — make these a bit EASIER and more scaffolded to rebuild confidence.',
+        harder: 'The student has been doing great lately (' + a.acc + '% correct on recent questions) — make these a bit HARDER / more challenging to keep them growing.',
+        'on-level': 'Keep these at a steady on-level difficulty.'
+    };
+    return '\n\nADAPTIVE DIFFICULTY: ' + (map[a.band] || map['on-level']);
+}
+
 async function generateQuiz() {
     const diff = document.getElementById('quiz-difficulty').value;
     const content = document.getElementById('quiz-content');
@@ -6683,7 +6714,7 @@ CRITICAL RULES:
 - "options" must be the actual answer text (numbers, words, expressions) — NOT letters like "A","B","C","D".
 - "answerIndex" is the 0-based index of the option that EXACTLY matches the final result in "work" (0, 1, 2, or 3). If they disagree, redo the work — never guess the index.
 - Each question must have exactly 4 options with exactly one correct answer.
-- Re-check the arithmetic in "work" digit by digit before responding; a wrong answer key tells a student their correct math is wrong.` },
+- Re-check the arithmetic in "work" digit by digit before responding; a wrong answer key tells a student their correct math is wrong.` + _adaptiveDirective() },
                     { role: 'user', content: 'Generate quiz.' }
                 ]
             })
@@ -6759,6 +6790,7 @@ function answerQuiz(qi, oi) {
     _quizAnswered[qi] = true;
     const q = _currentQuizData.questions[qi];
     const isCorrect = oi === q.answerIndex;
+    if (typeof _adaptiveRecord === 'function') _adaptiveRecord(isCorrect);   // adaptive difficulty tracking
     const wrap = document.querySelector(`[data-quiz-q="${qi}"]`);
     if (wrap) {
         wrap.querySelectorAll('.quiz-option').forEach(btn => {
