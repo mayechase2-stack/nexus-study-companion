@@ -13927,6 +13927,147 @@ function saveFlashcardDecks(decks) {
     localStorage.setItem('flashcard_decks', JSON.stringify(decks));
 }
 
+// ════════════════════════════════════════════════════════════════════
+// v22.6 — UPLOAD NOTES / PDF → STUDY SET (gap-board pick)
+// Drop in a PDF or paste notes → AI builds a summary + flashcards + quiz over
+// THAT material, and the flashcards save straight to a deck. pdf.js is loaded
+// lazily from cdnjs only when a PDF is picked.
+// ════════════════════════════════════════════════════════════════════
+let _studyUploadText = '', _studyUploadName = '', _studyUploadSet = null;
+function _loadPdfJs() {
+    return new Promise(function (resolve, reject) {
+        if (window.pdfjsLib) return resolve(window.pdfjsLib);
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = function () {
+            try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch (_) {}
+            resolve(window.pdfjsLib);
+        };
+        s.onerror = function () { reject(new Error('Could not load the PDF reader.')); };
+        document.head.appendChild(s);
+    });
+}
+function openStudyUpload() {
+    var existing = document.getElementById('studyupload-modal'); if (existing) existing.remove();
+    _studyUploadText = ''; _studyUploadName = ''; _studyUploadSet = null;
+    var m = document.createElement('div');
+    m.id = 'studyupload-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:680px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-file-arrow-up" style="color:#a29bfe;"></i> Notes → Study Set</h3><button class="btn-icon" onclick="document.getElementById(\'studyupload-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div id="studyupload-body" style="padding:18px 20px;overflow:auto;">'
+        + '<p style="font-size:0.86rem;color:var(--text-muted);margin:0 0 14px;">Upload a PDF or paste your class notes — I\'ll build a summary, flashcards, and a quiz over exactly that material.</p>'
+        + '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">'
+        + '<label class="btn-secondary" style="cursor:pointer;font-size:0.85rem;"><i class="ph ph-file-pdf"></i> Choose PDF / .txt<input type="file" accept=".pdf,.txt,text/plain,application/pdf" style="display:none;" onchange="_studyUploadFile(this)"></label>'
+        + '<span id="studyupload-filename" style="font-size:0.82rem;color:var(--text-muted);"></span></div>'
+        + '<textarea id="studyupload-paste" placeholder="…or paste your notes here" style="width:100%;min-height:110px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;color:#fff;padding:11px 13px;font-size:0.88rem;box-sizing:border-box;resize:vertical;" oninput="_studyUploadText=this.value;_studyUploadName=_studyUploadName||\'Pasted notes\';"></textarea>'
+        + '<button class="btn-primary" style="width:100%;margin-top:12px;" onclick="_studyUploadGenerate()"><i class="ph ph-sparkle"></i> Build my study set</button>'
+        + '<div id="studyupload-result" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openStudyUpload = openStudyUpload;
+async function _studyUploadFile(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    _studyUploadName = file.name;
+    var fn = document.getElementById('studyupload-filename');
+    if (fn) fn.textContent = 'Reading “' + file.name + '”…';
+    try {
+        if (/\.txt$|text\/plain/i.test(file.name + file.type)) {
+            _studyUploadText = await file.text();
+        } else {
+            var lib = await _loadPdfJs();
+            var buf = await file.arrayBuffer();
+            var pdf = await lib.getDocument({ data: buf }).promise;
+            var out = [];
+            for (var p = 1; p <= Math.min(pdf.numPages, 30); p++) {
+                var page = await pdf.getPage(p);
+                var tc = await page.getTextContent();
+                out.push(tc.items.map(function (it) { return it.str; }).join(' '));
+            }
+            _studyUploadText = out.join('\n');
+        }
+        if (fn) fn.textContent = '✓ ' + file.name + ' (' + _studyUploadText.trim().length.toLocaleString() + ' chars)';
+        if (!_studyUploadText.trim() && fn) fn.textContent = '⚠ No selectable text found (a scanned PDF needs OCR). Try pasting instead.';
+    } catch (e) {
+        if (fn) fn.textContent = '⚠ ' + ((e && e.message) || 'Could not read that file') + ' — try pasting the text.';
+    }
+}
+window._studyUploadFile = _studyUploadFile;
+async function _studyUploadGenerate() {
+    var text = (_studyUploadText || '').trim();
+    if (!text) { showToast('Upload a PDF or paste some notes first.', 'warning'); return; }
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) { showToast('Sign in (or add an API key) to build a study set.', 'error', 4000); return; }
+    var res = document.getElementById('studyupload-result');
+    if (res) res.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;"><i class="ph ph-spinner ph-spin"></i> Building your summary, flashcards, and quiz…</div>';
+    var sys = 'You turn a student\'s source material into a study set. Return ONLY valid JSON, no prose, in EXACTLY this shape: {"summary":"3-5 sentence plain-English summary","flashcards":[{"front":"term or question","back":"concise answer"}],"quiz":[{"question":"","options":["","","",""],"answer":0,"why":"1-line explanation"}]}. Give 6-10 flashcards and 5 quiz questions, each quiz "answer" the 0-based index of the correct option. Keep everything concise and grounded ONLY in the material.';
+    try {
+        var r = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: localStorage.getItem('ai_model') || 'gpt-4o', temperature: 0.4, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content: text.slice(0, 8000) }] })
+        });
+        var data = await r.json();
+        if (!r.ok) throw new Error((data.error && (data.error.message || data.error)) || 'Request failed');
+        var content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+        var set = JSON.parse(content);
+        _studyUploadSet = set;
+        _studyUploadRender(set);
+    } catch (e) {
+        if (res) res.innerHTML = '<div style="color:#ff9a9a;font-size:0.86rem;padding:10px;">Couldn\'t build the set: ' + escapeHtmlSafe((e && e.message) || 'error') + '. Try again or shorten the text.</div>';
+    }
+}
+window._studyUploadGenerate = _studyUploadGenerate;
+function _studyUploadRender(set) {
+    var res = document.getElementById('studyupload-result'); if (!res) return;
+    var esc = escapeHtmlSafe;
+    var fc = Array.isArray(set.flashcards) ? set.flashcards : [];
+    var qz = Array.isArray(set.quiz) ? set.quiz : [];
+    var html = '';
+    if (set.summary) html += '<div style="background:rgba(108,92,231,0.10);border:1px solid rgba(108,92,231,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;"><div style="font-weight:700;color:#c4b8ff;font-size:0.84rem;margin-bottom:5px;">📝 Summary</div><div style="font-size:0.88rem;color:#e6e3ff;line-height:1.55;">' + esc(set.summary) + '</div></div>';
+    if (fc.length) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h4 style="margin:0;color:#fff;font-size:0.9rem;">🎴 Flashcards (' + fc.length + ')</h4><button class="btn-secondary" style="font-size:0.8rem;" onclick="_studyUploadSaveDeck()"><i class="ph ph-floppy-disk"></i> Save as deck</button></div>';
+        html += fc.map(function (c) { return '<div style="border:1px solid var(--glass-border);border-radius:8px;padding:9px 12px;margin-bottom:6px;font-size:0.85rem;"><b style="color:#fff;">' + esc(c.front) + '</b><br><span style="color:var(--text-muted);">' + esc(c.back) + '</span></div>'; }).join('');
+    }
+    if (qz.length) {
+        html += '<h4 style="margin:16px 0 8px;color:#fff;font-size:0.9rem;">🧠 Quiz (' + qz.length + ')</h4>';
+        html += qz.map(function (q, qi) {
+            var opts = (q.options || []).map(function (o, oi) {
+                return '<button onclick="_studyUploadAnswer(' + qi + ',' + oi + ')" data-q="' + qi + '" data-o="' + oi + '" style="display:block;width:100%;text-align:left;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:7px;color:#dde0ee;padding:7px 11px;margin-bottom:5px;font-size:0.84rem;cursor:pointer;">' + esc(o) + '</button>';
+            }).join('');
+            return '<div style="margin-bottom:14px;" data-quiz="' + qi + '"><div style="font-size:0.87rem;color:#fff;font-weight:600;margin-bottom:6px;">' + (qi + 1) + '. ' + esc(q.question) + '</div>' + opts + '<div class="q-why" style="display:none;font-size:0.8rem;color:#7ff0ec;margin-top:2px;"></div></div>';
+        }).join('');
+    }
+    res.innerHTML = html;
+}
+function _studyUploadAnswer(qi, oi) {
+    if (!_studyUploadSet || !_studyUploadSet.quiz) return;
+    var q = _studyUploadSet.quiz[qi]; if (!q) return;
+    var wrap = document.querySelector('[data-quiz="' + qi + '"]'); if (!wrap) return;
+    var correct = q.answer;
+    wrap.querySelectorAll('button[data-o]').forEach(function (b) {
+        var o = parseInt(b.getAttribute('data-o'), 10);
+        if (o === correct) { b.style.background = 'rgba(69,199,141,0.25)'; b.style.borderColor = '#45c78d'; }
+        else if (o === oi) { b.style.background = 'rgba(239,122,114,0.20)'; b.style.borderColor = '#ef7a72'; }
+        b.style.pointerEvents = 'none';
+    });
+    var why = wrap.querySelector('.q-why');
+    if (why) { why.style.display = 'block'; why.textContent = (oi === correct ? '✓ Correct. ' : '✗ ') + (q.why || ''); }
+}
+window._studyUploadAnswer = _studyUploadAnswer;
+function _studyUploadSaveDeck() {
+    if (!_studyUploadSet || !Array.isArray(_studyUploadSet.flashcards) || !_studyUploadSet.flashcards.length) { showToast('No flashcards to save.', 'info'); return; }
+    var decks = getFlashcardDecks();
+    var title = (_studyUploadName || 'Uploaded notes').replace(/\.(pdf|txt)$/i, '').slice(0, 60);
+    decks.push({ id: 'deck_' + Date.now(), title: title, cards: _studyUploadSet.flashcards.map(function (c) { return { front: String(c.front || ''), back: String(c.back || '') }; }), created: Date.now() });
+    saveFlashcardDecks(decks);
+    showToast('✓ Saved "' + title + '" to your flashcard decks.', 'success', 3500);
+}
+window._studyUploadSaveDeck = _studyUploadSaveDeck;
+
 // v19.3 — export a deck as CSV (round-trips with the existing Import CSV: one
 // "front,back" row per card, quotes escaped per RFC 4180). Complements import
 // so decks are portable in/out of Quizlet, Anki, spreadsheets, etc.

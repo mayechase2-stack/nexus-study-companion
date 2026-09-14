@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260914v267">
+    <link rel="stylesheet" href="style.css?v=20260914v268">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1236,6 +1236,16 @@
                             <div style="color:var(--text-muted);font-size:0.82rem;">Take a photo of any question — get it solved step by step.</div>
                         </div>
                         <i class="ph ph-arrow-right" style="color:#00cec9;font-size:1.2rem;flex-shrink:0;"></i>
+                    </button>
+
+                    <!-- v22.6 — Upload notes/PDF → study set -->
+                    <button onclick="openStudyUpload()" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:linear-gradient(135deg,rgba(162,155,254,0.14),rgba(0,206,201,0.08));border:1px solid rgba(162,155,254,0.4);border-radius:14px;padding:14px 18px;margin-bottom:22px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(162,155,254,0.7)'" onmouseout="this.style.transform='';this.style.borderColor='rgba(162,155,254,0.4)'">
+                        <div style="width:44px;height:44px;background:linear-gradient(135deg,#a29bfe,#00CEC9);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;">📄</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="color:#fff;font-weight:700;font-size:0.98rem;">Notes → study set</div>
+                            <div style="color:var(--text-muted);font-size:0.82rem;">Upload a PDF or paste notes — get a summary, flashcards, and a quiz.</div>
+                        </div>
+                        <i class="ph ph-arrow-right" style="color:#a29bfe;font-size:1.2rem;flex-shrink:0;"></i>
                     </button>
 
                     <!-- Main 2-col grid -->
@@ -5368,7 +5378,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260914v267"></script>
+    <script src="script.js?v=20260914v268"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
