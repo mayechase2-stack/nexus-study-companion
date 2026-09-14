@@ -28297,6 +28297,60 @@ function _teachDepthDirective() {
     }
     return '';  // standard = the full card shape defined in the base prompt
 }
+// v21.6 — READ-ALOUD for the Teaching Board (reuses the Companion's voice engine).
+// A speaker toggle in the lesson header; when on, each finished lesson is spoken.
+function isTeachTTSOn() { try { return localStorage.getItem('teach_tts') === '1'; } catch (_) { return false; } }
+function _teachStopSpeak() { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {} }
+function _teachSpeak(text) {
+    if (!window.speechSynthesis) return;
+    _teachStopSpeak();
+    var clean = String(text == null ? '' : text)
+        .replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '$1 over $2')   // say fractions naturally
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/[*#`]+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!clean) return;
+    // Chunk into short sentence groups — dodges the Chrome long-text cutoff bug.
+    var chunks = [], buf = '';
+    clean.split(/(?<=[.!?])\s+/).forEach(function (s) {
+        if ((buf + ' ' + s).length > 180) { if (buf) chunks.push(buf); buf = s; }
+        else buf = buf ? (buf + ' ' + s) : s;
+    });
+    if (buf) chunks.push(buf);
+    var voice = (typeof _getBestTTSVoice === 'function') ? _getBestTTSVoice() : null;
+    chunks.slice(0, 40).forEach(function (c) {
+        try {
+            var u = new SpeechSynthesisUtterance(c);
+            u.lang = 'en-US'; u.rate = 0.98; u.pitch = 1.03; u.volume = 1.0;
+            if (voice) u.voice = voice;
+            window.speechSynthesis.speak(u);
+        } catch (_) {}
+    });
+}
+function _teachSyncTTSBtn() {
+    var b = document.getElementById('teach-tts-btn'); if (!b) return;
+    var on = isTeachTTSOn();
+    b.innerHTML = '<i class="ph ' + (on ? 'ph-speaker-high' : 'ph-speaker-slash') + '"></i>';
+    b.style.background = on ? 'linear-gradient(135deg,#00CEC9,#6C5CE7)' : '';
+    b.style.color = on ? '#fff' : '';
+    b.title = on ? 'Read-aloud is on — click to mute' : 'Read lessons aloud';
+}
+function toggleTeachTTS() {
+    if (!window.speechSynthesis) { if (typeof showToast === 'function') showToast("This browser can't do text-to-speech.", 'warning'); return; }
+    var on = !isTeachTTSOn();
+    try { localStorage.setItem('teach_tts', on ? '1' : '0'); } catch (_) {}
+    _teachSyncTTSBtn();
+    if (on) {
+        var last = _teachHistory.slice().reverse().find(function (m) { return m.role === 'assistant'; });
+        if (last) _teachSpeak(last.content);
+        if (typeof showToast === 'function') showToast('🔊 Lessons will be read aloud.', 'info', 2200);
+    } else {
+        _teachStopSpeak();
+        if (typeof showToast === 'function') showToast('🔇 Read-aloud off.', 'info', 1600);
+    }
+}
+
 // Sets depth. fromSession=true means the change came from the in-lesson dropdown,
 // so if a topic is open we re-teach it at the new depth right away.
 function _teachSetDepth(val, fromSession) {
@@ -28304,6 +28358,7 @@ function _teachSetDepth(val, fromSession) {
     _teachDepth = val;
     try { localStorage.setItem('teach_depth', val); } catch (_) {}
     _teachSyncDepthSelects();
+    _teachSyncTTSBtn();
     if (fromSession && _teachTitle && !_teachBusy) {
         _teachRedoAtDepth();
     }
@@ -28411,6 +28466,7 @@ function initTeachingBoard() {
         _teachShowIntro();
     }
     _teachSyncDepthSelects();
+    _teachSyncTTSBtn();
     _teachRenderHistoryPanel();
 }
 
@@ -28440,6 +28496,7 @@ function _teachRenderExisting() {
     });
     _teachShowQuickActions();
     _teachSyncDepthSelects();
+    _teachSyncTTSBtn();
     const title = document.getElementById('teach-session-title');
     if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
 }
@@ -28447,11 +28504,13 @@ function _teachRenderExisting() {
 // Called when leaving the Teaching Board tab or on page unload — parks the
 // current session in the archive so nothing is lost, without auto-reopening it.
 function _teachStashOnLeave() {
+    _teachStopSpeak();
     _teachArchiveCurrent();
     _teachSaveHistory();   // keep the live copy too, in case auto-resume is on
 }
 
 function resetTeachingBoard() {
+    _teachStopSpeak();
     _teachArchiveCurrent();                     // keep the old convo in Past sessions
     _teachHistory = [];
     _teachSubject = '';
@@ -28639,6 +28698,7 @@ function startTeachingTopic(presetTopic) {
     const title = document.getElementById('teach-session-title');
     if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
     _teachSyncDepthSelects();
+    _teachSyncTTSBtn();
     const msgs = document.getElementById('teach-chat-messages');
     if (msgs) msgs.innerHTML = '';
     _sendTeachingBoardTurn(_teachOpeningAsk(topic), topic);
@@ -28670,6 +28730,7 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
 async function _teachGenerate(retryCount) {
     const msgs = document.getElementById('teach-chat-messages');
     if (!msgs) return;
+    _teachStopSpeak();          // a new answer is coming — silence any lesson still being read
     _teachBusy = true;
 
     const apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
@@ -28743,6 +28804,8 @@ async function _teachGenerate(retryCount) {
                 _teachArchiveCurrent();               // keep Past sessions current after each real answer
                 _teachRenderHistoryPanel();
                 _teachShowQuickActions();
+                if (isTeachTTSOn()) _teachSpeak(full);   // read the finished lesson aloud
+
                 if (typeof recordQuestProgress === 'function') recordQuestProgress('teaching_board');
                 if (typeof logActivity === 'function') logActivity('study', 'Used Teaching Board' + (_teachSubject ? (': ' + _teachSubject) : ''));
                 if (typeof updateStudyStats === 'function') updateStudyStats('problem_solved');
