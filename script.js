@@ -28325,7 +28325,9 @@ SHOW, DON'T JUST TELL: when a small picture helps, sketch it in text/Unicode —
 
 VOICE: plain, warm, a bit of personality. Short sentences. Never "Great question!", never "As an AI".
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+GRAPHS — when a topic is genuinely visual (a line, a parabola, plotting points, slope, intercepts, a system of equations), DRAW it: emit <div class="teach-plot" data-fns="y=2x+3;y=-x+1" data-points="2,7;0,3" data-caption="short label"></div> and it renders as a real coordinate-plane graph in the lesson. Use data-fns for one or more functions of x (semicolon-separated, e.g. "y=x^2-4"), data-points for dots "x,y;x,y", and an optional short data-caption. Only include a plot when it truly helps understanding — never force one, and never for non-graphable topics.
+
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, <div class="teach-plot" ...>, and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
 FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
@@ -28774,7 +28776,87 @@ function _teachEnhanceCards(el) {
                 btn.textContent = shown >= list.length ? '✓ Done — tap to show all at once' : ('Next step ▸  ' + shown + ' / ' + list.length);
             };
         });
+        _teachRenderPlots(el);
     } catch (_) {}
+}
+
+// v22.0 — AUTO-GRAPHS INSIDE LESSONS (gap-board pick). The tutor emits
+// <div class="teach-plot" data-fns="y=2x+3;y=-x" data-points="2,7;0,3"></div>
+// and we draw it on a real coordinate plane right in the lesson — reusing the
+// Math Lab's _mathExprToJs parser so "2x+3", "x^2-4", "sin(x)" all work.
+function _teachRenderPlots(el) {
+    if (!el || typeof _mathExprToJs !== 'function') return;
+    el.querySelectorAll('.teach-plot').forEach(function (node) {
+        if (node.dataset.rendered) return; node.dataset.rendered = '1';
+        var fns = (node.getAttribute('data-fns') || node.getAttribute('data-fn') || '')
+            .replace(/²/g, '^2').replace(/³/g, '^3')     // convertMarkdownLeaks turns ^2 into ² — undo for the parser
+            .split(';').map(function (s) { return s.trim(); }).filter(Boolean);
+        var pts = (node.getAttribute('data-points') || '')
+            .split(';').map(function (s) { return s.trim(); }).filter(Boolean)
+            .map(function (p) { var a = p.split(','); return [parseFloat(a[0]), parseFloat(a[1])]; })
+            .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]); });
+        if (!fns.length && !pts.length) return;
+        var W = 360, H = 260;
+        var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        cv.style.cssText = 'width:100%;max-width:' + W + 'px;height:auto;border-radius:10px;margin:6px 0;display:block;';
+        _teachDrawPlot(cv.getContext('2d'), W, H, fns, pts);
+        var cap = node.getAttribute('data-caption');
+        node.innerHTML = '';
+        node.appendChild(cv);
+        if (cap) { var c = document.createElement('div'); c.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-top:2px;'; c.textContent = cap; node.appendChild(c); }
+    });
+}
+function _teachDrawPlot(ctx, W, H, fns, pts) {
+    var cx = W / 2, cy = H / 2;
+    // pick a range that fits any given points; default ±7
+    var R = 7;
+    pts.forEach(function (p) { R = Math.max(R, Math.abs(p[0]) + 1, Math.abs(p[1]) + 1); });
+    R = Math.ceil(R);
+    var scale = Math.min(cx, cy) / R;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(12,14,28,0.92)'; ctx.fillRect(0, 0, W, H);
+    // grid + unit ticks
+    ctx.strokeStyle = 'rgba(108,92,231,0.20)'; ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(159,164,198,0.7)'; ctx.font = '10px Inter,sans-serif';
+    var step = R > 12 ? 5 : R > 6 ? 2 : 1;
+    for (var u = -R; u <= R; u += step) {
+        var px = cx + u * scale, py = cy - u * scale;
+        ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+        if (u !== 0) { ctx.fillText(u, px + 2, cy + 11); ctx.fillText(u, cx + 4, py - 2); }
+    }
+    // axes
+    ctx.strokeStyle = '#6c5ce7'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+    ctx.fillStyle = '#00cec9'; ctx.font = '12px Inter,sans-serif';
+    ctx.fillText('x', W - 12, cy - 6); ctx.fillText('y', cx + 6, 12);
+    // functions
+    var colors = ['#00cec9', '#ffbe5a', '#ff8fa3', '#8f80f4'];
+    fns.forEach(function (f, fi) {
+        var fn; try { fn = new Function('x', 'return (' + _mathExprToJs(f) + ');'); if (typeof fn(1) !== 'number') return; } catch (e) { return; }
+        ctx.strokeStyle = colors[fi % colors.length]; ctx.lineWidth = 2.4; ctx.beginPath();
+        var started = false;
+        for (var pxp = 0; pxp <= W; pxp++) {
+            var xv = (pxp - cx) / scale, yv;
+            try { yv = fn(xv); } catch (e) { yv = NaN; }
+            if (!isFinite(yv)) { started = false; continue; }
+            var pyp = cy - yv * scale;
+            if (pyp < -2000 || pyp > H + 2000) { started = false; continue; }
+            if (!started) { ctx.moveTo(pxp, pyp); started = true; } else ctx.lineTo(pxp, pyp);
+        }
+        ctx.stroke();
+    });
+    // points
+    pts.forEach(function (p) {
+        var px = cx + p[0] * scale, py = cy - p[1] * scale;
+        ctx.beginPath(); ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff'; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = '#6c5ce7'; ctx.stroke();
+        ctx.fillStyle = '#c7bcff'; ctx.font = '11px Inter,sans-serif';
+        var lbl = '(' + p[0] + ', ' + p[1] + ')';
+        ctx.fillText(lbl, Math.min(px + 7, W - ctx.measureText(lbl).width - 2), Math.max(py - 6, 11));
+    });
 }
 
 // v21.8 — MIND-MAP THIS LESSON (gap-board pick). Reuses the Concept Map tool,
