@@ -16619,6 +16619,18 @@ function handleImageUpload(input) {
     reader.readAsDataURL(file);
 }
 
+// v22.2 — SNAP A PROBLEM (gap-board pick). One-tap from Home: jump to the Math
+// solver and open the camera/photo picker (accept="image/*" opens the camera on
+// phones). Reuses the existing image → step-by-step flow. Kept in the click's
+// user-gesture chain so the file dialog isn't blocked.
+function snapAProblem() {
+    if (typeof switchTab === 'function') switchTab('math');
+    var u = document.getElementById('math-image-upload');
+    if (u) { try { u.click(); } catch (_) {} }
+    else if (typeof showToast === 'function') showToast('Open Math, then tap the photo button.', 'info');
+}
+window.snapAProblem = snapAProblem;
+
 // v12.1 — Math tutor conversation buffer. Stores the full back-and-forth so the
 // user's "Your turn" answers feed back into the next AI turn.
 let _mathTutorTurns = [];

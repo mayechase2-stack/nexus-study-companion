@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260914v263">
+    <link rel="stylesheet" href="style.css?v=20260914v264">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1217,6 +1217,16 @@
                         </div>
                         <button id="home-continue-btn" onclick="" style="background:rgba(0,206,201,0.15);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:7px 16px;color:#00cec9;font-size:0.83rem;font-weight:600;cursor:pointer;white-space:nowrap;"><i class="ph ph-play"></i> Resume</button>
                     </div>
+
+                    <!-- v22.2 — Snap a problem: one-tap camera/photo → step-by-step solver -->
+                    <button onclick="snapAProblem()" style="width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:linear-gradient(135deg,rgba(108,92,231,0.16),rgba(0,206,201,0.10));border:1px solid rgba(108,92,231,0.4);border-radius:14px;padding:14px 18px;margin-bottom:22px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(108,92,231,0.7)'" onmouseout="this.style.transform='';this.style.borderColor='rgba(108,92,231,0.4)'">
+                        <div style="width:44px;height:44px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;">📷</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="color:#fff;font-weight:700;font-size:0.98rem;">Snap a problem</div>
+                            <div style="color:var(--text-muted);font-size:0.82rem;">Take a photo of any question — get it solved step by step.</div>
+                        </div>
+                        <i class="ph ph-arrow-right" style="color:#00cec9;font-size:1.2rem;flex-shrink:0;"></i>
+                    </button>
 
                     <!-- Main 2-col grid -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
@@ -5347,7 +5357,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260914v263"></script>
+    <script src="script.js?v=20260914v264"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
