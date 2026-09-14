@@ -16631,6 +16631,33 @@ function snapAProblem() {
 }
 window.snapAProblem = snapAProblem;
 
+// v22.5 — PWA install prompt. NEXUS already ships a manifest + offline service
+// worker; this surfaces the "Install" button when the browser says it's
+// installable (and gives iOS/desktop instructions when there's no prompt event).
+let _deferredInstall = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); _deferredInstall = e;
+    var b = document.getElementById('pwa-install-btn'); if (b) b.hidden = false;
+});
+window.addEventListener('appinstalled', function () {
+    _deferredInstall = null;
+    var b = document.getElementById('pwa-install-btn'); if (b) b.hidden = true;
+    if (typeof showToast === 'function') showToast('✅ NEXUS installed — open it from your home screen.', 'success', 4000);
+});
+function nexusInstallApp() {
+    if (_deferredInstall) {
+        _deferredInstall.prompt();
+        _deferredInstall.userChoice.finally(function () {
+            _deferredInstall = null;
+            var b = document.getElementById('pwa-install-btn'); if (b) b.hidden = true;
+        });
+    } else if (typeof showToast === 'function') {
+        var iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        showToast(iOS ? 'On iPhone/iPad: tap the Share button, then "Add to Home Screen".' : 'Use the install icon in your browser\'s address bar to add NEXUS.', 'info', 6500);
+    }
+}
+window.nexusInstallApp = nexusInstallApp;
+
 // v12.1 — Math tutor conversation buffer. Stores the full back-and-forth so the
 // user's "Your turn" answers feed back into the next AI turn.
 let _mathTutorTurns = [];
