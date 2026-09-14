@@ -1863,6 +1863,7 @@ function updateHomeStats() {
     const continueBar = el('home-continue-bar');
     const continueLabel = el('home-continue-label');
     const continueBtn = el('home-continue-btn');
+    if (typeof _updateMistakeBadge === 'function') _updateMistakeBadge();   // v23.2 mistakes CTA count
     let _teachResume = null;
     try { _teachResume = (typeof _teachLoadArchive === 'function') ? (_teachLoadArchive()[0] || null) : null; } catch (_) {}
     if (continueBar && _teachResume && _teachResume.id) {
@@ -3283,6 +3284,7 @@ const PER_USER_KEYS = [
     'nexus_mem_turns', 'nexus_profile_mem', 'nexus_memory_enabled', // v237 — cross-tab "real memory" is now per-account too (was bleeding across accounts on a shared device)
     'nexus_alerts', 'notif_last_seen_ann', 'support_last_seen', // v20.0 — notification/messaging read-state is per-account
     'study_planner', 'wod_saved_vocab', // v17.0
+    'study_goals', 'nexus_adaptive', 'nexus_mistakes', // v22-v23 — goals, adaptive level, mistake review are per-account
     'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
     'lv_awarded_problems', // v19 — Live Vision 30-credit awards are per problem per account
     'starter_gold_granted',    // prefix key — cleared by username suffix at signup
@@ -6819,6 +6821,7 @@ function answerQuiz(qi, oi) {
     const q = _currentQuizData.questions[qi];
     const isCorrect = oi === q.answerIndex;
     if (typeof _adaptiveRecord === 'function') _adaptiveRecord(isCorrect);   // adaptive difficulty tracking
+    if (!isCorrect && typeof _recordMistake === 'function') _recordMistake({ q: q.q, options: q.options, correct: q.answerIndex, why: q.work, source: 'Quick Quiz', topic: (document.getElementById('quiz-content') || {}).value || '' });
     const wrap = document.querySelector(`[data-quiz-q="${qi}"]`);
     if (wrap) {
         wrap.querySelectorAll('.quiz-option').forEach(btn => {
@@ -14108,6 +14111,7 @@ function _studyUploadAnswer(qi, oi) {
     var q = _studyUploadSet.quiz[qi]; if (!q) return;
     var wrap = document.querySelector('[data-quiz="' + qi + '"]'); if (!wrap) return;
     var correct = q.answer;
+    if (oi !== correct && typeof _recordMistake === 'function') _recordMistake({ q: q.question, options: q.options, correct: q.answer, why: q.why, source: 'Study set', topic: _studyUploadName || '' });
     wrap.querySelectorAll('button[data-o]').forEach(function (b) {
         var o = parseInt(b.getAttribute('data-o'), 10);
         if (o === correct) { b.style.background = 'rgba(69,199,141,0.25)'; b.style.borderColor = '#45c78d'; }
@@ -14207,6 +14211,7 @@ function _examAnswer(qi, oi) {
     var wrap = document.querySelector('[data-examq="' + qi + '"]'); if (!wrap) return;
     var correct = q.answer;
     if (oi === correct) _examScore++;
+    else if (typeof _recordMistake === 'function') _recordMistake({ q: q.question, options: q.options, correct: q.answer, why: q.why, source: 'Exam Prep · ' + _examTest, topic: (document.getElementById('exam-section') || {}).value || '' });
     wrap.querySelectorAll('button[data-eo]').forEach(function (b) {
         var o = parseInt(b.getAttribute('data-eo'), 10);
         if (o === correct) { b.style.background = 'rgba(69,199,141,0.25)'; b.style.borderColor = '#45c78d'; }
@@ -14220,6 +14225,92 @@ function _examAnswer(qi, oi) {
     if (sb) sb.textContent = 'Score: ' + _examScore + ' / ' + total + (totalAnswered === total ? '  —  done! ' + Math.round(_examScore / total * 100) + '%' : '');
 }
 window._examAnswer = _examAnswer;
+
+// ════════════════════════════════════════════════════════════════════
+// v23.2 — REVIEW MY MISTAKES (Chase request). Every question answered wrong
+// (Quick Quiz, Exam Prep, Study-set quiz) is saved; the review modal re-quizzes
+// you on just those and removes each one once you get it right ("mastered").
+// ════════════════════════════════════════════════════════════════════
+function _mistakesLoad() { try { var a = JSON.parse(localStorage.getItem('nexus_mistakes') || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+function _mistakesSave(a) { try { localStorage.setItem('nexus_mistakes', JSON.stringify(a.slice(-120))); } catch (_) {} }
+function _mistakeCount() { return _mistakesLoad().length; }
+function _recordMistake(m) {
+    if (!m || !m.q || !Array.isArray(m.options) || typeof m.correct !== 'number') return;
+    var arr = _mistakesLoad();
+    var key = String(m.q).trim().slice(0, 160);
+    if (arr.some(function (x) { return String(x.q).trim().slice(0, 160) === key; })) return; // dedupe
+    arr.push({ id: 'mk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), q: m.q, options: m.options, correct: m.correct, why: m.why || '', source: m.source || 'Quiz', topic: m.topic || '', ts: Date.now() });
+    _mistakesSave(arr);
+    _updateMistakeBadge();
+}
+window._recordMistake = _recordMistake;
+function _updateMistakeBadge() {
+    var btn = document.getElementById('home-mistakes-btn'); if (!btn) return;
+    var n = _mistakeCount();
+    btn.style.display = n > 0 ? 'flex' : 'none';
+    var c = document.getElementById('home-mistakes-count'); if (c) c.textContent = n;
+}
+window._updateMistakeBadge = _updateMistakeBadge;
+var _mistakeSet = [];
+function openMistakeReview() {
+    var ex = document.getElementById('mistake-modal'); if (ex) ex.remove();
+    _mistakeSet = _mistakesLoad();
+    var m = document.createElement('div');
+    m.id = 'mistake-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    var body;
+    if (!_mistakeSet.length) {
+        body = '<div style="text-align:center;padding:34px 18px;color:var(--text-muted);"><div style="font-size:2rem;margin-bottom:8px;">💪</div><div style="font-size:0.95rem;color:#fff;font-weight:600;margin-bottom:4px;">No mistakes saved — nice!</div><div style="font-size:0.85rem;">Miss a question in a quiz or exam-prep set and it lands here so you can master it later.</div></div>';
+    } else {
+        var esc = escapeHtmlSafe;
+        body = '<p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 14px;">Answer each one again — get it right and it\'s removed from your list. <b style="color:#fff;">' + _mistakeSet.length + '</b> to master.</p>';
+        body += _mistakeSet.map(function (mk) {
+            var opts = (mk.options || []).map(function (o, oi) {
+                return '<button onclick="_mistakeAnswer(\'' + mk.id + '\',' + oi + ')" data-mk="' + mk.id + '" data-mo="' + oi + '" style="display:block;width:100%;text-align:left;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:7px;color:#dde0ee;padding:8px 11px;margin-bottom:5px;font-size:0.85rem;cursor:pointer;">' + String.fromCharCode(65 + oi) + '. ' + esc(o) + '</button>';
+            }).join('');
+            var tag = (mk.source || '') + (mk.topic ? ' · ' + mk.topic : '');
+            return '<div data-mkq="' + mk.id + '" style="margin-bottom:16px;border:1px solid var(--glass-border);border-radius:10px;padding:12px 14px;">'
+                + '<div style="font-family:monospace;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">' + esc(tag) + '</div>'
+                + '<div style="font-size:0.88rem;color:#fff;font-weight:600;margin-bottom:8px;">' + esc(mk.q) + '</div>' + opts
+                + '<div class="mk-why" style="display:none;font-size:0.8rem;color:#7ff0ec;margin-top:3px;"></div></div>';
+        }).join('');
+        body += '<button onclick="_mistakeClearAll()" style="width:100%;background:none;border:none;color:#ff9a9a;font-size:0.82rem;cursor:pointer;padding:8px;">Clear all saved mistakes</button>';
+    }
+    m.innerHTML = '<div class="glass-panel" style="max-width:640px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(255,190,90,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-arrows-counter-clockwise" style="color:#ffbe5a;"></i> Review My Mistakes</h3><button class="btn-icon" onclick="document.getElementById(\'mistake-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow:auto;">' + body + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openMistakeReview = openMistakeReview;
+function _mistakeAnswer(id, oi) {
+    var mk = _mistakeSet.find(function (x) { return x.id === id; }); if (!mk) return;
+    var wrap = document.querySelector('[data-mkq="' + id + '"]'); if (!wrap || wrap.dataset.done) return;
+    wrap.dataset.done = '1';
+    var correct = mk.correct;
+    wrap.querySelectorAll('button[data-mo]').forEach(function (b) {
+        var o = parseInt(b.getAttribute('data-mo'), 10);
+        if (o === correct) { b.style.background = 'rgba(69,199,141,0.25)'; b.style.borderColor = '#45c78d'; }
+        else if (o === oi) { b.style.background = 'rgba(239,122,114,0.2)'; b.style.borderColor = '#ef7a72'; }
+        b.style.pointerEvents = 'none';
+    });
+    var why = wrap.querySelector('.mk-why');
+    if (oi === correct) {
+        // mastered — remove from storage
+        var arr = _mistakesLoad().filter(function (x) { return x.id !== id; });
+        _mistakesSave(arr); _updateMistakeBadge();
+        if (why) { why.style.display = 'block'; why.style.color = '#45c78d'; why.textContent = '✓ Mastered — removed from your list! ' + (mk.why || ''); }
+        wrap.style.opacity = '0.6';
+    } else {
+        if (why) { why.style.display = 'block'; why.textContent = 'Correct answer: ' + String.fromCharCode(65 + correct) + '. ' + (mk.why || '') + '  (stays on your list — try again next time)'; }
+    }
+}
+window._mistakeAnswer = _mistakeAnswer;
+function _mistakeClearAll() {
+    if (typeof showConfirm === 'function') { showConfirm('Clear all saved mistakes?', 'This removes every question from your review list.', function () { _mistakesSave([]); _updateMistakeBadge(); var m = document.getElementById('mistake-modal'); if (m) m.remove(); openMistakeReview(); }); }
+    else { _mistakesSave([]); _updateMistakeBadge(); var m = document.getElementById('mistake-modal'); if (m) m.remove(); openMistakeReview(); }
+}
+window._mistakeClearAll = _mistakeClearAll;
 
 // v19.3 — export a deck as CSV (round-trips with the existing Import CSV: one
 // "front,back" row per card, quotes escaped per RFC 4180). Complements import
