@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260915v282">
+    <link rel="stylesheet" href="style.css?v=20260915v283">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -3564,6 +3564,7 @@
                                 <span id="teach-session-title" style="color:white;font-weight:600;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Teaching Board</span>
                             </div>
                             <button id="teach-tts-btn" class="btn-secondary" onclick="toggleTeachTTS()" title="Read lessons aloud" style="padding:6px 10px;font-size:0.95rem;flex-shrink:0;"><i class="ph ph-speaker-slash"></i></button>
+                            <button id="teach-voice-btn" class="btn-secondary" onclick="openVoicePicker()" title="Choose the read-aloud voice & speed" style="padding:6px 10px;font-size:0.95rem;flex-shrink:0;"><i class="ph ph-sliders-horizontal"></i></button>
                             <select id="teach-depth-session" class="input-field" style="padding:6px 8px;font-size:0.8rem;min-width:130px;flex-shrink:0;" title="Change the depth and re-teach this topic" onchange="_teachSetDepth(this.value,true)">
                                 <option value="quick">⚡ Quick</option>
                                 <option value="standard" selected>📘 Standard</option>
@@ -5411,7 +5412,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260915v282"></script>
+    <script src="script.js?v=20260915v283"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

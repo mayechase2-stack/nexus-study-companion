@@ -25412,9 +25412,16 @@ function toggleCompanionTTS() {
 }
 // v12.8 — TTS voice selection: prefer high-quality voices (Google/Microsoft neural)
 // Falls back to the system default if none of the preferred voices are available.
+// v24.2 — the student's own read-aloud speed (shared by teach + companion).
+function _ttsRate() { var r = parseFloat(localStorage.getItem('nexus_tts_rate') || '0.98'); return isNaN(r) ? 0.98 : Math.min(1.5, Math.max(0.6, r)); }
 function _getBestTTSVoice() {
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return null;
+    // v24.2 — honor the voice the student picked, if it's still available
+    try {
+        var chosen = localStorage.getItem('nexus_tts_voice');
+        if (chosen) { var pick = voices.find(function (v) { return v.name === chosen; }); if (pick) return pick; }
+    } catch (_) {}
     // Priority order: neural cloud voices first, then local quality voices
     const preferredNames = [
         'Google US English',         // Chrome on Windows/Mac (best quality)
@@ -25435,6 +25442,68 @@ function _getBestTTSVoice() {
     return voices.find(v => v.lang && v.lang.startsWith('en')) || voices[0];
 }
 
+// v24.2 — VOICE PICKER (free): choose from the device's available voices + set
+// speed. Applies everywhere read-aloud is used (Teaching Board + Companion).
+function openVoicePicker() {
+    if (!window.speechSynthesis) { if (typeof showToast === 'function') showToast("This browser can't do text-to-speech.", 'warning'); return; }
+    var ex = document.getElementById('voice-modal'); if (ex) ex.remove();
+    var m = document.createElement('div');
+    m.id = 'voice-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000070;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:460px;width:97%;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-speaker-high" style="color:#00CEC9;"></i> Read-aloud voice</h3><button class="btn-icon" onclick="document.getElementById(\'voice-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:18px 20px;">'
+        + '<p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 14px;">Pick a voice from your device (⭐ = higher quality) and set the speed. Applies to the Teaching Board and your companion.</p>'
+        + '<label style="font-size:0.78rem;color:var(--text-muted);">Voice</label>'
+        + '<select id="voice-select" class="input-field" style="width:100%;margin:5px 0 14px;padding:9px 11px;"></select>'
+        + '<label style="font-size:0.78rem;color:var(--text-muted);">Speed <span id="voice-rate-val" style="color:#fff;font-weight:600;"></span></label>'
+        + '<input type="range" id="voice-rate" min="0.6" max="1.5" step="0.05" style="width:100%;margin:6px 0 16px;accent-color:#6c5ce7;">'
+        + '<div style="display:flex;gap:10px;">'
+        + '<button class="btn-secondary" onclick="_voiceTest()" style="flex:1;">▶ Test</button>'
+        + '<button class="btn-primary" onclick="_voiceSave()" style="flex:1;">Save</button></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    _voicePopulate();
+}
+window.openVoicePicker = openVoicePicker;
+function _voicePopulate() {
+    var sel = document.getElementById('voice-select'); if (!sel) return;
+    var voices = window.speechSynthesis.getVoices();
+    if (!voices.length) { window.speechSynthesis.addEventListener('voiceschanged', _voicePopulate, { once: true }); return; }
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var en = voices.filter(function (v) { return v.lang && v.lang.toLowerCase().indexOf('en') === 0; });
+    var rest = voices.filter(function (v) { return !(v.lang && v.lang.toLowerCase().indexOf('en') === 0); });
+    var ordered = en.concat(rest);
+    var best = _getBestTTSVoice();
+    var chosen = localStorage.getItem('nexus_tts_voice') || (best ? best.name : '');
+    sel.innerHTML = ordered.map(function (v) {
+        var star = /online|natural|neural|google|siri|premium|enhanced/i.test(v.name) ? ' ⭐' : '';
+        return '<option value="' + esc(v.name) + '"' + (v.name === chosen ? ' selected' : '') + '>' + esc(v.name) + ' — ' + esc(v.lang) + star + '</option>';
+    }).join('');
+    var rate = document.getElementById('voice-rate'), lbl = document.getElementById('voice-rate-val');
+    if (rate) { rate.value = _ttsRate(); if (lbl) lbl.textContent = parseFloat(rate.value).toFixed(2) + '×'; rate.oninput = function () { if (lbl) lbl.textContent = parseFloat(rate.value).toFixed(2) + '×'; }; }
+}
+window._voicePopulate = _voicePopulate;
+function _voiceTest() {
+    var sel = document.getElementById('voice-select'), rate = document.getElementById('voice-rate');
+    var voices = window.speechSynthesis.getVoices();
+    var v = voices.find(function (x) { return x.name === sel.value; });
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    var u = new SpeechSynthesisUtterance("Here's how I'll read your lessons. Slope equals rise over run.");
+    u.lang = 'en-US'; u.rate = parseFloat(rate.value) || 0.98; u.pitch = 1.03; if (v) u.voice = v;
+    window.speechSynthesis.speak(u);
+}
+window._voiceTest = _voiceTest;
+function _voiceSave() {
+    var sel = document.getElementById('voice-select'), rate = document.getElementById('voice-rate');
+    try { localStorage.setItem('nexus_tts_voice', sel.value); localStorage.setItem('nexus_tts_rate', String(parseFloat(rate.value) || 0.98)); } catch (_) {}
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    if (typeof showToast === 'function') showToast('✓ Voice saved.', 'success', 2000);
+    var m = document.getElementById('voice-modal'); if (m) m.remove();
+}
+window._voiceSave = _voiceSave;
+
 function speakCompanionReply(text) {
     if (!isCompanionTTSOn()) return;
     if (!window.speechSynthesis) return;
@@ -25453,7 +25522,7 @@ function speakCompanionReply(text) {
 
         const utter = new SpeechSynthesisUtterance(cleanText);
         utter.lang = 'en-US';
-        utter.rate = 0.95;   // slightly slower = more natural, easier to follow
+        utter.rate = (typeof _ttsRate === 'function') ? _ttsRate() : 0.95;   // student's chosen speed
         utter.pitch = 1.05;  // marginally higher = less robotic
         utter.volume = 1.0;
 
@@ -29019,7 +29088,7 @@ function _teachSpeak(text) {
     list.forEach(function (c, i) {
         try {
             var u = new SpeechSynthesisUtterance(c);
-            u.lang = 'en-US'; u.rate = 0.98; u.pitch = 1.03; u.volume = 1.0;
+            u.lang = 'en-US'; u.rate = _ttsRate(); u.pitch = 1.03; u.volume = 1.0;
             if (voice) u.voice = voice;
             if (i === list.length - 1) {
                 // hands-free loop: once the lesson finishes reading, listen for the next question
