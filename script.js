@@ -25781,8 +25781,41 @@ function addCompanionMessage(role, text) {
     const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const formatted = safe.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/\n/g,'<br>');
     div.innerHTML = formatted;
+    // v24.0 — per-message reply: a small ↩ that quotes this message into your next send
+    var rb = document.createElement('button');
+    rb.type = 'button'; rb.className = 'companion-reply-btn'; rb.title = 'Reply to this message';
+    rb.textContent = '↩';
+    rb.style.cssText = 'margin-left:8px;background:none;border:none;color:rgba(255,255,255,0.32);cursor:pointer;font-size:0.85rem;vertical-align:middle;padding:0 2px;';
+    rb.onmouseover = function () { rb.style.color = '#a29bfe'; };
+    rb.onmouseout = function () { rb.style.color = 'rgba(255,255,255,0.32)'; };
+    rb.onclick = function () { _companionSetReply(text); };
+    div.appendChild(rb);
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
+}
+// v24.0 — companion reply state + banner above the input
+function _companionSetReply(text) {
+    window._companionReplyCtx = String(text == null ? '' : text).replace(/<[^>]+>/g, '').replace(/^📎 \[image\]\s*/, '').trim().slice(0, 300);
+    _companionRenderReplyBanner();
+    var inp = document.getElementById('companion-chat-input'); if (inp) inp.focus();
+}
+window._companionSetReply = _companionSetReply;
+function _companionClearReply() { window._companionReplyCtx = null; _companionRenderReplyBanner(); }
+window._companionClearReply = _companionClearReply;
+function _companionRenderReplyBanner() {
+    var input = document.getElementById('companion-chat-input'); if (!input) return;
+    var row = input.parentElement; if (!row) return;
+    var banner = document.getElementById('companion-reply-banner');
+    if (!window._companionReplyCtx) { if (banner) banner.remove(); return; }
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'companion-reply-banner';
+        banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 10px;margin:6px 10px 0;background:rgba(108,92,231,0.16);border-left:3px solid #6c5ce7;border-radius:8px;font-size:0.76rem;color:#c7bcff;';
+        row.parentElement.insertBefore(banner, row);
+    }
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    banner.innerHTML = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">↩ Replying to: ' + esc(window._companionReplyCtx.slice(0, 90)) + '</span>'
+        + '<button onclick="_companionClearReply()" title="Cancel reply" style="background:none;border:none;color:#c7bcff;cursor:pointer;font-size:0.9rem;padding:0 2px;">✕</button>';
 }
 
 function clearCompanionChatImage() {
@@ -26120,16 +26153,23 @@ async function sendCompanionMessage() {
     const data = COMPANIONS_DATA[id];
     if (!data) return;
 
+    // v24.0 — if replying to a specific message, quote it in the bubble and give
+    // the AI that context so it knows what you're responding to.
+    const replyCtx = window._companionReplyCtx || null;
+    const quotePrefix = replyCtx ? ('↩ “' + replyCtx.slice(0, 70) + (replyCtx.length > 70 ? '…' : '') + '”\n') : '';
+    const apiText = replyCtx ? ('(Replying to your earlier message: "' + replyCtx + '")\n\n' + (text || 'about this')) : text;
+
     // Build user message: text + optional image (vision-aware)
     const displayText = text || '(image attached)';
-    addCompanionMessage('user', attachedImage ? `📎 [image] ${displayText}` : displayText);
+    addCompanionMessage('user', (attachedImage ? `📎 [image] ` : '') + quotePrefix + displayText);
     const userContentForApi = attachedImage
-        ? [{ type: 'text', text: text || 'Please look at this image and help me with it.' }, { type: 'image_url', image_url: { url: attachedImage } }]
-        : text;
+        ? [{ type: 'text', text: apiText || 'Please look at this image and help me with it.' }, { type: 'image_url', image_url: { url: attachedImage } }]
+        : apiText;
     _companionChatHistory.push({ role: 'user', content: userContentForApi });
     input.value = '';
     input.style.height = ''; // reset textarea height
     clearCompanionChatImage();
+    _companionClearReply();
 
     const apiKey = getApiKey();
     if (!apiKey) {
