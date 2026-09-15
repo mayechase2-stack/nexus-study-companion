@@ -28996,15 +28996,17 @@ FIRST, READ WHAT THEY'RE ACTUALLY ASKING and match your reply to it — this mat
 • If they ask you to TEACH a topic (a new topic, "teach me…", or they tap Go deeper / Another example / Quiz me), use the TOPIC CARD format below.
 • If they ask a SPECIFIC follow-up or clarifying question — e.g. "why does y get set to 0?", "wait why the negative?", "what about step 2?", "I don't get that part" — just ANSWER THAT ONE QUESTION. Lead with the answer in the very first sentence. Keep it short and focused on exactly what they asked. Do NOT re-teach the whole topic, do NOT force the card sections (no "How to do it" / practice / etc.), do NOT pile on things they didn't ask about. Answer only what was asked, then you may offer ONE small next step ("make sense? want an example?"). Buried, over-long answers to a simple question frustrate the student — the point comes FIRST, not last.
 
+TEACH IT, DON'T JUST DEFINE IT. The #1 thing students say is that lessons give "the precise definition and nothing else." Don't do that. A good card leaves the student understanding WHY, not just WHAT: give the intuition, an everyday analogy or mental picture, where a formula comes from, and what each step is really doing. Explain like a patient tutor talking to a real person — warm and in plain language. Still scannable (a few clear sentences per section, never a paragraph dump), but genuinely explanatory, not a bare textbook entry.
+
 HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card so the student can scan it. One card per topic. If the student names SEVERAL topics (commas, "and", or a list), make ONE card for EACH, in the order named — never teach only the first and skip the rest. EVERY card MUST include its own Practice block (the <div class="teach-practice" data-answers="…"> with its own problems + answers) — do NOT give practice for only the first topic and skip it on the rest; each topic gets its own practice. Use this shape EXACTLY for every card:
 
 <div class="teach-card">
 <h4>Topic name</h4>
-<div class="teach-what">One or two plain sentences: what it is / when you use it. If it has a formula or key equation, show it right here on its own line (e.g. y = mx + b, or slope = (y₂ − y₁)/(x₂ − x₁)).</div>
+<div class="teach-what">2–3 plain sentences: what it is AND the intuition — what it actually MEANS in everyday terms (a quick analogy or mental picture), not just the textbook definition. If it has a formula or key equation, show it on its own line (e.g. y = mx + b, or slope = (y₂ − y₁)/(x₂ − x₁)) and say in words what each part means.</div>
 <h5>How to do it</h5>
-<ol><li>the steps, ONE action per step, each with a few words on WHY it works</li></ol>
+<ol><li>each step: what you DO and, in plain words, WHY you do it / what it's really accomplishing (not just the action)</li></ol>
 <h5>Why it works</h5>
-<p>1–2 sentences on the reasoning — the "why it's like this", not just the recipe.</p>
+<p>2–3 sentences of real reasoning — the intuition for WHY this method works (where the formula comes from, what's really going on), not a one-line restatement of the definition.</p>
 <div class="teach-tip">💡 <strong>Tip:</strong> a trick, shortcut, mnemonic, or common gotcha for THIS topic — e.g. "the butterfly method for cross-multiplying fractions", "dividing both sides of an inequality by a negative flips the sign". Include this box ONLY when there's a genuinely useful tip; otherwise leave it out entirely.</div>
 <div class="teach-practice" data-answers="answer1;answer2;answer3"><strong>✏️ Practice — try these 3</strong>
 <ol><li>problem 1</li><li>problem 2</li><li>problem 3</li></ol></div>
@@ -29551,11 +29553,14 @@ function _teachAddCardActions(el) {
         bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed rgba(255,255,255,0.12);';
         var bstyle = 'background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.45);color:#c7bcff;border-radius:8px;padding:5px 11px;font-size:0.78rem;cursor:pointer;font-family:inherit;';
         var cstyle = 'background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.42);color:#7ff0ec;border-radius:8px;padding:5px 11px;font-size:0.78rem;cursor:pointer;font-family:inherit;';
+        var estyle = 'background:rgba(255,190,90,0.14);border:1px solid rgba(255,190,90,0.45);color:#ffd591;border-radius:8px;padding:5px 11px;font-size:0.78rem;cursor:pointer;font-family:inherit;';
+        var em = document.createElement('button'); em.type = 'button'; em.style.cssText = estyle; em.innerHTML = '🔎 Explain more';
         var r = document.createElement('button'); r.type = 'button'; r.style.cssText = bstyle; r.innerHTML = '↩ Reply to this part';
         var c = document.createElement('button'); c.type = 'button'; c.style.cssText = cstyle; c.innerHTML = '💬 Continue with companion';
+        em.onclick = function () { _teachExplainMore(card); };
         r.onclick = function () { _teachCardReplyToggle(card); };
         c.onclick = function () { _teachCardCompanion(card); };
-        bar.appendChild(r); bar.appendChild(c);
+        bar.appendChild(em); bar.appendChild(r); bar.appendChild(c);
         card.appendChild(bar);
     });
 }
@@ -29583,6 +29588,12 @@ function _teachReplyBlock(topic, question) {
     if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2000); return; }
     _sendTeachingBoardTurn('About the "' + topic + '" part: ' + question, question);
 }
+function _teachExplainMore(card) {
+    if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2000); return; }
+    var topic = (card && card.getAttribute('data-topic')) || 'this';
+    _sendTeachingBoardTurn('Explain the "' + topic + '" part more deeply — I want to really understand it, not just the definition. Give the intuition and WHY it works, a plain-English analogy or picture, where the formula/idea comes from, a fully worked example, and a common mistake to avoid. Keep it clear and scannable, not a wall of text.', 'Explain "' + topic + '" more');
+}
+window._teachExplainMore = _teachExplainMore;
 function _teachCardCompanion(card) {
     var topic = card.getAttribute('data-topic') || 'this topic';
     var whatEl = card.querySelector('.teach-what');
