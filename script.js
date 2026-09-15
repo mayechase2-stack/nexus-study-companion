@@ -1864,6 +1864,7 @@ function updateHomeStats() {
     const continueLabel = el('home-continue-label');
     const continueBtn = el('home-continue-btn');
     if (typeof _updateMistakeBadge === 'function') _updateMistakeBadge();   // v23.2 mistakes CTA count
+    if (typeof _updateLessonReviewBadge === 'function') _updateLessonReviewBadge();   // v23.3 due-lessons CTA count
     let _teachResume = null;
     try { _teachResume = (typeof _teachLoadArchive === 'function') ? (_teachLoadArchive()[0] || null) : null; } catch (_) {}
     if (continueBar && _teachResume && _teachResume.id) {
@@ -3284,7 +3285,7 @@ const PER_USER_KEYS = [
     'nexus_mem_turns', 'nexus_profile_mem', 'nexus_memory_enabled', // v237 — cross-tab "real memory" is now per-account too (was bleeding across accounts on a shared device)
     'nexus_alerts', 'notif_last_seen_ann', 'support_last_seen', // v20.0 — notification/messaging read-state is per-account
     'study_planner', 'wod_saved_vocab', // v17.0
-    'study_goals', 'nexus_adaptive', 'nexus_mistakes', // v22-v23 — goals, adaptive level, mistake review are per-account
+    'study_goals', 'nexus_adaptive', 'nexus_mistakes', 'nexus_lesson_reviews', // v22-v23 — goals, adaptive level, mistake review, spaced lesson review are per-account
     'last_mystery_box', 'nexus_waitlist', 'nexus_modules', // v17.1 / v18
     'lv_awarded_problems', // v19 — Live Vision 30-credit awards are per problem per account
     'starter_gold_granted',    // prefix key — cleared by username suffix at signup
@@ -14273,7 +14274,8 @@ function openMistakeReview() {
             return '<div data-mkq="' + mk.id + '" style="margin-bottom:16px;border:1px solid var(--glass-border);border-radius:10px;padding:12px 14px;">'
                 + '<div style="font-family:monospace;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">' + esc(tag) + '</div>'
                 + '<div style="font-size:0.88rem;color:#fff;font-weight:600;margin-bottom:8px;">' + esc(mk.q) + '</div>' + opts
-                + '<div class="mk-why" style="display:none;font-size:0.8rem;color:#7ff0ec;margin-top:3px;"></div></div>';
+                + '<div class="mk-why" style="display:none;font-size:0.8rem;color:#7ff0ec;margin-top:3px;"></div>'
+                + '<button onclick="_mistakeReteach(\'' + mk.id + '\')" style="margin-top:8px;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:6px 12px;font-size:0.8rem;cursor:pointer;">📘 Teach me this</button></div>';
         }).join('');
         body += '<button onclick="_mistakeClearAll()" style="width:100%;background:none;border:none;color:#ff9a9a;font-size:0.82rem;cursor:pointer;padding:8px;">Clear all saved mistakes</button>';
     }
@@ -14311,6 +14313,106 @@ function _mistakeClearAll() {
     else { _mistakesSave([]); _updateMistakeBadge(); var m = document.getElementById('mistake-modal'); if (m) m.remove(); openMistakeReview(); }
 }
 window._mistakeClearAll = _mistakeClearAll;
+// v23.3 — re-teach the concept behind a missed question on the Teaching Board.
+function _mistakeReteach(id) {
+    var mk = _mistakeSet.find(function (x) { return x.id === id; }); if (!mk) return;
+    var target = mk.q;
+    var m = document.getElementById('mistake-modal'); if (m) m.remove();
+    if (typeof switchTab === 'function') { switchTab('teach'); setTimeout(function () { if (typeof startTeachingTopic === 'function') startTeachingTopic(target); }, 180); }
+}
+window._mistakeReteach = _mistakeReteach;
+
+// ════════════════════════════════════════════════════════════════════
+// v23.3 — SPACED REVIEW OF LESSONS (Chase request). Every Teaching Board topic
+// you learn is scheduled to resurface for a quick recall check on an SM-2-lite
+// schedule (1 → 3 → 7 → 16 → 35 → 90 days), so lessons actually stick.
+// ════════════════════════════════════════════════════════════════════
+var _LR_STEPS = [1, 3, 7, 16, 35, 90];
+function _lessonReviewsLoad() { try { var a = JSON.parse(localStorage.getItem('nexus_lesson_reviews') || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+function _lessonReviewsSave(a) { try { localStorage.setItem('nexus_lesson_reviews', JSON.stringify(a.slice(-100))); } catch (_) {} }
+function _lessonReviewAdd(topic, subject) {
+    topic = String(topic || '').trim(); if (!topic) return;
+    var arr = _lessonReviewsLoad();
+    var key = topic.toLowerCase();
+    if (arr.some(function (x) { return String(x.topic).toLowerCase() === key; })) return;   // one schedule per topic
+    arr.push({ id: 'lr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), topic: topic.slice(0, 90), subject: subject || '', interval: 1, reps: 0, due: Date.now() + 86400000, added: Date.now() });
+    _lessonReviewsSave(arr);
+}
+window._lessonReviewAdd = _lessonReviewAdd;
+function _lessonReviewsDue() { var now = Date.now(); return _lessonReviewsLoad().filter(function (x) { return (x.due || 0) <= now; }); }
+function _lessonReviewRate(id, grade) {
+    var arr = _lessonReviewsLoad(); var it = arr.find(function (x) { return x.id === id; }); if (!it) return;
+    if (grade === 'got') { it.reps = (it.reps || 0) + 1; it.interval = _LR_STEPS[Math.min(it.reps, _LR_STEPS.length - 1)]; }
+    else if (grade === 'shaky') { it.interval = Math.max(1, Math.round((it.interval || 1) / 2)); }
+    else { it.reps = 0; it.interval = 1; }
+    it.due = Date.now() + it.interval * 86400000;
+    _lessonReviewsSave(arr);
+    _updateLessonReviewBadge();
+}
+window._lessonReviewRate = _lessonReviewRate;
+function _updateLessonReviewBadge() {
+    var btn = document.getElementById('home-review-btn'); if (!btn) return;
+    var n = _lessonReviewsDue().length;
+    btn.style.display = n > 0 ? 'flex' : 'none';
+    var c = document.getElementById('home-review-count'); if (c) c.textContent = n;
+}
+window._updateLessonReviewBadge = _updateLessonReviewBadge;
+function openLessonReview() {
+    var ex = document.getElementById('lreview-modal'); if (ex) ex.remove();
+    var due = _lessonReviewsDue();
+    var esc = escapeHtmlSafe;
+    var body;
+    if (!due.length) {
+        var next = _lessonReviewsLoad().sort(function (a, b) { return (a.due || 0) - (b.due || 0); })[0];
+        var when = next ? ('Next review: ' + esc(next.topic) + ' in ' + Math.max(1, Math.round(((next.due || 0) - Date.now()) / 86400000)) + ' day(s).') : 'Learn something on the Teaching Board and it\'ll be scheduled for review here.';
+        body = '<div style="text-align:center;padding:30px 18px;color:var(--text-muted);"><div style="font-size:2rem;margin-bottom:8px;">🧠</div><div style="font-size:0.95rem;color:#fff;font-weight:600;margin-bottom:4px;">Nothing due right now</div><div style="font-size:0.85rem;">' + when + '</div></div>';
+    } else {
+        body = '<p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 14px;">Quick recall check — how well do you remember each one? Rate it honestly and it reschedules itself.</p>';
+        body += due.map(function (it) {
+            var subj = it.subject ? (' · ' + esc(it.subject)) : '';
+            return '<div data-lr="' + it.id + '" style="margin-bottom:12px;border:1px solid var(--glass-border);border-radius:10px;padding:12px 14px;">'
+                + '<div style="font-family:monospace;font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Lesson' + esc(subj) + '</div>'
+                + '<div style="font-size:0.95rem;color:#fff;font-weight:600;margin-bottom:10px;">' + esc(it.topic) + '</div>'
+                + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+                + '<button onclick="_lrRate(\'' + it.id + '\',\'got\')" style="flex:1;min-width:90px;background:rgba(69,199,141,0.18);border:1px solid rgba(69,199,141,0.5);color:#7fe0b3;border-radius:8px;padding:8px;font-size:0.82rem;cursor:pointer;">✅ Got it</button>'
+                + '<button onclick="_lrRate(\'' + it.id + '\',\'shaky\')" style="flex:1;min-width:90px;background:rgba(255,190,90,0.14);border:1px solid rgba(255,190,90,0.5);color:#ffd591;border-radius:8px;padding:8px;font-size:0.82rem;cursor:pointer;">🤔 Shaky</button>'
+                + '<button onclick="_lrRate(\'' + it.id + '\',\'forgot\')" style="flex:1;min-width:90px;background:rgba(239,122,114,0.14);border:1px solid rgba(239,122,114,0.5);color:#ffb3ae;border-radius:8px;padding:8px;font-size:0.82rem;cursor:pointer;">❌ Forgot</button>'
+                + '<button onclick="_lrReteach(\'' + it.id + '\')" style="flex:1;min-width:90px;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:8px;font-size:0.82rem;cursor:pointer;">📘 Re-teach</button>'
+                + '</div><div class="lr-fb" style="display:none;font-size:0.8rem;margin-top:7px;"></div></div>';
+        }).join('');
+    }
+    var m = document.createElement('div');
+    m.id = 'lreview-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:620px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-brain" style="color:#a29bfe;"></i> Review Due Lessons</h3><button class="btn-icon" onclick="document.getElementById(\'lreview-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow:auto;">' + body + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openLessonReview = openLessonReview;
+function _lrRate(id, grade) {
+    var wrap = document.querySelector('[data-lr="' + id + '"]'); if (!wrap || wrap.dataset.done) return;
+    wrap.dataset.done = '1';
+    _lessonReviewRate(id, grade);
+    wrap.querySelectorAll('button').forEach(function (b) { if (!/Re-teach/.test(b.textContent)) b.style.pointerEvents = 'none'; });
+    wrap.style.opacity = '0.7';
+    var fb = wrap.querySelector('.lr-fb');
+    var it = _lessonReviewsLoad().find(function (x) { return x.id === id; });
+    var days = it ? it.interval : 1;
+    if (fb) {
+        fb.style.display = 'block';
+        fb.style.color = grade === 'got' ? '#7fe0b3' : grade === 'shaky' ? '#ffd591' : '#ffb3ae';
+        fb.textContent = grade === 'forgot' ? 'No worries — back in 1 day. Tap Re-teach for a refresher.' : ('Nice — back in ' + days + ' day' + (days === 1 ? '' : 's') + '.');
+    }
+}
+window._lrRate = _lrRate;
+function _lrReteach(id) {
+    var it = _lessonReviewsLoad().find(function (x) { return x.id === id; });
+    var m = document.getElementById('lreview-modal'); if (m) m.remove();
+    if (it && typeof switchTab === 'function') { switchTab('teach'); setTimeout(function () { if (typeof startTeachingTopic === 'function') startTeachingTopic(it.topic); }, 180); }
+}
+window._lrReteach = _lrReteach;
 
 // v19.3 — export a deck as CSV (round-trips with the existing Import CSV: one
 // "front,back" row per card, quotes escaped per RFC 4180). Complements import
@@ -29521,6 +29623,7 @@ async function _teachGenerate(retryCount) {
                 if (!_teachTitle) _teachTitle = _teachDeriveTitle(_teachHistory);
                 _teachSaveHistory();
                 _teachArchiveCurrent();               // keep Past sessions current after each real answer
+                if (typeof _lessonReviewAdd === 'function') _lessonReviewAdd(_teachTitle, _teachSubject);   // schedule spaced review
                 _teachRenderHistoryPanel();
                 _teachShowQuickActions();
                 if (isTeachTTSOn()) _teachSpeak(full);   // read the finished lesson aloud
