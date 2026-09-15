@@ -3412,6 +3412,11 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
 #teach-chat-messages .frac > .fnum { padding: 0 7px 1px; border-bottom: 1.6px solid currentColor; }
 #teach-chat-messages .frac > .fden { padding: 2px 7px 0; }
 
+/* v23.8 — stacked fractions APP-WIDE (not just the Teaching Board). */
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; line-height: 1.15; }
+.frac > .fnum { padding: 0 6px 1px; border-bottom: 1.5px solid currentColor; }
+.frac > .fden { padding: 2px 6px 0; }
+
 /* v23.4 — once a lesson is active, collapse the banner + intro blurb so the
    conversation gets the whole screen (keeps the Past-sessions / New-Topic
    controls). This is the "too much chrome above the lesson" fix. */

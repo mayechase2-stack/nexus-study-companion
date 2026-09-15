@@ -5125,7 +5125,8 @@ function convertMarkdownLeaks(html) {
     // \( ... \) inline math
     s = s.replace(/\\\(\s*/g, '<code>');
     s = s.replace(/\s*\\\)/g, '</code>');
-    // \frac{a}{b} → a/b for readability
+    // \frac{a}{b} → a/b (kept; the stacking pass below turns it into a real
+    // top-over-bottom fraction along with any typed slash fractions)
     s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)');
     // \text{X} → X
     s = s.replace(/\\text\{([^}]+)\}/g, '$1');
@@ -5156,6 +5157,16 @@ function convertMarkdownLeaks(html) {
     s = s.replace(/\^3\b/g, '³');
     // Remove stray closing braces left from \vec{, \hat{ etc.
     s = s.replace(/([a-zA-Z0-9])\}/g, '$1');
+    // v23.8 — stacked fractions APP-WIDE. Protect every tag first so slashes in
+    // attributes/paths/URLs are never touched, convert "(a)/(b)" and "n/n" in the
+    // visible text, then restore tags. Dates like 9/11/2001 don't match (the
+    // middle number is followed by "/", not an end boundary).
+    var _fracTags = [];
+    s = s.replace(/<[^>]+>/g, function (m) { _fracTags.push(m); return '' + (_fracTags.length - 1) + ''; });
+    var _FRAC = '<span class="frac"><span class="fnum">$1</span><span class="fden">$2</span></span>';
+    s = s.replace(/\(([^()<>]{1,50})\)\s*\/\s*\(([^()<>]{1,50})\)/g, _FRAC);
+    s = s.replace(/(^|[\s=(])(\d{1,4})\s*\/\s*(\d{1,4})(?=$|[\s=).,;!?])/g, '$1<span class="frac"><span class="fnum">$2</span><span class="fden">$3</span></span>');
+    s = s.replace(/(\d+)/g, function (_m, i) { return _fracTags[parseInt(i, 10)] || ''; });
     if (_svgStore.length && typeof _teachRestoreSvg === 'function') s = _teachRestoreSvg(s, _svgStore);
     return s;
 }
@@ -5193,7 +5204,7 @@ function sanitizeHTML(html) {
         const allowed = allowedAttributes[tag] || [];
         Array.from(el.attributes).forEach(attr => {
             const an = attr.name.toLowerCase();
-            const ok = allowed.includes(attr.name) || an.startsWith('data-') || an === 'style' || (isSvg && SVG_ATTRS.includes(an));
+            const ok = allowed.includes(attr.name) || an.startsWith('data-') || an === 'style' || an === 'class' || (isSvg && SVG_ATTRS.includes(an));
             if (!ok) el.removeAttribute(attr.name);
         });
 
