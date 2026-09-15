@@ -29355,8 +29355,71 @@ function _teachEnhanceCards(el) {
         _teachRenderPlots(el);
         _teachRenderNext(el);
         _teachEnhancePractice(el);
+        _teachAddCardActions(el);
     } catch (_) {}
 }
+
+// v23.6 — PER-BLOCK ACTIONS (Chase request). Each lesson card gets "Reply to
+// this part" (a follow-up scoped to that one topic, so a multi-topic lesson can
+// be drilled into one block at a time) and "Continue with companion" (hand the
+// block off to the companion chat).
+function _teachAddCardActions(el) {
+    if (!el) return;
+    el.querySelectorAll('.teach-card').forEach(function (card) {
+        if (card.dataset.acts) return; card.dataset.acts = '1';
+        var h = card.querySelector('h4');
+        var topic = (h ? h.textContent : '').trim().slice(0, 80);
+        if (!topic) return;
+        card.setAttribute('data-topic', topic);
+        var bar = document.createElement('div');
+        bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed rgba(255,255,255,0.12);';
+        var bstyle = 'background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.45);color:#c7bcff;border-radius:8px;padding:5px 11px;font-size:0.78rem;cursor:pointer;font-family:inherit;';
+        var cstyle = 'background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.42);color:#7ff0ec;border-radius:8px;padding:5px 11px;font-size:0.78rem;cursor:pointer;font-family:inherit;';
+        var r = document.createElement('button'); r.type = 'button'; r.style.cssText = bstyle; r.innerHTML = '↩ Reply to this part';
+        var c = document.createElement('button'); c.type = 'button'; c.style.cssText = cstyle; c.innerHTML = '💬 Continue with companion';
+        r.onclick = function () { _teachCardReplyToggle(card); };
+        c.onclick = function () { _teachCardCompanion(card); };
+        bar.appendChild(r); bar.appendChild(c);
+        card.appendChild(bar);
+    });
+}
+function _teachCardReplyToggle(card) {
+    var box = card.querySelector('.teach-card-replybox');
+    if (box) { box.style.display = 'flex'; var i = box.querySelector('input'); if (i) i.focus(); return; }
+    box = document.createElement('div');
+    box.className = 'teach-card-replybox';
+    box.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;';
+    var topic = card.getAttribute('data-topic') || 'this';
+    var inp = document.createElement('input');
+    inp.type = 'text'; inp.placeholder = 'Ask about "' + topic + '"…';
+    inp.style.cssText = 'flex:1;min-width:160px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;color:#fff;padding:6px 10px;font-size:0.82rem;';
+    var send = document.createElement('button');
+    send.type = 'button'; send.textContent = 'Send';
+    send.style.cssText = 'background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:0.82rem;cursor:pointer;font-weight:600;';
+    var go = function () { var v = inp.value.trim(); if (!v) return; box.style.display = 'none'; _teachReplyBlock(topic, v); };
+    send.onclick = go;
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    box.appendChild(inp); box.appendChild(send);
+    card.appendChild(box); inp.focus();
+}
+window._teachCardReplyToggle = _teachCardReplyToggle;
+function _teachReplyBlock(topic, question) {
+    if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2000); return; }
+    _sendTeachingBoardTurn('About the "' + topic + '" part: ' + question, question);
+}
+function _teachCardCompanion(card) {
+    var topic = card.getAttribute('data-topic') || 'this topic';
+    var whatEl = card.querySelector('.teach-what');
+    var gist = whatEl ? whatEl.textContent.trim().slice(0, 180) : '';
+    if (typeof openCompanionChat !== 'function') { if (typeof showToast === 'function') showToast('Companion isn\'t available here.', 'info'); return; }
+    var eq = localStorage.getItem('equipped_companion') || 'nexus-orb'; if (eq === 'none') eq = 'nexus-orb';
+    openCompanionChat(eq);
+    setTimeout(function () {
+        var inp = document.getElementById('companion-chat-input');
+        if (inp) { inp.value = 'Can we keep talking about "' + topic + '"? ' + gist; inp.focus(); inp.dispatchEvent(new Event('input')); }
+    }, 160);
+}
+window._teachCardCompanion = _teachCardCompanion;
 
 // v23.4 — INTERACTIVE PRACTICE. When the tutor tags a practice block with
 // data-answers="a;b;c", each problem gets an input + Check so the student can
