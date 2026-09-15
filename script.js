@@ -28831,10 +28831,9 @@ HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — 
 <h5>Why it works</h5>
 <p>1–2 sentences on the reasoning — the "why it's like this", not just the recipe.</p>
 <div class="teach-tip">💡 <strong>Tip:</strong> a trick, shortcut, mnemonic, or common gotcha for THIS topic — e.g. "the butterfly method for cross-multiplying fractions", "dividing both sides of an inequality by a negative flips the sign". Include this box ONLY when there's a genuinely useful tip; otherwise leave it out entirely.</div>
-<div class="teach-practice"><strong>✏️ Practice — try these 3</strong>
-<ol><li>problem 1</li><li>problem 2</li><li>problem 3</li></ol>
-<details><summary>Show answers</summary><ol><li>answer 1, in a step or two</li><li>answer 2</li><li>answer 3</li></ol></details>
-Type your answers here and I'll check them, or move on to the next thing.</div>
+<div class="teach-practice" data-answers="answer1;answer2;answer3"><strong>✏️ Practice — try these 3</strong>
+<ol><li>problem 1</li><li>problem 2</li><li>problem 3</li></ol></div>
+(Put each problem's SHORT final answer in the data-answers attribute, semicolon-separated, in the SAME order as the problems — e.g. data-answers="3;2;undefined". Keep each answer short and exact so it can be auto-checked; the app turns each problem into a "type your answer + Check" box.)
 </div>
 
 CLARITY RULE inside "How to do it" (this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then".
@@ -28924,26 +28923,29 @@ function _teachSpeak(text) {
 }
 function _teachSyncTTSBtn() {
     var b = document.getElementById('teach-tts-btn'); if (!b) return;
-    var on = isTeachTTSOn();
-    b.innerHTML = '<i class="ph ' + (on ? 'ph-speaker-high' : 'ph-speaker-slash') + '"></i>';
-    b.style.background = on ? 'linear-gradient(135deg,#00CEC9,#6C5CE7)' : '';
-    b.style.color = on ? '#fff' : '';
-    b.title = on ? 'Read-aloud is on — click to mute' : 'Read lessons aloud';
+    b.innerHTML = '<i class="ph ph-speaker-high"></i>';
+    b.title = 'Read this whole lesson aloud (tap again to stop)';
 }
+// v23.4 — read the WHOLE current lesson on demand (no persistent auto-read).
 function toggleTeachTTS() {
-    if (!window.speechSynthesis) { if (typeof showToast === 'function') showToast("This browser can't do text-to-speech.", 'warning'); return; }
-    var on = !isTeachTTSOn();
-    try { localStorage.setItem('teach_tts', on ? '1' : '0'); } catch (_) {}
-    _teachSyncTTSBtn();
-    if (on) {
-        var last = _teachHistory.slice().reverse().find(function (m) { return m.role === 'assistant'; });
-        if (last) _teachSpeak(last.content);
-        if (typeof showToast === 'function') showToast('🔊 Lessons will be read aloud.', 'info', 2200);
-    } else {
-        _teachStopSpeak();
-        if (typeof showToast === 'function') showToast('🔇 Read-aloud off.', 'info', 1600);
-    }
+    if (!window.speechSynthesis) { if (typeof showToast === 'function') showToast("This browser can't read aloud.", 'warning'); return; }
+    if (window.speechSynthesis.speaking) { _teachStopSpeak(); document.querySelectorAll('.teach-listen-btn').forEach(function (x) { x.setAttribute('data-on', '0'); x.innerHTML = '<i class="ph ph-speaker-high"></i> Listen'; }); return; }
+    var last = _teachHistory.slice().reverse().find(function (m) { return m.role === 'assistant'; });
+    if (last) _teachSpeak(last.content);
+    else if (typeof showToast === 'function') showToast('Start a lesson first.', 'info', 2000);
 }
+// v23.4 — read ONE message on tap (from its per-message 🔊 button).
+function _teachListenMessage(btn, bubble) {
+    if (!window.speechSynthesis) { if (typeof showToast === 'function') showToast("This browser can't read aloud.", 'warning'); return; }
+    var wasOn = btn.getAttribute('data-on') === '1';
+    _teachStopSpeak();
+    document.querySelectorAll('.teach-listen-btn').forEach(function (b) { b.setAttribute('data-on', '0'); b.innerHTML = '<i class="ph ph-speaker-high"></i> Listen'; });
+    if (wasOn) return;   // it was already playing → we just stopped it
+    var tmp = bubble.cloneNode(true); var lb = tmp.querySelector('.teach-listen-btn'); if (lb) lb.remove();
+    _teachSpeak(tmp.textContent || '');
+    btn.setAttribute('data-on', '1'); btn.innerHTML = '<i class="ph ph-stop"></i> Stop';
+}
+window._teachListenMessage = _teachListenMessage;
 
 // v21.9 — HANDS-FREE VOICE STUDY (gap-board pick). Mic dictates your question
 // into the input; when read-aloud is on, it loops: the lesson is spoken, then
@@ -28988,7 +28990,7 @@ function _teachStartListen() {
 }
 function toggleTeachMic() {
     if (_teachListening) { _teachStopListen(); return; }
-    _teachHandsFree = isTeachTTSOn();   // if lessons are read aloud, keep the loop going
+    _teachHandsFree = true;   // voice session: speak each reply, then auto-listen
     _teachStopSpeak();
     _teachStartListen();
 }
@@ -29112,9 +29114,18 @@ function initTeachingBoard() {
     _teachRenderHistoryPanel();
 }
 
+// v23.4 — collapse the header banner + blurb while a lesson is open so the
+// conversation fills the screen; restore it on the intro.
+function _teachSetChrome(active) { var v = document.getElementById('view-teach'); if (v) v.classList.toggle('lesson-on', !!active); }
+function _teachTitleText() {
+    var t = (_teachTitle || '').trim();
+    var label = t ? (t.charAt(0).toUpperCase() + t.slice(1)) : 'Teaching Board';
+    return label + (_teachSubject ? ' · ' + _teachSubject : '');
+}
 function _teachShowIntro() {
     const intro = document.getElementById('teach-intro');
     const session = document.getElementById('teach-session');
+    _teachSetChrome(false);
     if (intro) intro.style.display = '';
     if (session) session.style.display = 'none';
     const msgs = document.getElementById('teach-chat-messages');
@@ -29139,8 +29150,9 @@ function _teachRenderExisting() {
     _teachShowQuickActions();
     _teachSyncDepthSelects();
     _teachSyncTTSBtn();
+    _teachSetChrome(true);
     const title = document.getElementById('teach-session-title');
-    if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
+    if (title) title.textContent = _teachTitleText();
 }
 
 // Called when leaving the Teaching Board tab or on page unload — parks the
@@ -29332,7 +29344,46 @@ function _teachEnhanceCards(el) {
         });
         _teachRenderPlots(el);
         _teachRenderNext(el);
+        _teachEnhancePractice(el);
     } catch (_) {}
+}
+
+// v23.4 — INTERACTIVE PRACTICE. When the tutor tags a practice block with
+// data-answers="a;b;c", each problem gets an input + Check so the student can
+// type an answer and see if it's right (instead of only revealing answers).
+function _teachEnhancePractice(el) {
+    if (!el) return;
+    el.querySelectorAll('.teach-practice[data-answers]').forEach(function (pr) {
+        if (pr.dataset.interactive) return; pr.dataset.interactive = '1';
+        var answers = (pr.getAttribute('data-answers') || '').split(';').map(function (s) { return s.trim(); });
+        var ol = pr.querySelector('ol'); if (!ol) return;
+        var items = [].slice.call(ol.querySelectorAll(':scope > li'));
+        var norm = function (s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, '').replace(/^y=/, '').replace(/[()]/g, ''); };
+        items.forEach(function (li, i) {
+            var ans = answers[i]; if (ans == null || ans === '') return;
+            var wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;';
+            var inp = document.createElement('input');
+            inp.type = 'text'; inp.placeholder = 'Your answer';
+            inp.style.cssText = 'flex:1;min-width:120px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;color:#fff;padding:6px 9px;font-size:0.82rem;';
+            var btn = document.createElement('button');
+            btn.type = 'button'; btn.textContent = 'Check';
+            btn.style.cssText = 'background:rgba(0,206,201,0.15);border:1px solid rgba(0,206,201,0.45);color:#7ff0ec;border-radius:6px;padding:6px 13px;font-size:0.8rem;cursor:pointer;';
+            var res = document.createElement('span');
+            res.style.cssText = 'font-size:0.8rem;align-self:center;font-weight:600;';
+            var check = function () {
+                if (!inp.value.trim()) { res.textContent = ''; return; }
+                var a = norm(inp.value), b = norm(ans);
+                if (a === b || (b.length > 1 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0))) { res.textContent = '✓ Correct!'; res.style.color = '#45c78d'; }
+                else { res.textContent = '✗ Answer: ' + ans; res.style.color = '#ffbe5a'; }
+            };
+            btn.onclick = check;
+            inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+            wrap.appendChild(inp); wrap.appendChild(btn); wrap.appendChild(res);
+            li.appendChild(wrap);
+        });
+        var det = pr.querySelector('details'); if (det) det.style.display = 'none';   // interactive replaces the reveal
+    });
 }
 
 // v22.4 — LEARNING PATHS (gap-board pick). The tutor ends a lesson with
@@ -29472,6 +29523,14 @@ function addTeachMessage(role, text) {
         var _svgS = [];                                      // protect labeled <svg> diagrams from cleaning
         div.innerHTML = _teachRestoreSvg(_teachCleanHtml(_teachProtectSvg(text, _svgS)), _svgS);
         _teachEnhanceCards(div);                             // add step-by-step walk buttons
+        if (window.speechSynthesis) {                         // v23.4 — per-message tap-to-hear (no auto-speak)
+            var lb = document.createElement('button');
+            lb.type = 'button'; lb.className = 'teach-listen-btn';
+            lb.style.cssText = 'margin-top:10px;background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);color:#7ff0ec;border-radius:8px;padding:5px 11px;font-size:0.78rem;cursor:pointer;';
+            lb.innerHTML = '<i class="ph ph-speaker-high"></i> Listen';
+            lb.onclick = function () { _teachListenMessage(lb, div); };
+            div.appendChild(lb);
+        }
     }
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
@@ -29511,8 +29570,9 @@ function startTeachingTopic(presetTopic) {
     const session = document.getElementById('teach-session');
     if (intro) intro.style.display = 'none';
     if (session) session.style.display = 'flex';
+    _teachSetChrome(true);
     const title = document.getElementById('teach-session-title');
-    if (title) title.textContent = _teachSubject ? ('Teaching Board — ' + _teachSubject) : 'Teaching Board';
+    if (title) title.textContent = _teachTitleText();
     _teachSyncDepthSelects();
     _teachSyncTTSBtn();
     const msgs = document.getElementById('teach-chat-messages');
@@ -29626,7 +29686,7 @@ async function _teachGenerate(retryCount) {
                 if (typeof _lessonReviewAdd === 'function') _lessonReviewAdd(_teachTitle, _teachSubject);   // schedule spaced review
                 _teachRenderHistoryPanel();
                 _teachShowQuickActions();
-                if (isTeachTTSOn()) _teachSpeak(full);   // read the finished lesson aloud
+                if (_teachHandsFree) _teachSpeak(full);   // only auto-speak during a hands-free voice session
 
                 if (typeof recordQuestProgress === 'function') recordQuestProgress('teaching_board');
                 if (typeof logActivity === 'function') logActivity('study', 'Used Teaching Board' + (_teachSubject ? (': ' + _teachSubject) : ''));

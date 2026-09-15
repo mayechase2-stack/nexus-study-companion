@@ -3412,6 +3412,17 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
 #teach-chat-messages .frac > .fnum { padding: 0 7px 1px; border-bottom: 1.6px solid currentColor; }
 #teach-chat-messages .frac > .fden { padding: 2px 7px 0; }
 
+/* v23.4 — once a lesson is active, collapse the banner + intro blurb so the
+   conversation gets the whole screen (keeps the Past-sessions / New-Topic
+   controls). This is the "too much chrome above the lesson" fix. */
+#view-teach.lesson-on #teach-header-text { display: none !important; }
+#view-teach.lesson-on #teach-header { padding: 10px 16px !important; margin-bottom: 12px !important; }
+#view-teach.lesson-on #teach-howto { display: none !important; }
+#view-teach.lesson-on #teach-session { height: calc(100vh - 118px) !important; min-height: 420px; }
+@media (max-width: 1400px) {
+  #view-teach.lesson-on #teach-session { height: calc(100vh - 104px) !important; }
+}
+
 /* ════════════════════════════════════════════════════════════════
    v12.1 — COMPANION DIM-WHEN-IDLE
    When the user toggles "idle glow" off, the companion fades to a
