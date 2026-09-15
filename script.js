@@ -25155,6 +25155,8 @@ function closeCompanionChat() {
     if (chat) chat.style.display = 'none';
     const popover = document.getElementById('companion-settings-popover');
     if (popover) popover.style.display = 'none';
+    const calc = document.getElementById('companion-calc');
+    if (calc) calc.remove();
     // Restore Help & FAQ button when chat closes
     const helpFab = document.getElementById('help-fab');
     if (helpFab) helpFab.style.display = '';
@@ -25225,6 +25227,59 @@ function toggleCompanionSettings(e) {
     if (!popover) return;
     popover.style.display = popover.style.display === 'block' ? 'none' : 'block';
 }
+
+// v23.9 — QUICK CALCULATOR next to the companion chat (Chase request).
+function toggleCompanionCalc() {
+    var p = document.getElementById('companion-calc');
+    if (p) { p.remove(); return; }
+    p = document.createElement('div');
+    p.id = 'companion-calc';
+    var calcW = 228, w = window.innerWidth;
+    var rightOffset = 24 + 380 + 10;   // sit just left of the companion chat
+    var chat = document.getElementById('companion-chat');
+    var enough = (w - rightOffset - calcW) > 8;
+    var pos = enough ? ('right:' + rightOffset + 'px;bottom:24px;')
+        : ('right:24px;bottom:' + (24 + ((chat ? chat.offsetHeight : 520)) + 10) + 'px;');
+    p.style.cssText = 'position:fixed;' + pos + 'width:' + calcW + 'px;z-index:9600;background:rgba(12,14,28,0.98);border:1px solid rgba(108,92,231,0.5);border-radius:14px;box-shadow:0 16px 44px rgba(0,0,0,0.6);padding:12px;backdrop-filter:blur(10px);';
+    var rows = [['C', '⌫', '(', ')'], ['7', '8', '9', '÷'], ['4', '5', '6', '×'], ['1', '2', '3', '−'], ['0', '.', '^', '+'], ['√', 'x²', '%', '=']];
+    var grid = rows.map(function (row) {
+        return '<div style="display:flex;gap:6px;margin-top:6px;">' + row.map(function (k) {
+            var accent = (['=', '+', '−', '×', '÷'].indexOf(k) >= 0), danger = (k === 'C');
+            var bg = accent ? 'rgba(0,206,201,0.18)' : danger ? 'rgba(255,107,107,0.15)' : 'rgba(255,255,255,0.05)';
+            var col = accent ? '#7ff0ec' : danger ? '#ff9999' : '#fff';
+            var bd = accent ? 'rgba(0,206,201,0.5)' : 'var(--glass-border)';
+            return '<button onclick="_ccalc(\'' + k + '\')" style="flex:1;padding:11px 0;border-radius:8px;border:1px solid ' + bd + ';background:' + bg + ';color:' + col + ';font-size:0.98rem;cursor:pointer;">' + k + '</button>';
+        }).join('') + '</div>';
+    }).join('');
+    p.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+        + '<span style="color:#a29bfe;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">🧮 Quick Calc</span>'
+        + '<button onclick="toggleCompanionCalc()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;">✕</button></div>'
+        + '<input id="ccalc-display" readonly value="" placeholder="0" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:8px;color:#fff;font-size:1.15rem;text-align:right;padding:10px 12px;font-family:var(--font-mono,monospace);">'
+        + grid;
+    document.body.appendChild(p);
+}
+window.toggleCompanionCalc = toggleCompanionCalc;
+function _ccalc(k) {
+    var d = document.getElementById('ccalc-display'); if (!d) return;
+    var v = d.value === 'Error' ? '' : d.value;
+    if (k === 'C') { d.value = ''; return; }
+    if (k === '⌫') { d.value = v.slice(0, -1); return; }
+    if (k === '=') {
+        try {
+            var expr = v.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-')
+                .replace(/x²/g, '**2').replace(/√\(/g, 'Math.sqrt(').replace(/\^/g, '**').replace(/%/g, '/100');
+            var check = expr.replace(/Math\.sqrt/g, '').replace(/\*\*/g, '').replace(/[0-9+\-*/(). ]/g, '');
+            if (check !== '') { d.value = 'Error'; return; }
+            var r = Function('"use strict";return (' + expr + ')')();
+            d.value = (r === undefined || r === null || !isFinite(r)) ? 'Error' : String(Math.round(r * 1e10) / 1e10);
+        } catch (e) { d.value = 'Error'; }
+        return;
+    }
+    if (k === 'x²') { d.value = v + 'x²'; return; }
+    if (k === '√') { d.value = v + '√('; return; }
+    d.value = v + k;
+}
+window._ccalc = _ccalc;
 document.addEventListener('click', (e) => {
     const popover = document.getElementById('companion-settings-popover');
     const btn = document.getElementById('companion-chat-settings-btn');
@@ -28832,7 +28887,7 @@ FIRST, READ WHAT THEY'RE ACTUALLY ASKING and match your reply to it — this mat
 • If they ask you to TEACH a topic (a new topic, "teach me…", or they tap Go deeper / Another example / Quiz me), use the TOPIC CARD format below.
 • If they ask a SPECIFIC follow-up or clarifying question — e.g. "why does y get set to 0?", "wait why the negative?", "what about step 2?", "I don't get that part" — just ANSWER THAT ONE QUESTION. Lead with the answer in the very first sentence. Keep it short and focused on exactly what they asked. Do NOT re-teach the whole topic, do NOT force the card sections (no "How to do it" / practice / etc.), do NOT pile on things they didn't ask about. Answer only what was asked, then you may offer ONE small next step ("make sense? want an example?"). Buried, over-long answers to a simple question frustrate the student — the point comes FIRST, not last.
 
-HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card so the student can scan it. One card per topic. If the student names SEVERAL topics (commas, "and", or a list), make ONE card for EACH, in the order named — never teach only the first and skip the rest. Use this shape EXACTLY for every card:
+HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card so the student can scan it. One card per topic. If the student names SEVERAL topics (commas, "and", or a list), make ONE card for EACH, in the order named — never teach only the first and skip the rest. EVERY card MUST include its own Practice block (the <div class="teach-practice" data-answers="…"> with its own problems + answers) — do NOT give practice for only the first topic and skip it on the rest; each topic gets its own practice. Use this shape EXACTLY for every card:
 
 <div class="teach-card">
 <h4>Topic name</h4>

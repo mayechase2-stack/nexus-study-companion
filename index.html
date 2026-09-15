@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260915v279">
+    <link rel="stylesheet" href="style.css?v=20260915v280">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -5149,6 +5149,7 @@ if __name__ == '__main__':
                 <div style="color:#7fffec;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Link companion to…</div>
                 <div id="companion-link-options"></div>
             </div>
+            <button id="companion-chat-calc-btn" onclick="toggleCompanionCalc()" title="Quick calculator" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-calculator"></i></button>
             <button id="companion-chat-settings-btn" onclick="toggleCompanionSettings(event)" title="Settings" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-gear"></i></button>
             <button id="companion-chat-resize-btn" onclick="cycleCompanionChatSize()" title="Resize chat" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-out"></i></button>
             <button onclick="closeCompanionChat()" title="Close" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
@@ -5410,7 +5411,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260915v279"></script>
+    <script src="script.js?v=20260915v280"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
