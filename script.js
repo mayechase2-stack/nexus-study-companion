@@ -28940,6 +28940,7 @@ HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — 
 <div class="teach-practice" data-answers="answer1;answer2;answer3"><strong>✏️ Practice — try these 3</strong>
 <ol><li>problem 1</li><li>problem 2</li><li>problem 3</li></ol></div>
 (Put each problem's SHORT final answer in the data-answers attribute, semicolon-separated, in the SAME order as the problems — e.g. data-answers="3;2;undefined". Keep each answer short and exact so it can be auto-checked; the app turns each problem into a "type your answer + Check" box.)
+PRACTICE MUST BE TYPEABLE — every practice problem has to be answerable by TYPING a short answer: a number, a coordinate like (0, 3), an expression, or a word. NEVER make a practice problem "graph it / draw it / sketch it / plot it" — the student can't type a graph. For a graphing concept, ask a typeable question instead — e.g. "what is the slope of y = 2x + 3?" (answer 2), "what is the y-intercept of y = 2x + 3?" (answer 3), "give one point on the line", or "write the equation of a line with slope 2 through (0, 3)". The answer in data-answers must be exactly what a correct typed response looks like.
 </div>
 
 CLARITY RULE inside "How to do it" (this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then".
@@ -29564,18 +29565,28 @@ function _teachEnhancePractice(el) {
             });
             var det = pr.querySelector('details'); if (det) det.style.display = 'none';   // interactive replaces the reveal
         }
-        // v23.7 — "more practice" on every practice block
+        // v23.7 — "more practice" + grapher on every practice block
         if (!pr.dataset.more) {
             pr.dataset.more = '1';
+            var actrow = document.createElement('div');
+            actrow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;';
             var more = document.createElement('button');
             more.type = 'button'; more.textContent = '➕ More practice';
-            more.style.cssText = 'display:block;margin-top:12px;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:8px 14px;font-size:0.86rem;cursor:pointer;font-family:inherit;';
+            more.style.cssText = 'background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:8px 14px;font-size:0.86rem;cursor:pointer;font-family:inherit;';
             more.onclick = function () {
                 var card = pr.closest('.teach-card');
                 var topic = (card && card.getAttribute('data-topic')) || (card && card.querySelector('h4') ? card.querySelector('h4').textContent : '') || _teachTitle || 'this topic';
                 _teachMorePractice(String(topic).trim());
             };
-            pr.appendChild(more);
+            actrow.appendChild(more);
+            // grapher helper — for anything visual, open the Function Explorer to see it
+            var grph = document.createElement('button');
+            grph.type = 'button'; grph.textContent = '📈 Grapher';
+            grph.title = 'Open a graph to visualize a line/parabola';
+            grph.style.cssText = 'background:rgba(0,206,201,0.14);border:1px solid rgba(0,206,201,0.45);color:#7ff0ec;border-radius:8px;padding:8px 14px;font-size:0.86rem;cursor:pointer;font-family:inherit;';
+            grph.onclick = function () { if (typeof openFunctionExplorer === 'function') openFunctionExplorer(); };
+            actrow.appendChild(grph);
+            pr.appendChild(actrow);
         }
     });
 }
