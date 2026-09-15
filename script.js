@@ -29426,38 +29426,58 @@ window._teachCardCompanion = _teachCardCompanion;
 // type an answer and see if it's right (instead of only revealing answers).
 function _teachEnhancePractice(el) {
     if (!el) return;
-    el.querySelectorAll('.teach-practice[data-answers]').forEach(function (pr) {
-        if (pr.dataset.interactive) return; pr.dataset.interactive = '1';
-        var answers = (pr.getAttribute('data-answers') || '').split(';').map(function (s) { return s.trim(); });
-        var ol = pr.querySelector('ol'); if (!ol) return;
-        var items = [].slice.call(ol.querySelectorAll(':scope > li'));
-        var norm = function (s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, '').replace(/^y=/, '').replace(/[()]/g, ''); };
-        items.forEach(function (li, i) {
-            var ans = answers[i]; if (ans == null || ans === '') return;
-            var wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;';
-            var inp = document.createElement('input');
-            inp.type = 'text'; inp.placeholder = 'Your answer';
-            inp.style.cssText = 'flex:1;min-width:120px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;color:#fff;padding:6px 9px;font-size:0.82rem;';
-            var btn = document.createElement('button');
-            btn.type = 'button'; btn.textContent = 'Check';
-            btn.style.cssText = 'background:rgba(0,206,201,0.15);border:1px solid rgba(0,206,201,0.45);color:#7ff0ec;border-radius:6px;padding:6px 13px;font-size:0.8rem;cursor:pointer;';
-            var res = document.createElement('span');
-            res.style.cssText = 'font-size:0.8rem;align-self:center;font-weight:600;';
-            var check = function () {
-                if (!inp.value.trim()) { res.textContent = ''; return; }
-                var a = norm(inp.value), b = norm(ans);
-                if (a === b || (b.length > 1 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0))) { res.textContent = '✓ Correct!'; res.style.color = '#45c78d'; }
-                else { res.textContent = '✗ Answer: ' + ans; res.style.color = '#ffbe5a'; }
+    el.querySelectorAll('.teach-practice').forEach(function (pr) {
+        // interactive check boxes (only when the tutor tagged answers)
+        if (!pr.dataset.interactive && pr.getAttribute('data-answers')) {
+            pr.dataset.interactive = '1';
+            var answers = (pr.getAttribute('data-answers') || '').split(';').map(function (s) { return s.trim(); });
+            var ol = pr.querySelector('ol');
+            var norm = function (s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, '').replace(/^y=/, '').replace(/[()]/g, ''); };
+            if (ol) [].slice.call(ol.querySelectorAll(':scope > li')).forEach(function (li, i) {
+                var ans = answers[i]; if (ans == null || ans === '') return;
+                var wrap = document.createElement('div');
+                wrap.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;';
+                var inp = document.createElement('input');
+                inp.type = 'text'; inp.placeholder = 'Your answer';
+                inp.style.cssText = 'flex:1;min-width:140px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:7px;color:#fff;padding:9px 12px;font-size:0.98rem;';
+                var btn = document.createElement('button');
+                btn.type = 'button'; btn.textContent = 'Check';
+                btn.style.cssText = 'background:rgba(0,206,201,0.18);border:1px solid rgba(0,206,201,0.5);color:#7ff0ec;border-radius:7px;padding:9px 18px;font-size:0.92rem;font-weight:600;cursor:pointer;';
+                var res = document.createElement('span');
+                res.style.cssText = 'font-size:0.98rem;align-self:center;font-weight:700;';
+                var check = function () {
+                    if (!inp.value.trim()) { res.textContent = ''; return; }
+                    var a = norm(inp.value), b = norm(ans);
+                    if (a === b || (b.length > 1 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0))) { res.textContent = '✓ Correct!'; res.style.color = '#45c78d'; }
+                    else { res.innerHTML = '✗ Answer: ' + _teachFracEscape(ans); res.style.color = '#ffbe5a'; }
+                };
+                btn.onclick = check;
+                inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+                wrap.appendChild(inp); wrap.appendChild(btn); wrap.appendChild(res);
+                li.appendChild(wrap);
+            });
+            var det = pr.querySelector('details'); if (det) det.style.display = 'none';   // interactive replaces the reveal
+        }
+        // v23.7 — "more practice" on every practice block
+        if (!pr.dataset.more) {
+            pr.dataset.more = '1';
+            var more = document.createElement('button');
+            more.type = 'button'; more.textContent = '➕ More practice';
+            more.style.cssText = 'display:block;margin-top:12px;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:8px 14px;font-size:0.86rem;cursor:pointer;font-family:inherit;';
+            more.onclick = function () {
+                var card = pr.closest('.teach-card');
+                var topic = (card && card.getAttribute('data-topic')) || (card && card.querySelector('h4') ? card.querySelector('h4').textContent : '') || _teachTitle || 'this topic';
+                _teachMorePractice(String(topic).trim());
             };
-            btn.onclick = check;
-            inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); check(); } });
-            wrap.appendChild(inp); wrap.appendChild(btn); wrap.appendChild(res);
-            li.appendChild(wrap);
-        });
-        var det = pr.querySelector('details'); if (det) det.style.display = 'none';   // interactive replaces the reveal
+            pr.appendChild(more);
+        }
     });
 }
+function _teachMorePractice(topic) {
+    if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2000); return; }
+    _sendTeachingBoardTurn('Give me 3 MORE, different practice problems on "' + topic + '" — reply with ONLY a <div class="teach-practice" data-answers="a;b;c"> block (3 <li> problems + their short answers in data-answers), no other sections or explanation.', 'More practice on ' + topic);
+}
+window._teachMorePractice = _teachMorePractice;
 
 // v22.4 — LEARNING PATHS (gap-board pick). The tutor ends a lesson with
 // <div class="teach-next" data-topics="A;B;C"></div>; we render those as
@@ -29580,6 +29600,15 @@ function _teachMindMap() {
     }, 80);
 }
 
+// v23.7 — render a student's typed text XSS-safely BUT convert any fraction they
+// typed ("5/9", "(a)/(b)") into a stacked top/bottom fraction. Escape first so
+// nothing they type executes; only our own .frac markup is added after.
+function _teachFracEscape(text) {
+    var s = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(text == null ? '' : text) : String(text == null ? '' : text);
+    s = s.replace(/\(([^()<>]{1,40})\)\s*\/\s*\(([^()<>]{1,40})\)/g, '<span class="frac"><span class="fnum">$1</span><span class="fden">$2</span></span>');
+    s = s.replace(/(^|[\s=(>])(\d{1,4})\s*\/\s*(\d{1,4})(?=$|[\s=)<.,;!?])/g, '$1<span class="frac"><span class="fnum">$2</span><span class="fden">$3</span></span>');
+    return s;
+}
 function addTeachMessage(role, text) {
     const msgs = document.getElementById('teach-chat-messages');
     if (!msgs) return null;
@@ -29590,7 +29619,7 @@ function addTeachMessage(role, text) {
     // edge when a reply was wide. Block layout + auto margins can't overflow.
     if (role === 'user') {
         div.style.cssText = 'max-width:80%;width:fit-content;margin:0 0 12px auto;';   // compact, right
-        div.textContent = text;                              // plain + XSS-safe
+        div.innerHTML = _teachFracEscape(text);              // XSS-safe + typed fractions render stacked
     } else {
         div.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';                    // full width, left
         var _svgS = [];                                      // protect labeled <svg> diagrams from cleaning
