@@ -28873,6 +28873,7 @@ let _teachBusy = false;   // true while a reply is generating — blocks overlap
 let _teachSessionId = '';  // id of the in-progress session (used to upsert into the archive)
 let _teachTitle = '';      // human title of the current session (the first topic)
 let _teachDepth = (function(){ try { return localStorage.getItem('teach_depth') || 'standard'; } catch(_) { return 'standard'; } })();  // quick | standard | deep
+let _teachJustStarted = 0;   // v23.5 — timestamp of a just-started topic, so switchTab's delayed initTeachingBoard doesn't clobber it (first-load race)
 
 // v20.9 — depth control. The student picks how much detail they want up front
 // (and can change it mid-lesson to re-teach the current topic deeper/tighter).
@@ -29092,6 +29093,14 @@ function _teachDeriveTitle(hist) {
 }
 
 function initTeachingBoard() {
+    // v23.5 — first-load race guard: switchTab schedules this ~80ms after you
+    // enter the tab. If you started a topic in that gap, don't clobber it — just
+    // sync the controls and bail. (_teachStashOnLeave zeros the flag so a normal
+    // leave/return still resets to a fresh board.)
+    if (Date.now() - _teachJustStarted < 3000) {
+        _teachSyncDepthSelects(); _teachSyncTTSBtn(); _teachRenderHistoryPanel();
+        return;
+    }
     // v20.7 — default: FRESH board every time you refresh or come back. The old
     // behavior (auto-restoring the last live session) is now opt-in via the
     // "Auto-open last session" toggle in the Past sessions menu.
@@ -29158,6 +29167,7 @@ function _teachRenderExisting() {
 // Called when leaving the Teaching Board tab or on page unload — parks the
 // current session in the archive so nothing is lost, without auto-reopening it.
 function _teachStashOnLeave() {
+    _teachJustStarted = 0;   // returning later should reset to a fresh board, not re-guard
     _teachStopSpeak();
     _teachStopListen();
     _teachArchiveCurrent();
@@ -29559,6 +29569,7 @@ function startTeachingTopic(presetTopic) {
     const subjectSel = document.getElementById('teach-subject');
     const topic = (typeof presetTopic === 'string' && presetTopic) ? presetTopic : (input ? input.value.trim() : '');
     if (!topic) { if (typeof showToast === 'function') showToast('Type a topic or question first.', 'error'); return; }
+    _teachJustStarted = Date.now();                 // guard against switchTab's delayed init (first-load race)
     _teachArchiveCurrent();                         // park any prior session before starting a new one
     _teachSubject = subjectSel ? subjectSel.value : '';
     const depthSel = document.getElementById('teach-depth');
