@@ -29577,7 +29577,7 @@ function _teachCardReplyToggle(card) {
     var send = document.createElement('button');
     send.type = 'button'; send.textContent = 'Send';
     send.style.cssText = 'background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:0.82rem;cursor:pointer;font-weight:600;';
-    var go = function () { var v = inp.value.trim(); if (!v) return; box.style.display = 'none'; _teachReplyBlock(topic, v); };
+    var go = function () { var v = inp.value.trim(); if (!v) return; inp.value = ''; box.style.display = 'none'; _teachInlineAsk(card, v, v, 'reply'); };
     send.onclick = go;
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(); } });
     box.appendChild(inp); box.appendChild(send);
@@ -29588,10 +29588,59 @@ function _teachReplyBlock(topic, question) {
     if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2000); return; }
     _sendTeachingBoardTurn('About the "' + topic + '" part: ' + question, question);
 }
+// v24.4 — inline expansion: get or make a thread container INSIDE a card, so
+// "Explain more" and "Reply to this part" expand the block in place instead of
+// posting a whole new message.
+function _teachThread(card) {
+    var t = card.querySelector(':scope > .teach-thread');
+    if (t) return t;
+    t = document.createElement('div');
+    t.className = 'teach-thread';
+    t.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;gap:10px;';
+    var bar = card.querySelector(':scope > div[style*="border-top"]');   // the actions bar
+    if (bar) card.insertBefore(t, bar); else card.appendChild(t);
+    return t;
+}
+// Runs a scoped AI call about ONE card and renders the reply INTO the card's thread.
+function _teachInlineAsk(card, apiPrompt, displayQ, kind) {
+    if (!card) return;
+    if (card.dataset.inlineBusy === '1') { if (typeof showToast === 'function') showToast('One sec — still expanding this…', 'info', 1800); return; }
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) { if (typeof showToast === 'function') showToast('Sign in (or add an API key) first.', 'error', 3500); return; }
+    card.dataset.inlineBusy = '1';
+    var thread = _teachThread(card);
+    if (displayQ) {
+        var q = document.createElement('div');
+        q.style.cssText = 'align-self:flex-end;max-width:85%;background:linear-gradient(135deg,#6C5CE7,#00CEC9);color:#fff;border-radius:12px 12px 4px 12px;padding:7px 11px;font-size:0.85rem;';
+        q.innerHTML = (typeof _teachFracEscape === 'function') ? _teachFracEscape(displayQ) : displayQ;
+        thread.appendChild(q);
+    }
+    var ans = document.createElement('div');
+    ans.style.cssText = 'align-self:flex-start;max-width:100%;';
+    ans.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;"><i class="ph ph-spinner ph-spin"></i> ' + (kind === 'explain' ? 'Expanding this…' : 'Thinking…') + '</span>';
+    thread.appendChild(ans);
+    var cardText = (card.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1400);
+    var sys = 'You are the NEXUS Teaching Board tutor. The student is looking at THIS lesson block:\n"""' + cardText + '"""\nAnswer their request about this block only. Return ONLY light HTML fragments (NO <div class="teach-card"> wrapper): short <p>, <ul>/<ol>/<li>, <strong>, <em>, <h5>, <div class="teach-formula">, <div class="teach-tip">, and — if a picture helps — a labeled inline <svg> or <div class="teach-plot" data-fns="..." data-points="..."></div>. Use \\frac{a}{b} for fractions. NEVER markdown. Be genuinely explanatory (intuition + why), warm, and clear — not a wall of text.';
+    if (typeof streamChat !== 'function') { ans.innerHTML = '<em style="color:#ff9a9a;">Voice engine unavailable.</em>'; card.dataset.inlineBusy = '0'; return; }
+    streamChat({
+        apiKey: apiKey, model: localStorage.getItem('ai_model') || 'gpt-4o', temperature: 0.6, max_tokens: 1100,
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: apiPrompt }],
+        onChunk: function (delta, full) { ans.textContent = (typeof stripHtmlForStream === 'function') ? stripHtmlForStream(full) : full; },
+        onDone: function (full) {
+            if (!full || !String(full).trim()) { ans.innerHTML = '<em style="color:#ff9a9a;">That came back blank — try again.</em>'; card.dataset.inlineBusy = '0'; return; }
+            var store = []; var html = _teachProtectSvg(full, store); html = _teachCleanHtml(html);
+            if (typeof convertMarkdownLeaks === 'function') html = convertMarkdownLeaks(html);
+            html = _teachCleanHtml(html); html = _teachRestoreSvg(html, store);
+            ans.innerHTML = html;
+            _teachEnhanceCards(ans);   // render any plots/practice/fractions in the expansion
+            card.dataset.inlineBusy = '0';
+        },
+        onError: function (err) { ans.innerHTML = '<em style="color:#ff9a9a;">Hit a snag: ' + esc0(err && err.message) + '</em>'; card.dataset.inlineBusy = '0'; }
+    });
+}
+window._teachInlineAsk = _teachInlineAsk;
 function _teachExplainMore(card) {
-    if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2000); return; }
-    var topic = (card && card.getAttribute('data-topic')) || 'this';
-    _sendTeachingBoardTurn('Explain the "' + topic + '" part more deeply — I want to really understand it, not just the definition. Give the intuition and WHY it works, a plain-English analogy or picture, where the formula/idea comes from, a fully worked example, and a common mistake to avoid. Keep it clear and scannable, not a wall of text.', 'Explain "' + topic + '" more');
+    _teachInlineAsk(card, 'Explain this more deeply — I want to really understand it, not just the definition. Give the intuition and WHY it works, a plain-English analogy or picture, where the formula/idea comes from, a fully worked example, and a common mistake to avoid. Start with a <h5>Deeper look</h5>.', null, 'explain');
 }
 window._teachExplainMore = _teachExplainMore;
 function _teachCardCompanion(card) {
@@ -29726,14 +29775,33 @@ function _teachRenderPlots(el) {
         var W = 360, H = 260;
         var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
         cv.style.cssText = 'width:100%;max-width:' + W + 'px;height:auto;border-radius:10px;margin:6px 0;display:block;';
-        _teachDrawPlot(cv.getContext('2d'), W, H, fns, pts);
         var cap = node.getAttribute('data-caption');
         node.innerHTML = '';
         node.appendChild(cv);
+        // v24.5 — show "Loading graph…", then draw the graph in left-to-right.
+        var ctx = cv.getContext('2d');
+        var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+        if (reduce) { _teachDrawPlot(ctx, W, H, fns, pts, 1); }
+        else {
+            ctx.fillStyle = 'rgba(12,14,28,0.92)'; ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#7ff0ec'; ctx.font = '13px Inter,sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('📈 Loading graph…', W / 2, H / 2); ctx.textAlign = 'left';
+            setTimeout(function () {
+                var start = null, DUR = 850;
+                (function step(ts) {
+                    if (!start) start = ts;
+                    var p = Math.min(1, (ts - start) / DUR);
+                    _teachDrawPlot(ctx, W, H, fns, pts, p < 0.05 ? 0.05 : p);
+                    if (p < 1) requestAnimationFrame(step);
+                })();
+            }, 320);
+        }
         if (cap) { var c = document.createElement('div'); c.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-top:2px;'; c.textContent = cap; node.appendChild(c); }
     });
 }
-function _teachDrawPlot(ctx, W, H, fns, pts) {
+function _teachDrawPlot(ctx, W, H, fns, pts, progress) {
+    if (progress == null) progress = 1;   // v24.5 — <1 draws the graph in left-to-right (animated)
+    var penX = W * progress;
     var cx = W / 2, cy = H / 2;
     // pick a range that fits any given points; default ±7
     var R = 7;
@@ -29764,7 +29832,7 @@ function _teachDrawPlot(ctx, W, H, fns, pts) {
         var fn; try { fn = new Function('x', 'return (' + _mathExprToJs(f) + ');'); if (typeof fn(1) !== 'number') return; } catch (e) { return; }
         ctx.strokeStyle = colors[fi % colors.length]; ctx.lineWidth = 2.4; ctx.beginPath();
         var started = false;
-        for (var pxp = 0; pxp <= W; pxp++) {
+        for (var pxp = 0; pxp <= penX; pxp++) {
             var xv = (pxp - cx) / scale, yv;
             try { yv = fn(xv); } catch (e) { yv = NaN; }
             if (!isFinite(yv)) { started = false; continue; }
@@ -29774,9 +29842,10 @@ function _teachDrawPlot(ctx, W, H, fns, pts) {
         }
         ctx.stroke();
     });
-    // points
+    // points — pop in as the pen sweeps past them
     pts.forEach(function (p) {
         var px = cx + p[0] * scale, py = cy - p[1] * scale;
+        if (px > penX + 2) return;
         ctx.beginPath(); ctx.arc(px, py, 4.5, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff'; ctx.fill();
         ctx.lineWidth = 2; ctx.strokeStyle = '#6c5ce7'; ctx.stroke();
