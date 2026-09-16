@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260915v285">
+    <link rel="stylesheet" href="style.css?v=20260915v286">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -5125,7 +5125,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <div id="companion-chat" style="display:none;position:fixed;bottom:24px;right:24px;width:380px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 48px);background:rgba(10,10,20,0.96);border:1px solid rgba(108,92,231,0.5);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(108,92,231,0.25);z-index:9500;flex-direction:column;overflow:hidden;backdrop-filter:blur(14px);min-width:280px;min-height:300px;">
+    <div id="companion-chat" style="display:none;position:fixed;bottom:24px;right:24px;width:440px;max-width:calc(100vw - 32px);height:640px;max-height:calc(100vh - 48px);background:rgba(10,10,20,0.96);border:1px solid rgba(108,92,231,0.5);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(108,92,231,0.25);z-index:9500;flex-direction:column;overflow:hidden;backdrop-filter:blur(14px);min-width:320px;min-height:360px;">
         <!-- v12.2 — drag handle (top) + resize handles (4 corners + edges).
              Drag works from the top 50px (header zone). Resize works from any edge/corner. -->
         <div id="companion-chat-resize-tl" class="companion-resize-handle" style="position:absolute;top:0;left:0;width:14px;height:14px;cursor:nwse-resize;z-index:10;"></div>
@@ -5136,27 +5136,26 @@ if __name__ == '__main__':
         <div id="companion-chat-resize-r" class="companion-resize-handle" style="position:absolute;top:14px;bottom:14px;right:0;width:6px;cursor:ew-resize;z-index:9;"></div>
         <div id="companion-chat-resize-t" class="companion-resize-handle" style="position:absolute;top:0;left:14px;right:14px;height:6px;cursor:ns-resize;z-index:9;"></div>
         <div id="companion-chat-resize-b" class="companion-resize-handle" style="position:absolute;bottom:0;left:14px;right:14px;height:6px;cursor:ns-resize;z-index:9;"></div>
-        <div id="companion-chat-header" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:linear-gradient(135deg, rgba(108,92,231,0.3), rgba(0,206,201,0.2));border-bottom:1px solid rgba(108,92,231,0.3);">
-            <div id="companion-chat-avatar" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,0.4);overflow:hidden;flex-shrink:0;"></div>
+        <div id="companion-chat-header" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg, rgba(108,92,231,0.32), rgba(0,206,201,0.18));border-bottom:1px solid rgba(108,92,231,0.3);">
+            <div id="companion-chat-avatar" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,0.4);overflow:hidden;flex-shrink:0;box-shadow:0 0 0 2px rgba(108,92,231,0.35);"></div>
             <div style="flex:1;min-width:0;overflow:hidden;">
-                <div id="companion-chat-name" style="color:white;font-weight:700;font-size:0.92rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Companion</div>
-                <div id="companion-chat-status" style="color:#a29bfe;font-size:0.7rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Online · Nexus Companion AI</div>
+                <div id="companion-chat-name" style="color:white;font-weight:700;font-size:1.02rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Companion</div>
+                <div id="companion-chat-status" style="color:#8affe4;font-size:0.72rem;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#3fd07f;display:inline-block;flex-shrink:0;"></span>Nexus Companion AI</div>
             </div>
-            <!-- v12.1 — Link to session: companion can tap into a Math/Science/English/Live Vision session
-                 v12.2 — visible Unlink button appears next to it when linked. -->
-            <button id="companion-chat-link-btn" onclick="toggleCompanionLinkMenu(event)" title="Link to a current session" style="background:rgba(0,206,201,0.18);border:1px solid rgba(0,206,201,0.4);color:#7fffec;width:auto;min-width:30px;height:30px;padding:0 10px;border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:600;display:flex;align-items:center;gap:6px;"><i class="ph ph-link"></i><span id="companion-link-label">Link</span></button>
-            <button id="companion-chat-unlink-btn" onclick="linkCompanionTo(null)" title="Unlink companion from current session" style="display:none;background:rgba(255,107,107,0.18);border:1px solid rgba(255,107,107,0.4);color:#ff9999;width:auto;height:30px;padding:0 10px;border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:600;align-items:center;gap:6px;"><i class="ph ph-link-break"></i><span>Unlink</span></button>
-            <div id="companion-link-menu" style="display:none;position:absolute;top:62px;right:96px;background:rgba(20,20,35,0.98);border:1px solid rgba(0,206,201,0.5);border-radius:12px;padding:10px;box-shadow:0 12px 32px rgba(0,0,0,0.6);z-index:11;min-width:240px;">
+            <!-- v24.6 — decluttered header: Link (icon), a single ⋯ menu (calc/resize/settings), close -->
+            <button id="companion-chat-link-btn" onclick="toggleCompanionLinkMenu(event)" title="Link to a current session" style="background:rgba(0,206,201,0.18);border:1px solid rgba(0,206,201,0.4);color:#7fffec;width:34px;height:34px;padding:0;border-radius:9px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-link"></i></button>
+            <button id="companion-chat-unlink-btn" onclick="linkCompanionTo(null)" title="Unlink companion from current session" style="display:none;background:rgba(255,107,107,0.18);border:1px solid rgba(255,107,107,0.4);color:#ff9999;width:34px;height:34px;padding:0;border-radius:9px;cursor:pointer;font-size:1rem;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-link-break"></i></button>
+            <div id="companion-link-menu" style="display:none;position:absolute;top:66px;right:90px;background:rgba(20,20,35,0.98);border:1px solid rgba(0,206,201,0.5);border-radius:12px;padding:10px;box-shadow:0 12px 32px rgba(0,0,0,0.6);z-index:11;min-width:240px;">
                 <div style="color:#7fffec;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Link companion to…</div>
                 <div id="companion-link-options"></div>
             </div>
-            <button id="companion-chat-calc-btn" onclick="toggleCompanionCalc()" title="Quick calculator" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-calculator"></i></button>
-            <button id="companion-chat-settings-btn" onclick="toggleCompanionSettings(event)" title="Settings" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-gear"></i></button>
-            <button id="companion-chat-resize-btn" onclick="cycleCompanionChatSize()" title="Resize chat" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-out"></i></button>
-            <button onclick="closeCompanionChat()" title="Close" style="background:rgba(255,255,255,0.08);border:none;color:white;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+            <button id="companion-chat-settings-btn" onclick="toggleCompanionSettings(event)" title="More" style="background:rgba(255,255,255,0.08);border:none;color:white;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-dots-three-vertical"></i></button>
+            <button onclick="closeCompanionChat()" title="Close" style="background:rgba(255,255,255,0.08);border:none;color:white;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-x"></i></button>
         </div>
-        <div id="companion-settings-popover" style="display:none;position:absolute;top:62px;right:14px;background:rgba(20,20,35,0.98);border:1px solid rgba(108,92,231,0.5);border-radius:12px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);z-index:10;min-width:250px;">
-            <div style="color:#a29bfe;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Companion Settings</div>
+        <div id="companion-settings-popover" style="display:none;position:absolute;top:66px;right:14px;background:rgba(20,20,35,0.98);border:1px solid rgba(108,92,231,0.5);border-radius:12px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,0.6);z-index:10;min-width:250px;">
+            <button onclick="toggleCompanionCalc();toggleCompanionSettings()" style="display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#fff;padding:9px 11px;font-size:0.85rem;cursor:pointer;margin-bottom:7px;"><i class="ph ph-calculator" style="color:#7ff0ec;"></i> Quick calculator</button>
+            <button onclick="cycleCompanionChatSize()" style="display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#fff;padding:9px 11px;font-size:0.85rem;cursor:pointer;margin-bottom:10px;"><i class="ph ph-arrows-out" style="color:#a29bfe;"></i> Resize chat</button>
+            <div style="color:#a29bfe;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">Companion Settings</div>
             <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;color:white;font-size:0.85rem;padding:6px 0;cursor:pointer;">
                 <span>Walking Animation</span>
                 <input id="setting-walking" type="checkbox" onchange="toggleWalkingSetting(this.checked)" style="width:18px;height:18px;accent-color:#6C5CE7;cursor:pointer;" />
@@ -5172,7 +5171,7 @@ if __name__ == '__main__':
                 <div style="color:var(--text-muted);font-size:0.7rem;margin-top:2px;line-height:1.3;">When off, the companion stays barely visible until you summon it or link it to a session.</div>
             </div>
         </div>
-        <div id="companion-chat-messages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:0.9rem;"></div>
+        <div id="companion-chat-messages" style="flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:13px;font-size:0.95rem;"></div>
         <!-- v10.7: image preview strip — shows when an image is pasted -->
         <div id="companion-chat-image-preview" style="display:none;padding:8px 10px 0;background:rgba(0,0,0,0.3);">
             <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(0,206,201,0.08);border:1px solid rgba(0,206,201,0.3);border-radius:8px;padding:6px 10px;">
@@ -5195,11 +5194,11 @@ if __name__ == '__main__':
                 </div>
             </div>
         </div>
-        <form id="companion-chat-form" onsubmit="event.preventDefault(); sendCompanionMessage();" style="padding:10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:8px;background:rgba(0,0,0,0.3);align-items:flex-end;">
+        <form id="companion-chat-form" onsubmit="event.preventDefault(); sendCompanionMessage();" style="padding:12px 12px 14px;border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:8px;background:rgba(0,0,0,0.3);align-items:flex-end;">
             <!-- v12.3 — Voice mode: mic = dictate; speaker = TTS replies -->
             <button type="button" id="companion-mic-btn" onclick="toggleCompanionVoiceDictate()" title="Voice input (hold to dictate)" style="padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:flex;align-items:center;"><i class="ph ph-microphone"></i></button>
             <button type="button" id="companion-tts-btn" onclick="toggleCompanionTTS()" title="Read companion replies aloud" style="padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;cursor:pointer;font-weight:600;display:flex;align-items:center;"><i class="ph ph-speaker-high"></i></button>
-            <textarea id="companion-chat-input" rows="1" placeholder="Ask your companion anything…  (Shift+Enter = newline, Ctrl+V to paste image)" autocomplete="off" style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;font-size:0.9rem;outline:none;resize:none;font-family:inherit;line-height:1.4;max-height:120px;"></textarea>
+            <textarea id="companion-chat-input" rows="1" placeholder="Ask your companion anything…" autocomplete="off" style="flex:1;padding:11px 13px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:11px;color:white;font-size:0.95rem;outline:none;resize:none;font-family:inherit;line-height:1.45;max-height:130px;"></textarea>
             <button type="submit" style="padding:10px 14px;background:linear-gradient(135deg,#6C5CE7,#00CEC9);border:none;border-radius:10px;color:white;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i></button>
         </form>
     </div>
@@ -5208,8 +5207,8 @@ if __name__ == '__main__':
         @keyframes companionEmoteIn { 0%{transform:translateX(-50%) scale(0);} 60%{transform:translateX(-50%) scale(1.08);} 100%{transform:translateX(-50%) scale(1);} }
         #companion-sprite-wrap.facing-left #companion-sprite { transform: scaleX(-1); }
         #companion-sprite-wrap:hover { transform: scale(1.06); }
-        .companion-msg-user { align-self:flex-end; background:linear-gradient(135deg,#6C5CE7,#00CEC9); color:white; padding:8px 12px; border-radius:14px 14px 4px 14px; max-width:80%; line-height:1.4; }
-        .companion-msg-ai { align-self:flex-start; background:rgba(255,255,255,0.07); color:white; padding:8px 12px; border-radius:14px 14px 14px 4px; max-width:85%; line-height:1.5; border:1px solid rgba(255,255,255,0.06); }
+        .companion-msg-user { align-self:flex-end; background:linear-gradient(135deg,#6C5CE7,#00CEC9); color:white; padding:11px 15px; border-radius:16px 16px 5px 16px; max-width:84%; line-height:1.5; box-shadow:0 2px 10px rgba(108,92,231,0.25); }
+        .companion-msg-ai { align-self:flex-start; background:rgba(255,255,255,0.08); color:#eef0f7; padding:11px 15px; border-radius:16px 16px 16px 5px; max-width:90%; line-height:1.6; border:1px solid rgba(255,255,255,0.08); }
         .companion-msg-ai strong { color:#a29bfe; }
         .companion-msg-ai em { color:#74e8c8; font-style:normal; }
     </style>
@@ -5412,7 +5411,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260915v285"></script>
+    <script src="script.js?v=20260915v286"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

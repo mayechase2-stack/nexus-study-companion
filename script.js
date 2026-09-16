@@ -25195,9 +25195,9 @@ function getActiveCompanionPersona(equippedId) {
 
 // ── 5b. CHAT RESIZE + SETTINGS ────────────────────────────────────────
 const COMPANION_CHAT_SIZES = {
-    small:  { w: 320, h: 440, icon: 'ph-arrows-out' },
-    medium: { w: 380, h: 520, icon: 'ph-arrows-out' },
-    large:  { w: 460, h: 640, icon: 'ph-arrows-in' }
+    small:  { w: 360, h: 500, icon: 'ph-arrows-out' },
+    medium: { w: 440, h: 640, icon: 'ph-arrows-out' },
+    large:  { w: 560, h: 780, icon: 'ph-arrows-in' }
 };
 
 function applyCompanionChatSize(size) {
@@ -25940,16 +25940,15 @@ function setLinkedSession(linked) {
     if (typeof applyCompanionGlowState === 'function') applyCompanionGlowState();
 }
 function updateCompanionLinkLabel() {
-    const lbl = document.getElementById('companion-link-label');
-    if (!lbl) return;
     const linked = getLinkedSession();
-    lbl.textContent = linked ? ('Linked: ' + (linked.id.charAt(0).toUpperCase() + linked.id.slice(1))) : 'Link';
+    const lbl = document.getElementById('companion-link-label');   // v24.6 — link is icon-only now; label optional
+    if (lbl) lbl.textContent = linked ? ('Linked: ' + (linked.id.charAt(0).toUpperCase() + linked.id.slice(1))) : 'Link';
     const btn = document.getElementById('companion-chat-link-btn');
     if (btn) {
         btn.style.background = linked ? 'linear-gradient(135deg,rgba(0,206,201,0.45),rgba(108,92,231,0.45))' : 'rgba(0,206,201,0.18)';
         btn.style.color = linked ? '#fff' : '#7fffec';
+        btn.title = linked ? ('Linked to ' + (linked.id.charAt(0).toUpperCase() + linked.id.slice(1)) + ' — click to change') : 'Link to a current session';
     }
-    // v12.2 — show the dedicated Unlink button when there's an active link
     const unlinkBtn = document.getElementById('companion-chat-unlink-btn');
     if (unlinkBtn) unlinkBtn.style.display = linked ? 'flex' : 'none';
 }
