@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260915v286">
+    <link rel="stylesheet" href="style.css?v=20260923v287">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1252,7 +1252,7 @@
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;">
                         <button onclick="openFunctionExplorer()" style="display:flex;align-items:center;gap:12px;text-align:left;background:rgba(0,206,201,0.10);border:1px solid rgba(0,206,201,0.35);border-radius:14px;padding:13px 15px;cursor:pointer;" onmouseover="this.style.borderColor='rgba(0,206,201,0.7)'" onmouseout="this.style.borderColor='rgba(0,206,201,0.35)'">
                             <span style="font-size:1.3rem;flex-shrink:0;">🎛️</span>
-                            <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Function explorer</div><div style="color:var(--text-muted);font-size:0.78rem;">Sliders → live graph</div></div>
+                            <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Graph &amp; Explore</div><div style="color:var(--text-muted);font-size:0.78rem;">Plot · sliders · points</div></div>
                         </button>
                         <button onclick="openExamPrep()" style="display:flex;align-items:center;gap:12px;text-align:left;background:rgba(253,121,168,0.10);border:1px solid rgba(253,121,168,0.35);border-radius:14px;padding:13px 15px;cursor:pointer;" onmouseover="this.style.borderColor='rgba(253,121,168,0.7)'" onmouseout="this.style.borderColor='rgba(253,121,168,0.35)'">
                             <span style="font-size:1.3rem;flex-shrink:0;">🎓</span>
@@ -1343,7 +1343,7 @@
 
                             <!-- v17.0 — quick tools + actions (consolidated) -->
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                <button class="btn-secondary" onclick="openStudyPlanner()" style="font-size:0.85rem;"><i class="ph ph-calendar-check"></i> Study Planner</button>
+                                <button class="btn-secondary" onclick="openStudyPlanner()" style="font-size:0.85rem;"><i class="ph ph-target"></i> My Progress</button>
                                 <button class="btn-secondary" onclick="openFormulaSheet()" style="font-size:0.85rem;"><i class="ph ph-printer"></i> Formula Cheat Sheet</button>
                                 <button class="btn-secondary" onclick="startOnboarding()" style="font-size:0.85rem;"><i class="ph ph-compass"></i> Take the tour</button>
                                 <button class="btn-secondary" onclick="switchTab('suggestions')" style="font-size:0.85rem;"><i class="ph ph-lightbulb"></i> Suggestions</button>
@@ -1476,9 +1476,9 @@
                     <!-- Math Equation Visualizer - NEW v7.0 -->
                     <div class="card glass-panel" onclick="openMathVisualizer()" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(0, 206, 201, 0.1)); border: 1px solid rgba(108, 92, 231, 0.5);">
                         <div class="icon-glow" style="background: radial-gradient(circle, rgba(108, 92, 231, 0.3), transparent);"><i class="ph ph-chart-line"></i></div>
-                        <h3>Math Visualizer</h3>
-                        <p>Graph equations instantly</p>
-                        <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #6c5ce7, #00cec9);">Visualize</button>
+                        <h3>Graph &amp; Explore</h3>
+                        <p>Plot equations · sliders · points</p>
+                        <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #6c5ce7, #00cec9);">Open</button>
                     </div>
 
                     <!-- Science Lab Simulator - NEW v7.0 -->
@@ -1902,7 +1902,7 @@
                         <i class="ph ph-caret-down" style="color:var(--text-muted);font-size:1.1rem;flex-shrink:0;"></i>
                     </summary>
                     <canvas id="study-history-canvas" style="width:100%;height:180px;display:block;border-radius:8px;margin-top:14px;"></canvas>
-                    <button onclick="event.preventDefault();openMasteryDashboard()" style="margin-top:14px;width:100%;background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:#c4b8ff;font-weight:600;font-size:0.88rem;padding:10px;cursor:pointer;"><i class="ph ph-target"></i> Open Progress &amp; Mastery →</button>
+                    <button onclick="event.preventDefault();openMasteryDashboard()" style="margin-top:14px;width:100%;background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.4);border-radius:10px;color:#c4b8ff;font-weight:600;font-size:0.88rem;padding:10px;cursor:pointer;"><i class="ph ph-target"></i> Open My Progress →</button>
                 </details>
             </div>
 
@@ -2098,16 +2098,17 @@
                 <div class="modal-content glass-panel" style="max-width: 900px; width: 95%;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
                         <div>
-                            <h2 style="margin:0;"><i class="ph ph-chart-line" style="color:#6c5ce7;"></i> Math Equation Visualizer</h2>
-                            <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text-muted);">Visualize functions and equations on an interactive graph</p>
+                            <h2 style="margin:0;"><i class="ph ph-chart-line" style="color:#6c5ce7;"></i> Graph &amp; Explore</h2>
+                            <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text-muted);">Plot any equation, drag sliders to understand it, or drop your own points</p>
                         </div>
                         <button class="btn-icon" onclick="document.getElementById('math-visualizer-modal').classList.add('hidden')"><i class="ph ph-x"></i></button>
                     </div>
 
                     <!-- Mode Toggle -->
                     <div style="display:flex;gap:8px;margin-bottom:16px;background:rgba(108,92,231,0.06);padding:6px;border-radius:10px;border:1px solid rgba(108,92,231,0.18);">
-                        <button id="mvz-mode-fn" onclick="setVisualizerMode('function')" style="flex:1;padding:10px;background:linear-gradient(135deg,#6c5ce7,#00cec9);border:none;border-radius:8px;color:white;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-function"></i> Function Mode</button>
-                        <button id="mvz-mode-plot" onclick="setVisualizerMode('plot')" style="flex:1;padding:10px;background:transparent;border:none;border-radius:8px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-dots-three-circle"></i> Plot Mode</button>
+                        <button id="mvz-mode-fn" onclick="setVisualizerMode('function')" style="flex:1;padding:10px;background:linear-gradient(135deg,#6c5ce7,#00cec9);border:none;border-radius:8px;color:white;font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-function"></i> Plot</button>
+                        <button id="mvz-mode-explore" onclick="setVisualizerMode('explore')" style="flex:1;padding:10px;background:transparent;border:none;border-radius:8px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-sliders"></i> Explore</button>
+                        <button id="mvz-mode-plot" onclick="setVisualizerMode('plot')" style="flex:1;padding:10px;background:transparent;border:none;border-radius:8px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;"><i class="ph ph-dots-three-circle"></i> Points</button>
                     </div>
                     <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;">
                         <!-- Controls -->
@@ -2129,6 +2130,17 @@
                                     <button class="btn-secondary" style="width:100%;font-size:0.9rem;text-align:left;" onclick="document.getElementById('math-equation-input').value='y = abs(x)';plotEquation();">⚡ y = |x|</button>
                                 </div>
                             </div>
+                            <!-- Explore Mode controls (drag sliders) -->
+                            <div id="mvz-explore-controls" style="display:none;">
+                                <div style="background:rgba(0,206,201,0.05);border:1px solid rgba(0,206,201,0.18);border-radius:8px;padding:10px 12px;font-size:0.78rem;color:var(--text-muted);line-height:1.45;margin-bottom:10px;">
+                                    Pick a shape, then <strong style="color:#00cec9;">drag the sliders</strong> — the graph updates live so you can SEE what each number does.
+                                </div>
+                                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                                    <button id="fe-t-linear" class="btn-secondary" style="flex:1;font-size:0.82rem;" onclick="_feSetType('linear')">Line&nbsp; y = mx + b</button>
+                                    <button id="fe-t-quad" class="btn-secondary" style="flex:1;font-size:0.82rem;" onclick="_feSetType('quad')">Parabola&nbsp; y = ax² + bx + c</button>
+                                </div>
+                                <div id="fnexp-controls"></div>
+                            </div>
                             <!-- Plot Mode controls -->
                             <div id="mvz-plot-controls" style="display:none;">
                                 <div style="background:rgba(108,92,231,0.05);border:1px solid rgba(108,92,231,0.18);border-radius:8px;padding:10px 12px;font-size:0.78rem;color:var(--text-muted);line-height:1.45;margin-bottom:10px;">
@@ -2144,8 +2156,10 @@
                             </div>
                         </div>
                         <!-- Graph Canvas -->
-                        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(108,92,231,0.3);border-radius:12px;padding:16px;display:flex;align-items:center;justify-content:center;min-height:400px;">
+                        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(108,92,231,0.3);border-radius:12px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;">
                             <canvas id="math-graph-canvas" width="500" height="400" style="max-width:100%;"></canvas>
+                            <div id="fnexp-eq" style="display:none;text-align:center;font-family:var(--font-mono,monospace);font-size:1.05rem;color:#e6e3ff;margin:12px 0 4px;"></div>
+                            <div id="fnexp-feat" style="display:none;text-align:center;font-size:0.82rem;color:var(--text-muted);"></div>
                         </div>
                     </div>
                 </div>
@@ -5411,7 +5425,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260915v286"></script>
+    <script src="script.js?v=20260923v287"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

@@ -18127,23 +18127,24 @@ let _plotPoints = []; // [{x, y}, ...] in math coordinates
 
 function setVisualizerMode(mode) {
     _visualizerMode = mode;
-    const fnBtn = document.getElementById('mvz-mode-fn');
-    const plotBtn = document.getElementById('mvz-mode-plot');
-    const fnControls = document.getElementById('mvz-fn-controls');
-    const plotControls = document.getElementById('mvz-plot-controls');
     const activeStyle = 'flex:1;padding:10px;background:linear-gradient(135deg,#6c5ce7,#00cec9);border:none;border-radius:8px;color:white;font-size:0.9rem;font-weight:600;cursor:pointer;';
     const inactiveStyle = 'flex:1;padding:10px;background:transparent;border:none;border-radius:8px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;';
+    // toggle the three mode buttons
+    const btns = { function: 'mvz-mode-fn', explore: 'mvz-mode-explore', plot: 'mvz-mode-plot' };
+    Object.keys(btns).forEach(k => { const b = document.getElementById(btns[k]); if (b) b.style.cssText = (k === mode ? activeStyle : inactiveStyle); });
+    // toggle the three control panels
+    const panels = { function: 'mvz-fn-controls', explore: 'mvz-explore-controls', plot: 'mvz-plot-controls' };
+    Object.keys(panels).forEach(k => { const p = document.getElementById(panels[k]); if (p) p.style.display = (k === mode ? 'block' : 'none'); });
+    // the equation/feature readout only belongs to Explore mode
+    const eqEl = document.getElementById('fnexp-eq'), featEl = document.getElementById('fnexp-feat');
+    if (eqEl) eqEl.style.display = (mode === 'explore') ? 'block' : 'none';
+    if (featEl) featEl.style.display = (mode === 'explore') ? 'block' : 'none';
     if (mode === 'plot') {
-        if (fnBtn) fnBtn.style.cssText = inactiveStyle;
-        if (plotBtn) plotBtn.style.cssText = activeStyle;
-        if (fnControls) fnControls.style.display = 'none';
-        if (plotControls) plotControls.style.display = 'block';
         redrawPlotMode();
+    } else if (mode === 'explore') {
+        if (typeof _feBuildControls === 'function') _feBuildControls();
+        if (typeof _feDraw === 'function') _feDraw();
     } else {
-        if (fnBtn) fnBtn.style.cssText = activeStyle;
-        if (plotBtn) plotBtn.style.cssText = inactiveStyle;
-        if (fnControls) fnControls.style.display = 'block';
-        if (plotControls) plotControls.style.display = 'none';
         const canvas = document.getElementById('math-graph-canvas');
         if (canvas) drawGraphGrid(canvas.getContext('2d'), canvas.width, canvas.height);
     }
@@ -20265,7 +20266,7 @@ function openStudyPlanner() {
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
     modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
     modal.innerHTML = '<div class="glass-panel" style="max-width:980px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(0,206,201,0.4);">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-calendar-check" style="color:#00CEC9;"></i> Weekly Study Planner</h3><button class="btn-icon" onclick="document.getElementById(\'study-planner-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> My Progress</h3><button class="btn-icon" onclick="document.getElementById(\'study-planner-modal\').remove()"><i class="ph ph-x"></i></button></div>'
         + '<div id="study-planner-body" style="padding:16px;overflow:auto;"></div>'
         + '</div>';
     document.body.appendChild(modal);
@@ -20290,9 +20291,16 @@ function spRender() {
             + '<input id="sp-input-' + i + '" placeholder="+ add task" style="width:100%;margin-top:8px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:6px;color:#fff;padding:5px 8px;font-size:0.76rem;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')spAddTask(\'' + day + '\',' + i + ')">'
             + '</div>';
     }).join('');
+    var masteryHtml = (typeof _buildMasteryHTML === 'function') ? _buildMasteryHTML() : '';
     body.innerHTML = '<div id="sg-panel" style="margin-bottom:16px;"></div>'
+        + '<div style="border-top:1px solid var(--glass-border);padding-top:16px;margin-bottom:18px;">'
+        + '<h4 style="margin:0 0 12px;color:#a29bfe;font-size:0.95rem;"><i class="ph ph-chart-bar"></i> Where you stand</h4>'
+        + masteryHtml + '</div>'
+        + '<div style="border-top:1px solid var(--glass-border);padding-top:16px;">'
+        + '<h4 style="margin:0 0 6px;color:#00CEC9;font-size:0.95rem;"><i class="ph ph-calendar-check"></i> This week\'s plan</h4>'
         + '<p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 12px;">Plan your week — tasks repeat weekly and progress saves automatically. Check items off as you finish them.</p>'
-        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' + cols + '</div>';
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' + cols + '</div>'
+        + '</div>';
     renderStudyGoals();
 }
 
@@ -30593,8 +30601,17 @@ function trackStudySession(subject,duration){ if(duration<1)duration=1; var s=ge
 // where the student is strong vs. neglected, built from real study-session data
 // (study_sessions_v2, last 30 days) + aggregate stats. Highlights weak spots to
 // steer the study plan.
+// v24.7 — Mastery merged into "My Progress" (the Study Planner modal). This is
+// now a shim so old entry points still work; the mastery panel renders inside
+// the planner between the goal and the weekly plan.
 function openMasteryDashboard() {
-    var existing = document.getElementById('mastery-modal'); if (existing) existing.remove();
+    if (typeof openStudyPlanner === 'function') openStudyPlanner();
+}
+window.openMasteryDashboard = openMasteryDashboard;
+
+// Builds the mastery block (stat tiles + time-by-subject bars + weak spots).
+// Returns HTML; used inside the My Progress (planner) modal.
+function _buildMasteryHTML() {
     var sessions = (typeof getStudySessions === 'function') ? getStudySessions() : [];
     var stats = (typeof getStudyStats === 'function') ? getStudyStats() : {};
     var xp = (typeof getTotalXP === 'function') ? getTotalXP() : (parseInt(localStorage.getItem('total_xp') || '0', 10) || 0);
@@ -30641,46 +30658,24 @@ function openMasteryDashboard() {
         return '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:1.1rem;">' + t[0] + '</div><div style="font-size:1.3rem;font-weight:800;color:' + t[3] + ';line-height:1.2;margin-top:2px;">' + t[1] + '</div><div style="font-size:0.68rem;color:var(--text-muted);">' + t[2] + '</div></div>';
     }).join('');
 
-    var modal = document.createElement('div');
-    modal.id = 'mastery-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
-    modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = '<div class="glass-panel" style="max-width:620px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-target" style="color:#a29bfe;"></i> Progress &amp; Mastery</h3><button class="btn-icon" onclick="document.getElementById(\'mastery-modal\').remove()"><i class="ph ph-x"></i></button></div>'
-        + '<div style="padding:18px 20px;overflow:auto;">'
-        + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">' + tiles + '</div>'
+    return '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">' + tiles + '</div>'
         + '<h4 style="margin:0 0 12px;color:#fff;font-size:0.92rem;">Time by subject <span style="color:var(--text-muted);font-weight:400;font-size:0.8rem;">· last 30 days</span></h4>'
         + barsHtml + weakHtml
-        + '<p style="font-size:0.75rem;color:var(--text-muted);margin:14px 0 0;">Bars show where your time goes — the more you practice a subject, the stronger it gets. Pair this with your goal in the Study Planner.</p>'
-        + '</div></div>';
-    document.body.appendChild(modal);
+        + '<p style="font-size:0.75rem;color:var(--text-muted);margin:14px 0 0;">Bars show where your time goes — the more you practice a subject, the stronger it gets. Focus your plan below on the weak spots.</p>';
 }
-window.openMasteryDashboard = openMasteryDashboard;
 
 // v22.8 — INTERACTIVE SIMULATION: FUNCTION EXPLORER (gap-board pick). Drag
 // sliders for a line's or parabola's coefficients and watch the graph change
 // live — reuses _teachDrawPlot. First of the "interactive simulations" set.
 var _feState = { type: 'linear', m: 1, b: 0, a: 1, bq: 0, c: 0 };
+// v24.7 — Function Explorer merged into "Graph & Explore" (the math visualizer).
+// This is now a shim so every old entry point (Home CTA, Teaching Board "Grapher",
+// Exam Prep) lands in the unified tool's Explore mode instead of a second graph tool.
 function openFunctionExplorer() {
-    var ex = document.getElementById('fnexp-modal'); if (ex) ex.remove();
-    var m = document.createElement('div');
-    m.id = 'fnexp-modal';
-    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
-    m.onclick = function (e) { if (e.target === m) m.remove(); };
-    m.innerHTML = '<div class="glass-panel" style="max-width:560px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(0,206,201,0.5);">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-sliders" style="color:#00CEC9;"></i> Function Explorer</h3><button class="btn-icon" onclick="document.getElementById(\'fnexp-modal\').remove()"><i class="ph ph-x"></i></button></div>'
-        + '<div style="padding:16px 20px;overflow:auto;">'
-        + '<div style="display:flex;gap:8px;margin-bottom:12px;">'
-        + '<button id="fe-t-linear" class="btn-secondary" style="flex:1;font-size:0.85rem;" onclick="_feSetType(\'linear\')">Line  y = mx + b</button>'
-        + '<button id="fe-t-quad" class="btn-secondary" style="flex:1;font-size:0.85rem;" onclick="_feSetType(\'quad\')">Parabola  y = ax² + bx + c</button></div>'
-        + '<canvas id="fnexp-canvas" width="380" height="260" style="width:100%;max-width:380px;height:auto;display:block;margin:0 auto;border-radius:10px;"></canvas>'
-        + '<div id="fnexp-eq" style="text-align:center;font-family:var(--font-mono,monospace);font-size:1.05rem;color:#e6e3ff;margin:12px 0 4px;"></div>'
-        + '<div id="fnexp-feat" style="text-align:center;font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;"></div>'
-        + '<div id="fnexp-controls"></div>'
-        + '<p style="font-size:0.76rem;color:var(--text-muted);margin:12px 0 0;text-align:center;">Drag the sliders — the graph updates live so you can SEE what each number does.</p>'
-        + '</div></div>';
-    document.body.appendChild(m);
-    _feBuildControls(); _feDraw();
+    if (typeof openMathVisualizer === 'function') {
+        openMathVisualizer();
+        setVisualizerMode('explore');
+    }
 }
 window.openFunctionExplorer = openFunctionExplorer;
 function _feSetType(t) { _feState.type = t; _feBuildControls(); _feDraw(); }
@@ -30703,7 +30698,9 @@ function _feBuildControls() {
 function _feSet(key, val) { _feState[key] = parseFloat(val); var el = document.getElementById('fe-val-' + key); if (el) el.textContent = val; _feDraw(); }
 window._feSet = _feSet;
 function _feDraw() {
-    var cv = document.getElementById('fnexp-canvas'); if (!cv || typeof _teachDrawPlot !== 'function') return;
+    // v24.7 — Function Explorer merged into Graph & Explore; draw on the shared canvas
+    var cv = document.getElementById('math-graph-canvas') || document.getElementById('fnexp-canvas');
+    if (!cv || typeof _teachDrawPlot !== 'function') return;
     var eq = document.getElementById('fnexp-eq'), feat = document.getElementById('fnexp-feat');
     var fn, eqText, featText;
     // pretty term: coefficient×variable with sign, dropping 1s and 0s
@@ -30730,7 +30727,7 @@ function _feDraw() {
     }
     if (eq) eq.textContent = eqText;
     if (feat) feat.textContent = featText;
-    _teachDrawPlot(cv.getContext('2d'), 380, 260, [fn], []);
+    _teachDrawPlot(cv.getContext('2d'), cv.width || 500, cv.height || 400, [fn], []);
 }
 
 function renderStudyHistoryChart(canvasId) {
