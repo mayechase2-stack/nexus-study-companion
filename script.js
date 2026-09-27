@@ -14334,6 +14334,46 @@ function _mistakeReteach(id) {
 window._mistakeReteach = _mistakeReteach;
 
 // ════════════════════════════════════════════════════════════════════
+// v24.8 — PRACTICE HUB. One door → five clearly-labeled rooms, so the five
+// "test yourself" features (Quick check, Flashcards, Fix mistakes, Due review,
+// Test-day sim) stop feeling like duplicates. Each room just launches the
+// existing feature; the hub adds live counts so you know what's waiting.
+// ════════════════════════════════════════════════════════════════════
+function openPracticeHub() {
+    var ex = document.getElementById('practice-hub-modal'); if (ex) ex.remove();
+    var mistakeN = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
+    var dueN = (typeof _lessonReviewsDue === 'function') ? _lessonReviewsDue().length : 0;
+    var rooms = [
+        { fn: 'startQuiz', icon: '⚡', c: '#ffc312', title: 'Quick check', desc: 'Test your understanding of a topic right now.' },
+        { fn: "openFlashcards('ai')", icon: '🃏', c: '#00cec9', title: 'Memorize', desc: 'Drill facts with flashcards until they stick (spaced repetition).' },
+        { fn: 'openMistakeReview', icon: '🔁', c: '#ffbe5a', title: 'Fix my mistakes', desc: 'Redo only the questions you got wrong.', badge: mistakeN ? (mistakeN + ' waiting') : '' },
+        { fn: 'openLessonReview', icon: '🧠', c: '#a29bfe', title: 'Due for review', desc: 'Quick recall on past lessons, timed so they stick.', badge: dueN ? (dueN + ' due') : '' },
+        { fn: 'openExamPrep', icon: '🎓', c: '#fd79a8', title: 'Test-day sim', desc: 'Full SAT · ACT · AP practice.' }
+    ];
+    var cards = rooms.map(function (r) {
+        var badge = r.badge ? ('<span style="margin-left:8px;background:' + r.c + ';color:#1a1c2e;font-size:0.68rem;font-weight:800;border-radius:20px;padding:2px 9px;vertical-align:middle;">' + r.badge + '</span>') : '';
+        return '<button onclick="document.getElementById(\'practice-hub-modal\').remove();' + r.fn + '()" '
+            + 'style="display:flex;align-items:center;gap:14px;text-align:left;width:100%;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-left:3px solid ' + r.c + ';border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;" '
+            + 'onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.transform=\'translateX(3px)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.03)\';this.style.transform=\'\'">'
+            + '<div style="width:44px;height:44px;flex-shrink:0;background:rgba(255,255,255,0.05);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.45rem;">' + r.icon + '</div>'
+            + '<div style="flex:1;min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.98rem;">' + r.title + badge + '</div>'
+            + '<div style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;">' + r.desc + '</div></div>'
+            + '<i class="ph ph-arrow-right" style="color:' + r.c + ';font-size:1.15rem;flex-shrink:0;"></i></button>';
+    }).join('');
+    var m = document.createElement('div');
+    m.id = 'practice-hub-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:540px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-barbell" style="color:#a29bfe;"></i> Practice</h3><button class="btn-icon" onclick="document.getElementById(\'practice-hub-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow:auto;">'
+        + '<p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 14px;">Pick how you want to practice — each does a different job.</p>'
+        + cards + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openPracticeHub = openPracticeHub;
+
+// ════════════════════════════════════════════════════════════════════
 // v23.3 — SPACED REVIEW OF LESSONS (Chase request). Every Teaching Board topic
 // you learn is scheduled to resurface for a quick recall check on an SM-2-lite
 // schedule (1 → 3 → 7 → 16 → 35 → 90 days), so lessons actually stick.

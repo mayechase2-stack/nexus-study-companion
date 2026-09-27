@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20260923v287">
+    <link rel="stylesheet" href="style.css?v=20260927v288">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -1254,9 +1254,9 @@
                             <span style="font-size:1.3rem;flex-shrink:0;">🎛️</span>
                             <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Graph &amp; Explore</div><div style="color:var(--text-muted);font-size:0.78rem;">Plot · sliders · points</div></div>
                         </button>
-                        <button onclick="openExamPrep()" style="display:flex;align-items:center;gap:12px;text-align:left;background:rgba(253,121,168,0.10);border:1px solid rgba(253,121,168,0.35);border-radius:14px;padding:13px 15px;cursor:pointer;" onmouseover="this.style.borderColor='rgba(253,121,168,0.7)'" onmouseout="this.style.borderColor='rgba(253,121,168,0.35)'">
-                            <span style="font-size:1.3rem;flex-shrink:0;">🎓</span>
-                            <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Exam prep</div><div style="color:var(--text-muted);font-size:0.78rem;">SAT · ACT · AP practice</div></div>
+                        <button onclick="openPracticeHub()" style="display:flex;align-items:center;gap:12px;text-align:left;background:rgba(253,121,168,0.10);border:1px solid rgba(253,121,168,0.35);border-radius:14px;padding:13px 15px;cursor:pointer;" onmouseover="this.style.borderColor='rgba(253,121,168,0.7)'" onmouseout="this.style.borderColor='rgba(253,121,168,0.35)'">
+                            <span style="font-size:1.3rem;flex-shrink:0;">🏋️</span>
+                            <div style="min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.92rem;">Practice</div><div style="color:var(--text-muted);font-size:0.78rem;">Quiz · flashcards · exam sim</div></div>
                         </button>
                     </div>
 
@@ -1465,12 +1465,12 @@
                         <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #6c5ce7, #ed64a6);">Generate</button>
                     </div>
 
-                    <!-- Quick Quiz - Unique Feature -->
-                    <div class="card glass-panel" onclick="startQuiz()" style="background: linear-gradient(135deg, rgba(255, 195, 18, 0.1), rgba(250, 177, 160, 0.1)); border: 1px solid rgba(255, 195, 18, 0.5);">
-                        <div class="icon-glow orange"><i class="ph ph-lightning"></i></div>
-                        <h3>Quick Quiz</h3>
-                        <p>Test your knowledge</p>
-                        <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #ffc312, #fab1a0);">Start Quiz</button>
+                    <!-- Practice hub — one door to quiz / flashcards / fix mistakes / due review / exam sim -->
+                    <div class="card glass-panel" onclick="openPracticeHub()" style="background: linear-gradient(135deg, rgba(255, 195, 18, 0.1), rgba(250, 177, 160, 0.1)); border: 1px solid rgba(255, 195, 18, 0.5);">
+                        <div class="icon-glow orange"><i class="ph ph-barbell"></i></div>
+                        <h3>Practice</h3>
+                        <p>Quiz · flashcards · fix mistakes · exam sim</p>
+                        <button class="btn-primary" style="margin-top: 8px;background: linear-gradient(135deg, #ffc312, #fab1a0);">Practice</button>
                     </div>
 
                     <!-- Math Equation Visualizer - NEW v7.0 -->
@@ -5425,7 +5425,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20260923v287"></script>
+    <script src="script.js?v=20260927v288"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
