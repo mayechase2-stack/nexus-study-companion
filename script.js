@@ -59,6 +59,39 @@ const EMAILJS_TEMPLATE_ID = '';
 })();
 
 // ════════════════════════════════════════════════════════════════════
+// v24.9 — FEATURE USAGE ANALYTICS. Records which features actually get used so
+// the owner sees real "who uses what" instead of guessing. Local counts give an
+// instant/offline tally; a best-effort anon cloud insert to `feature_events`
+// (RLS: anon insert, owner-only read) powers the cross-user owner dashboard.
+// Requires migration 0010_feature_events.sql — degrades SILENTLY to local-only
+// until it's run. Telemetry never disrupts the app (all failures swallowed).
+(function () {
+    var _lastFeat = {}; // per-feature last-insert time, to ignore render double-fires
+    function _localBump(name) {
+        try {
+            var m = JSON.parse(localStorage.getItem('nexus_feature_counts') || '{}');
+            m[name] = (m[name] || 0) + 1;
+            localStorage.setItem('nexus_feature_counts', JSON.stringify(m));
+        } catch (_) {}
+    }
+    function trackFeature(name) {
+        try {
+            name = String(name == null ? '' : name).slice(0, 60); if (!name) return;
+            _localBump(name);
+            var now = Date.now();
+            if (_lastFeat[name] && (now - _lastFeat[name]) < 4000) return; // dedupe double-fire within 4s
+            _lastFeat[name] = now;
+            if (typeof nexusSB === 'undefined' || !nexusSB) return; // no session yet → local-only
+            nexusSB.from('feature_events').insert({
+                feature: name,
+                username: (localStorage.getItem('auth_user') || 'anon').slice(0, 40)
+            }).then(function () {}, function () {}); // swallow all outcomes
+        } catch (_) {}
+    }
+    window.trackFeature = trackFeature;
+})();
+
+// ════════════════════════════════════════════════════════════════════
 // v19.3 — FEEDBACK: users send feedback that reaches the OWNER (cloud).
 // Distinct from the public Suggestions board (that's local + voting); this
 // is a private inbox. Requires migration 0004_feedback.sql.
@@ -5341,6 +5374,7 @@ async function checkNotebookGrammar() {
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
 function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
+    if (typeof trackFeature === 'function') trackFeature('concept_map');
     var seed = (typeof seedTopic === 'string' && seedTopic) ? seedTopic.slice(0, 80) : '';
     var area = !seed && document.getElementById('notebook-area');
     if (area) {
@@ -6677,6 +6711,7 @@ function finishVocabQuiz() {
 // QUICK QUIZ
 // ============================================================
 function startQuiz() {
+    if (typeof trackFeature === 'function') trackFeature('quiz');
     document.getElementById('quiz-modal').classList.remove('hidden');
     document.getElementById('quiz-setup').style.display = 'block';
     document.getElementById('quiz-content').classList.add('hidden');
@@ -14023,6 +14058,7 @@ function _loadPdfJs() {
     });
 }
 function openStudyUpload() {
+    if (typeof trackFeature === 'function') trackFeature('upload_study');
     var existing = document.getElementById('studyupload-modal'); if (existing) existing.remove();
     _studyUploadText = ''; _studyUploadName = ''; _studyUploadSet = null;
     var m = document.createElement('div');
@@ -14152,6 +14188,7 @@ window._studyUploadSaveDeck = _studyUploadSaveDeck;
 var _examTest = 'SAT', _examSet = null, _examAnswered = {}, _examScore = 0;
 var _examDefaults = { SAT: 'Math', ACT: 'Science', AP: 'AP Biology' };
 function openExamPrep() {
+    if (typeof trackFeature === 'function') trackFeature('exam_prep');
     var ex = document.getElementById('exam-modal'); if (ex) ex.remove();
     _examSet = null; _examAnswered = {}; _examScore = 0;
     var m = document.createElement('div');
@@ -14265,6 +14302,7 @@ function _updateMistakeBadge() {
 window._updateMistakeBadge = _updateMistakeBadge;
 var _mistakeSet = [];
 function openMistakeReview() {
+    if (typeof trackFeature === 'function') trackFeature('review_mistakes');
     var ex = document.getElementById('mistake-modal'); if (ex) ex.remove();
     _mistakeSet = _mistakesLoad();
     var m = document.createElement('div');
@@ -14340,6 +14378,7 @@ window._mistakeReteach = _mistakeReteach;
 // existing feature; the hub adds live counts so you know what's waiting.
 // ════════════════════════════════════════════════════════════════════
 function openPracticeHub() {
+    if (typeof trackFeature === 'function') trackFeature('practice_hub');
     var ex = document.getElementById('practice-hub-modal'); if (ex) ex.remove();
     var mistakeN = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
     var dueN = (typeof _lessonReviewsDue === 'function') ? _lessonReviewsDue().length : 0;
@@ -14409,6 +14448,7 @@ function _updateLessonReviewBadge() {
 }
 window._updateLessonReviewBadge = _updateLessonReviewBadge;
 function openLessonReview() {
+    if (typeof trackFeature === 'function') trackFeature('lesson_review');
     var ex = document.getElementById('lreview-modal'); if (ex) ex.remove();
     var due = _lessonReviewsDue();
     var esc = escapeHtmlSafe;
@@ -14548,6 +14588,7 @@ Rules:
 // Flashcards modal — list decks + review one card at a time
 // v12.4: mode param — 'manual' = open to create deck, 'ai' = open to AI generate, else open deck list
 function openFlashcards(focusDeckId) {
+    if (typeof trackFeature === 'function') trackFeature('flashcards');
     const mode = (focusDeckId === 'manual' || focusDeckId === 'ai') ? focusDeckId : null;
     const deckId = mode ? null : focusDeckId;
 
@@ -17162,6 +17203,7 @@ function handleImageUpload(input) {
 // phones). Reuses the existing image → step-by-step flow. Kept in the click's
 // user-gesture chain so the file dialog isn't blocked.
 function snapAProblem() {
+    if (typeof trackFeature === 'function') trackFeature('snap_problem');
     if (typeof switchTab === 'function') switchTab('math');
     var u = document.getElementById('math-image-upload');
     if (u) { try { u.click(); } catch (_) {} }
@@ -18151,6 +18193,7 @@ function copyPromptEngineOutput() { return copyEnglishGenPromptOutput(); }
 // ============================================================
 
 function openMathVisualizer() {
+    if (typeof trackFeature === 'function') trackFeature('graph_explore');
     document.getElementById('math-visualizer-modal').classList.remove('hidden');
     // Draw initial grid
     const canvas = document.getElementById('math-graph-canvas');
@@ -20300,6 +20343,7 @@ const SP_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturd
 function _spLoad() { try { return JSON.parse(localStorage.getItem('study_planner') || '{}'); } catch (_) { return {}; } }
 function _spSave(d) { localStorage.setItem('study_planner', JSON.stringify(d)); }
 function openStudyPlanner() {
+    if (typeof trackFeature === 'function') trackFeature('my_progress');
     var existing = document.getElementById('study-planner-modal'); if (existing) existing.remove();
     var modal = document.createElement('div');
     modal.id = 'study-planner-modal';
@@ -20816,6 +20860,7 @@ function openDiagnostics() {
         + '<span style="font-size:0.85rem;color:' + color.fail + ';font-weight:700;">✕ ' + counts.fail + ' failed</span>'
         + '<button class="btn-secondary" style="margin-left:auto;font-size:0.78rem;padding:4px 10px;" onclick="openDiagnostics()"><i class="ph ph-arrow-clockwise"></i> Re-run</button></div>'
         + '<div style="padding:10px 20px 16px;overflow-y:auto;">' + rows + errHtml
+        + (isOwner() ? '<div style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;"><button class="btn-secondary" style="width:100%;font-size:0.85rem;padding:10px;background:linear-gradient(135deg,rgba(108,92,231,0.16),rgba(0,206,201,0.1));" onclick="openUsageDashboard()"><i class="ph ph-chart-bar"></i> Feature usage — who uses what</button></div>' : '')
         + (isOwner() ? '<div id="diag-owner-feedback" style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;font-size:0.8rem;color:var(--text-muted);"><i class="ph ph-chat-teardrop-dots"></i> Loading feedback inbox…</div>' : '')
         + (isOwner() ? '<div id="diag-owner-feed" style="margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;font-size:0.8rem;color:var(--text-muted);"><i class="ph ph-cloud-arrow-down"></i> Loading all-user error feed…</div>' : '')
         + '</div></div>';
@@ -20852,6 +20897,93 @@ function openDiagnostics() {
         });
     }
 }
+
+// ════════════════════════════════════════════════════════════════════
+// v24.9 — OWNER USAGE DASHBOARD. Aggregates the feature_events telemetry into
+// a real "who uses what" view: per-feature hits, unique users, and last-7-day
+// activity. Reads recent rows (RLS returns them only to the owner) and rolls
+// them up client-side; falls back to this browser's local counts if the cloud
+// table isn't there yet. Companion to the command-center Adoption tab.
+// ════════════════════════════════════════════════════════════════════
+var FEATURE_LABELS = {
+    'graph_explore': 'Graph & Explore', 'my_progress': 'My Progress', 'practice_hub': 'Practice hub',
+    'quiz': 'Quick check (quiz)', 'flashcards': 'Flashcards', 'exam_prep': 'Test-day sim (exam)',
+    'review_mistakes': 'Fix my mistakes', 'lesson_review': 'Due for review', 'teach_start': 'Teaching Board lesson',
+    'companion': 'Companion chat', 'snap_problem': 'Snap a problem', 'upload_study': 'Upload → study set',
+    'concept_map': 'Concept map',
+    'tab:math': 'Math tab', 'tab:science': 'Science tab', 'tab:english': 'English tab', 'tab:social': 'Social Studies tab',
+    'tab:teach': 'Teaching Board tab', 'tab:notebook': 'Notebook tab', 'tab:dashboard': 'Command Center tab',
+    'tab:home': 'Home tab', 'tab:leaderboard': 'Leaderboard tab', 'tab:achievements': 'Profile tab',
+    'tab:shop': 'Shop tab', 'tab:inventory': 'Inventory tab', 'tab:suggestions': 'Suggestions tab',
+    'tab:feedback': 'Feedback tab', 'tab:updates': 'Updates tab'
+};
+function _featLabel(k) { return FEATURE_LABELS[k] || k; }
+async function fetchFeatureUsage(limit) {
+    try {
+        if (!nexusSB) _initSupabase();
+        if (!nexusSB) return null;
+        var q = await nexusSB.from('feature_events')
+            .select('feature,username,created_at')
+            .order('created_at', { ascending: false })
+            .limit(limit || 5000);
+        if (q && q.error) return null;
+        return (q && q.data) || [];
+    } catch (_) { return null; }
+}
+function openUsageDashboard() {
+    var ex = document.getElementById('usage-modal'); if (ex) ex.remove();
+    var m = document.createElement('div');
+    m.id = 'usage-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000062;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:620px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:white;font-size:1.05rem;"><i class="ph ph-chart-bar" style="color:#a29bfe;"></i> Feature usage</h3><button class="btn-icon" onclick="document.getElementById(\'usage-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div id="usage-body" style="padding:16px 20px;overflow:auto;"><div style="text-align:center;color:var(--text-muted);padding:24px;"><i class="ph ph-cloud-arrow-down"></i> Loading usage…</div></div>'
+        + '</div>';
+    document.body.appendChild(m);
+    fetchFeatureUsage(5000).then(function (rows) {
+        var body = document.getElementById('usage-body'); if (!body) return;
+        var cloud = Array.isArray(rows) && rows.length > 0;
+        var agg = {}; // feature -> {hits, users:Set, hits7d}
+        var allUsers = {};
+        var weekAgo = Date.now() - 7 * 86400000;
+        if (cloud) {
+            rows.forEach(function (r) {
+                var f = r.feature || 'unknown';
+                if (!agg[f]) agg[f] = { hits: 0, users: {}, hits7d: 0 };
+                agg[f].hits++;
+                var u = r.username || 'anon'; agg[f].users[u] = 1; allUsers[u] = 1;
+                var t = r.created_at ? Date.parse(r.created_at) : 0;
+                if (t && t >= weekAgo) agg[f].hits7d++;
+            });
+        } else {
+            // fallback: this browser's local counts (no per-user / no 7d split)
+            var local = {}; try { local = JSON.parse(localStorage.getItem('nexus_feature_counts') || '{}'); } catch (_) {}
+            Object.keys(local).forEach(function (f) { agg[f] = { hits: local[f], users: {}, hits7d: 0 }; });
+        }
+        var list = Object.keys(agg).map(function (f) {
+            return { f: f, hits: agg[f].hits, users: Object.keys(agg[f].users).length, hits7d: agg[f].hits7d };
+        }).sort(function (a, b) { return b.hits - a.hits; });
+        var esc = escapeHtmlSafe;
+        if (!list.length) {
+            body.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:26px;"><div style="font-size:2rem;">📊</div><div style="color:#fff;font-weight:600;margin:6px 0 4px;">No usage recorded yet</div><div style="font-size:0.85rem;">Use a few features and they\'ll show up here.</div></div>';
+            return;
+        }
+        var maxHits = Math.max.apply(null, list.map(function (x) { return x.hits; }).concat([1]));
+        var banner = cloud
+            ? '<div style="background:rgba(69,199,141,0.10);border:1px solid rgba(69,199,141,0.3);border-radius:9px;padding:9px 12px;font-size:0.8rem;color:#8ce6bb;margin-bottom:14px;"><b>' + Object.keys(allUsers).length + '</b> user(s) · <b>' + rows.length + '</b> events (last 5000) · live from the cloud</div>'
+            : '<div style="background:rgba(255,190,90,0.10);border:1px solid rgba(255,190,90,0.35);border-radius:9px;padding:9px 12px;font-size:0.8rem;color:#ffe0ad;margin-bottom:14px;">Showing <b>this browser only</b> — run migration <code>0010_feature_events.sql</code> in Supabase to see all users, unique counts, and 7-day activity.</div>';
+        var bars = list.map(function (x) {
+            var pct = Math.round(x.hits / maxHits * 100);
+            var meta = cloud ? (x.users + ' user' + (x.users === 1 ? '' : 's') + ' · ' + x.hits7d + ' this week') : '';
+            return '<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:0.83rem;margin-bottom:4px;"><span style="color:#fff;font-weight:600;">' + esc(_featLabel(x.f)) + '</span><span style="color:var(--text-muted);">' + x.hits + ' open' + (x.hits === 1 ? '' : 's') + (meta ? ' · ' + esc(meta) : '') + '</span></div>'
+                + '<div style="height:10px;background:rgba(0,0,0,0.35);border-radius:6px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#6C5CE7,#00cec9);border-radius:6px;"></div></div></div>';
+        }).join('');
+        body.innerHTML = banner + bars
+            + '<p style="font-size:0.74rem;color:var(--text-muted);margin:14px 0 0;">Counts are feature opens. Pair this with the Adoption tab on your command-center board to decide what to double down on or cut.</p>';
+    });
+}
+window.openUsageDashboard = openUsageDashboard;
 
 // v17.5 — accessibility: give icon-only controls a screen-reader label by copying their
 // title to aria-label (and a generic fallback for unlabeled icon buttons). Runs on load
@@ -25136,6 +25268,7 @@ let _companionChatHistory = [];
 
 function openCompanionChat(id) {
     if (!hasPro()) { showProUpgradePrompt('Companions'); return; }
+    if (typeof trackFeature === 'function') trackFeature('companion');
     const data = COMPANIONS_DATA[id];
     if (!data) return;
     const chat = document.getElementById('companion-chat');
@@ -29970,6 +30103,7 @@ function _teachShowQuickActions() {
 }
 
 function startTeachingTopic(presetTopic) {
+    if (typeof trackFeature === 'function') trackFeature('teach_start');
     const input = document.getElementById('teach-topic-input');
     const subjectSel = document.getElementById('teach-subject');
     const topic = (typeof presetTopic === 'string' && presetTopic) ? presetTopic : (input ? input.value.trim() : '');
@@ -30806,6 +30940,7 @@ function renderStudyHistoryChart(canvasId) {
     var _orig = typeof switchTab==='function' ? switchTab : null;
     if (!_orig) return;
     window.switchTab = function(tabId) {
+        try { if (typeof trackFeature === 'function') trackFeature('tab:' + tabId); } catch(_){}
         var STUDY=['math','science','english','social','dashboard','notebook'];
         if(STUDY.indexOf(tabId)>=0){ endStudySession(); startStudySession(tabId.charAt(0).toUpperCase()+tabId.slice(1)); }
         else endStudySession();
