@@ -17256,7 +17256,7 @@ async function processMathInput() {
 
     // v12.1 — start a fresh tutor conversation
     _mathTutorTurns = [];
-    output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.35rem;"></i><p>Analyzing Math Concept...</p></div>';
+    output.innerHTML = '<div class="nx-loading"><div class="nx-loading-dots"><span></span><span></span><span></span></div><p class="nx-loading-text">Loading your explanation…</p></div>';
 
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
@@ -17351,7 +17351,17 @@ FORMAT (Pure HTML, no markdown):
 <a href="https://www.youtube.com/results?search_query=[URL-encoded search query for this math concept]" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#ff0000,#cc0000);color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px;"><span style="margin-right:8px;">▶</span> Search YouTube</a>
 
 IMPORTANT: Use ONLY valid HTML. No markdown wrappers. Show ALL work clearly. For the YouTube link, replace the search_query value with an appropriate URL-encoded search for the math concept.`
-            : `${baseRole}OUTPUT MODE: Concise but complete HTML solution. Open with the answer, then justify with the key steps and the rule used at each step. End with a verification line and a YouTube search link formatted as: <a href="https://www.youtube.com/results?search_query=[URL-encoded concept]" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#ff0000,#cc0000);color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px;">▶ Search YouTube</a>. Use clean semantic HTML — no markdown fences.${modeModifier}`;
+            : `${baseRole}OUTPUT MODE: A short, SCANNABLE HTML explanation — NEVER a wall of text. A student will bounce off a big paragraph, especially for something simple.
+
+FORMAT RULES (critical):
+- LEAD with the answer or a one-sentence definition, on its own line: <p style="font-size:1.06rem;margin:0 0 14px;"><strong>[the direct answer / definition]</strong></p>
+- Break EVERY list of parts, terms, or steps into a real bullet list: <ul style="margin:0 0 14px;padding-left:20px;line-height:1.6;"><li>…</li></ul>. NEVER write inline numbering like "1. … 2. … 3. …" inside a paragraph — that is the exact wall-of-text to avoid.
+- Bold the term at the start of each bullet: <li><strong>m (slope)</strong> — how steep the line is; rise over run.</li>
+- One idea per line. Keep any paragraph to 1–2 short sentences with a blank line between them. Use <h4 style="margin:16px 0 6px;color:var(--accent);">short heading</h4> to separate parts when there's more than one.
+- Keep it PROPORTIONAL: a simple concept gets a few tight bullets, not an essay. Don't pad.
+- Optional tip box ONLY if a mnemonic/gotcha genuinely helps: <div style="background:rgba(0,206,201,0.08);border-left:3px solid #00cec9;padding:8px 12px;border-radius:6px;margin:12px 0;">💡 [tip]</div>
+- End with: <a href="https://www.youtube.com/results?search_query=[URL-encoded concept]" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#ff0000,#cc0000);color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px;">▶ Search YouTube</a>
+Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
         
         // Build user content — support image + text together
         let userContent;
@@ -17380,7 +17390,10 @@ IMPORTANT: Use ONLY valid HTML. No markdown wrappers. Show ALL work clearly. For
         let final = '';
         await streamChat({
             apiKey,
-            model: localStorage.getItem('ai_model') || 'gpt-4o',
+            // v24.10 — quick concept/answer mode uses the much faster gpt-4o-mini;
+            // step-by-step and image solves keep gpt-4o for full rigor. Honors a
+            // user-chosen model if they set one in Settings.
+            model: localStorage.getItem('ai_model') || ((stepByStep || mathImageBase64) ? 'gpt-4o' : 'gpt-4o-mini'),
             messages: _mathTutorTurns,
             onChunk: (delta, full) => {
                 final = full;
