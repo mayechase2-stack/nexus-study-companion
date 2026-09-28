@@ -17243,6 +17243,26 @@ window.nexusInstallApp = nexusInstallApp;
 let _mathTutorTurns = [];
 let _mathTutorSystem = '';
 
+// v24.12 — Decide whether a math question needs the strong (accurate) model or can
+// use the fast one. Accuracy-first: returns TRUE (→ gpt-4o) for anything that
+// computes, and only FALSE (→ fast gpt-4o-mini) for clearly conceptual questions.
+// When unsure, returns TRUE. Keeps speed on "explain/define" while never risking
+// arithmetic on real problems.
+function _mathNeedsStrongModel(text, stepByStep, hasImage) {
+    if (stepByStep || hasImage) return true;
+    var t = String(text == null ? '' : text).trim();
+    if (!t) return true;
+    // explicit math to crunch: equation, operator between numbers/vars, fraction, roots/powers/integrals
+    if (/[=√∫∑∂]|[0-9)]\s*[+\-×*/÷^]\s*[0-9a-z(√]|\b\d+\s*\/\s*\d+\b|\bx\s*[\^²³]/i.test(t)) return true;
+    // computational task words
+    if (/\b(solve|evaluate|simplify|factor|expand|compute|calculate|derivative|differentiate|integral|integrate|limit|slope|intercept|roots?|solutions?|solve for|system of|matrix|determinant|probability|permutation|combination|standard deviation|variance|mean|median|area|volume|perimeter|surface area|quadratic|polynomial|logarithm|exponent|round to|convert)\b/i.test(t)) return true;
+    // two or more numbers usually means there's arithmetic to do
+    var nums = t.match(/\d+(\.\d+)?/g);
+    if (nums && nums.length >= 2) return true;
+    // otherwise it's a concept/definition question → fast model is both quick AND correct
+    return false;
+}
+
 async function processMathInput() {
     if (!hasPaid()) { openPaymentModal('access'); return; }
     const text = document.getElementById('math-text-input').value.trim();
@@ -17390,12 +17410,17 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
         const contentEl = output.querySelector('.streaming-content');
         const cursorEl = output.querySelector('.streaming-cursor');
         let final = '';
+        // v24.12 — HAVE BOTH speed AND accuracy by routing on what the question needs.
+        // Accuracy is the priority: anything that actually COMPUTES (equations, numbers,
+        // solve/factor/derivative…, step-by-step, or an image) uses the strong model
+        // gpt-4o. Only clearly conceptual questions ("what is / explain / why", no math
+        // to crunch) use the fast gpt-4o-mini — where it's both quick AND correct. When
+        // in doubt it picks the strong model. A user-set ai_model still wins.
+        const _mathModel = localStorage.getItem('ai_model')
+            || (_mathNeedsStrongModel(text, stepByStep, mathImageBase64) ? 'gpt-4o' : 'gpt-4o-mini');
         await streamChat({
             apiKey,
-            // v24.10 — quick concept/answer mode uses the much faster gpt-4o-mini;
-            // step-by-step and image solves keep gpt-4o for full rigor. Honors a
-            // user-chosen model if they set one in Settings.
-            model: localStorage.getItem('ai_model') || ((stepByStep || mathImageBase64) ? 'gpt-4o' : 'gpt-4o-mini'),
+            model: _mathModel,
             messages: _mathTutorTurns,
             onChunk: (delta, full) => {
                 final = full;
