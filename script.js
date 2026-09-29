@@ -15268,6 +15268,12 @@ DISCIPLINE-SPECIFIC RIGOR:
 - Biology: name molecules / pathways / structures precisely; for processes, give the steps in order with the enzymes / catalysts involved.
 - Tie every explanation to the relevant scientific law or principle (Newton's laws, conservation of energy, periodic trends, Le Châtelier's principle, central dogma, etc.).
 
+ANSWER ACCURACY — MANDATORY for any calculation (never present an unverified number):
+- State the formula/law BY NAME, plug in the given values, and carry UNITS through every step; the final answer must have correct units and sensible significant figures.
+- Recompute the result a SECOND way (or rearrange and back-substitute) and confirm both agree. If they disagree, find the mistake and fix it before answering.
+- SHOW the check: substitute the answer back into the governing equation (or verify the balanced equation's atoms/charge balance) and display that it works, e.g. "check: (2 mol)(6.0 g/mol) = 12 g ✓".
+- Compute divisions/roots EXACTLY or to the right number of sig figs — never round mid-problem or slip a value to a convenient whole number. Watch signs, unit conversions, and mole/mass/volume ratios (the classic slip-ups).
+
 OUTPUT REQUIREMENTS:
 - Clean semantic HTML only (no markdown fences, no \`\`\`html wrappers).
 - Bold every NEW vocabulary term on first introduction and define it inline.
@@ -15313,12 +15319,19 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
         output.innerHTML = '<div><span class="streaming-content"></span><span class="streaming-cursor">▍</span></div>';
         const contentEl = output.querySelector('.streaming-content');
         const cursorEl = output.querySelector('.streaming-cursor');
+        // v24.13 — same "have both" routing as Math: computational science (numbers,
+        // formulas, stoichiometry, physics quantities…) uses the accurate gpt-4o at a
+        // low temperature; conceptual questions ("what is photosynthesis") use the fast
+        // gpt-4o-mini at the normal temperature. Accuracy-first: unsure → strong model.
+        const _sciCompute = _mathNeedsStrongModel(input, false, scienceImageBase64)
+            || /\b(balance|balanced equation|molarity|moles?|grams?|molar mass|concentration|stoichiometry|velocity|acceleration|force|momentum|kinetic|potential energy|joules?|watts?|newtons?|pressure|density|wavelength|frequency|\bpH\b|half-life|molecular formula|empirical formula|limiting reagent|net ionic|how many|how much|determine|calculate)\b/i.test(input || '');
+        const _sciModel = localStorage.getItem('ai_model') || (_sciCompute ? 'gpt-4o' : 'gpt-4o-mini');
         await streamChat({
             apiKey,
-            model: localStorage.getItem('ai_model') || 'gpt-4o',
+            model: _sciModel,
             messages: _scienceTutorTurns,
             max_tokens: 6000,
-            temperature: 0.7,
+            temperature: _sciCompute ? 0.2 : 0.7,
             onChunk: (delta, full) => { contentEl.textContent = stripHtmlForStream(full); },
             onDone: (full) => {
                 if (cursorEl) cursorEl.remove();
@@ -17416,12 +17429,16 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
         // gpt-4o. Only clearly conceptual questions ("what is / explain / why", no math
         // to crunch) use the fast gpt-4o-mini — where it's both quick AND correct. When
         // in doubt it picks the strong model. A user-set ai_model still wins.
-        const _mathModel = localStorage.getItem('ai_model')
-            || (_mathNeedsStrongModel(text, stepByStep, mathImageBase64) ? 'gpt-4o' : 'gpt-4o-mini');
+        const _mathCompute = _mathNeedsStrongModel(text, stepByStep, mathImageBase64);
+        const _mathModel = localStorage.getItem('ai_model') || (_mathCompute ? 'gpt-4o' : 'gpt-4o-mini');
         await streamChat({
             apiKey,
             model: _mathModel,
             messages: _mathTutorTurns,
+            // v24.13 — streamChat sends no temperature by default (→ OpenAI's hot 1.0);
+            // pin it low for computation so arithmetic is steady, a touch warmer for
+            // conceptual explanations.
+            temperature: _mathCompute ? 0.2 : 0.5,
             onChunk: (delta, full) => {
                 final = full;
                 // v11.0 — strip HTML tags during streaming so users don't see raw <h3>
