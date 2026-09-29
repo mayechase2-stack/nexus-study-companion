@@ -91,6 +91,14 @@ const EMAILJS_TEMPLATE_ID = '';
     window.trackFeature = trackFeature;
 })();
 
+// v24.14 — one shared "loading" state so every tab feels like the same app
+// (bouncing dots + a friendly message), instead of a lone blinking spinner.
+function _nxLoadingHTML(text) {
+    var t = String(text == null ? 'Loading…' : text);
+    return '<div class="nx-loading"><div class="nx-loading-dots"><span></span><span></span><span></span></div><p class="nx-loading-text">' + t.replace(/[<>]/g, '') + '</p></div>';
+}
+window._nxLoadingHTML = _nxLoadingHTML;
+
 // ════════════════════════════════════════════════════════════════════
 // v19.3 — FEEDBACK: users send feedback that reaches the OWNER (cloud).
 // Distinct from the public Suggestions board (that's local + voting); this
@@ -6762,7 +6770,7 @@ async function generateQuiz() {
 
     setup.style.display = 'none';
     content.classList.remove('hidden');
-    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.35rem;"></i><p>Generating Quiz...</p></div>';
+    content.innerHTML = _nxLoadingHTML('Building your quiz…');
 
     try {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -14113,7 +14121,7 @@ async function _studyUploadGenerate() {
     var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
     if (!apiKey) { showToast('Sign in (or add an API key) to build a study set.', 'error', 4000); return; }
     var res = document.getElementById('studyupload-result');
-    if (res) res.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;"><i class="ph ph-spinner ph-spin"></i> Building your summary, flashcards, and quiz…</div>';
+    if (res) res.innerHTML = _nxLoadingHTML('Building your summary, flashcards, and quiz…');
     var sys = 'You turn a student\'s source material into a study set. Return ONLY valid JSON, no prose, in EXACTLY this shape: {"summary":"3-5 sentence plain-English summary","flashcards":[{"front":"term or question","back":"concise answer"}],"quiz":[{"question":"","options":["","","",""],"answer":0,"why":"1-line explanation"}]}. Give 6-10 flashcards and 5 quiz questions, each quiz "answer" the 0-based index of the correct option. Keep everything concise and grounded ONLY in the material.';
     try {
         var r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -14224,7 +14232,7 @@ async function _examGenerate() {
     if (!apiKey) { showToast('Sign in (or add an API key) to generate a practice set.', 'error', 4000); return; }
     _examSet = null; _examAnswered = {}; _examScore = 0;
     var res = document.getElementById('exam-result');
-    if (res) res.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;"><i class="ph ph-spinner ph-spin"></i> Building a ' + escapeHtmlSafe(_examTest) + ' ' + escapeHtmlSafe(section) + ' set…</div>';
+    if (res) res.innerHTML = _nxLoadingHTML('Building a ' + _examTest + ' ' + section + ' set…');
     var sys = 'You are an expert ' + _examTest + ' tutor. Generate a realistic ' + _examTest + ' ' + section + ' practice set: 6 multiple-choice questions matching the real exam\'s style, format, and difficulty. Return ONLY valid JSON: {"questions":[{"question":"","options":["","","",""],"answer":0,"why":"1-2 line explanation of the correct choice"}]}. "answer" is the 0-based index of the correct option. Make questions authentic to the ' + _examTest + ', not generic. No prose outside JSON.';
     try {
         var r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -15229,7 +15237,7 @@ async function solveScience() {
     }
     const output = document.getElementById('science-output');
     output.classList.remove('hidden');
-    output.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin" style="font-size:1.35rem;"></i><p>Analyzing...</p></div>';
+    output.innerHTML = _nxLoadingHTML('Loading your explanation…');
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
     // v12.1 — fresh conversation
@@ -15277,6 +15285,7 @@ ANSWER ACCURACY — MANDATORY for any calculation (never present an unverified n
 OUTPUT REQUIREMENTS:
 - Clean semantic HTML only (no markdown fences, no \`\`\`html wrappers).
 - Bold every NEW vocabulary term on first introduction and define it inline.
+- SCANNABLE, never a wall of text: if the question asks something specific, LEAD with the direct answer in one sentence, then explain. Break any list of parts, steps, or factors into a real <ul><li> or <ol><li> — never cram them inline as "1. … 2. …" inside a paragraph. Keep paragraphs to 1–2 short sentences with space between; use <h3>/<h4> sub-headings to separate parts. Keep it proportional — a simple question gets a tight answer, not an essay.
 
 IMAGE READING (when an image is attached):
 - Transcribe/describe the image content first so the student knows you understood it.
@@ -15505,7 +15514,7 @@ async function searchSocial(type, directQuery) {
     // visible (not just the final answer).
     const _srchDetails = outElem.closest('details');
     if (_srchDetails && !_srchDetails.open) _srchDetails.open = true;
-    outElem.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Researching history...';
+    outElem.innerHTML = _nxLoadingHTML('Looking it up…');
 
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); outElem.innerHTML = 'API Key required.'; return; }
@@ -17289,7 +17298,7 @@ async function processMathInput() {
 
     // v12.1 — start a fresh tutor conversation
     _mathTutorTurns = [];
-    output.innerHTML = '<div class="nx-loading"><div class="nx-loading-dots"><span></span><span></span><span></span></div><p class="nx-loading-text">Loading your explanation…</p></div>';
+    output.innerHTML = _nxLoadingHTML('Loading your explanation…');
 
     const apiKey = getApiKey();
     if (!apiKey) { showToast('Add API key in Settings.', 'error'); return; }
