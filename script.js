@@ -20466,6 +20466,48 @@ function _sgDaysLeft(dateStr) {
     var t = new Date(dateStr + 'T23:59:59'); if (isNaN(t)) return null;
     return Math.ceil((t - new Date()) / 86400000);
 }
+
+// v24.15 — "PROVE IT WORKS": a REAL readiness score from actual study signals
+// (consistency, effort, and how clean your review backlog is), plus a daily plan
+// that closes the gap. This is the retention differentiator — a felt reason to
+// come back: "you're X% ready, do these 3 things today to stay on track."
+function _computeReadiness() {
+    var g = _sgLoad();
+    var sessions = (typeof getStudySessions === 'function') ? getStudySessions() : [];
+    var stats = (typeof getStudyStats === 'function') ? getStudyStats() : {};
+    var now = Date.now(), weekAgo = now - 7 * 86400000;
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var daysSet = {}, minsLast7 = 0, studiedToday = false;
+    (sessions || []).forEach(function (s) {
+        if (!s || !s.date) return;
+        var t = Date.parse(s.date + 'T12:00:00'); if (isNaN(t)) return;
+        if (t >= weekAgo) { daysSet[s.date] = 1; minsLast7 += (s.duration || 0); }
+        if (s.date === todayStr) studiedToday = true;
+    });
+    var daysStudied = Object.keys(daysSet).length;
+    var mistakes = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
+    var due = (typeof _lessonReviewsDue === 'function') ? _lessonReviewsDue().length : 0;
+    var streak = stats.currentStreak || 0;
+    // three honest 0–100 sub-scores
+    var consistency = Math.min(100, Math.round(daysStudied / 5 * 100)); // 5+ of last 7 days = full
+    var effort = Math.min(100, Math.round(minsLast7 / 120 * 100));       // ~2h/week = full
+    var upkeep = Math.max(0, 100 - Math.min(100, mistakes * 8 + due * 10)); // backlog penalty
+    var pct = (sessions && sessions.length) ? Math.round(0.4 * consistency + 0.3 * effort + 0.3 * upkeep) : 0;
+    var label, color;
+    if (pct >= 80) { label = 'On track'; color = '#45c78d'; }
+    else if (pct >= 55) { label = 'Getting there'; color = '#00CEC9'; }
+    else if (pct >= 30) { label = 'Behind — let’s catch up'; color = '#ffbe5a'; }
+    else { label = 'Just getting started'; color = '#a29bfe'; }
+    // a concrete daily plan generated from the student's actual state
+    var plan = [];
+    if (mistakes > 0) plan.push({ t: 'Fix ' + Math.min(mistakes, 3) + ' of your ' + mistakes + ' saved mistake' + (mistakes > 1 ? 's' : ''), fn: 'openMistakeReview', icon: '🔁' });
+    if (due > 0) plan.push({ t: 'Review ' + due + ' due lesson' + (due > 1 ? 's' : ''), fn: 'openLessonReview', icon: '🧠' });
+    if (!studiedToday) plan.push({ t: 'Do a quick practice set', fn: 'openPracticeHub', icon: '⚡' });
+    if (!plan.length) plan.push({ t: 'You’re caught up — get ahead with a quiz', fn: 'startQuiz', icon: '🎯' });
+    return { pct: pct, label: label, color: color, plan: plan.slice(0, 3), daysStudied: daysStudied, minsLast7: minsLast7, streak: streak, mistakes: mistakes, due: due };
+}
+window._computeReadiness = _computeReadiness;
+
 function renderStudyGoals() {
     var el = document.getElementById('sg-panel'); if (!el) return;
     var g = _sgLoad(), data = _spLoad();
@@ -20486,6 +20528,22 @@ function renderStudyGoals() {
     var dailyLine = dt ? ('<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
         + '<span style="font-size:0.8rem;color:var(--text-muted);">Today: <b style="color:' + (todayDone >= dt ? '#45c78d' : '#fff') + ';">' + todayDone + ' / ' + dt + '</b> tasks'
         + (todayDone >= dt ? ' <span style="color:#45c78d;">✓ daily goal hit</span>' : '') + '</span></div>') : '';
+    // v24.15 — real readiness meter + a daily plan that closes the gap
+    var R = _computeReadiness();
+    var planRows = R.plan.map(function (p) {
+        return '<button onclick="var m=document.getElementById(\'study-planner-modal\');if(m)m.remove();' + p.fn + '()" '
+            + 'style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:9px;padding:9px 12px;margin-bottom:6px;cursor:pointer;color:#fff;font-size:0.85rem;">'
+            + '<span style="font-size:1.1rem;flex-shrink:0;">' + p.icon + '</span><span style="flex:1;">' + esc(p.t) + '</span><i class="ph ph-arrow-right" style="color:var(--accent);"></i></button>';
+    }).join('');
+    var readyMeter = '<div style="margin-top:16px;padding:14px;border-radius:12px;background:rgba(0,0,0,0.22);border:1px solid var(--glass-border);">'
+        + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">'
+        + '<span style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;font-weight:700;">Readiness' + (g.date && days != null && days >= 0 ? ' · ' + days + 'd to go' : '') + '</span>'
+        + '<span style="font-weight:800;font-size:1.6rem;color:' + R.color + ';line-height:1;">' + R.pct + '%</span></div>'
+        + '<div style="height:12px;background:rgba(0,0,0,0.35);border-radius:7px;overflow:hidden;margin-top:8px;"><div style="height:100%;width:' + R.pct + '%;background:' + R.color + ';border-radius:7px;transition:width .4s;"></div></div>'
+        + '<div style="font-size:0.82rem;color:' + R.color + ';font-weight:600;margin-top:7px;">' + R.label + '</div>'
+        + '<div style="font-size:0.73rem;color:var(--text-muted);margin-top:2px;">' + R.daysStudied + '/7 days active · ' + R.minsLast7 + ' min this week' + (R.streak ? ' · ' + R.streak + '-day streak' : '') + '</div>'
+        + '<div style="margin-top:13px;"><div style="font-size:0.78rem;font-weight:700;color:#fff;margin-bottom:7px;">📋 Do this today to close the gap</div>' + planRows + '</div>'
+        + '</div>';
     el.innerHTML = '<div class="glass-panel" style="padding:16px;border:1px solid rgba(108,92,231,0.4);background:linear-gradient(135deg,rgba(108,92,231,0.10),rgba(0,206,201,0.06));">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">'
         + '<h4 style="margin:0;color:#fff;font-size:0.95rem;"><i class="ph ph-target" style="color:#6C5CE7;"></i> Your goal</h4>' + countdown + '</div>'
@@ -20495,6 +20553,7 @@ function renderStudyGoals() {
         + '<label style="font-size:0.78rem;color:var(--text-muted);flex:1;min-width:150px;">Target date<br><input type="date" value="' + esc(g.date || '') + '" onchange="sgSet(\'date\',this.value)" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;box-sizing:border-box;color-scheme:dark;"></label>'
         + '<label style="font-size:0.78rem;color:var(--text-muted);flex:1;min-width:150px;">Daily goal (tasks/day)<br><input type="number" min="0" max="50" value="' + (dt || '') + '" placeholder="e.g. 3" onchange="sgSet(\'dailyTarget\',this.value)" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;box-sizing:border-box;"></label>'
         + '</div>'
+        + readyMeter
         + '<div style="margin-top:14px;"><div style="display:flex;justify-content:space-between;font-size:0.76rem;color:var(--text-muted);margin-bottom:5px;"><span>This week\'s plan</span><span style="font-weight:700;color:#fff;">' + readiness + '% done (' + done + '/' + all + ')</span></div>'
         + '<div style="height:9px;background:rgba(0,0,0,0.35);border-radius:6px;overflow:hidden;"><div style="height:100%;width:' + readiness + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:6px;transition:width .3s;"></div></div></div>'
         + dailyLine
