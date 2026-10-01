@@ -20805,7 +20805,11 @@ window._pbSelectAll = _pbSelectAll;
 async function _pbConfirm() {
     const sel = _pbSelected();
     if (sel.length < MODULE_MIN) { showToast('Pick at least ' + MODULE_MIN + ' modules.', 'warning'); return; }
-    _saveOwnedModules(sel); // optimistic local save (beta)
+    // v24.19 — at/over the $18 cap you get EVERYTHING, so grant all modules locally
+    // (the server does the same). _syncEntitlements() corrects this from the server
+    // after a real checkout anyway.
+    const grant = (sel.length * MODULE_PRICE > MAX_PLAN_PRICE) ? NEXUS_MODULES.map(function (m) { return m.id; }) : sel;
+    _saveOwnedModules(grant); // optimistic local save (beta)
     const btn = document.getElementById('pb-confirm');
     // If signed into Cloud, start a real (test-mode) Stripe checkout for $2 × modules.
     const user = await _cloudUser().catch(function () { return null; });

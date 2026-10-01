@@ -15,8 +15,14 @@
 //   STRIPE_SECRET_KEY   (secret)
 //   SUPABASE_URL, SUPABASE_ANON_KEY  (auto-provided)
 //
-// Pricing: the price is a $2/mo recurring "module" price; quantity = # of modules
-// (4-module minimum → $8 floor). Which modules were bought travels in metadata.
+// Pricing (v24.19 — build-your-plan): $2.50/mo per module, quantity = # of modules,
+// with a $18/mo cap. Under the cap we charge the per-unit price × quantity. At/over
+// the cap (8+ modules) we switch to a flat $18 "everything" price and grant ALL
+// modules — so nobody ever pays more than $18 and "everything" means everything.
+// Price IDs come from env (never trust the client to set the price):
+//   STRIPE_PRICE_MODULE      — the $2.50/mo recurring per-unit price
+//   STRIPE_PRICE_EVERYTHING  — the flat $18/mo recurring price (optional; if unset,
+//                              we fall back to per-unit pricing with no cap)
 
 import Stripe from "https://esm.sh/stripe@16.2.0?target=deno";
 
@@ -26,7 +32,16 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
 });
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const MODULE_MIN = 4;
+const MODULE_MIN = 3;
+const UNIT_PRICE = 2.50;
+const MAX_PRICE = 18;
+const PRICE_MODULE = Deno.env.get("STRIPE_PRICE_MODULE") ?? "";
+const PRICE_EVERYTHING = Deno.env.get("STRIPE_PRICE_EVERYTHING") ?? "";
+// Keep in sync with NEXUS_MODULES in script.js — the full set granted at the cap.
+const ALL_MODULE_IDS = [
+  "teaching", "homework", "vision", "snap", "practice",
+  "exam", "upload", "companion", "progress", "visual",
+];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -62,8 +77,6 @@ Deno.serve(async (req) => {
   const modules: string[] = Array.isArray(body?.modules)
     ? body.modules.map((m: unknown) => String(m)).filter(Boolean)
     : [];
-  const priceId = String(body?.priceId ?? "");
-  if (!priceId) return json({ error: "Missing price." }, 400);
   if (modules.length < MODULE_MIN) {
     return json({ error: `Pick at least ${MODULE_MIN} modules.` }, 400);
   }
@@ -71,16 +84,32 @@ Deno.serve(async (req) => {
   const successUrl = String(body?.successUrl || `${origin}/?checkout=success`);
   const cancelUrl = String(body?.cancelUrl || `${origin}/?checkout=cancel`);
 
-  // 3. Create the Checkout Session, stamping user_id + modules everywhere the
-  //    webhook might read them (session-level and subscription-level).
+  // 3. Decide price + granted modules. Server-chosen (never the client's priceId).
+  //    At/over the $18 cap we use the flat "everything" price and grant all modules.
+  const unitPrice = PRICE_MODULE || String(body?.priceId ?? ""); // fall back to client id only if env unset
+  if (!unitPrice) return json({ error: "Pricing is not configured yet." }, 400);
+  const capped = modules.length * UNIT_PRICE > MAX_PRICE;
+  let lineItems: Array<{ price: string; quantity: number }>;
+  let granted: string[];
+  if (capped && PRICE_EVERYTHING) {
+    lineItems = [{ price: PRICE_EVERYTHING, quantity: 1 }];
+    granted = ALL_MODULE_IDS.slice();          // paying the ceiling = everything unlocked
+  } else {
+    lineItems = [{ price: unitPrice, quantity: modules.length }];
+    granted = modules;
+  }
+  const modulesCsv = granted.join(",");
+
+  // 4. Create the Checkout Session, stamping user_id + granted modules everywhere
+  //    the webhook reads them (session-level and subscription-level).
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{ price: priceId, quantity: modules.length }],
+      line_items: lineItems,
       client_reference_id: uid,
       customer_email: email,
-      metadata: { user_id: uid, modules: modules.join(",") },
-      subscription_data: { metadata: { user_id: uid, modules: modules.join(",") } },
+      metadata: { user_id: uid, modules: modulesCsv },
+      subscription_data: { metadata: { user_id: uid, modules: modulesCsv } },
       success_url: successUrl,
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
