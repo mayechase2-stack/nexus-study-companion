@@ -44,6 +44,12 @@ const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // near-free to mint, so gating them entirely is the strongest account-farming
 // defense. To re-enable a small taster later, raise this (e.g. 2) — via the
 // ANON_MONTHLY_LIMIT secret in Supabase, no redeploy needed.
+// v24.18 — server-side entitlement (build-your-plan) enforcement. OFF by default
+// so the free beta is unaffected; set ENFORCE_MODULES=true in this function's
+// Secrets at paid launch (no redeploy needed) to make the paywall real. When on,
+// a request tagged with a `module` the user doesn't own (per profiles.modules) is
+// refused here — the client UI can be bypassed, this cannot.
+const ENFORCE_MODULES = (Deno.env.get("ENFORCE_MODULES") ?? "false").toLowerCase() === "true";
 const ANON_MONTHLY = parseInt(Deno.env.get("ANON_MONTHLY_LIMIT") ?? "0", 10);
 const FREE_MONTHLY = parseInt(Deno.env.get("FREE_MONTHLY_LIMIT") ?? "1500", 10);
 const PAID_MONTHLY = parseInt(Deno.env.get("PAID_MONTHLY_LIMIT") ?? "6000", 10);
@@ -148,16 +154,35 @@ Deno.serve(async (req) => {
   // the small ANON allotment (farming defense); a confirmed email unlocks FREE.
   const emailVerified = !!user?.email_confirmed_at && user?.is_anonymous !== true;
   let monthlyLimit = emailVerified ? FREE_MONTHLY : ANON_MONTHLY;
+  let tier = "free";
+  let ownedModules: string[] = [];
   try {
     const pr = await fetch(
-      `${SB_URL}/rest/v1/profiles?id=eq.${uid}&select=tier`,
+      `${SB_URL}/rest/v1/profiles?id=eq.${uid}&select=tier,modules`,
       { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } },
     );
     const rows = pr.ok ? await pr.json() : [];
-    const tier = rows?.[0]?.tier ?? "free";
+    tier = rows?.[0]?.tier ?? "free";
+    ownedModules = Array.isArray(rows?.[0]?.modules) ? rows[0].modules : [];
     if (tier === "owner") monthlyLimit = -1;            // unlimited
     else if (tier === "paid") monthlyLimit = PAID_MONTHLY;
   } catch { /* fall back to the verification-based limit */ }
+
+  // ── Entitlement (build-your-plan) enforcement ──────────────────────────
+  // Only active once ENFORCE_MODULES is turned on (paid launch). A request the
+  // client tags with a `module` the user hasn't bought is refused server-side,
+  // so unlocking a tab in the browser devtools gets you nothing. Owners bypass.
+  // An untagged request is allowed here (the client UI still gates those).
+  if (ENFORCE_MODULES && tier !== "owner") {
+    const reqModule = typeof body?.module === "string" ? body.module : "";
+    if (reqModule && ownedModules.indexOf(reqModule) < 0) {
+      return json({
+        error: "This is part of a module you haven't added to your plan yet. Add it to keep using this feature.",
+        reason: "module_locked",
+        module: reqModule,
+      }, 403);
+    }
+  }
 
   // STRICT no-email gate (v19.7b): when monthlyLimit is 0 — i.e. ANON_MONTHLY=0
   // and the caller is neither owner nor paid nor email-verified — block right

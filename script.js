@@ -983,6 +983,8 @@ document.addEventListener('DOMContentLoaded', function () { setTimeout(_nexusTab
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
         if (localStorage.getItem('auth_user') && typeof _ensureCloudSession === 'function') _ensureCloudSession();
+        // v24.18 — pull entitlements from the server so local can't self-grant modules.
+        if (localStorage.getItem('auth_user') && typeof _syncEntitlements === 'function') setTimeout(_syncEntitlements, 1800);
     }, 1400);
 });
 // UNIFIED ACCOUNT — keep the local login in lockstep with a Supabase cloud
@@ -1168,7 +1170,8 @@ async function callHostedAI(opts) {
             model: opts.model || 'gpt-4o-mini',
             temperature: opts.temperature,
             max_tokens: opts.max_tokens,
-            response_format: opts.response_format
+            response_format: opts.response_format,
+            module: opts.module || ''   // v24.18 — which plan module this call belongs to (server entitlement check)
         })
     });
     const data = await resp.json().catch(function () { return {}; });
@@ -1177,6 +1180,8 @@ async function callHostedAI(opts) {
         // make an account instead of just showing a dead-end error.
         if (data.reason === 'verify_email' && typeof _nexusShowVerifyEmailPrompt === 'function') _nexusShowVerifyEmailPrompt(data.error, 'verify');
         else if (data.reason === 'make_account' && typeof _nexusShowVerifyEmailPrompt === 'function') _nexusShowVerifyEmailPrompt(data.error, 'make');
+        // v24.18 — the server refused a module the user hasn't bought: send them to the plan builder.
+        else if (data.reason === 'module_locked') { showToast(data.error || 'That feature needs a module in your plan.', 'info', 5000); setTimeout(function () { if (typeof openPlanBuilder === 'function') openPlanBuilder(); }, 700); }
         throw new Error(data.error || ('Hosted AI error (' + resp.status + ')'));
     }
     return data; // { content, used, limit }
@@ -1458,7 +1463,8 @@ window.showStudyMemory = showStudyMemory;
                     model: body.model || 'gpt-4o',
                     temperature: body.temperature,
                     max_tokens: body.max_tokens || body.max_completion_tokens,
-                    response_format: body.response_format
+                    response_format: body.response_format,
+                    module: (typeof _currentModuleId === 'function') ? _currentModuleId() : ''
                 });
                 const content = res.content || '';
                 // Many features request stream:true and read the body as Server-Sent
@@ -20735,6 +20741,42 @@ function _planTotal(n) { return Math.min(n * MODULE_PRICE, MAX_PLAN_PRICE); }
 function _getOwnedModules() { try { return JSON.parse(localStorage.getItem('nexus_modules') || '[]'); } catch (_) { return []; } }
 function _saveOwnedModules(a) { localStorage.setItem('nexus_modules', JSON.stringify(a)); }
 function hasModule(id) { if (typeof isOwner === 'function' && isOwner()) return true; return _getOwnedModules().indexOf(id) >= 0; }
+
+// v24.18 — map a tab id to the module that governs it (for tagging AI calls +
+// tab gating). Built from each module's `tabs` list.
+function _tabToModule(tab) {
+    if (!tab) return '';
+    for (var i = 0; i < NEXUS_MODULES.length; i++) { if ((NEXUS_MODULES[i].tabs || []).indexOf(tab) >= 0) return NEXUS_MODULES[i].id; }
+    return '';
+}
+// The module for whatever the student is currently using (active view → tab → module).
+function _currentModuleId() {
+    try {
+        var v = document.querySelector('[id^="view-"].active');
+        var tab = v ? v.id.replace('view-', '') : (localStorage.getItem('last_tab') || '');
+        return _tabToModule(tab);
+    } catch (_) { return ''; }
+}
+window._currentModuleId = _currentModuleId;
+
+// v24.18 — pull entitlements FROM the server (profiles.modules + tier) and make
+// the local copy match. This is what stops a user from self-granting modules by
+// editing localStorage: the server's list wins on every load. Best-effort/silent.
+async function _syncEntitlements() {
+    try {
+        if (!nexusSB) { if (typeof _initSupabase === 'function') _initSupabase(); }
+        if (!nexusSB) return;
+        var s = await nexusSB.auth.getSession();
+        var uid = s && s.data && s.data.session && s.data.session.user && s.data.session.user.id;
+        if (!uid) return;
+        var r = await nexusSB.from('profiles').select('tier,modules').eq('id', uid).maybeSingle();
+        if (r && !r.error && r.data) {
+            if (Array.isArray(r.data.modules)) _saveOwnedModules(r.data.modules);
+            if (r.data.tier) { try { localStorage.setItem('user_tier', r.data.tier); } catch (_) {} }
+        }
+    } catch (_) { /* offline / not signed in — keep whatever's local */ }
+}
+window._syncEntitlements = _syncEntitlements;
 function _pbSelected() { return Array.prototype.map.call(document.querySelectorAll('.pb-mod:checked'), function (c) { return c.value; }); }
 function _pbRecount() {
     const checks = Array.prototype.slice.call(document.querySelectorAll('.pb-mod'));
@@ -31092,6 +31134,19 @@ function renderStudyHistoryChart(canvasId) {
     var _orig = typeof switchTab==='function' ? switchTab : null;
     if (!_orig) return;
     window.switchTab = function(tabId) {
+        // v24.18 — launch-time module gate (DORMANT during beta: FREE_BETA=true).
+        // At paid launch, switching to a tab in a module you haven't bought sends
+        // you to the plan builder instead. Owners + untracked tabs pass through.
+        try {
+            if (typeof FREE_BETA !== 'undefined' && !FREE_BETA) {
+                var _needMod = _tabToModule(tabId);
+                if (_needMod && typeof hasModule === 'function' && !hasModule(_needMod)) {
+                    if (typeof showToast === 'function') showToast('That’s part of a module you haven’t added yet — pick it in your plan to unlock.', 'info', 4000);
+                    if (typeof openPlanBuilder === 'function') openPlanBuilder();
+                    return;
+                }
+            }
+        } catch(_){}
         try { if (typeof trackFeature === 'function') trackFeature('tab:' + tabId); } catch(_){}
         var STUDY=['math','science','english','social','dashboard','notebook'];
         if(STUDY.indexOf(tabId)>=0){ endStudySession(); startStudySession(tabId.charAt(0).toUpperCase()+tabId.slice(1)); }
