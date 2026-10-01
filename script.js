@@ -2356,6 +2356,10 @@ const PRO_PRICE = 6.00;
 // the mandatory-checkout gate. This also fixes the cloud/Google auto-login loop
 // where an unpaid cloud account was force-locked on every load.
 const FREE_BETA = true;
+// v24.17 — minimum signup age. 13 keeps NEXUS out of COPPA's under-13 scope
+// (its audience is Grade 9+, i.e. 14+), so paid launch isn't blocked on a
+// parental-consent/COPPA build. Raise to 16/18 here if the policy changes.
+const MIN_AGE = 13;
 
 function tabLabel(tabId) {
     const labels = { dashboard: 'Command Center', history: 'History', achievements: 'Achievements', leaderboard: 'Leaderboard', shop: 'Shop', inventory: 'Inventory', homework: 'Homework', teach: 'Teaching Board', tools: 'Study Tools', profile: 'Profile' };
@@ -2964,16 +2968,11 @@ function signupGoToStep(n) {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr("That email doesn't look right."); return; }
             if (!pass) { showErr('Pick a password.'); return; }
             if (!validatePasswordStrict(pass)) { showErr('Password needs 1 lowercase, 1 uppercase, and 1 number.'); return; }
-            // v17.2 — age gate (children's-privacy)
+            // v24.17 — hard 13+ age gate (keeps NEXUS out of COPPA's under-13 scope).
             const _age = _ageFromDob((document.getElementById('signup-dob') || {}).value);
             if (_age === null) { showErr('Please enter your date of birth.'); return; }
             if (_age < 0 || _age > 120) { showErr('Please enter a valid date of birth.'); return; }
-            if (_age < 13) {
-                const pEmail = ((document.getElementById('signup-parent-email') || {}).value || '').trim();
-                const pConsent = (document.getElementById('signup-parent-consent') || {}).checked;
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pEmail)) { showErr('A parent/guardian email is required for users under 13.'); return; }
-                if (!pConsent) { showErr('A parent/guardian must check the consent box to continue.'); return; }
-            }
+            if (_age < MIN_AGE) { showErr('You must be at least ' + MIN_AGE + ' to use NEXUS. (NEXUS is built for Grade 9 and up.)'); return; }
             const reg = getAuthRegistry();
             if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in instead.'); return; }
             if (err) err.style.display = 'none';
@@ -3028,7 +3027,14 @@ function _signupCheckAge() {
     var block = document.getElementById('signup-consent-block');
     if (!dob || !block) return;
     var age = _ageFromDob(dob.value);
-    block.style.display = (age !== null && age < 13) ? 'block' : 'none';
+    // v24.17 — under-13 can't sign up; replace the old parental-consent block with
+    // a clear "13+ only" notice the moment an under-age DOB is entered.
+    if (age !== null && age < MIN_AGE) {
+        block.style.display = 'block';
+        block.innerHTML = '<div style="background:rgba(239,122,114,0.12);border:1px solid rgba(239,122,114,0.4);border-radius:10px;padding:10px 13px;font-size:0.82rem;color:#ffb3ad;">🔒 NEXUS is for ages ' + MIN_AGE + '+ (it\'s built for Grade 9 and up). You can\'t create an account yet — come back when you\'re ' + MIN_AGE + '.</div>';
+    } else {
+        block.style.display = 'none';
+    }
 }
 
 function _wireSignupPasswordReqs() {
@@ -3093,16 +3099,13 @@ async function completeSignUpFlow() {
     // v19 — bot check (only enforced when Turnstile is configured; no-op otherwise).
     if (TURNSTILE_SITE_KEY && !_turnstileToken) { showErr('Please complete the "I’m human" check above.'); return; }
 
-    // v17.2 — age / parental-consent (validated again here as a safety net)
+    // v24.17 — hard 13+ age gate (safety net; also enforced in step 1). Keeps
+    // NEXUS out of COPPA's under-13 scope so we can charge without that gate.
     const dobVal = (document.getElementById('signup-dob') || {}).value || '';
     const age = _ageFromDob(dobVal);
     if (age === null || age < 0 || age > 120) { showErr('Please enter a valid date of birth in step 1.'); return; }
-    const isMinorU13 = age < 13;
-    const parentEmail = ((document.getElementById('signup-parent-email') || {}).value || '').trim();
-    if (isMinorU13) {
-        const pConsent = (document.getElementById('signup-parent-consent') || {}).checked;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail) || !pConsent) { showErr('Parent/guardian email and consent are required (step 1).'); return; }
-    }
+    if (age < MIN_AGE) { showErr('You must be at least ' + MIN_AGE + ' to use NEXUS.'); return; }
+    const parentEmail = '';
 
     hideErr();
 
@@ -3132,11 +3135,9 @@ async function completeSignUpFlow() {
     localStorage.setItem('auth_pass', hashedPass);
     registerAuthAccount(userName, hashedPass);
     if (email) localStorage.setItem('auth_email_' + userName, email);
-    // v17.2 — store age-gate result (for consent records); no card data is stored
+    // v24.17 — store DOB for the age-gate record; no card data is stored. Under-13
+    // can no longer reach this point (hard 13+ gate), so no parental-consent branch.
     localStorage.setItem('user_dob_' + userName, dobVal);
-    if (isMinorU13) {
-        localStorage.setItem('parental_consent_' + userName, JSON.stringify({ parentEmail: parentEmail, consentedAt: new Date().toISOString() }));
-    }
     // join the launch waitlist so they hear about paid plans
     try { const wl = JSON.parse(localStorage.getItem('nexus_waitlist') || '[]'); wl.push({ email: email, name: userName, interestedPlan: planLabel, ts: new Date().toISOString() }); localStorage.setItem('nexus_waitlist', JSON.stringify(wl)); } catch (_) {}
     rememberAuthIfChecked();
