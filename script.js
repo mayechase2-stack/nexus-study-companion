@@ -2993,27 +2993,27 @@ function _signupRenderModules() {
         const checked = owned.indexOf(m.id) >= 0 ? 'checked' : '';
         return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:10px;cursor:pointer;">'
             + '<input type="checkbox" class="signup-mod" value="' + m.id + '" ' + checked + ' onchange="_signupPlanRecount()" style="accent-color:var(--accent);margin-top:3px;width:16px;height:16px;flex-shrink:0;">'
-            + '<div style="flex:1;"><div style="font-weight:700;color:#fff;font-size:0.9rem;">' + m.name + ' <span style="color:#a29bfe;font-weight:600;">$2/mo</span></div>'
+            + '<div style="flex:1;"><div style="font-weight:700;color:#fff;font-size:0.9rem;">' + (m.icon ? m.icon + ' ' : '') + m.name + ' <span style="color:#a29bfe;font-weight:600;">' + _fmtPrice(MODULE_PRICE) + '/mo</span></div>'
             + (m.desc ? '<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">' + m.desc + '</div>' : '') + '</div></label>';
     }).join('');
     _signupPlanRecount();
 }
 function _signupPlanRecount() {
-    const n = _signupSelectedModules().length, total = n * MODULE_PRICE;
+    const n = _signupSelectedModules().length, total = _planTotal(n), capped = n * MODULE_PRICE > MAX_PLAN_PRICE;
     const t = document.getElementById('signup-plan-total');
     if (t) t.innerHTML = n
-        ? ('$' + total + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span> · ' + n + ' module' + (n !== 1 ? 's' : '') + (n < MODULE_MIN ? ' <span style="color:#fdcb6e;font-size:0.8rem;font-weight:600;">— pick ' + (MODULE_MIN - n) + ' more</span>' : ''))
+        ? (_fmtPrice(total) + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span> · ' + (capped ? 'everything unlocked' : n + ' module' + (n !== 1 ? 's' : '')) + (n < MODULE_MIN ? ' <span style="color:#fdcb6e;font-size:0.8rem;font-weight:600;">— pick ' + (MODULE_MIN - n) + ' more</span>' : ''))
         : '<span style="color:var(--text-muted);font-size:0.85rem;font-weight:500;">Select at least ' + MODULE_MIN + ' modules</span>';
     const btn = document.getElementById('signup-plan-continue');
     if (btn) { const ok = n >= MODULE_MIN; btn.disabled = !ok; btn.style.opacity = ok ? '1' : '0.5'; btn.style.cursor = ok ? 'pointer' : 'not-allowed'; }
     _updateSignupPaymentSummary();
 }
 function _updateSignupPaymentSummary() {
-    const n = _signupSelectedModules().length, total = n * MODULE_PRICE;
+    const n = _signupSelectedModules().length, total = _planTotal(n);
     const label = document.getElementById('signup-pay-submit-label');
     if (label) label.textContent = 'Create my free account';
     const summary = document.getElementById('signup-payment-summary');
-    if (summary) summary.textContent = `Free during beta — your ${n}-module plan ($${total}/mo) is what you'd pay when paid plans launch.`;
+    if (summary) summary.textContent = `Free during beta — your ${n}-module plan (${_fmtPrice(total)}/mo) is what you'd pay when paid plans launch.`;
 }
 // v17.2 — age gate helpers
 function _ageFromDob(v) {
@@ -3072,7 +3072,7 @@ async function completeSignUpFlow() {
     const pass = document.getElementById('signup-password').value || '';
     const email = (document.getElementById('auth-email').value || '').trim();
     const selModules = _signupSelectedModules();
-    const price = selModules.length * MODULE_PRICE;
+    const price = _planTotal(selModules.length);
     const planLabel = selModules.length + '-module plan';
 
     const errEl = document.getElementById('signup-step-3-error');
@@ -3432,22 +3432,12 @@ function signOut() {
 // ============================================================
 let _selectedPlan = 'access'; // 'access' or 'pro'
 
+// v24.16 — the old Access/Pro tier modal is retired. There's ONE payment system
+// now — the build-your-plan module picker — so every gate and Upgrade button
+// routes here. (Kept the name so all existing callers keep working.)
 function openPaymentModal(plan) {
-    // v19 — there are no Access/Pro tiers during the free beta. Never show the old
-    // "Choose Your Plan" tier cards; just reassure the user everything's free.
-    if (typeof FREE_BETA !== 'undefined' && FREE_BETA) {
-        if (typeof showToast === 'function') showToast('🎉 Everything is free during the NEXUS beta — nothing to buy. Enjoy!', 'success', 4000);
-        return;
-    }
-    // Default: if user already has Access, default the modal to Pro upgrade. Otherwise default to Access.
-    const defaultPlan = plan || (getUserTier() === 'access' ? 'pro' : 'access');
-    selectPlan(defaultPlan);
-    const m = document.getElementById('payment-modal');
-    if (m) {
-        m.classList.remove('hidden');
-        m.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
+    if (typeof openPlanBuilder === 'function') { openPlanBuilder(); return; }
+    if (typeof showToast === 'function') showToast('🎉 Everything is free during the NEXUS beta — nothing to buy. Enjoy!', 'success', 4000);
 }
 
 function selectPlan(plan) {
@@ -20719,31 +20709,56 @@ function deleteAllMyData() {
 // Beta: selecting a plan is free + grants the modules locally. Real Stripe
 // checkout + per-module gating wire in next.
 // ════════════════════════════════════════════════════════════════════
+// v24.16 — value-based "build your plan" modules. Each is $2.50/mo; pick 8+ and
+// the whole plan caps at $18 ("everything"). `tabs` is what the module unlocks
+// for tab-level gating (enforced only when FREE_BETA is turned off at launch).
 const NEXUS_MODULES = [
-    { id: 'math', name: 'Math', tabs: ['math'] },
-    { id: 'science', name: 'Science', tabs: ['science'] },
-    { id: 'english', name: 'English Aid', tabs: ['english'] },
-    { id: 'social', name: 'Social Studies', tabs: ['social'] },
-    { id: 'notebook', name: 'Smart Notebook + Focus', desc: 'Notes, canvas, quiz-gen, flashcards, concept map, lo-fi & ambient, Pomodoro', tabs: ['notebook'] },
-    { id: 'command', name: 'AI Command Center', desc: 'Debate, daily challenge, prompt tools, practice tests', tabs: ['dashboard', 'tools'] },
-    { id: 'shop', name: 'Shop, Customization + Companion', desc: 'Themes, cursors, wallpapers, fonts, effects, inventory, and the NEXUS Sprite', tabs: ['shop', 'inventory'] },
-    { id: 'competition', name: 'Competition', desc: 'Leaderboard, achievements, quests, credits', tabs: ['leaderboard', 'achievements'] }
+    { id: 'teaching', icon: '📚', name: 'Teaching Board', desc: 'Deep lessons that actually teach — worked steps, practice, follow-ups, learning paths.', tabs: ['teach'] },
+    { id: 'homework', icon: '⚡', name: 'Homework Help', desc: 'Step-by-step Math, Science, English & Social Studies tutoring.', tabs: ['math', 'science', 'english', 'social'] },
+    { id: 'vision', icon: '👁️', name: 'Live Vision', desc: 'Reads your screen and explains any question on it.', tabs: [] },
+    { id: 'snap', icon: '📸', name: 'Snap & Solve', desc: 'Snap a photo of a problem → solved and explained.', tabs: [] },
+    { id: 'practice', icon: '🎯', name: 'Practice Hub', desc: 'Quizzes, flashcards, fix-your-mistakes and spaced review in one place.', tabs: [] },
+    { id: 'exam', icon: '🎓', name: 'Exam Prep', desc: 'SAT, ACT & AP practice sets with scoring.', tabs: [] },
+    { id: 'upload', icon: '📄', name: 'Study Your Class', desc: 'Upload notes or a PDF → instant summary, flashcards & quiz.', tabs: [] },
+    { id: 'companion', icon: '🤖', name: 'Companion + Voice', desc: 'Your AI study buddy with read-aloud and hands-free voice.', tabs: [] },
+    { id: 'progress', icon: '📈', name: 'Progress & Readiness', desc: 'Goals, readiness meter, mastery dashboard and your daily plan.', tabs: [] },
+    { id: 'visual', icon: '🧠', name: 'Visual Tools', desc: 'Concept maps, Graph & Explore, history timeline and the science lab.', tabs: ['tools'] }
 ];
-const MODULE_PRICE = 2;
-const MODULE_MIN = 4;
+const MODULE_PRICE = 2.50;
+const MAX_PLAN_PRICE = 18;   // "everything" ceiling — picking 8+ modules caps here
+const MODULE_MIN = 3;        // a plan is at least this many modules
+// Shows a clean price: $2.50, $12.50, or $18 (no trailing ".00").
+function _fmtPrice(n) { return '$' + (Math.round(n * 100) % 100 === 0 ? String(Math.round(n)) : n.toFixed(2)); }
+// What a plan of n modules costs, with the cap applied.
+function _planTotal(n) { return Math.min(n * MODULE_PRICE, MAX_PLAN_PRICE); }
 function _getOwnedModules() { try { return JSON.parse(localStorage.getItem('nexus_modules') || '[]'); } catch (_) { return []; } }
 function _saveOwnedModules(a) { localStorage.setItem('nexus_modules', JSON.stringify(a)); }
 function hasModule(id) { if (typeof isOwner === 'function' && isOwner()) return true; return _getOwnedModules().indexOf(id) >= 0; }
 function _pbSelected() { return Array.prototype.map.call(document.querySelectorAll('.pb-mod:checked'), function (c) { return c.value; }); }
 function _pbRecount() {
-    const n = _pbSelected().length, total = n * MODULE_PRICE;
-    const t = document.getElementById('pb-total'), btn = document.getElementById('pb-confirm');
-    if (t) t.innerHTML = '$' + total + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span> · ' + n + ' module' + (n !== 1 ? 's' : '');
+    const checks = Array.prototype.slice.call(document.querySelectorAll('.pb-mod'));
+    const n = checks.filter(function (c) { return c.checked; }).length;
+    const raw = n * MODULE_PRICE, total = _planTotal(n), capped = raw > MAX_PLAN_PRICE;
+    // highlight the selected cards
+    checks.forEach(function (c) {
+        const card = c.closest('.pb-card'); if (!card) return;
+        card.style.borderColor = c.checked ? 'var(--accent)' : 'var(--glass-border)';
+        card.style.background = c.checked ? 'rgba(108,92,231,0.14)' : 'rgba(255,255,255,0.03)';
+        var dot = card.querySelector('.pb-check'); if (dot) dot.style.opacity = c.checked ? '1' : '0';
+    });
+    const t = document.getElementById('pb-total'), btn = document.getElementById('pb-confirm'), sub = document.getElementById('pb-subline');
+    if (t) t.innerHTML = _fmtPrice(total) + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span>';
+    if (sub) sub.textContent = capped ? ('All ' + n + ' modules — everything unlocked (capped at ' + _fmtPrice(MAX_PLAN_PRICE) + ')') : (n + ' module' + (n !== 1 ? 's' : '') + ' × ' + _fmtPrice(MODULE_PRICE) + (n >= 7 ? ' · 1 more = everything for ' + _fmtPrice(MAX_PLAN_PRICE) : ''));
     if (btn) {
         if (n < MODULE_MIN) { btn.disabled = true; btn.textContent = 'Pick ' + (MODULE_MIN - n) + ' more'; btn.style.opacity = '0.5'; }
-        else { btn.disabled = false; btn.innerHTML = 'Subscribe — $' + total + '/mo'; btn.style.opacity = '1'; }
+        else { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Subscribe — ' + _fmtPrice(total) + '/mo'; btn.style.opacity = '1'; }
     }
 }
+function _pbSelectAll() {
+    Array.prototype.forEach.call(document.querySelectorAll('.pb-mod'), function (c) { c.checked = true; });
+    _pbRecount();
+}
+window._pbSelectAll = _pbSelectAll;
 async function _pbConfirm() {
     const sel = _pbSelected();
     if (sel.length < MODULE_MIN) { showToast('Pick at least ' + MODULE_MIN + ' modules.', 'warning'); return; }
@@ -20791,21 +20806,32 @@ document.addEventListener('DOMContentLoaded', function () {
 function openPlanBuilder() {
     const owned = _getOwnedModules();
     const existing = document.getElementById('plan-builder-modal'); if (existing) existing.remove();
+    const esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
     const modal = document.createElement('div');
     modal.id = 'plan-builder-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
     modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
-    const rows = NEXUS_MODULES.map(function (m) {
-        const checked = owned.indexOf(m.id) >= 0 ? 'checked' : '';
-        return '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--glass-border);border-radius:10px;margin-bottom:8px;cursor:pointer;">'
-            + '<input type="checkbox" class="pb-mod" value="' + m.id + '" ' + checked + ' onchange="_pbRecount()" style="accent-color:var(--accent);margin-top:3px;width:16px;height:16px;flex-shrink:0;">'
-            + '<div style="flex:1;"><div style="font-weight:700;color:#fff;font-size:0.9rem;">' + m.name + ' <span style="color:var(--accent);font-weight:600;">$2/mo</span></div>'
-            + (m.desc ? '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:2px;">' + m.desc + '</div>' : '') + '</div></label>';
+    const cards = NEXUS_MODULES.map(function (m) {
+        const checked = owned.indexOf(m.id) >= 0;
+        return '<label class="pb-card" style="position:relative;display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border:1px solid ' + (checked ? 'var(--accent)' : 'var(--glass-border)') + ';border-radius:13px;cursor:pointer;background:' + (checked ? 'rgba(108,92,231,0.14)' : 'rgba(255,255,255,0.03)') + ';transition:all .14s;">'
+            + '<input type="checkbox" class="pb-mod" value="' + m.id + '" ' + (checked ? 'checked' : '') + ' onchange="_pbRecount()" style="position:absolute;opacity:0;width:0;height:0;">'
+            + '<span style="font-size:1.5rem;line-height:1;flex-shrink:0;">' + (m.icon || '🧩') + '</span>'
+            + '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:700;color:#fff;font-size:0.92rem;">' + esc(m.name) + '</span><span style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-left:auto;">' + _fmtPrice(MODULE_PRICE) + '</span></div>'
+            + (m.desc ? '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:3px;line-height:1.4;">' + esc(m.desc) + '</div>' : '') + '</div>'
+            + '<span class="pb-check" style="position:absolute;top:10px;right:10px;color:var(--accent);opacity:' + (checked ? '1' : '0') + ';transition:opacity .14s;"><i class="ph ph-check-circle" style="font-size:1.05rem;"></i></span>'
+            + '</label>';
     }).join('');
-    modal.innerHTML = '<div class="glass-panel" style="max-width:560px;width:96%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.1rem;"><i class="ph ph-puzzle-piece" style="color:#a29bfe;"></i> Manage My Plan</h3><button class="btn-icon" onclick="document.getElementById(\'plan-builder-modal\').remove()"><i class="ph ph-x"></i></button></div>'
-        + '<div style="padding:14px 20px;overflow-y:auto;"><p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 12px;">Change which modules you\'re subscribed to — <strong style="color:#fff;">$2/mo each</strong>, minimum <strong style="color:#fff;">' + MODULE_MIN + '</strong>. Updates take effect right away.</p>' + rows + '</div>'
-        + '<div style="padding:14px 20px;border-top:1px solid var(--glass-border);flex-shrink:0;display:flex;align-items:center;gap:12px;"><div id="pb-total" style="font-weight:800;color:#fff;font-size:1.05rem;"></div><button id="pb-confirm" class="btn-primary" style="margin-left:auto;" onclick="_pbConfirm()">Subscribe</button></div>'
+    modal.innerHTML = '<div class="glass-panel" style="max-width:600px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:18px 20px 14px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.18rem;"><i class="ph ph-puzzle-piece" style="color:#a29bfe;"></i> Build your plan</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.82rem;color:var(--text-muted);">Pick only what you need — <strong style="color:#fff;">' + _fmtPrice(MODULE_PRICE) + '/mo each</strong>. Grab 8+ and everything caps at <strong style="color:#fff;">' + _fmtPrice(MAX_PLAN_PRICE) + '/mo</strong>.</p></div>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'plan-builder-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + ((typeof FREE_BETA !== 'undefined' && FREE_BETA) ? '<div style="margin:12px 20px 0;background:rgba(69,199,141,0.10);border:1px solid rgba(69,199,141,0.35);border-radius:10px;padding:9px 13px;font-size:0.8rem;color:#8ce6bb;">🎉 <strong>Free during beta</strong> — build your plan to see what it\'d cost; you won\'t be charged yet.</div>' : '')
+        + '<div style="padding:12px 20px;flex-shrink:0;border-bottom:1px solid var(--glass-border);"><button onclick="_pbSelectAll()" style="width:100%;background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.12));border:1px dashed var(--accent);border-radius:12px;color:#fff;padding:11px;font-size:0.88rem;font-weight:600;cursor:pointer;">✨ Unlock everything — ' + _fmtPrice(MAX_PLAN_PRICE) + '/mo</button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;display:grid;gap:9px;">' + cards + '</div>'
+        + '<div style="padding:14px 20px;border-top:1px solid var(--glass-border);flex-shrink:0;display:flex;align-items:center;gap:14px;">'
+        + '<div style="min-width:0;"><div id="pb-total" style="font-weight:800;color:#fff;font-size:1.35rem;line-height:1;"></div><div id="pb-subline" style="font-size:0.72rem;color:var(--text-muted);margin-top:3px;"></div></div>'
+        + '<button id="pb-confirm" class="btn-primary" style="margin-left:auto;flex-shrink:0;" onclick="_pbConfirm()">Subscribe</button></div>'
         + '</div>';
     document.body.appendChild(modal);
     _pbRecount();
