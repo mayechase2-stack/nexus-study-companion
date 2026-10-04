@@ -5455,6 +5455,99 @@ function _appendVisualizeBtn(container, seed) {
 }
 window._appendVisualizeBtn = _appendVisualizeBtn;
 
+// ════════════════════════════════════════════════════════════════════
+// v24.22 — STUDY BOOSTERS #2: AI ESSAY GRADER.
+// Paste an essay → a fair rubric score, per-category breakdown, strengths,
+// prioritized fixes, and targeted line edits. Teacher-style + encouraging.
+// Part of the `boosters` module.
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_ESSAY_GRADER_PROMPT = "You are NEXUS Essay Grader — an experienced, fair, encouraging writing teacher. Grade the student's essay against a standard writing rubric for their level. Be specific and constructive, point to exact text, and never rewrite the whole essay — give targeted fixes they can act on.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n  \"overall\": <integer 0-100>,\n  \"grade\": \"<letter grade like A-, B+, C>\",\n  \"summary\": \"<2-3 sentence encouraging overall take>\",\n  \"rubric\": [ {\"name\":\"Thesis & Focus\",\"score\":<0-20>,\"max\":20,\"note\":\"<1 sentence>\"}, {\"name\":\"Evidence & Support\",\"score\":<0-20>,\"max\":20,\"note\":\"\"}, {\"name\":\"Organization\",\"score\":<0-20>,\"max\":20,\"note\":\"\"}, {\"name\":\"Language & Style\",\"score\":<0-20>,\"max\":20,\"note\":\"\"}, {\"name\":\"Grammar & Mechanics\",\"score\":<0-20>,\"max\":20,\"note\":\"\"} ],\n  \"strengths\": [\"<specific strength>\", \"...\"],\n  \"improvements\": [\"<prioritized, specific fix>\", \"...\"],\n  \"lineEdits\": [ {\"quote\":\"<short exact excerpt from the essay>\",\"suggestion\":\"<a better version or what to change>\"} ]\n}\nScore realistically for the stated level. 2-4 strengths, 2-4 improvements, 2-4 lineEdits. If the text isn't an essay, set overall 0 and put a clarification in summary.";
+
+async function _runEssayGrade() {
+    var essay = (document.getElementById('essay-text') || {}).value || '';
+    var prompt = (document.getElementById('essay-prompt') || {}).value || '';
+    var level = (document.getElementById('essay-level') || {}).value || 'High school';
+    var out = document.getElementById('essay-output');
+    if (essay.trim().length < 40) { if (typeof showToast === 'function') showToast('Paste your essay (at least a paragraph) to grade it.', 'warning'); return; }
+    if (out) out.innerHTML = _nxLoadingHTML('Grading your essay…');
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    var userMsg = 'Level: ' + level + '\n' + (prompt.trim() ? ('Assignment / prompt: ' + prompt.trim() + '\n') : '') + '\nESSAY:\n' + essay.trim().slice(0, 12000);
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o', temperature: 0.3, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: NEXUS_ESSAY_GRADER_PROMPT }, { role: 'user', content: userMsg }] })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message || 'error');
+        var g = JSON.parse((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}');
+        if (out) out.innerHTML = _renderEssayGrade(g);
+    } catch (e) {
+        if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:22px;">Couldn’t grade that right now — please try again.</div>';
+    }
+}
+window._runEssayGrade = _runEssayGrade;
+
+function _renderEssayGrade(g) {
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var overall = Math.max(0, Math.min(100, parseInt(g.overall, 10) || 0));
+    var col = overall >= 85 ? '#45c78d' : overall >= 70 ? '#2ed3cd' : overall >= 55 ? '#ffbe5a' : '#f07a72';
+    var h = '<div style="display:flex;align-items:center;gap:16px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;">'
+        + '<div style="text-align:center;flex-shrink:0;"><div style="font-size:2.1rem;font-weight:800;color:' + col + ';line-height:1;">' + overall + '</div><div style="font-size:0.7rem;color:var(--text-muted);">/ 100</div></div>'
+        + '<div style="flex:1;min-width:0;"><div style="font-weight:800;color:' + col + ';font-size:1.1rem;">' + esc(g.grade || '') + '</div><div style="font-size:0.84rem;color:#dde0ee;margin-top:2px;line-height:1.5;">' + esc(g.summary || '') + '</div></div></div>';
+    if (Array.isArray(g.rubric) && g.rubric.length) {
+        h += '<div style="margin-top:14px;">' + g.rubric.map(function (r) {
+            var sc = parseInt(r.score, 10) || 0, mx = parseInt(r.max, 10) || 20, pct = Math.round(sc / mx * 100);
+            var rc = pct >= 85 ? '#45c78d' : pct >= 65 ? '#2ed3cd' : pct >= 50 ? '#ffbe5a' : '#f07a72';
+            return '<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:3px;"><span style="color:#fff;font-weight:600;">' + esc(r.name) + '</span><span style="color:var(--text-muted);">' + sc + '/' + mx + '</span></div>'
+                + '<div style="height:8px;background:rgba(0,0,0,0.35);border-radius:5px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + rc + ';border-radius:5px;"></div></div>'
+                + (r.note ? '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:3px;">' + esc(r.note) + '</div>' : '') + '</div>';
+        }).join('') + '</div>';
+    }
+    function list(title, arr, color, bg) {
+        if (!Array.isArray(arr) || !arr.length) return '';
+        return '<div style="margin-top:12px;background:' + bg + ';border-radius:10px;padding:11px 14px;"><div style="font-weight:700;color:' + color + ';font-size:0.85rem;margin-bottom:6px;">' + title + '</div><ul style="margin:0;padding-left:18px;color:#dde0ee;font-size:0.84rem;line-height:1.55;">' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+    }
+    h += list('✅ Strengths', g.strengths, '#8ce6bb', 'rgba(69,199,141,0.10)');
+    h += list('🔧 Top fixes', g.improvements, '#ffe0ad', 'rgba(255,190,90,0.10)');
+    if (Array.isArray(g.lineEdits) && g.lineEdits.length) {
+        h += '<div style="margin-top:12px;"><div style="font-weight:700;color:#c7bcff;font-size:0.85rem;margin-bottom:6px;">✏️ Line edits</div>'
+            + g.lineEdits.map(function (e) {
+                return '<div style="border:1px solid var(--glass-border);border-radius:9px;padding:9px 12px;margin-bottom:7px;"><div style="font-size:0.8rem;color:#f0a9a3;font-style:italic;">“' + esc(e.quote || '') + '”</div><div style="font-size:0.82rem;color:#8ce6bb;margin-top:4px;">→ ' + esc(e.suggestion || '') + '</div></div>';
+            }).join('') + '</div>';
+    }
+    return h;
+}
+
+function openEssayGrader(seedText) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('boosters')) return;
+    if (typeof trackFeature === 'function') trackFeature('essay_grader');
+    var ex = document.getElementById('essay-grader-modal'); if (ex) ex.remove();
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var m = document.createElement('div');
+    m.id = 'essay-grader-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    var levels = ['Middle school', 'High school', 'AP / Honors', 'College'];
+    m.innerHTML = '<div class="glass-panel" style="max-width:620px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-exam" style="color:#a29bfe;"></i> AI Essay Grader</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">Paste your essay for a rubric score, strengths, and exact fixes — before you turn it in.</p></div>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'essay-grader-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;">'
+        + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+        + '<label style="flex:1;min-width:150px;font-size:0.76rem;color:var(--text-muted);">Level<br><select id="essay-level" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + levels.map(function (l) { return '<option' + (l === 'High school' ? ' selected' : '') + '>' + l + '</option>'; }).join('') + '</select></label>'
+        + '<label style="flex:2;min-width:180px;font-size:0.76rem;color:var(--text-muted);">Assignment / prompt (optional)<br><input id="essay-prompt" placeholder="e.g. Argue whether…" maxlength="300" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;box-sizing:border-box;"></label></div>'
+        + '<textarea id="essay-text" placeholder="Paste your essay here…" style="width:100%;min-height:150px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:11px 13px;font-size:0.9rem;box-sizing:border-box;resize:vertical;">' + esc(seedText || '') + '</textarea>'
+        + '<button class="btn-primary" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#6C5CE7,#a29bfe);" onclick="_runEssayGrade()"><i class="ph ph-check-square"></i> Grade my essay</button>'
+        + '<div id="essay-output" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    setTimeout(function () { var t = document.getElementById('essay-text'); if (t && !seedText) t.focus(); }, 60);
+    if (seedText) _runEssayGrade();
+}
+window.openEssayGrader = openEssayGrader;
+
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
 function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
