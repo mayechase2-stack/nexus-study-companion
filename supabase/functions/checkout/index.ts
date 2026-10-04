@@ -38,10 +38,9 @@ const MAX_PRICE = 18;
 const PRICE_MODULE = Deno.env.get("STRIPE_PRICE_MODULE") ?? "";
 const PRICE_EVERYTHING = Deno.env.get("STRIPE_PRICE_EVERYTHING") ?? "";
 // Keep in sync with NEXUS_MODULES in script.js — the full set granted at the cap.
-// (Only currently-available modules; add "boosters" here once those features ship.)
 const ALL_MODULE_IDS = [
   "homework", "learn", "capture", "practice",
-  "visual", "writing", "companion",
+  "visual", "writing", "companion", "boosters",
 ];
 
 const CORS = {

@@ -5609,6 +5609,77 @@ function openDailyBrief() {
 }
 window.openDailyBrief = openDailyBrief;
 
+// ════════════════════════════════════════════════════════════════════
+// v24.24 — STUDY BOOSTERS #4: AUDIO LESSON RECAP.
+// A short, spoken-word recap of a lesson/topic a student can listen to on the
+// go (NotebookLM-style). AI writes a ~60-second script; the browser reads it
+// with the student's chosen voice. Part of the `boosters` module.
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_RECAP_PROMPT = "You are NEXUS. Write a SHORT spoken-word recap (about 120-160 words) of the topic for a student to LISTEN to — like a friendly 60-second audio summary. It will be read aloud by text-to-speech, so: plain conversational sentences only, NO markdown, NO headings, NO bullet points, NO symbols or formulas written as symbols (say 'x squared', not 'x^2'). Cover the one key idea, why it matters, and one quick example, then end with a single-sentence takeaway. Start talking right away — no 'Here is your recap'.";
+var _recapText = '';
+function _recapStop() { try { window.speechSynthesis.cancel(); } catch (_) {} var b = document.getElementById('recap-play'); if (b) b.innerHTML = '<i class="ph ph-play"></i> Play'; }
+function _recapSpeak() {
+    if (!('speechSynthesis' in window) || !_recapText) { if (typeof showToast === 'function') showToast('Audio isn’t available on this device.', 'info'); return; }
+    var btn = document.getElementById('recap-play');
+    if (window.speechSynthesis.speaking) { _recapStop(); return; }
+    var u = new SpeechSynthesisUtterance(_recapText);
+    try { var v = (typeof _getBestTTSVoice === 'function') ? _getBestTTSVoice() : null; if (v) u.voice = v; } catch (_) {}
+    try { u.rate = (typeof _ttsRate === 'function') ? _ttsRate() : 1; } catch (_) {}
+    u.onend = function () { var b = document.getElementById('recap-play'); if (b) b.innerHTML = '<i class="ph ph-play"></i> Play again'; };
+    try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (_) {}
+    if (btn) btn.innerHTML = '<i class="ph ph-pause"></i> Stop';
+}
+window._recapSpeak = _recapSpeak;
+async function _runAudioRecap(topic) {
+    topic = String(topic || '').trim();
+    var out = document.getElementById('recap-output');
+    if (!topic) { if (typeof showToast === 'function') showToast('Type a topic (or pick your last lesson).', 'warning'); return; }
+    _recapStop();
+    if (out) out.innerHTML = _nxLoadingHTML('Writing your recap…');
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.5, max_tokens: 400, messages: [{ role: 'system', content: NEXUS_RECAP_PROMPT }, { role: 'user', content: 'Give me an audio recap of: ' + topic }] })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message || 'error');
+        _recapText = ((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '').trim();
+        var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+        if (out) out.innerHTML = '<button id="recap-play" class="btn-primary" style="width:100%;background:linear-gradient(135deg,#6C5CE7,#2ed3cd);" onclick="_recapSpeak()"><i class="ph ph-play"></i> Play</button>'
+            + '<div style="margin-top:12px;background:rgba(0,0,0,0.22);border:1px solid var(--glass-border);border-radius:11px;padding:13px 15px;font-size:0.9rem;line-height:1.6;color:#dde0ee;">' + esc(_recapText) + '</div>';
+        setTimeout(_recapSpeak, 250); // auto-play
+    } catch (e) {
+        if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:22px;">Couldn’t make a recap right now — please try again.</div>';
+    }
+}
+window._runAudioRecap = _runAudioRecap;
+function openAudioRecap(seedTopic) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('boosters')) return;
+    if (typeof trackFeature === 'function') trackFeature('audio_recap');
+    var ex = document.getElementById('audio-recap-modal'); if (ex) ex.remove();
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var seed = (typeof seedTopic === 'string') ? seedTopic : (typeof _briefResumeTopic === 'function' ? _briefResumeTopic() : '');
+    var m = document.createElement('div');
+    m.id = 'audio-recap-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) { _recapStop(); m.remove(); } };
+    m.innerHTML = '<div class="glass-panel" style="max-width:500px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-headphones" style="color:#2ed3cd;"></i> Audio recap</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">A quick spoken summary to listen to — great for review on the go.</p></div>'
+        + '<button class="btn-icon" onclick="_recapStop();document.getElementById(\'audio-recap-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;">'
+        + '<div style="display:flex;gap:8px;"><input id="recap-input" value="' + esc(seed) + '" placeholder="e.g. the causes of WWI, quadratic formula" maxlength="160" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:11px 13px;font-size:0.92rem;" onkeydown="if(event.key===\'Enter\')_runAudioRecap(this.value)">'
+        + '<button class="btn-primary" style="flex-shrink:0;" onclick="_runAudioRecap((document.getElementById(\'recap-input\')||{}).value)"><i class="ph ph-waveform"></i> Recap</button></div>'
+        + (seed ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:7px;">From your last lesson — edit it or type anything else.</div>' : '')
+        + '<div id="recap-output" style="margin-top:16px;min-height:50px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    if (seed) _runAudioRecap(seed); else { var i = document.getElementById('recap-input'); if (i) i.focus(); }
+}
+window.openAudioRecap = openAudioRecap;
+
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
 function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
@@ -20977,7 +21048,7 @@ const NEXUS_MODULES = [
     { id: 'visual', icon: '🧠', name: 'Visual Tools', desc: 'Graph & Explore, history timeline, and the science lab.', tabs: ['tools'] },
     { id: 'writing', icon: '✍️', name: 'Writing Tools', desc: 'Citation generator, summarizer / rewriter, and debate practice.', tabs: [] },
     { id: 'companion', icon: '🤖', name: 'Companion, Voice & Progress', desc: 'AI companion chat, read-aloud & hands-free voice, and your goals + readiness meter.', tabs: [] },
-    { id: 'boosters', icon: '✨', name: 'Study Boosters', desc: 'NEW: visual learning across every subject, an AI essay grader, your smart daily brief, and audio lesson recaps.', tabs: [], soon: true }
+    { id: 'boosters', icon: '✨', name: 'Study Boosters', desc: 'Visual learning across every subject, an AI essay grader, your smart daily brief, and audio lesson recaps.', tabs: [] }
 ];
 const MODULE_PRICE = 2.50;
 const MAX_PLAN_PRICE = 18;   // "everything" ceiling — picking 8+ modules caps here
