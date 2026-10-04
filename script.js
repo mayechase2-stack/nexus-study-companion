@@ -5548,6 +5548,67 @@ function openEssayGrader(seedText) {
 }
 window.openEssayGrader = openEssayGrader;
 
+// ════════════════════════════════════════════════════════════════════
+// v24.23 — STUDY BOOSTERS #3: SMART DAILY BRIEF.
+// A personalized "start here today" — greets the student by name with their
+// readiness, what's due, where they left off, and today's plan. Fast + free
+// (built from data the app already tracks). Part of the `boosters` module.
+// ════════════════════════════════════════════════════════════════════
+function _briefResumeTopic() {
+    try {
+        var a = JSON.parse(localStorage.getItem('teaching_board_archive') || '[]');
+        if (Array.isArray(a) && a.length) {
+            var last = a[a.length - 1];
+            return (last && (last.title || last.topic)) ? String(last.title || last.topic) : '';
+        }
+    } catch (_) {}
+    return '';
+}
+function openDailyBrief() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('boosters')) return;
+    if (typeof trackFeature === 'function') trackFeature('daily_brief');
+    var ex = document.getElementById('daily-brief-modal'); if (ex) ex.remove();
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var name = '';
+    try { name = localStorage.getItem('auth_user') || ''; } catch (_) {}
+    var hr = new Date().getHours();
+    var greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+    var R = (typeof _computeReadiness === 'function') ? _computeReadiness() : { pct: 0, label: '', color: '#8f80f4', plan: [], streak: 0, daysStudied: 0, minsLast7: 0, mistakes: 0, due: 0 };
+    var resume = _briefResumeTopic();
+    // one encouraging line, chosen from real state (no AI needed)
+    var coach;
+    if (R.streak >= 3) coach = R.streak + '-day streak — keep it alive today. 🔥';
+    else if (R.pct >= 80) coach = 'You’re on track — a short session keeps you ahead.';
+    else if (R.mistakes > 0 || R.due > 0) coach = 'A few quick wins waiting below — knock them out first.';
+    else if (R.daysStudied === 0) coach = 'Fresh start — even 10 minutes today builds the habit.';
+    else coach = 'Small steps add up. Let’s get a little done today.';
+
+    var planRows = (R.plan || []).map(function (p) {
+        return '<button onclick="var m=document.getElementById(\'daily-brief-modal\');if(m)m.remove();' + p.fn + '()" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:9px;padding:9px 12px;margin-bottom:6px;cursor:pointer;color:#fff;font-size:0.85rem;"><span style="font-size:1.05rem;flex-shrink:0;">' + p.icon + '</span><span style="flex:1;">' + esc(p.t) + '</span><i class="ph ph-arrow-right" style="color:var(--accent);"></i></button>';
+    }).join('');
+    var resumeRow = resume ? ('<button onclick="var m=document.getElementById(\'daily-brief-modal\');if(m)m.remove();switchTab(\'teach\');setTimeout(function(){if(typeof startTeachingTopic===\'function\')startTeachingTopic(' + JSON.stringify(resume).replace(/"/g, '&quot;') + ');},180);" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:rgba(108,92,231,0.12);border:1px solid rgba(108,92,231,0.4);border-radius:10px;padding:11px 13px;margin-bottom:12px;cursor:pointer;color:#fff;font-size:0.88rem;"><span style="font-size:1.1rem;">↩️</span><div style="flex:1;min-width:0;"><div style="font-weight:700;">Pick up where you left off</div><div style="font-size:0.78rem;color:var(--text-muted);">' + esc(resume) + '</div></div><i class="ph ph-arrow-right" style="color:var(--accent);"></i></button>') : '';
+
+    var m = document.createElement('div');
+    m.id = 'daily-brief-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel" style="max-width:500px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;">☀️ ' + esc(greet) + (name ? ', ' + esc(name) : '') + '</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.82rem;color:var(--text-muted);">' + esc(coach) + '</p></div>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'daily-brief-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow-y:auto;">'
+        + '<div style="display:flex;align-items:center;gap:14px;background:rgba(0,0,0,0.22);border:1px solid var(--glass-border);border-radius:12px;padding:13px 15px;margin-bottom:14px;">'
+        + '<div style="text-align:center;flex-shrink:0;"><div style="font-size:1.9rem;font-weight:800;color:' + R.color + ';line-height:1;">' + R.pct + '%</div><div style="font-size:0.66rem;color:var(--text-muted);">ready</div></div>'
+        + '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:' + R.color + ';font-size:0.92rem;">' + esc(R.label) + '</div>'
+        + '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">' + R.daysStudied + '/7 days active · ' + R.minsLast7 + ' min this week' + (R.streak ? ' · ' + R.streak + '-day streak' : '') + '</div></div></div>'
+        + resumeRow
+        + '<div style="font-size:0.78rem;font-weight:700;color:#fff;margin-bottom:7px;">📋 Today’s plan</div>' + (planRows || '<div style="font-size:0.82rem;color:var(--text-muted);">You’re all caught up — nice.</div>')
+        + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openDailyBrief = openDailyBrief;
+
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
 function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
