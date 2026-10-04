@@ -5376,6 +5376,85 @@ async function checkNotebookGrammar() {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// v24.21 — STUDY BOOSTERS #1: VISUAL LEARNING EVERYWHERE.
+// Turn ANY concept, in any subject, into one clean labeled diagram the AI
+// draws as inline SVG. Available app-wide (Home + a "See it visually" button
+// on answers) so visual learners get a picture of anything on demand.
+// Part of the `boosters` module (gated via _gateFeature).
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_VISUALIZE_PROMPT = "You are NEXUS Visual Explainer. Turn the student's concept into ONE clear, LABELED diagram that actually teaches it — the real structure, relationship, process, or shape, not decoration.\n\nOUTPUT EXACTLY: a single inline <svg>…</svg>, then one <p> caption (≤20 words). NOTHING else — no markdown, no code fences, no extra prose.\n\nSVG RULES:\n- Start with <svg viewBox=\"0 0 440 320\" xmlns=\"http://www.w3.org/2000/svg\"> and NO width/height attributes (it scales).\n- DARK background will be behind it. Use light/vivid colors only: text #e8e6f5; shapes & strokes #8f80f4, #2ed3cd, #f5a35e, #f07a72, #7ee0b8. NEVER black or dark fills, never rely on a white background.\n- font-family: sans-serif; label font-size 13–15, small notes 11. Every important part gets a <text> label.\n- Make it genuinely explanatory: use arrows/lines for relationships or steps; lay a process left→right or top→down. Math → draw the actual graph / shape / number line with axes & key points. Science → the structure or cycle. History → a timeline. English → a structure diagram (essay parts, plot arc, sentence tree).\n- Clean and uncluttered: 4–9 labeled elements max. Keep everything inside the 440×320 viewBox.\n\nReturn only the SVG then the caption.";
+
+async function _runVisualize(topic) {
+    topic = String(topic || '').trim();
+    var out = document.getElementById('viz-output');
+    if (!topic) { if (typeof showToast === 'function') showToast('Type what you want to see.', 'warning'); var inp = document.getElementById('viz-input'); if (inp) inp.focus(); return; }
+    if (out) out.innerHTML = _nxLoadingHTML('Drawing it out…');
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({
+                model: 'gpt-4o', temperature: 0.4, max_tokens: 1600,
+                messages: [{ role: 'system', content: NEXUS_VISUALIZE_PROMPT }, { role: 'user', content: 'Visualize this for a student: ' + topic }]
+            })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message || 'error');
+        var content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        if (!out) return;
+        if (!/<svg[\s>]/i.test(content)) { out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Couldn’t draw that one clearly — try rephrasing (e.g. add the subject, like “the water cycle” or “y = x²”).</div>'; return; }
+        var html = (typeof sanitizeHTML === 'function') ? sanitizeHTML(content) : content;
+        out.innerHTML = '<div style="background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:12px;padding:16px;">' + html + '</div>'
+            + '<button class="btn-secondary" style="width:100%;margin-top:12px;" onclick="_runVisualize((document.getElementById(\'viz-input\')||{}).value)"><i class="ph ph-arrows-clockwise"></i> Redraw</button>';
+    } catch (e) {
+        if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Couldn’t draw that right now — please try again.</div>';
+    }
+}
+window._runVisualize = _runVisualize;
+
+function openVisualizer(seedTopic) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('boosters')) return;
+    if (typeof trackFeature === 'function') trackFeature('visualize');
+    var seed = (typeof seedTopic === 'string') ? seedTopic.slice(0, 160) : '';
+    var ex = document.getElementById('visualizer-modal'); if (ex) ex.remove();
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var m = document.createElement('div');
+    m.id = 'visualizer-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    var chips = ['the water cycle', 'y = x²', 'how a bill becomes a law', 'parts of a cell', 'the structure of an essay'];
+    m.innerHTML = '<div class="glass-panel" style="max-width:560px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-palette" style="color:#2ed3cd;"></i> Visualize anything</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">Type any concept — any subject — and get a labeled diagram to learn from.</p></div>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'visualizer-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;">'
+        + '<div style="display:flex;gap:8px;"><input id="viz-input" value="' + esc(seed) + '" placeholder="e.g. photosynthesis, the slope of a line, WWII alliances" maxlength="160" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:11px 13px;font-size:0.92rem;" onkeydown="if(event.key===\'Enter\')_runVisualize(this.value)">'
+        + '<button class="btn-primary" style="flex-shrink:0;background:linear-gradient(135deg,#6C5CE7,#2ed3cd);" onclick="_runVisualize((document.getElementById(\'viz-input\')||{}).value)"><i class="ph ph-sparkle"></i> Draw it</button></div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">' + chips.map(function (c) { return '<button onclick="var i=document.getElementById(\'viz-input\');i.value=' + JSON.stringify(c).replace(/"/g, '&quot;') + ';_runVisualize(i.value)" style="background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:20px;color:var(--text-muted);font-size:0.76rem;padding:4px 11px;cursor:pointer;">' + esc(c) + '</button>'; }).join('') + '</div>'
+        + '<div id="viz-output" style="margin-top:16px;min-height:60px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    if (seed) _runVisualize(seed); else { var i = document.getElementById('viz-input'); if (i) i.focus(); }
+}
+window.openVisualizer = openVisualizer;
+
+// Append a "See it visually" button under an answer, seeded with the question.
+function _appendVisualizeBtn(container, seed) {
+    try {
+        if (!container || typeof openVisualizer !== 'function') return;
+        var b = document.createElement('button');
+        b.className = 'btn-secondary';
+        b.style.cssText = 'margin-top:12px;background:rgba(46,211,205,0.10);border:1px solid rgba(46,211,205,0.4);color:#bff3f0;';
+        b.innerHTML = '<i class="ph ph-palette"></i> See it visually';
+        b.onclick = function () { openVisualizer(String(seed || '').slice(0, 160)); };
+        container.appendChild(b);
+    } catch (_) {}
+}
+window._appendVisualizeBtn = _appendVisualizeBtn;
+
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
 function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
@@ -15360,6 +15439,7 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
                 output.innerHTML = rendered;
                 _scienceTutorTurns.push({ role: 'assistant', content: rendered });
                 appendTutorAnswerBox(output, 'science');
+                _appendVisualizeBtn(output, input);
                 addToHistory('science', input || '[Image analysis]', answer, scienceImageBase64 || null);
                 clearScienceImage();
             },
@@ -17469,6 +17549,7 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 // v12.1 — record assistant turn + append answer input if tutor mode
                 _mathTutorTurns.push({ role: 'assistant', content });
                 appendTutorAnswerBox(output, 'math');
+                _appendVisualizeBtn(output, text);
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
