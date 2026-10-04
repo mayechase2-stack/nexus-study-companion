@@ -5379,6 +5379,7 @@ async function checkNotebookGrammar() {
 // v17.0 — Concept-map generator (suggestion dp_39): topic → AI branches → visual radial map.
 function openConceptMap(seedTopic) {
     if (typeof hasPaid === 'function' && !hasPaid()) { openPaymentModal('access'); return; }
+    if (typeof _gateFeature === 'function' && !_gateFeature('capture')) return;
     if (typeof trackFeature === 'function') trackFeature('concept_map');
     var seed = (typeof seedTopic === 'string' && seedTopic) ? seedTopic.slice(0, 80) : '';
     var area = !seed && document.getElementById('notebook-area');
@@ -6716,6 +6717,7 @@ function finishVocabQuiz() {
 // QUICK QUIZ
 // ============================================================
 function startQuiz() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
     if (typeof trackFeature === 'function') trackFeature('quiz');
     document.getElementById('quiz-modal').classList.remove('hidden');
     document.getElementById('quiz-setup').style.display = 'block';
@@ -14063,6 +14065,7 @@ function _loadPdfJs() {
     });
 }
 function openStudyUpload() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('capture')) return;
     if (typeof trackFeature === 'function') trackFeature('upload_study');
     var existing = document.getElementById('studyupload-modal'); if (existing) existing.remove();
     _studyUploadText = ''; _studyUploadName = ''; _studyUploadSet = null;
@@ -14193,6 +14196,7 @@ window._studyUploadSaveDeck = _studyUploadSaveDeck;
 var _examTest = 'SAT', _examSet = null, _examAnswered = {}, _examScore = 0;
 var _examDefaults = { SAT: 'Math', ACT: 'Science', AP: 'AP Biology' };
 function openExamPrep() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
     if (typeof trackFeature === 'function') trackFeature('exam_prep');
     var ex = document.getElementById('exam-modal'); if (ex) ex.remove();
     _examSet = null; _examAnswered = {}; _examScore = 0;
@@ -14307,6 +14311,7 @@ function _updateMistakeBadge() {
 window._updateMistakeBadge = _updateMistakeBadge;
 var _mistakeSet = [];
 function openMistakeReview() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
     if (typeof trackFeature === 'function') trackFeature('review_mistakes');
     var ex = document.getElementById('mistake-modal'); if (ex) ex.remove();
     _mistakeSet = _mistakesLoad();
@@ -14383,6 +14388,7 @@ window._mistakeReteach = _mistakeReteach;
 // existing feature; the hub adds live counts so you know what's waiting.
 // ════════════════════════════════════════════════════════════════════
 function openPracticeHub() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
     if (typeof trackFeature === 'function') trackFeature('practice_hub');
     var ex = document.getElementById('practice-hub-modal'); if (ex) ex.remove();
     var mistakeN = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
@@ -14453,6 +14459,7 @@ function _updateLessonReviewBadge() {
 }
 window._updateLessonReviewBadge = _updateLessonReviewBadge;
 function openLessonReview() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('learn')) return;
     if (typeof trackFeature === 'function') trackFeature('lesson_review');
     var ex = document.getElementById('lreview-modal'); if (ex) ex.remove();
     var due = _lessonReviewsDue();
@@ -14593,6 +14600,7 @@ Rules:
 // Flashcards modal — list decks + review one card at a time
 // v12.4: mode param — 'manual' = open to create deck, 'ai' = open to AI generate, else open deck list
 function openFlashcards(focusDeckId) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
     if (typeof trackFeature === 'function') trackFeature('flashcards');
     const mode = (focusDeckId === 'manual' || focusDeckId === 'ai') ? focusDeckId : null;
     const deckId = mode ? null : focusDeckId;
@@ -17222,6 +17230,7 @@ function handleImageUpload(input) {
 // phones). Reuses the existing image → step-by-step flow. Kept in the click's
 // user-gesture chain so the file dialog isn't blocked.
 function snapAProblem() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('capture')) return;
     if (typeof trackFeature === 'function') trackFeature('snap_problem');
     if (typeof switchTab === 'function') switchTab('math');
     var u = document.getElementById('math-image-upload');
@@ -18256,6 +18265,7 @@ function copyPromptEngineOutput() { return copyEnglishGenPromptOutput(); }
 // ============================================================
 
 function openMathVisualizer() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('visual')) return;
     if (typeof trackFeature === 'function') trackFeature('graph_explore');
     document.getElementById('math-visualizer-modal').classList.remove('hidden');
     // Draw initial grid
@@ -20406,6 +20416,7 @@ const SP_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturd
 function _spLoad() { try { return JSON.parse(localStorage.getItem('study_planner') || '{}'); } catch (_) { return {}; } }
 function _spSave(d) { localStorage.setItem('study_planner', JSON.stringify(d)); }
 function openStudyPlanner() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('companion')) return;
     if (typeof trackFeature === 'function') trackFeature('my_progress');
     var existing = document.getElementById('study-planner-modal'); if (existing) existing.remove();
     var modal = document.createElement('div');
@@ -20719,17 +20730,19 @@ function deleteAllMyData() {
 // v24.16 — value-based "build your plan" modules. Each is $2.50/mo; pick 8+ and
 // the whole plan caps at $18 ("everything"). `tabs` is what the module unlocks
 // for tab-level gating (enforced only when FREE_BETA is turned off at launch).
+// v24.20 — Chase's final 8-module bundling (chosen feature-by-feature). `tabs` is
+// for tab-level gating; modal features call _gateFeature(id). Module 8 (boosters)
+// is NEW features we still have to build — marked `soon` so the plan builder shows
+// it as "Coming soon" (not purchasable) until those features ship.
 const NEXUS_MODULES = [
-    { id: 'teaching', icon: '📚', name: 'Teaching Board', desc: 'Deep lessons that actually teach — worked steps, practice, follow-ups, learning paths.', tabs: ['teach'] },
     { id: 'homework', icon: '⚡', name: 'Homework Help', desc: 'Step-by-step Math, Science, English & Social Studies tutoring.', tabs: ['math', 'science', 'english', 'social'] },
-    { id: 'vision', icon: '👁️', name: 'Live Vision', desc: 'Reads your screen and explains any question on it.', tabs: [] },
-    { id: 'snap', icon: '📸', name: 'Snap & Solve', desc: 'Snap a photo of a problem → solved and explained.', tabs: [] },
-    { id: 'practice', icon: '🎯', name: 'Practice Hub', desc: 'Quizzes, flashcards, fix-your-mistakes and spaced review in one place.', tabs: [] },
-    { id: 'exam', icon: '🎓', name: 'Exam Prep', desc: 'SAT, ACT & AP practice sets with scoring.', tabs: [] },
-    { id: 'upload', icon: '📄', name: 'Study Your Class', desc: 'Upload notes or a PDF → instant summary, flashcards & quiz.', tabs: [] },
-    { id: 'companion', icon: '🤖', name: 'Companion + Voice', desc: 'Your AI study buddy with read-aloud and hands-free voice.', tabs: [] },
-    { id: 'progress', icon: '📈', name: 'Progress & Readiness', desc: 'Goals, readiness meter, mastery dashboard and your daily plan.', tabs: [] },
-    { id: 'visual', icon: '🧠', name: 'Visual Tools', desc: 'Concept maps, Graph & Explore, history timeline and the science lab.', tabs: ['tools'] }
+    { id: 'learn', icon: '📚', name: 'Learn It Deep', desc: 'Teaching Board lessons, Socratic Tutor Mode, spaced review & adaptive difficulty.', tabs: ['teach'] },
+    { id: 'capture', icon: '👁️', name: 'Capture & Solve', desc: 'Live Vision screen-reading, Snap & Solve photos, Upload → study set, and concept maps.', tabs: [] },
+    { id: 'practice', icon: '🎯', name: 'Practice', desc: 'Quizzes & Practice Hub, flashcards, SAT/ACT/AP exam prep, and review-your-mistakes.', tabs: [] },
+    { id: 'visual', icon: '🧠', name: 'Visual Tools', desc: 'Graph & Explore, history timeline, and the science lab.', tabs: ['tools'] },
+    { id: 'writing', icon: '✍️', name: 'Writing Tools', desc: 'Citation generator, summarizer / rewriter, and debate practice.', tabs: [] },
+    { id: 'companion', icon: '🤖', name: 'Companion, Voice & Progress', desc: 'AI companion chat, read-aloud & hands-free voice, and your goals + readiness meter.', tabs: [] },
+    { id: 'boosters', icon: '✨', name: 'Study Boosters', desc: 'NEW: visual learning across every subject, an AI essay grader, your smart daily brief, and audio lesson recaps.', tabs: [], soon: true }
 ];
 const MODULE_PRICE = 2.50;
 const MAX_PLAN_PRICE = 18;   // "everything" ceiling — picking 8+ modules caps here
@@ -20741,6 +20754,7 @@ function _planTotal(n) { return Math.min(n * MODULE_PRICE, MAX_PLAN_PRICE); }
 function _getOwnedModules() { try { return JSON.parse(localStorage.getItem('nexus_modules') || '[]'); } catch (_) { return []; } }
 function _saveOwnedModules(a) { localStorage.setItem('nexus_modules', JSON.stringify(a)); }
 function hasModule(id) { if (typeof isOwner === 'function' && isOwner()) return true; return _getOwnedModules().indexOf(id) >= 0; }
+function _moduleName(id) { for (var i = 0; i < NEXUS_MODULES.length; i++) if (NEXUS_MODULES[i].id === id) return NEXUS_MODULES[i].name; return 'that'; }
 
 // v24.18 — map a tab id to the module that governs it (for tagging AI calls +
 // tab gating). Built from each module's `tabs` list.
@@ -20749,15 +20763,38 @@ function _tabToModule(tab) {
     for (var i = 0; i < NEXUS_MODULES.length; i++) { if ((NEXUS_MODULES[i].tabs || []).indexOf(tab) >= 0) return NEXUS_MODULES[i].id; }
     return '';
 }
-// The module for whatever the student is currently using (active view → tab → module).
+// v24.20 — the module of the modal feature currently in use (set by _gateFeature),
+// so AI calls from modals (exam, companion, essay grader…) tag the right module.
+var _featModule = '';
+// The module for whatever the student is currently using: an open feature wins,
+// else the active view → tab → module.
 function _currentModuleId() {
     try {
+        if (_featModule) return _featModule;
         var v = document.querySelector('[id^="view-"].active');
         var tab = v ? v.id.replace('view-', '') : (localStorage.getItem('last_tab') || '');
         return _tabToModule(tab);
     } catch (_) { return ''; }
 }
 window._currentModuleId = _currentModuleId;
+
+// v24.20 — gate a modal/feature by its module. Call at the top of a feature opener:
+//   if (!_gateFeature('practice')) return;
+// Sets the feature's module context (for server tagging) and, once the paywall is
+// live (FREE_BETA off), blocks + routes to the plan builder if the user doesn't own
+// it. Owners and beta always pass. Returns true if allowed.
+function _gateFeature(moduleId) {
+    _featModule = moduleId || '';
+    try {
+        if (typeof FREE_BETA !== 'undefined' && FREE_BETA) return true;
+        if (!moduleId) return true;
+        if (typeof hasModule === 'function' && hasModule(moduleId)) return true;
+        if (typeof showToast === 'function') showToast('That’s part of the “' + _moduleName(moduleId) + '” module — add it to your plan to unlock.', 'info', 4200);
+        if (typeof openPlanBuilder === 'function') openPlanBuilder();
+        return false;
+    } catch (_) { return true; }
+}
+window._gateFeature = _gateFeature;
 
 // v24.18 — pull entitlements FROM the server (profiles.modules + tier) and make
 // the local copy match. This is what stops a user from self-granting modules by
@@ -20791,7 +20828,10 @@ function _pbRecount() {
     });
     const t = document.getElementById('pb-total'), btn = document.getElementById('pb-confirm'), sub = document.getElementById('pb-subline');
     if (t) t.innerHTML = _fmtPrice(total) + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:500;">/mo</span>';
-    if (sub) sub.textContent = capped ? ('All ' + n + ' modules — everything unlocked (capped at ' + _fmtPrice(MAX_PLAN_PRICE) + ')') : (n + ' module' + (n !== 1 ? 's' : '') + ' × ' + _fmtPrice(MODULE_PRICE) + (n >= 7 ? ' · 1 more = everything for ' + _fmtPrice(MAX_PLAN_PRICE) : ''));
+    var _liveCount = NEXUS_MODULES.filter(function (m) { return !m.soon; }).length;
+    if (sub) sub.textContent = capped ? ('Everything unlocked — capped at ' + _fmtPrice(MAX_PLAN_PRICE) + '/mo')
+        : (n >= _liveCount && n > 0) ? ('All ' + n + ' available modules')
+        : (n + ' module' + (n !== 1 ? 's' : '') + ' × ' + _fmtPrice(MODULE_PRICE));
     if (btn) {
         if (n < MODULE_MIN) { btn.disabled = true; btn.textContent = 'Pick ' + (MODULE_MIN - n) + ' more'; btn.style.opacity = '0.5'; }
         else { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Subscribe — ' + _fmtPrice(total) + '/mo'; btn.style.opacity = '1'; }
@@ -20808,7 +20848,7 @@ async function _pbConfirm() {
     // v24.19 — at/over the $18 cap you get EVERYTHING, so grant all modules locally
     // (the server does the same). _syncEntitlements() corrects this from the server
     // after a real checkout anyway.
-    const grant = (sel.length * MODULE_PRICE > MAX_PLAN_PRICE) ? NEXUS_MODULES.map(function (m) { return m.id; }) : sel;
+    const grant = (sel.length * MODULE_PRICE > MAX_PLAN_PRICE) ? NEXUS_MODULES.filter(function (m) { return !m.soon; }).map(function (m) { return m.id; }) : sel;
     _saveOwnedModules(grant); // optimistic local save (beta)
     const btn = document.getElementById('pb-confirm');
     // If signed into Cloud, start a real (test-mode) Stripe checkout for $2 × modules.
@@ -20859,6 +20899,13 @@ function openPlanBuilder() {
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
     modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
     const cards = NEXUS_MODULES.map(function (m) {
+        // Coming-soon modules (new features not built yet) show as a disabled card.
+        if (m.soon) {
+            return '<div class="pb-card" style="position:relative;display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border:1px dashed var(--line-2,var(--glass-border));border-radius:13px;background:rgba(255,255,255,0.02);opacity:0.75;">'
+                + '<span style="font-size:1.5rem;line-height:1;flex-shrink:0;filter:grayscale(0.2);">' + (m.icon || '🧩') + '</span>'
+                + '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:700;color:#fff;font-size:0.92rem;">' + esc(m.name) + '</span><span style="margin-left:auto;font-size:0.66rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#a29bfe;background:rgba(108,92,231,0.18);border-radius:20px;padding:2px 8px;">Coming soon</span></div>'
+                + (m.desc ? '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:3px;line-height:1.4;">' + esc(m.desc) + '</div>' : '') + '</div></div>';
+        }
         const checked = owned.indexOf(m.id) >= 0;
         return '<label class="pb-card" style="position:relative;display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border:1px solid ' + (checked ? 'var(--accent)' : 'var(--glass-border)') + ';border-radius:13px;cursor:pointer;background:' + (checked ? 'rgba(108,92,231,0.14)' : 'rgba(255,255,255,0.03)') + ';transition:all .14s;">'
             + '<input type="checkbox" class="pb-mod" value="' + m.id + '" ' + (checked ? 'checked' : '') + ' onchange="_pbRecount()" style="position:absolute;opacity:0;width:0;height:0;">'
@@ -20871,10 +20918,10 @@ function openPlanBuilder() {
     modal.innerHTML = '<div class="glass-panel" style="max-width:600px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
         + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:18px 20px 14px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
         + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.18rem;"><i class="ph ph-puzzle-piece" style="color:#a29bfe;"></i> Build your plan</h3>'
-        + '<p style="margin:5px 0 0;font-size:0.82rem;color:var(--text-muted);">Pick only what you need — <strong style="color:#fff;">' + _fmtPrice(MODULE_PRICE) + '/mo each</strong>. Grab 8+ and everything caps at <strong style="color:#fff;">' + _fmtPrice(MAX_PLAN_PRICE) + '/mo</strong>.</p></div>'
+        + '<p style="margin:5px 0 0;font-size:0.82rem;color:var(--text-muted);">Pick only what you need — <strong style="color:#fff;">' + _fmtPrice(MODULE_PRICE) + '/mo each</strong>, capped at <strong style="color:#fff;">' + _fmtPrice(MAX_PLAN_PRICE) + '/mo</strong> no matter how many you add.</p></div>'
         + '<button class="btn-icon" onclick="document.getElementById(\'plan-builder-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
         + ((typeof FREE_BETA !== 'undefined' && FREE_BETA) ? '<div style="margin:12px 20px 0;background:rgba(69,199,141,0.10);border:1px solid rgba(69,199,141,0.35);border-radius:10px;padding:9px 13px;font-size:0.8rem;color:#8ce6bb;">🎉 <strong>Free during beta</strong> — build your plan to see what it\'d cost; you won\'t be charged yet.</div>' : '')
-        + '<div style="padding:12px 20px;flex-shrink:0;border-bottom:1px solid var(--glass-border);"><button onclick="_pbSelectAll()" style="width:100%;background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.12));border:1px dashed var(--accent);border-radius:12px;color:#fff;padding:11px;font-size:0.88rem;font-weight:600;cursor:pointer;">✨ Unlock everything — ' + _fmtPrice(MAX_PLAN_PRICE) + '/mo</button></div>'
+        + '<div style="padding:12px 20px;flex-shrink:0;border-bottom:1px solid var(--glass-border);"><button onclick="_pbSelectAll()" style="width:100%;background:linear-gradient(135deg,rgba(108,92,231,0.18),rgba(0,206,201,0.12));border:1px dashed var(--accent);border-radius:12px;color:#fff;padding:11px;font-size:0.88rem;font-weight:600;cursor:pointer;">✨ Unlock everything — ' + _fmtPrice(_planTotal(NEXUS_MODULES.filter(function(m){return !m.soon;}).length)) + '/mo</button></div>'
         + '<div style="padding:14px 20px;overflow-y:auto;display:grid;gap:9px;">' + cards + '</div>'
         + '<div style="padding:14px 20px;border-top:1px solid var(--glass-border);flex-shrink:0;display:flex;align-items:center;gap:14px;">'
         + '<div style="min-width:0;"><div id="pb-total" style="font-weight:800;color:#fff;font-size:1.35rem;line-height:1;"></div><div id="pb-subline" style="font-size:0.72rem;color:var(--text-muted);margin-top:3px;"></div></div>'
@@ -25466,6 +25513,7 @@ let _companionChatHistory = [];
 
 function openCompanionChat(id) {
     if (!hasPro()) { showProUpgradePrompt('Companions'); return; }
+    if (typeof _gateFeature === 'function' && !_gateFeature('companion')) return;
     if (typeof trackFeature === 'function') trackFeature('companion');
     const data = COMPANIONS_DATA[id];
     if (!data) return;
@@ -30301,6 +30349,7 @@ function _teachShowQuickActions() {
 }
 
 function startTeachingTopic(presetTopic) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('learn')) return;
     if (typeof trackFeature === 'function') trackFeature('teach_start');
     const input = document.getElementById('teach-topic-input');
     const subjectSel = document.getElementById('teach-subject');
@@ -31138,6 +31187,7 @@ function renderStudyHistoryChart(canvasId) {
     var _orig = typeof switchTab==='function' ? switchTab : null;
     if (!_orig) return;
     window.switchTab = function(tabId) {
+        try { _featModule = ''; } catch(_){}  // leaving a modal/feature resets the module context
         // v24.18 — launch-time module gate (DORMANT during beta: FREE_BETA=true).
         // At paid launch, switching to a tab in a module you haven't bought sends
         // you to the plan builder instead. Owners + untracked tabs pass through.
