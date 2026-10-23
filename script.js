@@ -18585,18 +18585,68 @@ function copyPromptEngineOutput() { return copyEnglishGenPromptOutput(); }
 // v7.0 COMMAND CENTER TOOLS
 // ============================================================
 
-function openMathVisualizer() {
+// ════════════════════════════════════════════════════════════════════
+// v24.26 — GRAPH & EXPLORE is now the REAL Desmos graphing calculator
+// (embedded via the free Desmos API) — zoom, pan, sliders, multiple
+// expressions, tables, the full thing. Replaces the old custom canvas plotter.
+// NOTE: uses Desmos's public demo API key; register a free key at
+// desmos.com/api for production and swap DESMOS_API_KEY below.
+// ════════════════════════════════════════════════════════════════════
+const DESMOS_API_KEY = 'dcb31709b452b1cf9dc26972add0fda6';
+var _desmosLoading = false, _desmosCbs = [], _desmosCalc = null;
+function _ensureDesmos(cb) {
+    if (window.Desmos) { cb(true); return; }
+    _desmosCbs.push(cb);
+    if (_desmosLoading) return;
+    _desmosLoading = true;
+    var s = document.createElement('script');
+    s.src = 'https://www.desmos.com/api/v1.11/calculator.js?apiKey=' + DESMOS_API_KEY;
+    s.onload = function () { var cbs = _desmosCbs; _desmosCbs = []; cbs.forEach(function (f) { try { f(true); } catch (_) {} }); };
+    s.onerror = function () { _desmosLoading = false; var cbs = _desmosCbs; _desmosCbs = []; cbs.forEach(function (f) { try { f(false); } catch (_) {} }); };
+    document.head.appendChild(s);
+}
+function _grapherToLatex(eq) {
+    // The Desmos API accepts most plain math as LaTeX; just normalize a few things.
+    var s = String(eq || '').trim();
+    if (!s) return '';
+    s = s.replace(/−/g, '-').replace(/×/g, '*').replace(/÷/g, '/');
+    return s;
+}
+function openGrapher(seedEq) {
     if (typeof _gateFeature === 'function' && !_gateFeature('visual')) return;
     if (typeof trackFeature === 'function') trackFeature('graph_explore');
-    document.getElementById('math-visualizer-modal').classList.remove('hidden');
-    // Draw initial grid
-    const canvas = document.getElementById('math-graph-canvas');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        drawGraphGrid(ctx, canvas.width, canvas.height);
-    }
-    setVisualizerMode(_visualizerMode || 'function');
+    var ex = document.getElementById('grapher-modal'); if (ex) { try { if (_desmosCalc) { _desmosCalc.destroy(); _desmosCalc = null; } } catch (_) {} ex.remove(); }
+    var m = document.createElement('div');
+    m.id = 'grapher-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:16px;';
+    function _closeGrapher() { try { if (_desmosCalc) { _desmosCalc.destroy(); _desmosCalc = null; } } catch (_) {} var el = document.getElementById('grapher-modal'); if (el) el.remove(); }
+    m.onclick = function (e) { if (e.target === m) _closeGrapher(); };
+    m._close = _closeGrapher;
+    m.innerHTML = '<div class="glass-panel" style="max-width:920px;width:98%;height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.05rem;"><i class="ph ph-chart-line" style="color:#2ed3cd;"></i> Graph &amp; Explore</h3><button class="btn-icon" id="grapher-close"><i class="ph ph-x"></i></button></div>'
+        + '<div id="desmos-calc" style="flex:1;min-height:0;width:100%;background:#fff;"></div>'
+        + '</div>';
+    document.body.appendChild(m);
+    document.getElementById('grapher-close').onclick = _closeGrapher;
+    var host = document.getElementById('desmos-calc');
+    host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg,#0f1120);color:#9aa0b8;font-size:0.95rem;">Loading the graphing calculator…</div>';
+    _ensureDesmos(function (ok) {
+        if (!ok || !window.Desmos) { host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#0f1120;color:#9aa0b8;text-align:center;padding:24px;">Couldn’t load the graphing calculator (check your connection). Please try again.</div>'; return; }
+        host.innerHTML = '';
+        try {
+            _desmosCalc = Desmos.GraphingCalculator(host, { keypad: true, expressions: true, settingsMenu: true, zoomButtons: true, expressionsTopbar: true, border: false, lockViewport: false });
+            var seed = _grapherToLatex(seedEq);
+            if (seed) _desmosCalc.setExpression({ id: 'seed', latex: seed });
+            else _desmosCalc.setExpression({ id: 'seed', latex: 'y=x^2' });
+        } catch (e) {
+            host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#0f1120;color:#9aa0b8;">Graphing calculator failed to start — please try again.</div>';
+        }
+    });
 }
+window.openGrapher = openGrapher;
+
+// The old custom visualizer + Function Explorer now open the real Desmos grapher.
+function openMathVisualizer(seedEq) { openGrapher(typeof seedEq === 'string' ? seedEq : ''); }
 
 // ── VISUALIZER MODE TOGGLE (Function vs Plot) ─────────────────────
 let _visualizerMode = 'function';
@@ -31413,12 +31463,7 @@ var _feState = { type: 'linear', m: 1, b: 0, a: 1, bq: 0, c: 0 };
 // v24.7 — Function Explorer merged into "Graph & Explore" (the math visualizer).
 // This is now a shim so every old entry point (Home CTA, Teaching Board "Grapher",
 // Exam Prep) lands in the unified tool's Explore mode instead of a second graph tool.
-function openFunctionExplorer() {
-    if (typeof openMathVisualizer === 'function') {
-        openMathVisualizer();
-        setVisualizerMode('explore');
-    }
-}
+function openFunctionExplorer() { if (typeof openGrapher === 'function') openGrapher(''); }
 window.openFunctionExplorer = openFunctionExplorer;
 function _feSetType(t) { _feState.type = t; _feBuildControls(); _feDraw(); }
 window._feSetType = _feSetType;
