@@ -1134,6 +1134,13 @@ async function _claimActiveSession() {
 }
 window._claimActiveSession = _claimActiveSession;
 var _sessionKicked = false;
+// v24.25 — have we actually owned the active-session row in THIS tab yet? We only
+// treat a mismatch as a "displaced by another device" kick AFTER we've owned it.
+// Before that, a row that isn't ours is just a STALE row from a previous visit (or
+// we simply haven't claimed yet) — so we CLAIM it (newest login wins) instead of
+// kicking. This fixes the false "only one person can be signed in" boot that hit a
+// single user returning to the site (their old session row was still in the table).
+var _sessionOwned = false;
 async function _checkActiveSession() {
     if (_sessionKicked) return;
     try {
@@ -1141,18 +1148,26 @@ async function _checkActiveSession() {
         var r = await nexusSB.from('active_sessions').select('session_id').eq('user_id', user.id).maybeSingle();
         if (r && r.error) return;                                    // table missing etc → fail open
         var owner = r && r.data && r.data.session_id;
-        if (!owner) { await _claimActiveSession(); return; }         // no row yet → claim it
-        if (owner === _mySessionId()) {                             // still mine → heartbeat the timestamp
+        if (owner && owner === _mySessionId()) {                     // it's ours → heartbeat the timestamp
+            _sessionOwned = true;
             try { await nexusSB.from('active_sessions').update({ updated_at: new Date().toISOString() }).eq('user_id', user.id); } catch (_) {}
             return;
         }
-        // Displaced by a newer login elsewhere → sign this device out.
+        if (!_sessionOwned) {                                        // no row, or a stale/other row we never claimed → take it over (newest wins), don't kick
+            await _claimActiveSession();
+            _sessionOwned = true;
+            return;
+        }
+        // We OWNED the session and just lost it → a genuinely newer login on another
+        // device displaced us → sign this device out.
         _sessionKicked = true;
         if (typeof showToast === 'function') showToast('Signed out — your account was just opened on another device. Only one active session is allowed at a time.', 'error', 9000);
         setTimeout(function () { try { signOut(); } catch (_) {} }, 1800);
     } catch (_) { /* fail open */ }
 }
 window._checkActiveSession = _checkActiveSession;
+// Claim the session on load (so a stale row can't kick us), then heartbeat/check.
+setTimeout(function () { if (localStorage.getItem('auth_user') && typeof _claimActiveSession === 'function') _claimActiveSession().then(function () { _sessionOwned = true; }); }, 2600);
 setInterval(function () { if (localStorage.getItem('auth_user')) _checkActiveSession(); }, 30000);
 // Phase 2b — call the hosted AI proxy (Edge Function) using the signed-in cloud session.
 async function callHostedAI(opts) {
