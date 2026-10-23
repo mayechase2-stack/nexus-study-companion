@@ -1287,9 +1287,23 @@ const NEXUS_TEACHING_QUALITY = 'TEACHING QUALITY — apply this WHENEVER your re
     '• Surface the key tips, tricks, and gotchas for this exact concept — the things students get wrong. E.g. "dividing or multiplying BOTH sides of an inequality by a negative flips the sign", "a negative exponent means reciprocal, not a negative answer", "keep-change-flip when dividing fractions".\n' +
     '• When a real memory hook or mnemonic helps it stick, give one (PEMDAS, "SOH-CAH-TOA", a vivid association for a date/person/term) — only if it genuinely aids recall, never forced.\n' +
     '• Weave these in naturally and briefly; do not bolt on a big separate appendix or pad the answer.';
+// v24.27 — is this a Companion-chat call? The companion is a quick, short chat,
+// so it should NOT get the app-wide "teach the WHY + tips" or "draw a diagram"
+// extras that make it over-explain.
+function _isCompanionCall(body) {
+    try {
+        var ms = (body && body.messages) || [];
+        for (var i = 0; i < ms.length; i++) {
+            var c = ms[i] && ms[i].role === 'system' && ms[i].content;
+            if (typeof c === 'string' && c.indexOf('NEXUS Companion AI') >= 0) return true;
+        }
+    } catch (_) {}
+    return false;
+}
 function _nexusTeachingQualityDirective(body) {
     try {
         if (body && body.response_format) return null;   // structured/JSON tools keep their schema
+        if (_isCompanionCall(body)) return null;          // companion stays short/conversational
         if (localStorage.getItem('teach_quality_off') === '1') return null;   // escape hatch
         return NEXUS_TEACHING_QUALITY;
     } catch (_) { return null; }
@@ -1303,6 +1317,7 @@ const NEXUS_VISUAL_DIAGRAMS = 'VISUALS — when what you\'re explaining has a ST
 function _nexusVisualDirective(body) {
     try {
         if (body && body.response_format) return null;
+        if (_isCompanionCall(body)) return null;          // keep companion replies short — no auto-diagrams
         if (localStorage.getItem('visuals_off') === '1') return null;   // escape hatch
         return NEXUS_VISUAL_DIAGRAMS;
     } catch (_) { return null; }
@@ -24595,12 +24610,12 @@ const NEXUS_COMPANION_PROMPT = `You are the NEXUS Companion AI — a friendly, i
 ═══════════════════════════════════════
 2. COMMUNICATION STYLE
 ═══════════════════════════════════════
+- ⚡ DEFAULT TO SHORT. This is a quick chat in a small window, not an essay. Answer in 2–4 short sentences (or 2–4 tight bullets). Lead with the answer; stop when it's answered. Only go longer if the user explicitly asks to "explain more", "go deeper", "step by step", or the task genuinely needs it. A wall of text is a failure here.
 - Speak clearly and directly.
 - Avoid robotic or generic phrasing ("As an AI…", "I'm happy to help…", "Certainly!").
-- Use clean structure and formatting — short headers, tight bullets, brief paragraphs.
-- Keep responses organized and easy to follow.
-- No filler, no unnecessary repetition, no padding.
-- Sound like a person talking to a person.
+- Use clean structure — tight bullets, brief sentences. No headers unless the answer truly has multiple parts.
+- No filler, no unnecessary repetition, no padding, no "here's some extra context you didn't ask for".
+- Sound like a person texting a smart friend.
 
 ═══════════════════════════════════════
 3. REASONING STYLE
