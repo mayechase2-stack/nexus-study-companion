@@ -3937,3 +3937,15 @@ details.hist-more > summary::before { content: "📖 "; }
 details.hist-more[open] > summary::before { content: "📖 "; }
 details.hist-more[open] > summary { margin-bottom: 10px; }
 details.hist-more > summary:hover { border-color: #a29bfe; }
+
+/* v24.29 — our own Graph & Explore (function-plot) */
+#fnplot-area .tick text { fill: #3a3f55; font-size: 11px; }
+#fnplot-area .x.origin line, #fnplot-area .y.origin line { stroke: #8187a8; stroke-width: 1.3; }
+#fnplot-area .function-plot .domain { stroke: #b9bdd0; }
+#fnplot-area text { font-family: inherit; }
+@media (max-width: 640px) {
+    .gr-wrap { height: 92vh !important; }
+    .gr-body { flex-direction: column !important; }
+    .gr-side { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--glass-border); max-height: 46%; }
+    #fnplot-area { min-height: 240px; }
+}

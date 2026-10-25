@@ -18600,66 +18600,171 @@ function copyPromptEngineOutput() { return copyEnglishGenPromptOutput(); }
 // ============================================================
 
 // ════════════════════════════════════════════════════════════════════
-// v24.26 — GRAPH & EXPLORE is now the REAL Desmos graphing calculator
-// (embedded via the free Desmos API) — zoom, pan, sliders, multiple
-// expressions, tables, the full thing. Replaces the old custom canvas plotter.
-// NOTE: uses Desmos's public demo API key; register a free key at
-// desmos.com/api for production and swap DESMOS_API_KEY below.
+// v24.29 — GRAPH & EXPLORE: our OWN graphing calculator. Rendering is powered by
+// function-plot (free, MIT, self-hosted from jsdelivr — no API key, no watermark,
+// no third-party site), wrapped in a NEXUS expression list + auto-sliders, PLUS a
+// teaching GUIDE that explains how to use it and what the graph MEANS — the thing
+// Desmos never does. Part of the `visual` module.
 // ════════════════════════════════════════════════════════════════════
-const DESMOS_API_KEY = 'dcb31709b452b1cf9dc26972add0fda6';
-var _desmosLoading = false, _desmosCbs = [], _desmosCalc = null;
-function _ensureDesmos(cb) {
-    if (window.Desmos) { cb(true); return; }
-    _desmosCbs.push(cb);
-    if (_desmosLoading) return;
-    _desmosLoading = true;
+var _fpLoading = false, _fpCbs = [], _grInstance = null;
+var _grExprs = [], _grScope = {}, _grDomain = { x: [-10, 10], y: [-7, 7] };
+var _GR_COLORS = ['#6C5CE7', '#2ed3cd', '#f07a72', '#f5a35e', '#45c78d', '#a29bfe'];
+var _GR_KNOWN = { x: 1, y: 1, e: 1, pi: 1 };
+['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sqrt', 'abs', 'log', 'ln', 'exp', 'floor', 'ceil', 'round', 'sinh', 'cosh', 'tanh', 'max', 'min', 'pow', 'cot', 'sec', 'csc', 'sign'].forEach(function (f) { _GR_KNOWN[f] = 1; });
+
+function _ensureFnPlot(cb) {
+    if (window.functionPlot) { cb(true); return; }
+    _fpCbs.push(cb);
+    if (_fpLoading) return;
+    _fpLoading = true;
     var s = document.createElement('script');
-    s.src = 'https://www.desmos.com/api/v1.11/calculator.js?apiKey=' + DESMOS_API_KEY;
-    s.onload = function () { var cbs = _desmosCbs; _desmosCbs = []; cbs.forEach(function (f) { try { f(true); } catch (_) {} }); };
-    s.onerror = function () { _desmosLoading = false; var cbs = _desmosCbs; _desmosCbs = []; cbs.forEach(function (f) { try { f(false); } catch (_) {} }); };
+    s.src = 'https://cdn.jsdelivr.net/npm/function-plot@1/dist/function-plot.js';
+    s.onload = function () { var cbs = _fpCbs; _fpCbs = []; cbs.forEach(function (f) { try { f(true); } catch (_) {} }); };
+    s.onerror = function () { _fpLoading = false; var cbs = _fpCbs; _fpCbs = []; cbs.forEach(function (f) { try { f(false); } catch (_) {} }); };
     document.head.appendChild(s);
 }
-function _grapherToLatex(eq) {
-    // The Desmos API accepts most plain math as LaTeX; just normalize a few things.
-    var s = String(eq || '').trim();
-    if (!s) return '';
-    s = s.replace(/−/g, '-').replace(/×/g, '*').replace(/÷/g, '/');
-    return s;
+// insert explicit * for implicit multiplication (2x → 2*x, 3sin → 3*sin, )( → )*( )
+function _grMul(s) { return String(s).replace(/(\d)([a-zA-Z(])/g, '$1*$2').replace(/\)([a-zA-Z0-9(])/g, ')*$1'); }
+function _grParse(raw) {
+    var s = String(raw || '').trim(); if (!s) return null;
+    s = s.replace(/−/g, '-').replace(/×/g, '*').replace(/÷/g, '/').replace(/²/g, '^2').replace(/³/g, '^3').replace(/π/g, 'pi').replace(/√/g, 'sqrt');
+    var pm = s.match(/^\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/);
+    if (pm) return { fnType: 'points', graphType: 'scatter', points: [[parseFloat(pm[1]), parseFloat(pm[2])]] };
+    if (s.indexOf('=') >= 0) {
+        var parts = s.split('='), L = parts[0].trim(), R = parts.slice(1).join('=').trim();
+        if (/^y$/i.test(L)) return { fn: _grMul(R) };
+        if (/^y$/i.test(R)) return { fn: _grMul(L) };
+        return { fnType: 'implicit', fn: _grMul('(' + L + ')-(' + R + ')') };
+    }
+    return { fn: _grMul(s) };
 }
+function _grParams(fns) {
+    var set = {};
+    fns.forEach(function (f) { (String(f).match(/[a-zA-Z]+/g) || []).forEach(function (t) { if (t.length === 1 && !_GR_KNOWN[t]) set[t] = 1; }); });
+    return Object.keys(set);
+}
+function _grRenderPlot() {
+    var host = document.getElementById('fnplot-area'); if (!host || !window.functionPlot) return;
+    var data = [], allFns = [];
+    _grExprs.forEach(function (e, i) {
+        if (!e.raw || !e.raw.trim()) return;
+        var p = _grParse(e.raw); if (!p) return;
+        p.color = _GR_COLORS[i % _GR_COLORS.length];
+        if (p.fn) { p.scope = _grScope; allFns.push(p.fn); }
+        data.push(p);
+    });
+    // populate slider params into scope BEFORE rendering (an undefined 'a' in
+    // "a*sin(x)" would make function-plot throw).
+    var params = _grParams(allFns);
+    params.forEach(function (k) { if (_grScope[k] === undefined) _grScope[k] = 1; });
+    // capture current pan/zoom so sliders don't reset the view
+    try { if (_grInstance && _grInstance.meta && _grInstance.meta.xScale) { _grDomain = { x: _grInstance.meta.xScale.domain().slice(), y: _grInstance.meta.yScale.domain().slice() }; } } catch (_) {}
+    host.innerHTML = '';
+    try {
+        _grInstance = functionPlot({
+            target: '#fnplot-area', width: host.clientWidth || 520, height: host.clientHeight || 360,
+            grid: true, xAxis: { domain: _grDomain.x }, yAxis: { domain: _grDomain.y },
+            data: data.length ? data : [{ fn: 'x^2', color: '#6C5CE7' }]
+        });
+    } catch (err) {
+        host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#9aa0b8;text-align:center;padding:20px;">Hmm — check that equation’s syntax (e.g. <code>y = x^2</code>, <code>sin(x)</code>, <code>2x + 3</code>).</div>';
+    }
+    _grSyncSliders(params);
+}
+function _grSyncSliders(params) {
+    var box = document.getElementById('gr-sliders'); if (!box) return;
+    params.forEach(function (k) { if (_grScope[k] === undefined) _grScope[k] = 1; });
+    if (!params.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div style="font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin:4px 0 6px;">Drag a slider</div>'
+        + params.map(function (k) {
+            var v = _grScope[k];
+            return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-family:monospace;color:#2ed3cd;width:14px;font-weight:700;">' + k + '</span>'
+                + '<input type="range" min="-10" max="10" step="0.5" value="' + v + '" oninput="_grSlide(\'' + k + '\',this.value)" style="flex:1;accent-color:#6C5CE7;">'
+                + '<span id="gr-sv-' + k + '" style="font-family:monospace;color:#fff;width:32px;text-align:right;font-size:0.8rem;">' + v + '</span></div>';
+        }).join('');
+}
+function _grSlide(k, v) { _grScope[k] = parseFloat(v); var el = document.getElementById('gr-sv-' + k); if (el) el.textContent = v; _grRenderPlot(); }
+window._grSlide = _grSlide;
+function _grSetExpr(i, val) { if (_grExprs[i]) _grExprs[i].raw = val; _grRenderPlot(); }
+window._grSetExpr = _grSetExpr;
+function _grAddExpr() {
+    if (_grExprs.length >= 6) return;
+    _grExprs.push({ raw: '' });
+    _grRenderExprList();
+    var inp = document.querySelector('#gr-expr-list .gr-expr-input:last-of-type'); if (inp) inp.focus();
+}
+window._grAddExpr = _grAddExpr;
+function _grDelExpr(i) { _grExprs.splice(i, 1); if (!_grExprs.length) _grExprs.push({ raw: '' }); _grRenderExprList(); _grRenderPlot(); }
+window._grDelExpr = _grDelExpr;
+function _grRenderExprList() {
+    var box = document.getElementById('gr-expr-list'); if (!box) return;
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    box.innerHTML = _grExprs.map(function (e, i) {
+        var c = _GR_COLORS[i % _GR_COLORS.length];
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;"><span style="width:10px;height:10px;border-radius:3px;flex-shrink:0;background:' + c + ';"></span>'
+            + '<input class="gr-expr-input" value="' + esc(e.raw) + '" placeholder="y = x^2" oninput="_grSetExpr(' + i + ',this.value)" style="flex:1;min-width:0;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-family:monospace;font-size:0.86rem;">'
+            + '<button onclick="_grDelExpr(' + i + ')" title="Remove" style="background:none;border:none;color:#ff6b6b;cursor:pointer;flex-shrink:0;"><i class="ph ph-x"></i></button></div>';
+    }).join('')
+        + (_grExprs.length < 6 ? '<button onclick="_grAddExpr()" style="background:none;border:1px dashed var(--glass-border);border-radius:8px;color:var(--text-muted);width:100%;padding:7px;cursor:pointer;font-size:0.82rem;">+ add equation</button>' : '');
+}
+async function _grExplain() {
+    var out = document.getElementById('gr-explain-out');
+    var eqs = _grExprs.map(function (e) { return (e.raw || '').trim(); }).filter(Boolean);
+    if (!eqs.length) { if (out) out.innerHTML = '<span style="color:var(--text-muted);">Type an equation first.</span>'; return; }
+    if (out) out.innerHTML = _nxLoadingHTML('Reading the graph…');
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    var sys = 'You are a friendly math teacher explaining a GRAPH to a student, in plain language. For the given equation(s), explain in clean HTML (short <p> and <ul><li>, <strong> for terms, NO markdown fences, NO LaTeX): (1) what KIND of function each is (line, parabola, etc.) in one phrase; (2) its KEY FEATURES the student should spot on the graph — intercepts, slope, vertex, roots, asymptotes, where it rises/falls — with the actual numbers; (3) a one-line "how to read it" tip. Keep it tight and scannable, not an essay.';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.3, max_tokens: 700, messages: [{ role: 'system', content: sys }, { role: 'user', content: 'Explain the graph of: ' + eqs.join(' ,  ') }] })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message);
+        var content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').replace(/```html/g, '').replace(/```/g, '');
+        if (out) out.innerHTML = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(content) : content;
+    } catch (e) {
+        if (out) out.innerHTML = '<span style="color:var(--text-muted);">Couldn’t explain that right now — try again.</span>';
+    }
+}
+window._grExplain = _grExplain;
 function openGrapher(seedEq) {
     if (typeof _gateFeature === 'function' && !_gateFeature('visual')) return;
     if (typeof trackFeature === 'function') trackFeature('graph_explore');
-    var ex = document.getElementById('grapher-modal'); if (ex) { try { if (_desmosCalc) { _desmosCalc.destroy(); _desmosCalc = null; } } catch (_) {} ex.remove(); }
+    var ex = document.getElementById('grapher-modal'); if (ex) ex.remove();
+    _grInstance = null; _grScope = {}; _grDomain = { x: [-10, 10], y: [-7, 7] };
+    var seed = (typeof seedEq === 'string' && seedEq.trim()) ? seedEq.trim() : 'y = x^2';
+    _grExprs = [{ raw: seed }];
     var m = document.createElement('div');
     m.id = 'grapher-modal';
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:16px;';
-    function _closeGrapher() { try { if (_desmosCalc) { _desmosCalc.destroy(); _desmosCalc = null; } } catch (_) {} var el = document.getElementById('grapher-modal'); if (el) el.remove(); }
-    m.onclick = function (e) { if (e.target === m) _closeGrapher(); };
-    m._close = _closeGrapher;
-    m.innerHTML = '<div class="glass-panel" style="max-width:920px;width:98%;height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.05rem;"><i class="ph ph-chart-line" style="color:#2ed3cd;"></i> Graph &amp; Explore</h3><button class="btn-icon" id="grapher-close"><i class="ph ph-x"></i></button></div>'
-        + '<div id="desmos-calc" style="flex:1;min-height:0;width:100%;background:#fff;"></div>'
-        + '</div>';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel gr-wrap" style="max-width:940px;width:98%;height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.05rem;"><i class="ph ph-chart-line" style="color:#2ed3cd;"></i> Graph &amp; Explore</h3><button class="btn-icon" onclick="document.getElementById(\'grapher-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div class="gr-body" style="flex:1;min-height:0;display:flex;">'
+        + '<div class="gr-side" style="width:270px;flex-shrink:0;border-right:1px solid var(--glass-border);display:flex;flex-direction:column;overflow-y:auto;padding:14px;">'
+        + '<div id="gr-expr-list"></div>'
+        + '<div id="gr-sliders" style="margin-top:10px;"></div>'
+        + '<div style="margin-top:14px;border-top:1px dashed var(--glass-border);padding-top:12px;">'
+        + '<div style="font-size:0.78rem;font-weight:700;color:#fff;margin-bottom:6px;">📖 Guide</div>'
+        + '<div style="font-size:0.74rem;color:var(--text-muted);line-height:1.5;">Type an equation like <code>y = x^2</code>. Use a letter (<code>a</code>, <code>m</code>…) and a <b>slider</b> appears. Scroll to zoom, drag to pan. Points: <code>(1,4)</code>.</div>'
+        + '<button onclick="_grExplain()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#6C5CE7,#2ed3cd);border:none;border-radius:9px;color:#fff;padding:9px;font-weight:600;font-size:0.84rem;cursor:pointer;"><i class="ph ph-sparkle"></i> Explain this graph</button>'
+        + '<div id="gr-explain-out" style="margin-top:10px;font-size:0.82rem;color:#dde0ee;line-height:1.55;"></div>'
+        + '</div></div>'
+        + '<div id="fnplot-area" style="flex:1;min-width:0;background:#f7f8fc;"></div>'
+        + '</div></div>';
     document.body.appendChild(m);
-    document.getElementById('grapher-close').onclick = _closeGrapher;
-    var host = document.getElementById('desmos-calc');
-    host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg,#0f1120);color:#9aa0b8;font-size:0.95rem;">Loading the graphing calculator…</div>';
-    _ensureDesmos(function (ok) {
-        if (!ok || !window.Desmos) { host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#0f1120;color:#9aa0b8;text-align:center;padding:24px;">Couldn’t load the graphing calculator (check your connection). Please try again.</div>'; return; }
-        host.innerHTML = '';
-        try {
-            _desmosCalc = Desmos.GraphingCalculator(host, { keypad: true, expressions: true, settingsMenu: true, zoomButtons: true, expressionsTopbar: true, border: false, lockViewport: false });
-            var seed = _grapherToLatex(seedEq);
-            if (seed) _desmosCalc.setExpression({ id: 'seed', latex: seed });
-            else _desmosCalc.setExpression({ id: 'seed', latex: 'y=x^2' });
-        } catch (e) {
-            host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#0f1120;color:#9aa0b8;">Graphing calculator failed to start — please try again.</div>';
-        }
+    _grRenderExprList();
+    var host = document.getElementById('fnplot-area');
+    host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#5a6080;">Loading the graph…</div>';
+    _ensureFnPlot(function (ok) {
+        if (!ok || !window.functionPlot) { host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#5a6080;text-align:center;padding:20px;">Couldn’t load the grapher (check your connection). Please try again.</div>'; return; }
+        _grRenderPlot();
     });
 }
 window.openGrapher = openGrapher;
 
-// The old custom visualizer + Function Explorer now open the real Desmos grapher.
+// The old custom visualizer + Function Explorer open our Graph & Explore.
 function openMathVisualizer(seedEq) { openGrapher(typeof seedEq === 'string' ? seedEq : ''); }
 
 // ── VISUALIZER MODE TOGGLE (Function vs Plot) ─────────────────────
