@@ -3239,6 +3239,22 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
     animation: companionMsgFloatUp 0.32s cubic-bezier(0.34, 1.06, 0.64, 1) both;
 }
 
+/* v24.30 — floating companion chat: kill horizontal overflow ("text out the box").
+   Long words, URLs, equations were pushing bubbles wider than the 380px window. */
+#companion-chat-messages { overflow-x: hidden; }
+#companion-chat-messages .companion-msg-ai,
+#companion-chat-messages .companion-msg-user {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+#companion-chat-messages .companion-msg-ai * ,
+#companion-chat-messages .companion-msg-user * { max-width: 100%; box-sizing: border-box; }
+#companion-chat-messages pre,
+#companion-chat-messages code { white-space: pre-wrap; overflow-wrap: anywhere; }
+#companion-chat-messages .streaming-content { overflow-wrap: anywhere; word-break: break-word; }
+
 /* v20.2 — Teaching Board readability. The bubbles reuse the companion-chat
    classes (built for a narrow floating window); in the wide Teaching Board that
    caused horizontal overflow (drag-to-see) and cramped text. Scoped to
@@ -3943,9 +3959,95 @@ details.hist-more > summary:hover { border-color: #a29bfe; }
 #fnplot-area .x.origin line, #fnplot-area .y.origin line { stroke: #8187a8; stroke-width: 1.3; }
 #fnplot-area .function-plot .domain { stroke: #b9bdd0; }
 #fnplot-area text { font-family: inherit; }
+/* v24.30 — Desmos-grade grapher chrome */
+.gr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gr-chip { background: rgba(108,92,231,0.14); border: 1px solid rgba(108,92,231,0.4); color: #cfd2ea; border-radius: 999px; padding: 5px 11px; font-size: 0.74rem; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
+.gr-chip:hover { background: rgba(108,92,231,0.3); border-color: #6C5CE7; color: #fff; }
+.gr-explain-btn { width: 100%; margin-top: 12px; background: linear-gradient(135deg,#6C5CE7,#2ed3cd); border: none; border-radius: 9px; color: #fff; padding: 10px; font-weight: 600; font-size: 0.84rem; cursor: pointer; }
+.gr-explain-btn:hover { filter: brightness(1.08); }
+.gr-guide-head { width: 100%; text-align: left; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 8px 10px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.gr-guide-head:hover { background: rgba(255,255,255,0.08); }
+.gr-guide-head code, #gr-guide-body code { background: rgba(108,92,231,0.2); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem; color: #c9c4ff; }
+.gr-zoom { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }
+.gr-zoom button { width: 38px; height: 38px; border-radius: 9px; border: 1px solid #d5d8e8; background: #fff; color: #3a3f55; font-size: 1.3rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: background .12s; line-height: 1; }
+.gr-zoom button:hover { background: #eef0f8; }
+.gr-zoom button .ph { font-size: 1rem; }
+.gr-readout { position: absolute; bottom: 10px; left: 12px; z-index: 3; background: rgba(255,255,255,0.86); border: 1px solid #d5d8e8; border-radius: 7px; padding: 3px 9px; font-family: monospace; font-size: 0.7rem; color: #4a4f6a; pointer-events: none; }
 @media (max-width: 640px) {
     .gr-wrap { height: 92vh !important; }
     .gr-body { flex-direction: column !important; }
     .gr-side { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--glass-border); max-height: 46%; }
-    #fnplot-area { min-height: 240px; }
+    .gr-plot-wrap { min-height: 260px; }
+    .gr-zoom button { width: 34px; height: 34px; }
 }
+/* v24.30 — inline interactive graphs embedded under answers/lessons */
+.inline-graph-embed { margin: 16px 0 6px; border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02); }
+.inline-graph-embed .ig-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 13px; font-size: 0.85rem; font-weight: 700; color: #fff; background: rgba(108,92,231,0.12); border-bottom: 1px solid var(--glass-border); }
+.inline-graph-embed .ig-head i { color: #2ed3cd; }
+.inline-graph-embed .ig-open { background: rgba(46,211,205,0.14); border: 1px solid rgba(46,211,205,0.4); color: #bff3f0; border-radius: 7px; padding: 5px 10px; font-size: 0.74rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.inline-graph-embed .ig-open:hover { background: rgba(46,211,205,0.26); }
+.inline-graph-embed .ig-plot-wrap { background: #f7f8fc; }
+.inline-graph-embed .ig-plot { width: 100%; height: 260px; }
+.inline-graph-embed .ig-plot .tick text { fill: #3a3f55; font-size: 11px; }
+.inline-graph-embed .ig-plot .x.origin line, .inline-graph-embed .ig-plot .y.origin line { stroke: #8187a8; stroke-width: 1.3; }
+.inline-graph-embed .ig-plot .function-plot .domain { stroke: #b9bdd0; }
+.inline-graph-embed .ig-hint { padding: 6px 13px; font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+
+/* v24.30 — Scan & Guide */
+.scan-wrap { max-width: 720px; width: 98%; max-height: 92vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; border: 1px solid rgba(46,211,205,0.4); }
+.scan-head { display: flex; justify-content: space-between; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--glass-border); flex-shrink: 0; }
+.scan-head h3 { margin: 0; color: #fff; font-size: 1.08rem; }
+.scan-body { padding: 18px; overflow-y: auto; }
+.scan-drop { border: 2px dashed var(--glass-border); border-radius: 16px; padding: 34px 22px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; transition: border-color .15s, background .15s; }
+.scan-drop-over { border-color: #2ed3cd; background: rgba(46,211,205,0.06); }
+.scan-drop-title { font-size: 1.1rem; font-weight: 700; color: #fff; }
+.scan-drop-sub { font-size: 0.86rem; color: var(--text-muted); max-width: 400px; line-height: 1.5; }
+.scan-pick-btn { margin-top: 8px; background: linear-gradient(135deg,#6C5CE7,#2ed3cd); border: none; border-radius: 11px; color: #fff; padding: 12px 22px; font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+.scan-pick-btn:hover { filter: brightness(1.08); }
+.scan-drop-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+.scan-preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.scan-preview-img { max-width: 100%; max-height: 52vh; border-radius: 12px; border: 1px solid var(--glass-border); }
+.scan-preview-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.scan-read-btn { background: linear-gradient(135deg,#6C5CE7,#2ed3cd); border: none; border-radius: 10px; color: #fff; padding: 11px 20px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+.scan-read-btn:hover { filter: brightness(1.08); }
+.scan-retake-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); border-radius: 10px; color: #cfd2ea; padding: 11px 18px; font-weight: 600; font-size: 0.86rem; cursor: pointer; }
+.scan-retake-btn:hover { background: rgba(255,255,255,0.12); }
+.scan-retake-btn.sm { padding: 7px 13px; font-size: 0.8rem; }
+.scan-loading { text-align: center; padding: 30px 10px; }
+.scan-loading-sub { font-size: 0.82rem; color: var(--text-muted); margin-top: 8px; }
+.scan-err { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.35); color: #ffb3b3; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.9rem; }
+.scan-cards-head { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.scan-found { font-size: 0.9rem; color: #dde0ee; margin-bottom: 14px; }
+.scan-cards { display: flex; flex-direction: column; gap: 14px; }
+.scan-card { border: 1px solid var(--glass-border); border-radius: 13px; padding: 14px 16px; background: rgba(255,255,255,0.02); }
+.scan-card-head { margin-bottom: 10px; }
+.scan-card-q { display: flex; gap: 8px; align-items: baseline; color: #fff; font-size: 0.98rem; line-height: 1.45; }
+.scan-q-num { flex-shrink: 0; font-weight: 800; color: #2ed3cd; }
+.scan-q-text { font-weight: 600; }
+.scan-q-topic { margin-top: 6px; font-size: 0.76rem; color: #a99bff; display: inline-flex; align-items: center; gap: 4px; }
+.scan-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.scan-walk-btn { background: linear-gradient(135deg,#6C5CE7,#2ed3cd); border: none; border-radius: 9px; color: #fff; padding: 9px 15px; font-weight: 700; font-size: 0.84rem; cursor: pointer; }
+.scan-walk-btn:hover { filter: brightness(1.08); }
+.scan-teach-btn { background: rgba(108,92,231,0.14); border: 1px solid rgba(108,92,231,0.4); border-radius: 9px; color: #cfccff; padding: 9px 15px; font-weight: 600; font-size: 0.84rem; cursor: pointer; }
+.scan-teach-btn:hover { background: rgba(108,92,231,0.28); }
+.scan-walk-out { margin-top: 4px; }
+.scan-walk-out:empty { margin-top: 0; }
+.scan-walk-out .sg-sec { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: rgba(0,0,0,0.22); border-left: 3px solid #6C5CE7; }
+.scan-walk-out .sg-sec h5 { margin: 0 0 8px; color: #a99bff; font-size: 0.92rem; }
+.scan-walk-out .sg-sec code { display: block; margin: 5px 0; padding: 7px 10px; background: rgba(255,255,255,0.05); border-radius: 5px; color: #7ff0ec; font-size: 0.9rem; }
+.scan-walk-out .sg-sec ol { padding-left: 1.3em; margin: 6px 0; }
+.scan-walk-out .sg-sec li { margin: 5px 0; line-height: 1.5; }
+.scan-walk-out details { margin-top: 10px; }
+.scan-walk-out summary { cursor: pointer; color: #2ed3cd; font-weight: 700; font-size: 0.86rem; }
+@media (max-width: 640px) {
+    .scan-body { padding: 14px; }
+    .scan-drop { padding: 24px 14px; }
+}
+/* v24.30 — MYTHIC wallpaper: Astral Drift (animated aurora gradient) */
+body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-attachment: fixed; }
+@keyframes astralDrift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@media (prefers-reduced-motion: reduce) { body.wallpaper-astral { animation: none; } }

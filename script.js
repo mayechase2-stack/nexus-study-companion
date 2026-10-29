@@ -7268,7 +7268,9 @@ const SHOP_ITEMS = {
         { id: 'aurora', name: 'Aurora Dreams', price: 0, desc: '✨ LEGENDARY Northern lights', accent: '#a29bfe', grad: '#00cec9', rarity: 'legendary', secret: true },
         { id: 'nexus-prime', name: 'Nexus Prime', price: 0, desc: '🔮 NEXUS The original essence', accent: '#00fff5', grad: '#7c4dff', rarity: 'nexus', secret: true, nexus: true },
         // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
-        { id: 'radiant-ascension', name: 'Radiant Ascension', price: 0, desc: '🌟 EXCLUSIVE — A blinding gold-white theme. Never for sale — only Level 40 scholars ever wear it.', accent: '#fff4d6', grad: '#ffb300', rarity: 'mythic', secret: true, exclusive: true, levelReq: 40 }
+        { id: 'radiant-ascension', name: 'Radiant Ascension', price: 0, desc: '🌟 EXCLUSIVE — A blinding gold-white theme. Never for sale — only Level 40 scholars ever wear it.', accent: '#fff4d6', grad: '#ffb300', rarity: 'mythic', secret: true, exclusive: true, levelReq: 40 },
+        // v24.30 — purchasable MYTHIC
+        { id: 'celestial-veil', name: 'Celestial Veil', price: 450, desc: '🔮 MYTHIC — gold starlight over deep cosmic violet. The rarest theme money can buy.', accent: '#ffd877', grad: '#b388ff', rarity: 'mythic' }
     ],
     cursors: [
         { id: 'default', name: 'Arrow', price: 0, desc: 'Standard pointer', rarity: 'common' },
@@ -7294,7 +7296,9 @@ const SHOP_ITEMS = {
         // v12.1 — Chidori cursor removed from the shop. SVG + click VFX kept
         // for legacy inventory holders, but no surface in the app mentions it.
         // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
-        { id: 'cursor_ascendant', name: 'Ascendant Blade', price: 0, desc: '⚔️ EXCLUSIVE — A blade forged from pure XP. Never for sale — only Level 12 students ever wield it.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 12 }
+        { id: 'cursor_ascendant', name: 'Ascendant Blade', price: 0, desc: '⚔️ EXCLUSIVE — A blade forged from pure XP. Never for sale — only Level 12 students ever wield it.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 12 },
+        // v24.30 — purchasable MYTHIC
+        { id: 'cursor-starforged', name: 'Starforged', price: 450, desc: '🔮 MYTHIC — a glowing four-point star with a comet spark, trailing stardust on click.', rarity: 'mythic' }
     ],
     fonts: [
         { id: 'default', name: 'Inter', price: 0, desc: 'Modern sans-serif (default)', rarity: 'common' },
@@ -7310,7 +7314,9 @@ const SHOP_ITEMS = {
         { id: 'gothic', name: 'Dark Gothic', price: 170, desc: 'UnifrakturMaguntia — medieval blackletter', rarity: 'epic' },
         { id: 'elegant', name: 'Elegant Script', price: 180, desc: 'Cormorant italic — refined calligraphy', rarity: 'epic' },
         { id: 'chalk', name: 'Chalkboard', price: 200, desc: 'Caveat — schoolroom marker', rarity: 'epic' },
-        { id: 'comic-pro', name: 'Comic Pro', price: 220, desc: 'Bangers — bold comic-book voice', rarity: 'legendary' }
+        { id: 'comic-pro', name: 'Comic Pro', price: 220, desc: 'Bangers — bold comic-book voice', rarity: 'legendary' },
+        // v24.30 — purchasable MYTHIC
+        { id: 'celestial-serif', name: 'Celestial Serif', price: 320, desc: '🔮 MYTHIC — Fraunces: a soft, high-contrast serif with a timeless, premium feel.', rarity: 'mythic' }
     ],
     wallpapers: [
         { id: 'none', name: 'Default', price: 0, desc: 'Clean solid background', rarity: 'common' },
@@ -7336,7 +7342,9 @@ const SHOP_ITEMS = {
         // v12.8 — Custom Wallpaper upload (15,000 credits)
         { id: 'custom-wallpaper', name: 'My Wallpaper', price: 15000, desc: '🖼️ Upload any image from your device as a full-screen wallpaper. Your image stays local — only you see it.', rarity: 'epic' },
         // v240 — EXCLUSIVE, level-locked. Never purchasable — only earned by reaching the level.
-        { id: 'skyfall-citadel', name: 'Skyfall Citadel', price: 0, desc: '🏰 EXCLUSIVE — A floating citadel above the clouds. Never for sale — only Level 32 students ever see it from home.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 32 }
+        { id: 'skyfall-citadel', name: 'Skyfall Citadel', price: 0, desc: '🏰 EXCLUSIVE — A floating citadel above the clouds. Never for sale — only Level 32 students ever see it from home.', rarity: 'mythic', secret: true, exclusive: true, levelReq: 32 },
+        // v24.30 — purchasable MYTHIC
+        { id: 'astral-drift', name: 'Astral Drift', price: 500, desc: '🔮 MYTHIC — a slow-drifting aurora of violet, teal and gold that breathes behind your work.', rarity: 'mythic' }
     ],
     badges: [
         { id: 'none', name: 'No Badge', price: 0, desc: 'No badge equipped', rarity: 'common' },
@@ -7356,7 +7364,9 @@ const SHOP_ITEMS = {
         // the ONLY way in is unlocking the matching achievement, permanently.
         { id: 'phoenix-crown', name: 'Phoenix Crown', price: 0, desc: '🔥 RARE ACHIEVEMENT DROP — Worn only by students who never broke a 100-day streak.', rarity: 'mythic', secret: true, exclusive: true },
         { id: 'season-champion', name: 'Hall of Famer', price: 0, desc: '🏆 EXCLUSIVE — Earned by finishing Top 3 on a Season leaderboard. A permanent mark of prestige that never expires.', rarity: 'mythic', secret: true, exclusive: true },
-        { id: 'trailblazer', name: 'Trailblazer', price: 0, desc: '🚀 RARE ACHIEVEMENT DROP — For the first students to collect every piece of Exclusive gear.', rarity: 'mythic', secret: true, exclusive: true }
+        { id: 'trailblazer', name: 'Trailblazer', price: 0, desc: '🚀 RARE ACHIEVEMENT DROP — For the first students to collect every piece of Exclusive gear.', rarity: 'mythic', secret: true, exclusive: true },
+        // v24.30 — purchasable MYTHIC
+        { id: 'cosmic-sovereign', name: 'Cosmic Sovereign', price: 450, desc: '🔮 MYTHIC — 🌌 a galaxy pinned beside your name. The crown jewel of badges.', rarity: 'mythic' }
     ],
     effects: [
         // v12.1 — Pruned + reorganized. Removed: glow (annoying), snowfall (heavy
@@ -7915,7 +7925,8 @@ function renderPreviewMockup(category, item) {
             gothic:      "'UnifrakturMaguntia', serif",
             elegant:     "'Playfair Display', serif",
             chalk:       "'Caveat', cursive",
-            'comic-pro': "'Bangers', cursive"
+            'comic-pro': "'Bangers', cursive",
+            'celestial-serif': "'Fraunces', 'Cormorant Garamond', Georgia, serif"
         };
         const fam = fontFamilies[item.id] || 'inherit';
         // v12.2 — Font previews were still too cramped. Now: heading goes BIG
@@ -7947,7 +7958,7 @@ function renderPreviewMockup(category, item) {
     } else if (category === 'badge') {
         const badgeEmojis = {
             'night-owl': '🌙', 'speedster': '⚡', 'quiz-master': '🏆', 'streak-king': '🔥',
-            'scholar': '🎓', 'diamond': '💎', 'champion': '👑', 'nexus-emblem': '🔮'
+            'scholar': '🎓', 'diamond': '💎', 'champion': '👑', 'nexus-emblem': '🔮', 'cosmic-sovereign': '🌌'
         };
         if (badgeEl) {
             badgeEl.style.display = 'block';
@@ -8737,7 +8748,13 @@ function getCursorPreviewSVG(id, size) {
 <rect x='3' y='9' width='7' height='1' fill='#ff69b4'/><rect x='4' y='10' width='5' height='1' fill='#ff69b4'/>
 <rect x='5' y='11' width='3' height='1' fill='#ff69b4'/><rect x='6' y='12' width='1' height='1' fill='#ff69b4'/>
 <rect x='2' y='5' width='1' height='1' fill='#ffb6d9'/><rect x='7' y='5' width='1' height='1' fill='#ffb6d9'/>
-</svg>`
+</svg>`,
+        'cursor-starforged': `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 40 40'>
+<defs><radialGradient id='sfcp'><stop offset='0%' stop-color='#fff8e1'/><stop offset='45%' stop-color='#ffd877'/><stop offset='100%' stop-color='#b388ff' stop-opacity='0'/></radialGradient></defs>
+<circle cx='20' cy='20' r='15' fill='url(#sfcp)' opacity='0.55'/>
+<path d='M20 4 L22.6 17.4 L36 20 L22.6 22.6 L20 36 L17.4 22.6 L4 20 L17.4 17.4 Z' fill='#ffe9a8' stroke='#b388ff' stroke-width='0.8'/>
+<path d='M20 9 L21.4 18.6 L31 20 L21.4 21.4 L20 31 L18.6 21.4 L9 20 L18.6 18.6 Z' fill='#fff8e1'/>
+<circle cx='20' cy='20' r='2.4' fill='#ffffff'/><circle cx='31.5' cy='8.5' r='1.3' fill='#8ef0ec'/></svg>`
     };
     return MAP[id] || MAP.default;
 }
@@ -8872,7 +8889,7 @@ function renderShopContent(tab, targetContainer) {
         if (tab === 'themes') {
             previewSection = `<div style="height:60px;border-radius:8px;background:linear-gradient(135deg, ${item.accent}, ${item.grad});margin-bottom:12px;"></div>`;
         } else if (tab === 'cursors') {
-            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸', 'compass-cursor': '🧭', 'cursor_pixel_arrow': '🕹️', 'cursor_pixel_sword': '⚔️', 'cursor_pixel_heart': '💗' }[item.id] || '↖️';
+            const cursorEmoji = { default: '↖️', crosshair: '🎯', laser: '🔴', target: '🔭', wand: '🪄', sword: '⚔️', rocket: '🚀', pen: '✒️', galaxy: '🌌', lightsaber: '⚡', rainbow: '🌈', 'sakura-cursor': '🌸', 'compass-cursor': '🧭', 'cursor_pixel_arrow': '🕹️', 'cursor_pixel_sword': '⚔️', 'cursor_pixel_heart': '💗', 'cursor-starforged': '🌟' }[item.id] || '↖️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${cursorEmoji}</div>`;
         } else if (tab === 'fonts') {
             const fontFamily = {
@@ -8880,7 +8897,7 @@ function renderShopContent(tab, targetContainer) {
                 rounded: "'Quicksand',sans-serif", condensed: "'Oswald',sans-serif", handwriting: "'Dancing Script',cursive",
                 typewriter: "'Courier Prime',monospace", newspaper: "'Playfair Display',serif", pixel: "'Press Start 2P',monospace",
                 futuristic: "'Orbitron',sans-serif", gothic: "'UnifrakturMaguntia',serif", elegant: "'Playfair Display',serif",
-                chalk: "'Caveat',cursive", 'comic-pro': "'Bangers',cursive"
+                chalk: "'Caveat',cursive", 'comic-pro': "'Bangers',cursive", 'celestial-serif': "'Fraunces','Cormorant Garamond',serif"
             }[item.id] || "'Inter',sans-serif";
             const _fsz = item.id === 'pixel' ? '1.05rem' : (item.id === 'comic-pro' ? '1.9rem' : '1.65rem');
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:${fontFamily};font-size:${_fsz};color:#fff;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">Abc 123</div>`;
@@ -8888,11 +8905,11 @@ function renderShopContent(tab, targetContainer) {
             const wallpaperEmoji = {
                 none: '⬛', gradient1: '🟣', gradient2: '🌅', underwater: '🦈', 'ocean-deep': '🪼', matrix: '💚', starfield: '⭐',
                 'aurora-bg': '🌌', nebula: '✨', sakura: '🌸', 'sakura-day': '🌸', 'sunny-meadow': '🌾', 'beach-day': '🏖️', 'spring-sky': '✈️', 'nexus-void': '🔮', 'custom-wallpaper': '🖼️',
-                'neon-city': '🌃', 'space-station': '🛰️', 'anime-library': '📚'
+                'neon-city': '🌃', 'space-station': '🛰️', 'anime-library': '📚', 'astral-drift': '🌠'
             }[item.id] || '🖼️';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${wallpaperEmoji}</div>`;
         } else if (tab === 'badges') {
-            const badgeEmoji = { none: '⚪', 'night-owl': '🌙', speedster: '⚡', 'quiz-master': '🏆', 'streak-king': '🔥', scholar: '🎓', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮' }[item.id] || '🏅';
+            const badgeEmoji = { none: '⚪', 'night-owl': '🌙', speedster: '⚡', 'quiz-master': '🏆', 'streak-king': '🔥', scholar: '🎓', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮', 'cosmic-sovereign': '🌌' }[item.id] || '🏅';
             previewSection = `<div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:12px;">${badgeEmoji}</div>`;
         } else if (tab === 'effects') {
             const effectEmoji = {
@@ -9469,7 +9486,9 @@ function applyTheme(colorName) {
         void:         { accent: '#8c7ae6', primary: '#2c2c54', bg: '#030216', panel: 'rgba(10,5,30,0.7)', muted: '#6b5eaa', border: 'rgba(140,122,230,0.12)' },
         aurora:       { accent: '#74e8c8', primary: '#a29bfe', bg: '#020a0f', panel: 'rgba(8,25,35,0.6)', muted: '#8cd4c0', border: 'rgba(116,232,200,0.12)' },
         'nexus-prime': { accent: '#00fff5', primary: '#7c4dff', bg: '#000510', panel: 'rgba(5,0,25,0.7)', muted: '#88ccff', border: 'rgba(0,255,245,0.15)' },
-        'midnight-violet': { accent: '#a78bfa', primary: '#7c3aed', bg: '#0b0518', panel: 'rgba(30,16,55,0.6)', muted: '#b9a8e6', border: 'rgba(124,58,237,0.18)' }
+        'midnight-violet': { accent: '#a78bfa', primary: '#7c3aed', bg: '#0b0518', panel: 'rgba(30,16,55,0.6)', muted: '#b9a8e6', border: 'rgba(124,58,237,0.18)' },
+        // v24.30 — MYTHIC
+        'celestial-veil': { accent: '#ffd877', primary: '#b388ff', bg: '#06040f', panel: 'rgba(24,14,46,0.64)', muted: '#cabef2', border: 'rgba(179,136,255,0.2)' }
     };
     const t = themes[colorName] || themes.default;
     root.style.setProperty('--accent', t.accent);
@@ -10331,7 +10350,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v19.0';
+const NEXUS_CURRENT_VERSION = 'v24.30';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -11049,6 +11068,19 @@ function applyCursor(type) {
 <circle cx='16' cy='16' r='2.4' fill='#ffd166' stroke='#7a4a1f' stroke-width='0.6'/>
 <circle cx='16' cy='6' r='1' fill='#ffd166'/>
 </svg>`, 16, 16, 'auto');
+    } else if (type === 'cursor-starforged') {
+        // v24.30 — MYTHIC: a glowing four-point star with a comet spark + golden core
+        setCur(`<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'>
+<defs>
+<radialGradient id='sfc'><stop offset='0%' stop-color='#fff8e1'/><stop offset='45%' stop-color='#ffd877'/><stop offset='100%' stop-color='#b388ff' stop-opacity='0'/></radialGradient>
+<filter id='sfg'><feGaussianBlur stdDeviation='1.1'/><feMerge><feMergeNode/><feMergeNode in='SourceGraphic'/></feMerge></filter>
+</defs>
+<circle cx='20' cy='20' r='15' fill='url(#sfc)' opacity='0.55'/>
+<path d='M20 4 L22.6 17.4 L36 20 L22.6 22.6 L20 36 L17.4 22.6 L4 20 L17.4 17.4 Z' fill='#ffe9a8' stroke='#b388ff' stroke-width='0.8' filter='url(#sfg)'/>
+<path d='M20 9 L21.4 18.6 L31 20 L21.4 21.4 L20 31 L18.6 21.4 L9 20 L18.6 18.6 Z' fill='#fff8e1'/>
+<circle cx='20' cy='20' r='2.4' fill='#ffffff'/>
+<circle cx='31.5' cy='8.5' r='1.3' fill='#8ef0ec'/>
+</svg>`, 20, 20, 'auto');
     } else {
         document.body.style.cursor = 'default';
     }
@@ -11074,7 +11106,8 @@ function applyFont(type) {
         gothic:      "'UnifrakturMaguntia', 'Garamond', serif",
         elegant:     "'Playfair Display', 'Didot', 'Bodoni MT', serif",
         chalk:       "'Caveat', cursive",
-        'comic-pro': "'Bangers', 'Comic Sans MS', cursive"
+        'comic-pro': "'Bangers', 'Comic Sans MS', cursive",
+        'celestial-serif': "'Fraunces', 'Cormorant Garamond', Georgia, serif"
     };
     document.body.style.fontFamily = fonts[type] || fonts.default;
     // v16.5 — per-font sizing fixes. Several display/script fonts render small
@@ -11096,7 +11129,8 @@ function applyFont(type) {
         rounded:     { size: '',       ls: '0.2px', lh: '1.65', ws: ''      },
         typewriter:  { size: '',       ls: '0.3px', lh: '1.7',  ws: ''      },
         futuristic:  { size: '15.5px', ls: '0.5px', lh: '1.7',  ws: '0.5px' }, // Orbitron — wide
-        mono:        { size: '',       ls: '',      lh: '1.6',  ws: ''      }
+        mono:        { size: '',       ls: '',      lh: '1.6',  ws: ''      },
+        'celestial-serif': { size: '17px', ls: '0.2px', lh: '1.72', ws: '0.3px' } // Fraunces
     };
     const t = tweaks[type] || { size: '', ls: '', lh: '', ws: '' };
     document.body.style.fontSize = t.size;
@@ -11162,6 +11196,8 @@ function applyWallpaper(type) {
     const existingWallpaper = document.getElementById('wallpaper-canvas');
     if (existingWallpaper) existingWallpaper.remove();
     body.style.backgroundImage = '';
+    body.style.backgroundSize = '';
+    body.classList.remove('wallpaper-astral');
 
     // v10.8 — auto-apply a "light wallpaper" body class so the dark theme text gets a
     // legibility boost (more opaque panel backgrounds + text-shadow). Bright daytime
@@ -11178,6 +11214,13 @@ function applyWallpaper(type) {
     }
     if (type === 'gradient2') {
         body.style.backgroundImage = 'linear-gradient(135deg, #1a0a00 0%, #4a1a2e 40%, #2d1b00 100%)';
+        return;
+    }
+    // v24.30 — MYTHIC: Astral Drift — a slow-breathing aurora gradient (CSS-animated, no canvas)
+    if (type === 'astral-drift') {
+        body.style.backgroundImage = 'linear-gradient(125deg, #140a2e, #072a33, #2d1b69, #3a2a0e, #0c0520, #140a2e)';
+        body.style.backgroundSize = '400% 400%';
+        body.classList.add('wallpaper-astral');
         return;
     }
     // v12.8 — Custom uploaded wallpaper
@@ -17573,6 +17616,161 @@ function snapAProblem() {
 }
 window.snapAProblem = snapAProblem;
 
+// ════════════════════════════════════════════════════════════════════
+// v24.30 — SCAN & GUIDE. Upload or snap a photo of a worksheet / homework /
+// textbook page → NEXUS reads EVERY problem, then (DeltaMath-style) walks you
+// through each one: a worked example of a SIMILAR problem first, then guided
+// steps for yours with the full solution tucked behind "Show the solution",
+// plus a one-tap link to learn the concept on the Teaching Board. Part of the
+// `capture` module.
+// ════════════════════════════════════════════════════════════════════
+var _scanImage = null, _scanProblems = [], _scanSubject = '';
+
+function openScanGuide() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('capture')) return;
+    if (typeof trackFeature === 'function') trackFeature('scan_guide');
+    var ex = document.getElementById('scan-modal'); if (ex) ex.remove();
+    _scanImage = null; _scanProblems = []; _scanSubject = '';
+    var m = document.createElement('div');
+    m.id = 'scan-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:16px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    m.innerHTML = '<div class="glass-panel scan-wrap">'
+        + '<div class="scan-head"><h3><i class="ph ph-scan" style="color:#2ed3cd;"></i> Scan &amp; Guide</h3><button class="btn-icon" onclick="document.getElementById(\'scan-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div id="scan-body" class="scan-body"></div>'
+        + '</div>';
+    document.body.appendChild(m);
+    _scanRenderDrop();
+}
+window.openScanGuide = openScanGuide;
+
+function _scanRenderDrop() {
+    var body = document.getElementById('scan-body'); if (!body) return;
+    body.innerHTML = '<div id="scan-drop" class="scan-drop">'
+        + '<i class="ph ph-camera" style="font-size:2.4rem;color:#6C5CE7;"></i>'
+        + '<div class="scan-drop-title">Snap or upload your worksheet</div>'
+        + '<div class="scan-drop-sub">A photo of your homework, a textbook page, or a word problem — NEXUS reads every question and guides you through them.</div>'
+        + '<button class="scan-pick-btn" onclick="document.getElementById(\'scan-file\').click()"><i class="ph ph-image"></i> Choose photo / take picture</button>'
+        + '<input id="scan-file" type="file" accept="image/*" style="display:none;" onchange="_scanHandleFile(this)">'
+        + '<div class="scan-drop-hint">You can also drag &amp; drop an image here.</div>'
+        + '</div>';
+    var drop = document.getElementById('scan-drop');
+    if (drop) {
+        drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('scan-drop-over'); });
+        drop.addEventListener('dragleave', function () { drop.classList.remove('scan-drop-over'); });
+        drop.addEventListener('drop', function (e) {
+            e.preventDefault(); drop.classList.remove('scan-drop-over');
+            var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) _scanReadFile(f);
+        });
+    }
+}
+function _scanHandleFile(input) { if (input && input.files && input.files[0]) _scanReadFile(input.files[0]); }
+window._scanHandleFile = _scanHandleFile;
+function _scanReadFile(file) {
+    if (!/^image\//.test(file.type)) { if (typeof showToast === 'function') showToast('Please choose an image file.', 'error'); return; }
+    if (file.size > 12 * 1024 * 1024) { if (typeof showToast === 'function') showToast('Image too large (max 12MB).', 'error'); return; }
+    var reader = new FileReader();
+    reader.onload = function (e) { _scanImage = e.target.result; _scanRenderPreview(); };
+    reader.readAsDataURL(file);
+}
+function _scanRenderPreview() {
+    var body = document.getElementById('scan-body'); if (!body || !_scanImage) return;
+    body.innerHTML = '<div class="scan-preview-wrap"><img src="' + _scanImage + '" class="scan-preview-img" alt="worksheet">'
+        + '<div class="scan-preview-actions">'
+        + '<button class="scan-read-btn" onclick="_scanExtract()"><i class="ph ph-magic-wand"></i> Read my worksheet</button>'
+        + '<button class="scan-retake-btn" onclick="_scanRenderDrop()"><i class="ph ph-arrow-counter-clockwise"></i> Choose a different photo</button>'
+        + '</div></div>';
+}
+window._scanRenderDrop = _scanRenderDrop;
+
+async function _scanExtract() {
+    var body = document.getElementById('scan-body'); if (!body || !_scanImage) return;
+    body.innerHTML = '<div class="scan-loading">' + (typeof _nxLoadingHTML === 'function' ? _nxLoadingHTML('Reading your worksheet…') : 'Reading your worksheet…') + '<div class="scan-loading-sub">Finding every problem on the page</div></div>';
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) { body.innerHTML = '<div class="scan-err">Add an OpenAI API key in Settings first.</div>'; return; }
+    var sys = 'You are NEXUS Scan — you read a photo of a student\'s worksheet, homework, quiz, or textbook page and list EVERY problem or question on it. Return ONLY JSON (no prose, no markdown) in exactly this shape:\n{"subject":"<overall subject, e.g. Algebra 1, Biology, Chemistry>","problems":[{"n":"<the problem number/label exactly as printed, or empty string>","text":"<the full problem transcribed cleanly; for math use plain notation like x^2, (3,4), sqrt(5); include the whole word problem>","topic":"<the specific skill/concept this problem tests, a few words, e.g. solving two-step equations, finding slope>"}]}\nRules: transcribe faithfully and completely. If handwriting or part of the page is unclear, do your best and keep going. Keep problems in the order they appear. If the page is just notes with no problems, return "problems": []. Maximum 12 problems.';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o', temperature: 0.1, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content: [{ type: 'text', text: 'Read this worksheet and list every problem.' }, { type: 'image_url', image_url: { url: _scanImage } }] }] })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message);
+        var parsed = JSON.parse(data.choices[0].message.content);
+        _scanSubject = parsed.subject || '';
+        _scanProblems = (parsed.problems || []).map(function (p) { return { n: p.n || '', text: p.text || '', topic: p.topic || '', walk: null, open: false }; }).filter(function (p) { return p.text.trim(); });
+        if (typeof trackFeature === 'function') trackFeature('scan_extract');
+        if (!_scanProblems.length) { body.innerHTML = '<div class="scan-err">I couldn\'t find any problems on that page. Try a clearer, straight-on photo.</div><div style="text-align:center;"><button class="scan-retake-btn" onclick="_scanRenderDrop()">Try another photo</button></div>'; return; }
+        _scanRenderCards();
+    } catch (e) {
+        body.innerHTML = '<div class="scan-err">Couldn\'t read that one — ' + ((e && e.message) || 'try again') + '.</div><div style="text-align:center;"><button class="scan-retake-btn" onclick="_scanRenderDrop()">Try another photo</button></div>';
+    }
+}
+window._scanExtract = _scanExtract;
+
+function _scanRenderCards() {
+    var body = document.getElementById('scan-body'); if (!body) return;
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var head = '<div class="scan-found">Found <strong>' + _scanProblems.length + '</strong> problem' + (_scanProblems.length === 1 ? '' : 's') + (_scanSubject ? ' · ' + esc(_scanSubject) : '') + '. Tap one to get walked through it.</div>';
+    var cards = _scanProblems.map(function (p, i) {
+        return '<div class="scan-card" id="scan-card-' + i + '">'
+            + '<div class="scan-card-head">'
+            + '<div class="scan-card-q">' + (p.n ? '<span class="scan-q-num">' + esc(p.n) + '</span>' : '') + '<span class="scan-q-text">' + esc(p.text) + '</span></div>'
+            + (p.topic ? '<div class="scan-q-topic"><i class="ph ph-tag"></i> ' + esc(p.topic) + '</div>' : '')
+            + '</div>'
+            + '<div class="scan-card-actions">'
+            + '<button class="scan-walk-btn" onclick="_scanWalk(' + i + ')"><i class="ph ph-footprints"></i> Walk me through it</button>'
+            + (p.topic ? '<button class="scan-teach-btn" onclick="_scanTeach(' + i + ')"><i class="ph ph-graduation-cap"></i> Teach me this</button>' : '')
+            + '</div>'
+            + '<div class="scan-walk-out" id="scan-walk-' + i + '"></div>'
+            + '</div>';
+    }).join('');
+    body.innerHTML = '<div class="scan-cards-head"><button class="scan-retake-btn sm" onclick="_scanRenderDrop()"><i class="ph ph-plus"></i> New scan</button></div>' + head + '<div class="scan-cards">' + cards + '</div>';
+}
+
+async function _scanWalk(i) {
+    var p = _scanProblems[i]; if (!p) return;
+    var out = document.getElementById('scan-walk-' + i); if (!out) return;
+    if (p.walk) { out.innerHTML = p.walk; _scanAfterWalk(out, p); return; } // cached
+    out.innerHTML = (typeof _nxLoadingHTML === 'function' ? _nxLoadingHTML('Building your walkthrough…') : 'Building your walkthrough…');
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) { out.innerHTML = '<div class="scan-err">Add an OpenAI API key in Settings first.</div>'; return; }
+    var sys = 'You are NEXUS — a patient tutor guiding a student through ONE problem the DeltaMath way: show a fully worked example of a SIMILAR problem (different numbers) FIRST, then coach them through THEIRS without just dumping the answer. Return clean HTML ONLY — no markdown, no backticks, no ```.\nUse exactly this structure:\n<div class="sg-sec"><h5>📘 Worked example (a similar one)</h5>[a similar problem with DIFFERENT numbers, fully solved; put each math line on its OWN <code> line; one idea per line]</div>\n<div class="sg-sec"><h5>🧭 How to tackle yours</h5><ol><li>[one action per step — what to do and, briefly, why]</li></ol></div>\n<div class="sg-sec"><h5>👉 Your turn</h5><p>[encourage them; tell them the first move to try on THEIR problem]</p><details><summary>Show the full solution</summary>[the complete step-by-step solution to THEIR problem, each math line on its own <code> line, ending with the final answer in <strong>]</details></div>\nKeep it tight and scannable. Write every fraction as \\frac{a}{b}. Use Unicode math (≤ ≥ ≠ ± × ÷ √ ² ³ π). If the problem is not math (e.g. science, reading), adapt the same shape: example, how-to, your turn with solution behind the toggle.';
+    var userMsg = (_scanSubject ? ('Subject: ' + _scanSubject + '\n') : '') + 'The student\'s problem' + (p.topic ? (' (topic: ' + p.topic + ')') : '') + ':\n' + p.text;
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o', temperature: 0.25, max_tokens: 1100, messages: [{ role: 'system', content: sys }, { role: 'user', content: userMsg }] })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message);
+        var content = (data.choices[0].message.content || '').replace(/```html/g, '').replace(/```/g, '');
+        if (typeof convertMarkdownLeaks === 'function') content = convertMarkdownLeaks(content);
+        p.walk = content;
+        out.innerHTML = content;
+        _scanAfterWalk(out, p);
+        if (typeof trackFeature === 'function') trackFeature('scan_walk');
+        if (typeof updateStudyStats === 'function') updateStudyStats('problem_solved');
+    } catch (e) {
+        out.innerHTML = '<div class="scan-err">Couldn\'t build that walkthrough — ' + ((e && e.message) || 'try again') + '.</div>';
+    }
+}
+window._scanWalk = _scanWalk;
+// after a walkthrough renders: auto-embed a graph if the problem is graphable
+function _scanAfterWalk(out, p) {
+    try { if (typeof _maybeEmbedGraph === 'function') _maybeEmbedGraph(out, (p.text || '') + ' ' + (p.walk || '').replace(/<[^>]+>/g, ' ')); } catch (_) {}
+    try { if (out.scrollIntoView) out.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
+}
+function _scanTeach(i) {
+    var p = _scanProblems[i]; if (!p) return;
+    var topic = p.topic || p.text.slice(0, 60);
+    var modal = document.getElementById('scan-modal'); if (modal) modal.remove();
+    if (typeof switchTab === 'function') switchTab('teach');
+    setTimeout(function () { if (typeof startTeachingTopic === 'function') startTeachingTopic(topic); }, 220);
+}
+window._scanTeach = _scanTeach;
+
 // v22.5 — PWA install prompt. NEXUS already ships a manifest + offline service
 // worker; this surfaces the "Install" button when the browser says it's
 // installable (and gives iOS/desktop instructions when there's no prompt event).
@@ -17730,10 +17928,21 @@ FORMAT (Pure HTML, no markdown):
 <p style="font-size:1.5rem;font-weight:700;margin:0;color:white;">[Answer]</p>
 </div>
 
+<div style="background:rgba(108,92,231,0.1);border-left:3px solid #6C5CE7;padding:12px 16px;border-radius:6px;margin-top:16px;">
+<strong style="color:#a99bff;">🧠 The big idea</strong><br>
+<span>[1–2 plain-English sentences: what this problem is really about and the ONE move that unlocks it, said simply enough for someone who's lost — no jargon.]</span>
+</div>
+
+<div style="background:rgba(255,159,67,0.1);border-left:3px solid #ff9f43;padding:12px 16px;border-radius:6px;margin-top:12px;">
+<strong style="color:#ffbe76;">⚠️ Watch out</strong><br>
+<span>[The single most common mistake students make on this type of problem, and how to avoid it. If there's a quick way to CHECK the answer, add it here.]</span>
+</div>
+
 <h3 style="color:var(--accent);margin:24px 0 12px;">📺 Learn More</h3>
 <p>Search for a video tutorial on this topic:</p>
 <a href="https://www.youtube.com/results?search_query=[URL-encoded search query for this math concept]" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#ff0000,#cc0000);color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px;"><span style="margin-right:8px;">▶</span> Search YouTube</a>
 
+CLARITY RULES: Put each line of math on its OWN <code> line — never chain steps with ⇒ or = across a whole paragraph. One idea per step. Keep the WHY to one tight sentence. The 🧠 big idea and ⚠️ watch-out boxes are REQUIRED.
 IMPORTANT: Use ONLY valid HTML. No markdown wrappers. Show ALL work clearly. For the YouTube link, replace the search_query value with an appropriate URL-encoded search for the math concept.`
             : `${baseRole}OUTPUT MODE: A short, SCANNABLE HTML explanation — NEVER a wall of text. A student will bounce off a big paragraph, especially for something simple.
 
@@ -17803,7 +18012,10 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 // v12.1 — record assistant turn + append answer input if tutor mode
                 _mathTutorTurns.push({ role: 'assistant', content });
                 appendTutorAnswerBox(output, 'math');
-                _appendVisualizeBtn(output, text);
+                // v24.30 — auto-show a real interactive graph when the problem is graphable;
+                // otherwise fall back to the AI concept-visualizer button.
+                var _didGraph = _maybeEmbedGraph(output, text, content);
+                if (!_didGraph) _appendVisualizeBtn(output, text);
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
@@ -18643,7 +18855,7 @@ function _grParams(fns) {
     fns.forEach(function (f) { (String(f).match(/[a-zA-Z]+/g) || []).forEach(function (t) { if (t.length === 1 && !_GR_KNOWN[t]) set[t] = 1; }); });
     return Object.keys(set);
 }
-function _grRenderPlot() {
+function _grRenderPlot(preserveDomain) {
     var host = document.getElementById('fnplot-area'); if (!host || !window.functionPlot) return;
     var data = [], allFns = [];
     _grExprs.forEach(function (e, i) {
@@ -18657,8 +18869,11 @@ function _grRenderPlot() {
     // "a*sin(x)" would make function-plot throw).
     var params = _grParams(allFns);
     params.forEach(function (k) { if (_grScope[k] === undefined) _grScope[k] = 1; });
-    // capture current pan/zoom so sliders don't reset the view
-    try { if (_grInstance && _grInstance.meta && _grInstance.meta.xScale) { _grDomain = { x: _grInstance.meta.xScale.domain().slice(), y: _grInstance.meta.yScale.domain().slice() }; } } catch (_) {}
+    // capture current pan/zoom so sliders/edits don't reset the view.
+    // When preserveDomain is true (zoom buttons / reset), keep _grDomain as set.
+    if (!preserveDomain) {
+        try { if (_grInstance && _grInstance.meta && _grInstance.meta.xScale) { _grDomain = { x: _grInstance.meta.xScale.domain().slice(), y: _grInstance.meta.yScale.domain().slice() }; } } catch (_) {}
+    }
     host.innerHTML = '';
     try {
         _grInstance = functionPlot({
@@ -18670,6 +18885,23 @@ function _grRenderPlot() {
         host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#9aa0b8;text-align:center;padding:20px;">Hmm — check that equation’s syntax (e.g. <code>y = x^2</code>, <code>sin(x)</code>, <code>2x + 3</code>).</div>';
     }
     _grSyncSliders(params);
+    _grUpdateReadout();
+}
+// Desmos-style zoom controls. f<1 zooms in, f>1 zooms out, centered on current view.
+function _grZoom(f) {
+    try { if (_grInstance && _grInstance.meta && _grInstance.meta.xScale) { _grDomain = { x: _grInstance.meta.xScale.domain().slice(), y: _grInstance.meta.yScale.domain().slice() }; } } catch (_) {}
+    function sc(d) { var c = (d[0] + d[1]) / 2, h = (d[1] - d[0]) / 2 * f; return [c - h, c + h]; }
+    _grDomain = { x: sc(_grDomain.x), y: sc(_grDomain.y) };
+    _grRenderPlot(true);
+}
+window._grZoom = _grZoom;
+function _grReset() { _grDomain = { x: [-10, 10], y: [-7, 7] }; _grRenderPlot(true); }
+window._grReset = _grReset;
+// tiny readout so the view window is always legible (Desmos shows this implicitly via axes)
+function _grUpdateReadout() {
+    var r = document.getElementById('gr-readout'); if (!r) return;
+    var fx = function (n) { return (Math.round(n * 100) / 100); };
+    r.textContent = 'x: [' + fx(_grDomain.x[0]) + ', ' + fx(_grDomain.x[1]) + ']   y: [' + fx(_grDomain.y[0]) + ', ' + fx(_grDomain.y[1]) + ']';
 }
 function _grSyncSliders(params) {
     var box = document.getElementById('gr-sliders'); if (!box) return;
@@ -18728,6 +18960,32 @@ async function _grExplain() {
     }
 }
 window._grExplain = _grExplain;
+// quick-insert example chips (Desmos "try this" feel)
+var _GR_EXAMPLES = [
+    { t: 'Line', eq: 'y = 2x + 3' },
+    { t: 'Parabola', eq: 'y = x^2 - 4' },
+    { t: 'Circle', eq: 'x^2 + y^2 = 25' },
+    { t: 'Sine', eq: 'y = a*sin(x)' },
+    { t: 'Abs', eq: 'y = abs(x)' },
+    { t: 'Point', eq: '(2, 3)' }
+];
+function _grTry(eq) {
+    // fill the first empty row, else add a new one
+    var idx = -1;
+    for (var i = 0; i < _grExprs.length; i++) { if (!_grExprs[i].raw || !_grExprs[i].raw.trim()) { idx = i; break; } }
+    if (idx < 0) { if (_grExprs.length >= 6) { _grExprs[_grExprs.length - 1].raw = eq; } else { _grExprs.push({ raw: eq }); idx = _grExprs.length - 1; } }
+    else { _grExprs[idx].raw = eq; }
+    _grRenderExprList(); _grRenderPlot();
+}
+window._grTry = _grTry;
+function _grToggleGuide() {
+    var g = document.getElementById('gr-guide-body'), c = document.getElementById('gr-guide-caret');
+    if (!g) return;
+    var open = g.style.display !== 'none';
+    g.style.display = open ? 'none' : 'block';
+    if (c) c.className = open ? 'ph ph-caret-right' : 'ph ph-caret-down';
+}
+window._grToggleGuide = _grToggleGuide;
 function openGrapher(seedEq) {
     if (typeof _gateFeature === 'function' && !_gateFeature('visual')) return;
     if (typeof trackFeature === 'function') trackFeature('graph_explore');
@@ -18739,19 +18997,37 @@ function openGrapher(seedEq) {
     m.id = 'grapher-modal';
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:16px;';
     m.onclick = function (e) { if (e.target === m) m.remove(); };
-    m.innerHTML = '<div class="glass-panel gr-wrap" style="max-width:940px;width:98%;height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+    var chips = _GR_EXAMPLES.map(function (x) {
+        return '<button class="gr-chip" onclick="_grTry(\'' + x.eq.replace(/'/g, "\\'") + '\')">' + x.t + '</button>';
+    }).join('');
+    m.innerHTML = '<div class="glass-panel gr-wrap" style="max-width:1120px;width:98%;height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.05rem;"><i class="ph ph-chart-line" style="color:#2ed3cd;"></i> Graph &amp; Explore</h3><button class="btn-icon" onclick="document.getElementById(\'grapher-modal\').remove()"><i class="ph ph-x"></i></button></div>'
         + '<div class="gr-body" style="flex:1;min-height:0;display:flex;">'
-        + '<div class="gr-side" style="width:270px;flex-shrink:0;border-right:1px solid var(--glass-border);display:flex;flex-direction:column;overflow-y:auto;padding:14px;">'
-        + '<div id="gr-expr-list"></div>'
-        + '<div id="gr-sliders" style="margin-top:10px;"></div>'
-        + '<div style="margin-top:14px;border-top:1px dashed var(--glass-border);padding-top:12px;">'
-        + '<div style="font-size:0.78rem;font-weight:700;color:#fff;margin-bottom:6px;">📖 Guide</div>'
-        + '<div style="font-size:0.74rem;color:var(--text-muted);line-height:1.5;">Type an equation like <code>y = x^2</code>. Use a letter (<code>a</code>, <code>m</code>…) and a <b>slider</b> appears. Scroll to zoom, drag to pan. Points: <code>(1,4)</code>.</div>'
-        + '<button onclick="_grExplain()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#6C5CE7,#2ed3cd);border:none;border-radius:9px;color:#fff;padding:9px;font-weight:600;font-size:0.84rem;cursor:pointer;"><i class="ph ph-sparkle"></i> Explain this graph</button>'
+        + '<div class="gr-side" style="width:320px;flex-shrink:0;border-right:1px solid var(--glass-border);display:flex;flex-direction:column;overflow-y:auto;padding:14px;">'
+        + '<div class="gr-chips">' + chips + '</div>'
+        + '<div id="gr-expr-list" style="margin-top:12px;"></div>'
+        + '<div id="gr-sliders" style="margin-top:4px;"></div>'
+        + '<button onclick="_grExplain()" class="gr-explain-btn"><i class="ph ph-sparkle"></i> Explain this graph</button>'
         + '<div id="gr-explain-out" style="margin-top:10px;font-size:0.82rem;color:#dde0ee;line-height:1.55;"></div>'
+        + '<div style="margin-top:auto;padding-top:14px;">'
+        + '<button onclick="_grToggleGuide()" class="gr-guide-head"><i id="gr-guide-caret" class="ph ph-caret-right"></i> How to use this</button>'
+        + '<div id="gr-guide-body" style="display:none;font-size:0.76rem;color:var(--text-muted);line-height:1.6;margin-top:8px;">'
+        + '<p style="margin:4px 0;">• Type an equation like <code>y = x^2</code> or just <code>2x + 3</code>.</p>'
+        + '<p style="margin:4px 0;">• Use a letter (<code>a</code>, <code>m</code>, <code>b</code>…) and a <b>slider</b> appears to drag.</p>'
+        + '<p style="margin:4px 0;">• Plot a <b>point</b> with <code>(1, 4)</code>, or a <b>circle</b> with <code>x^2 + y^2 = 25</code>.</p>'
+        + '<p style="margin:4px 0;">• Use the <b>＋ − ⌂</b> buttons (or scroll / drag) to zoom &amp; pan.</p>'
+        + '<p style="margin:4px 0;">• Hit <b>Explain this graph</b> to see what it means.</p>'
         + '</div></div>'
-        + '<div id="fnplot-area" style="flex:1;min-width:0;background:#f7f8fc;"></div>'
+        + '</div>'
+        + '<div class="gr-plot-wrap" style="flex:1;min-width:0;position:relative;background:#f7f8fc;">'
+        + '<div id="fnplot-area" style="position:absolute;inset:0;"></div>'
+        + '<div class="gr-zoom">'
+        + '<button onclick="_grZoom(0.66)" title="Zoom in">+</button>'
+        + '<button onclick="_grZoom(1.5)" title="Zoom out">&minus;</button>'
+        + '<button onclick="_grReset()" title="Reset view"><i class="ph ph-house"></i></button>'
+        + '</div>'
+        + '<div id="gr-readout" class="gr-readout"></div>'
+        + '</div>'
         + '</div></div>';
     document.body.appendChild(m);
     _grRenderExprList();
@@ -18763,6 +19039,90 @@ function openGrapher(seedEq) {
     });
 }
 window.openGrapher = openGrapher;
+
+// ════════════════════════════════════════════════════════════════════
+// v24.30 — INLINE INTERACTIVE GRAPHS. Auto-embed a real, zoomable/pannable
+// function-plot graph directly under math answers & lessons whenever the
+// problem involves x/y or a function — so "examples with x and y or graphs
+// are always SHOWN", and the inline graph can actually zoom (unlike the old
+// static AI-drawn SVG).
+// ════════════════════════════════════════════════════════════════════
+var _igInstances = {};
+// Known function names so they're not mistaken for prose when trimming an RHS.
+var _GR_FUNCS_RE = /^(sin|cos|tan|asin|acos|atan|sqrt|abs|log|ln|exp|floor|ceil|round|sinh|cosh|tanh|cot|sec|csc|sign|pi)$/i;
+// Trim a captured right-hand side to just the math expression — stop at the first
+// plain English word (so "2x + 3 and find its slope" → "2x + 3").
+function _grCleanRhs(rhs) {
+    var words = String(rhs || '').trim().split(/\s+/);
+    var kept = [];
+    for (var i = 0; i < words.length; i++) {
+        var w = words[i];
+        if (/^[a-zA-Z]{2,}$/.test(w) && !_GR_FUNCS_RE.test(w)) break; // prose word → stop
+        kept.push(w);
+    }
+    return kept.join(' ').replace(/[^0-9a-zA-Z.^()+\-*/\s]/g, '').replace(/[-+*/^]\s*$/, '').trim();
+}
+// Pull up to 3 graphable equations out of a problem/answer string.
+function _graphableFromText(text) {
+    var s = String(text || '');
+    var found = [];
+    var re = /(?:^|[^a-zA-Z])(y|f\s*\(\s*x\s*\)|g\s*\(\s*x\s*\))\s*=\s*([^,;.\n<]+)/gi;
+    var m;
+    while ((m = re.exec(s)) && found.length < 3) {
+        var rhs = _grCleanRhs(m[2]);
+        if (rhs.length > 0 && rhs.length < 40 && /x/.test(rhs)) {
+            var eq = 'y=' + rhs;
+            if (found.indexOf(eq) < 0) found.push(eq);
+        }
+    }
+    var cm = s.match(/x\s*\^?\s*2\s*\+\s*y\s*\^?\s*2\s*=\s*\d+(?:\.\d+)?/i);
+    if (cm && found.length < 3) found.push(cm[0].replace(/\s+/g, ''));
+    return found;
+}
+function _igRender(gid, eqs) {
+    var host = document.getElementById(gid); if (!host || !window.functionPlot) return;
+    var data = [], fns = [], scope = {};
+    (Array.isArray(eqs) ? eqs : [eqs]).forEach(function (raw, i) {
+        var p = _grParse(raw); if (!p) return;
+        p.color = _GR_COLORS[i % _GR_COLORS.length];
+        if (p.fn) { p.scope = scope; fns.push(p.fn); }
+        data.push(p);
+    });
+    _grParams(fns).forEach(function (k) { if (scope[k] === undefined) scope[k] = 1; });
+    try {
+        _igInstances[gid] = { inst: functionPlot({ target: '#' + gid, width: host.clientWidth || 460, height: 260, grid: true, xAxis: { domain: [-10, 10] }, yAxis: { domain: [-7, 7] }, data: data.length ? data : [{ fn: 'x^2', color: '#6C5CE7' }] }), eqs: eqs };
+    } catch (e) {
+        host.innerHTML = '<div style="padding:24px;text-align:center;color:#9aa0b8;">Couldn’t graph that one — open the full grapher to tweak it.</div>';
+    }
+}
+// Embed a labeled, interactive mini-graph into a container.
+function _embedInlineGraph(container, eqs) {
+    if (!container || !eqs || !eqs.length) return;
+    var gid = 'ig-' + Date.now() + '-' + Math.floor(Math.random() * 999);
+    var seed = eqs[0];
+    var wrap = document.createElement('div');
+    wrap.className = 'inline-graph-embed';
+    wrap.innerHTML = '<div class="ig-head"><span><i class="ph ph-chart-line"></i> Here it is on a graph</span>'
+        + '<button class="ig-open" onclick="openGrapher(\'' + seed.replace(/'/g, "\\'") + '\')"><i class="ph ph-arrows-out"></i> Open full grapher</button></div>'
+        + '<div class="ig-plot-wrap"><div id="' + gid + '" class="ig-plot"></div></div>'
+        + '<div class="ig-hint"><i class="ph ph-cursor"></i> Scroll to zoom · drag to pan</div>';
+    container.appendChild(wrap);
+    var host = wrap.querySelector('.ig-plot');
+    host.innerHTML = '<div style="height:260px;display:flex;align-items:center;justify-content:center;color:#7a80a0;">Drawing the graph…</div>';
+    _ensureFnPlot(function (ok) { if (ok && window.functionPlot) { host.innerHTML = ''; _igRender(gid, eqs); } else { host.innerHTML = '<div style="height:260px;display:flex;align-items:center;justify-content:center;color:#7a80a0;">Graph unavailable — check your connection.</div>'; } });
+}
+window._embedInlineGraph = _embedInlineGraph;
+// Auto-embed under an answer IF the problem is graphable; returns true if it did.
+function _maybeEmbedGraph(container, text, answerHtml) {
+    try {
+        var eqs = _graphableFromText(text);
+        if (!eqs.length && answerHtml) eqs = _graphableFromText(String(answerHtml).replace(/<[^>]+>/g, ' '));
+        if (!eqs.length) return false;
+        _embedInlineGraph(container, eqs);
+        return true;
+    } catch (_) { return false; }
+}
+window._maybeEmbedGraph = _maybeEmbedGraph;
 
 // The old custom visualizer + Function Explorer open our Graph & Explore.
 function openMathVisualizer(seedEq) { openGrapher(typeof seedEq === 'string' ? seedEq : ''); }
@@ -22234,7 +22594,7 @@ function renderLeaderboard() {
         // Simulated profile data for competitors
         const profilePic = entry.profilePic || (entry.isUser ? (localStorage.getItem('user_profile_pic') || '👤') : ['🧑‍🎓','👨‍💻','👩‍🔬','🧑‍🏫','👨‍🎨','👩‍💼','🧑‍🚀','👨‍🔧','👩‍⚕️'][origIdx % 9]);
         const badge = entry.badge || (entry.isUser ? (userLoadout.badge || 'none') : ['scholar','streak-king','quiz-master','speedster','night-owl','diamond','scholar','speedster','night-owl'][origIdx % 9]);
-        const badgeEmojis = { none: '', scholar: '🎓', 'streak-king': '🔥', 'quiz-master': '🏆', speedster: '⚡', 'night-owl': '🌙', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮' };
+        const badgeEmojis = { none: '', scholar: '🎓', 'streak-king': '🔥', 'quiz-master': '🏆', speedster: '⚡', 'night-owl': '🌙', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮', 'cosmic-sovereign': '🌌' };
 
         html += `
         <div class="glass-panel" style="padding:14px 20px;margin-bottom:8px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all 0.2s;
@@ -22288,7 +22648,7 @@ window.openSeasonTrophyCase = openSeasonTrophyCase;
 
 function showUserProfile(name, problems, streak, xp, pic, badge, isUser) {
     const badgeNames = { none: 'None', scholar: 'Scholar Elite', 'streak-king': 'Streak King', 'quiz-master': 'Quiz Master', speedster: 'Speed Reader', 'night-owl': 'Night Owl', diamond: 'Diamond Mind', champion: 'Grand Champion', 'nexus-emblem': 'Nexus Emblem' };
-    const badgeEmojis = { none: '—', scholar: '🎓', 'streak-king': '🔥', 'quiz-master': '🏆', speedster: '⚡', 'night-owl': '🌙', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮' };
+    const badgeEmojis = { none: '—', scholar: '🎓', 'streak-king': '🔥', 'quiz-master': '🏆', speedster: '⚡', 'night-owl': '🌙', diamond: '💎', champion: '👑', 'nexus-emblem': '🔮', 'cosmic-sovereign': '🌌' };
 
     // Generate simulated achievements for non-user profiles
     const achievements = isUser ? getUserAchievements() : generateSimulatedAchievements(problems, streak, xp);
@@ -22360,6 +22720,21 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.30',
+        date: 'October 29, 2026',
+        tag: 'UPDATE — THE BIG STUDY UPDATE',
+        tagColor: '#6C5CE7',
+        changes: [
+            'SCAN & GUIDE (NEW) — Snap a photo of your whole worksheet and NEXUS reads every problem on it, then walks you through each one the DeltaMath way: a worked example of a similar problem first, then guided steps for yours (the answer stays hidden until you ask), plus one tap to learn the concept on the Teaching Board.',
+            'A REAL GRAPHING CALCULATOR — Graph & Explore is rebuilt from scratch: a clean, Desmos-style calculator with an equation list, live sliders, points and curves, zoom/reset buttons, quick example chips, and a built-in "Explain this graph" guide. No more cut-off boxes.',
+            'GRAPHS WHERE YOU LEARN — Any math answer or lesson that involves x, y, or a function now draws a real, zoomable graph right on the page — not a flat picture you can\'t move.',
+            'SMARTER LESSONS — The Teaching Board now teaches word problems step by step (turning the words into math), gives better worked examples, and gives a real practice progression instead of three near-identical problems.',
+            'CLEARER MATH STEPS — Every step-by-step solution ends with a plain-English "big idea" and a "watch out" for the most common mistake, so it clicks for every kind of learner.',
+            'A CALMER COMPANION — Your companion keeps replies short and to the point (and offers to go deeper instead of over-explaining), types out naturally instead of dumping everything at once, and never spills outside its chat box.',
+            'MYTHIC GEAR — A new Mythic tier lands in the shop: the Celestial Veil theme, Starforged cursor, Celestial Serif font, Cosmic Sovereign badge, and the animated Astral Drift wallpaper — plus new achievements for mastering Scan & Guide and Graph & Explore.',
+        ]
+    },
     {
         version: 'v20.5.2',
         date: 'September 9, 2026',
@@ -23809,6 +24184,10 @@ const ACHIEVEMENTS = [
     { id: 'night-owl-coder',    name: 'Night Owl',           desc: 'Use NEXUS between 11pm and 4am', icon: '🌙', check: () => { const h = new Date().getHours(); return (h >= 23 || h < 4) && parseInt(localStorage.getItem('total_xp') || '0') > 0; }, reward: 250 },
     { id: 'early-bird',         name: 'Early Bird',          desc: 'Use NEXUS between 5am and 7am', icon: '🌅', check: () => { const h = new Date().getHours(); return (h >= 5 && h < 7) && parseInt(localStorage.getItem('total_xp') || '0') > 0; }, reward: 250 },
     { id: 'puzzle-breaker',     name: 'Puzzle Breaker',      desc: 'Solve 25 problems', icon: '🧩', check: () => (getStudyStats().problemsSolved || 0) >= 25, reward: 250 },
+    // ── v24.30 — NEW FEATURE ACHIEVEMENTS ─────────────────────────────────
+    { id: 'scan-master',        name: 'Scan Master',         desc: 'Walk through 5 problems with Scan & Guide', icon: '📷', check: () => { try { return (JSON.parse(localStorage.getItem('nexus_feature_counts') || '{}').scan_walk || 0) >= 5; } catch (_) { return false; } }, reward: 300 },
+    { id: 'graph-explorer',     name: 'Graph Explorer',      desc: 'Open Graph & Explore 5 times', icon: '📈', check: () => { try { return (JSON.parse(localStorage.getItem('nexus_feature_counts') || '{}').graph_explore || 0) >= 5; } catch (_) { return false; } }, reward: 250 },
+    { id: 'touch-of-myth',      name: 'Touch of Myth',       desc: 'Own a Mythic item', icon: '🔮', check: () => userInventory.some(id => { for (const cat of Object.values(SHOP_ITEMS)) { const item = cat.find(i => i.id === id); if (item && item.rarity === 'mythic') return true; } return false; }), reward: 600 },
     // ── v240 — RARE ACHIEVEMENT DROPS ──────────────────────────────────────
     // Unlike every achievement above (gold only), these four also permanently
     // grant a unique cosmetic (grantsItem → a SHOP_ITEMS id flagged
@@ -24724,12 +25103,11 @@ const NEXUS_COMPANION_PROMPT = `You are the NEXUS Companion AI — a friendly, i
 ═══════════════════════════════════════
 3. REASONING STYLE
 ═══════════════════════════════════════
-- Think through problems step-by-step (silently first, then surface only what helps).
-- Surface details the user didn't think to ask about.
-- Offer multiple options or pathways when it would actually help.
-- Anticipate what the user might need next.
-- Break complex tasks into simple, ordered steps.
-- Provide context, trade-offs, and practical advice — not just the bare answer.
+- Think through problems step-by-step SILENTLY, then surface only the answer plus the one or two things that actually help.
+- Do NOT dump extra context, trade-offs, or tangents the user didn't ask for. If there's more worth saying, END with a short one-line offer instead — e.g. "Want me to break that down step by step?" or "Want the deeper why?" — and wait for them to say yes.
+- Break complex tasks into simple, ordered steps ONLY when the user asked how to do something.
+- Anticipate what the user might need next, but phrase it as a quick offer, not a lecture.
+- When you genuinely don't know, say so in one line — don't pad.
 
 ═══════════════════════════════════════
 4. HELPFULNESS RULES
@@ -27204,25 +27582,56 @@ async function sendCompanionMessage() {
         const contentEl = liveBubble.querySelector('.streaming-content');
         const cursorEl = liveBubble.querySelector('.streaming-cursor');
 
+        // v24.30 — PACED REVEAL. The hosted proxy often returns the whole reply in
+        // one chunk (no SSE), which made replies "shoot out" instantly. We decouple
+        // display from arrival: text is revealed at a steady, ease-out cadence by a
+        // rAF loop, so it always feels like the companion is thinking & typing — even
+        // when the source arrives all at once.
         let accumulated = '';
+        let revealed = 0;
+        let streamDone = false;
+        let finalText = '';
+        let revealTimer = null;
+        let errored = false;
+        const finalize = () => {
+            if (revealTimer) { clearInterval(revealTimer); revealTimer = null; }
+            if (cursorEl) cursorEl.remove();
+            const formatted = (typeof convertMarkdownLeaks === 'function')
+                ? convertMarkdownLeaks(finalText).replace(/\n/g, '<br>')
+                : finalText.replace(/\n/g, '<br>');
+            contentEl.innerHTML = formatted;
+            msgs.scrollTop = msgs.scrollHeight;
+        };
+        // Timer-based reveal (NOT requestAnimationFrame — rAF pauses when the tab is
+        // backgrounded, which would freeze the reply mid-type). ~24ms ticks give a
+        // smooth, deliberate "typing" feel even when the whole reply arrives at once.
+        const revealTick = () => {
+            if (errored) return;
+            const target = stripHtmlForStream(accumulated);
+            if (revealed < target.length) {
+                const behind = target.length - revealed;
+                const step = Math.max(1, Math.ceil(behind / 22)); // ease-out: fast catch-up, slow tail
+                revealed = Math.min(target.length, revealed + step);
+                contentEl.textContent = target.slice(0, revealed);
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+            if (streamDone && revealed >= stripHtmlForStream(accumulated).length) {
+                finalize();
+            }
+        };
+        revealTimer = setInterval(revealTick, 24);
+
         await streamChat({
             apiKey,
             model: localStorage.getItem('ai_model') || 'gpt-4o',
             messages,
-            temperature: 0.85,
-            max_tokens: 1500,
-            onChunk: (delta, full) => {
-                accumulated = full;
-                contentEl.textContent = stripHtmlForStream(accumulated);
-                msgs.scrollTop = msgs.scrollHeight;
-            },
+            temperature: 0.8,
+            max_tokens: 650,
+            onChunk: (delta, full) => { accumulated = full; },
             onDone: (full) => {
-                if (cursorEl) cursorEl.remove();
-                // Final pass: format markdown leaks + minimal HTML
-                const formatted = (typeof convertMarkdownLeaks === 'function')
-                    ? convertMarkdownLeaks(full).replace(/\n/g, '<br>')
-                    : full.replace(/\n/g, '<br>');
-                contentEl.innerHTML = formatted;
+                accumulated = full;
+                finalText = full;
+                streamDone = true;
                 _companionChatHistory.push({ role: 'assistant', content: full });
                 // v12.3 — persist this exchange to long-term memory + maybe speak aloud
                 const userMsg = typeof text === 'string' ? text : (Array.isArray(userContentForApi) ? userContentForApi.find(p => p.type === 'text')?.text : 'image');
@@ -27231,6 +27640,8 @@ async function sendCompanionMessage() {
                 if (typeof recordQuestProgress === 'function') recordQuestProgress('companion_chat');
             },
             onError: (err) => {
+                errored = true;
+                if (revealTimer) { clearInterval(revealTimer); revealTimer = null; }
                 if (cursorEl) cursorEl.remove();
                 contentEl.textContent = 'I hit an error: ' + err.message;
             }
@@ -29930,6 +30341,18 @@ HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — 
 PRACTICE MUST BE TYPEABLE — every practice problem has to be answerable by TYPING a short answer: a number, a coordinate like (0, 3), an expression, or a word. NEVER make a practice problem "graph it / draw it / sketch it / plot it" — the student can't type a graph. For a graphing concept, ask a typeable question instead — e.g. "what is the slope of y = 2x + 3?" (answer 2), "what is the y-intercept of y = 2x + 3?" (answer 3), "give one point on the line", or "write the equation of a line with slope 2 through (0, 3)". The answer in data-answers must be exactly what a correct typed response looks like.
 </div>
 
+WORD PROBLEMS — teach these with EXTRA care; they're where students get stuck most. When the topic is a word/application problem (or they ask for one), do NOT jump to equations. Walk the translation explicitly:
+(1) "What's it asking?" — restate the goal in one plain sentence.
+(2) "Name the unknowns" — "let x = …" for each, in words.
+(3) "Turn the words into math" — quote the phrase and show the equation/inequality it becomes ("'twice as many' → 2x", "'at least' → ≥"). This translation step is the one students miss — make it visible.
+(4) Solve it one line at a time (show the equation changing).
+(5) "Answer the actual question" — put the number back into the real-world context with units, and sanity-check that it makes sense.
+Use relatable, concrete scenarios (money, time, distance, scores) with friendly round numbers. A quick graph often helps a word problem — include a teach-plot when the situation is linear/graphable.
+
+EXAMPLES — make them GOOD: pick numbers that are realistic and illustrative (not always 1, 2, 3), show the full work, and name what each result means in words. When a concept has distinct cases (e.g. positive vs negative slope, one vs no solution), show a mini example of each rather than just one.
+
+PRACTICE — the 3 problems should be a real progression, not three clones: #1 warm-up (plug-and-go), #2 standard, #3 a stretch or a short APPLICATION/word problem. Vary the numbers and the phrasing each time they ask for more practice — never repeat the same problems. Keep every answer short and typeable (per the rule above).
+
 CLARITY RULE inside "How to do it" (this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then".
 
 SHOW THE EQUATION CHANGING AT EVERY STEP — do NOT jump from the original straight to the answer. Re-write the equation as it looks AFTER each move, so the student watches it transform. Start each worked example by restating the actual equation, then update it one line at a time. Example for finding the x-intercept of 3x + 2y = 6:
@@ -30676,43 +31099,33 @@ function _teachRenderNext(el) {
 // <div class="teach-plot" data-fns="y=2x+3;y=-x" data-points="2,7;0,3"></div>
 // and we draw it on a real coordinate plane right in the lesson — reusing the
 // Math Lab's _mathExprToJs parser so "2x+3", "x^2-4", "sin(x)" all work.
+// v24.30 — lessons now render REAL interactive graphs (function-plot: zoom + pan)
+// instead of the old static canvas, so a graph taught here behaves exactly like
+// the full Graph & Explore tool.
 function _teachRenderPlots(el) {
-    if (!el || typeof _mathExprToJs !== 'function') return;
+    if (!el) return;
     el.querySelectorAll('.teach-plot').forEach(function (node) {
         if (node.dataset.rendered) return; node.dataset.rendered = '1';
         var fns = (node.getAttribute('data-fns') || node.getAttribute('data-fn') || '')
             .replace(/²/g, '^2').replace(/³/g, '^3')     // convertMarkdownLeaks turns ^2 into ² — undo for the parser
             .split(';').map(function (s) { return s.trim(); }).filter(Boolean);
         var pts = (node.getAttribute('data-points') || '')
-            .split(';').map(function (s) { return s.trim(); }).filter(Boolean)
-            .map(function (p) { var a = p.split(','); return [parseFloat(a[0]), parseFloat(a[1])]; })
-            .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]); });
-        if (!fns.length && !pts.length) return;
-        var W = 360, H = 260;
-        var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-        cv.style.cssText = 'width:100%;max-width:' + W + 'px;height:auto;border-radius:10px;margin:6px 0;display:block;';
+            .split(';').map(function (s) { return s.trim(); }).filter(Boolean);
         var cap = node.getAttribute('data-caption');
+        if (!fns.length && !pts.length) return;
+        // Convert the tutor's data-fns / data-points into our engine's equation list.
+        var eqs = [];
+        fns.forEach(function (f) { eqs.push(/=/.test(f) ? f : ('y=' + f)); });
+        pts.forEach(function (p) { var a = p.split(','); if (a.length === 2 && isFinite(parseFloat(a[0])) && isFinite(parseFloat(a[1]))) eqs.push('(' + a[0].trim() + ',' + a[1].trim() + ')'); });
+        if (!eqs.length) return;
         node.innerHTML = '';
-        node.appendChild(cv);
-        // v24.5 — show "Loading graph…", then draw the graph in left-to-right.
-        var ctx = cv.getContext('2d');
-        var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-        if (reduce) { _teachDrawPlot(ctx, W, H, fns, pts, 1); }
-        else {
-            ctx.fillStyle = 'rgba(12,14,28,0.92)'; ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = '#7ff0ec'; ctx.font = '13px Inter,sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText('📈 Loading graph…', W / 2, H / 2); ctx.textAlign = 'left';
-            setTimeout(function () {
-                var start = null, DUR = 850;
-                (function step(ts) {
-                    if (!start) start = ts;
-                    var p = Math.min(1, (ts - start) / DUR);
-                    _teachDrawPlot(ctx, W, H, fns, pts, p < 0.05 ? 0.05 : p);
-                    if (p < 1) requestAnimationFrame(step);
-                })();
-            }, 320);
+        if (typeof _embedInlineGraph === 'function') {
+            _embedInlineGraph(node, eqs);
+        } else if (typeof _mathExprToJs === 'function') {
+            // extreme fallback: nothing (engine unavailable)
+            node.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Graph unavailable.</div>';
         }
-        if (cap) { var c = document.createElement('div'); c.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-top:2px;'; c.textContent = cap; node.appendChild(c); }
+        if (cap) { var c = document.createElement('div'); c.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin:2px 0 0;'; c.textContent = cap; node.appendChild(c); }
     });
 }
 function _teachDrawPlot(ctx, W, H, fns, pts, progress) {
