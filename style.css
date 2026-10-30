@@ -4051,3 +4051,35 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
     100% { background-position: 0% 50%; }
 }
 @media (prefers-reduced-motion: reduce) { body.wallpaper-astral { animation: none; } }
+
+/* v24.31 — grapher table of values */
+.gr-table-btn { width: 100%; margin-top: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 9px; color: #dde0ee; padding: 9px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+.gr-table-btn:hover { background: rgba(255,255,255,0.1); }
+#gr-table-out:not(:empty) { margin-top: 10px; }
+.gr-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.82rem; color: #e6e9f5; }
+.gr-table th { text-align: left; color: #2ed3cd; border-bottom: 1px solid var(--glass-border); padding: 4px 8px; }
+.gr-table td { padding: 3px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.gr-table tbody tr:hover { background: rgba(108,92,231,0.12); }
+.gr-table-hint { font-size: 0.8rem; color: var(--text-muted); }
+.gr-table-hint code { background: rgba(108,92,231,0.2); padding: 1px 5px; border-radius: 4px; color: #c9c4ff; }
+
+/* v24.31 — companion "Graph it" quick button */
+.companion-graph-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; background: rgba(46,211,205,0.14); border: 1px solid rgba(46,211,205,0.4); color: #bff3f0; border-radius: 8px; padding: 5px 11px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.companion-graph-btn:hover { background: rgba(46,211,205,0.26); }
+
+/* v24.31 — Scan & Guide auto-practice */
+.scan-practice-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; background: rgba(253,121,168,0.12); border: 1px solid rgba(253,121,168,0.4); color: #ffc0dc; border-radius: 9px; padding: 9px 15px; font-weight: 700; font-size: 0.84rem; cursor: pointer; }
+.scan-practice-btn:hover { background: rgba(253,121,168,0.26); }
+.scan-practice-btn:disabled { opacity: 0.55; cursor: default; }
+.scan-practice-out { margin-top: 12px; }
+.scan-practice-head { font-size: 0.82rem; font-weight: 700; color: #ffc0dc; margin-bottom: 10px; }
+.scan-prac-item { margin-bottom: 12px; }
+.scan-prac-q { color: #fff; font-size: 0.92rem; margin-bottom: 6px; }
+.scan-prac-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.scan-prac-input { flex: 1; min-width: 120px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 8px 10px; font-size: 0.86rem; }
+.scan-prac-check { background: linear-gradient(135deg,#6C5CE7,#2ed3cd); border: none; border-radius: 8px; color: #fff; padding: 8px 14px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+.scan-prac-check:hover { filter: brightness(1.08); }
+.scan-prac-res { font-size: 0.82rem; font-weight: 700; }
+.scan-prac-res.ok { color: #45c78d; }
+.scan-prac-res.no { color: #ff8f8f; }
+.scan-prac-res.muted { color: var(--text-muted); font-weight: 500; }

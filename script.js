@@ -10350,7 +10350,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.30';
+const NEXUS_CURRENT_VERSION = 'v24.31';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -17757,11 +17757,68 @@ async function _scanWalk(i) {
     }
 }
 window._scanWalk = _scanWalk;
-// after a walkthrough renders: auto-embed a graph if the problem is graphable
+// after a walkthrough renders: auto-embed a graph if graphable + offer practice
 function _scanAfterWalk(out, p) {
     try { if (typeof _maybeEmbedGraph === 'function') _maybeEmbedGraph(out, (p.text || '') + ' ' + (p.walk || '').replace(/<[^>]+>/g, ' ')); } catch (_) {}
+    try {
+        var idx = _scanProblems.indexOf(p);
+        if (idx >= 0 && !out.querySelector('.scan-practice-btn')) {
+            var pb = document.createElement('button');
+            pb.className = 'scan-practice-btn';
+            pb.innerHTML = '<i class="ph ph-target"></i> Give me 3 to practice';
+            pb.onclick = function () { _scanPractice(idx); };
+            out.appendChild(pb);
+        }
+    } catch (_) {}
     try { if (out.scrollIntoView) out.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
 }
+// v24.31 — generate 3 fresh, typeable practice problems on the SAME skill (DeltaMath-style drill)
+async function _scanPractice(i) {
+    var p = _scanProblems[i]; if (!p) return;
+    var out = document.getElementById('scan-walk-' + i); if (!out) return;
+    var btn = out.querySelector('.scan-practice-btn'); if (btn) btn.disabled = true;
+    var holder = out.querySelector('.scan-practice-out');
+    if (!holder) { holder = document.createElement('div'); holder.className = 'scan-practice-out'; out.appendChild(holder); }
+    holder.innerHTML = (typeof _nxLoadingHTML === 'function' ? _nxLoadingHTML('Making 3 practice problems…') : 'Making practice…');
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (!apiKey) { holder.innerHTML = '<div class="scan-err">Add an OpenAI API key in Settings first.</div>'; if (btn) btn.disabled = false; return; }
+    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+    var sys = 'Create 3 NEW practice problems testing the SAME skill as the given problem — DIFFERENT numbers/wording, ordered easy → standard → harder. Each must be answerable by TYPING a short exact answer (a number, a coordinate like (0,3), a short expression, or one word). Return ONLY JSON: {"problems":[{"q":"<problem>","a":"<short exact answer>"}]} — exactly 3 items.';
+    try {
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.6, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: sys }, { role: 'user', content: (p.topic ? ('Topic: ' + p.topic + '\n') : '') + 'Problem: ' + p.text }] })
+        });
+        var data = await res.json();
+        if (data && data.error) throw new Error(data.error.message);
+        var probs = (JSON.parse(data.choices[0].message.content).problems || []).slice(0, 3);
+        if (!probs.length) { holder.innerHTML = '<div class="scan-err">Couldn\'t make practice right now — try again.</div>'; if (btn) btn.disabled = false; return; }
+        holder.innerHTML = '<div class="scan-practice-head">✏️ Practice — type an answer, then Check</div>' + probs.map(function (pr, idx) {
+            var a = String(pr.a == null ? '' : pr.a).trim();
+            return '<div class="scan-prac-item"><div class="scan-prac-q">' + (idx + 1) + '. ' + esc(pr.q || '') + '</div>'
+                + '<div class="scan-prac-row"><input class="scan-prac-input" data-ans="' + esc(a).replace(/"/g, '&quot;') + '" placeholder="your answer" onkeydown="if(event.key===\'Enter\')_scanCheck(this.nextElementSibling)"><button class="scan-prac-check" onclick="_scanCheck(this)">Check</button><span class="scan-prac-res"></span></div></div>';
+        }).join('');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i> New set'; }
+        if (typeof trackFeature === 'function') trackFeature('scan_practice');
+    } catch (e) {
+        holder.innerHTML = '<div class="scan-err">Couldn\'t make practice — ' + ((e && e.message) || 'try again') + '.</div>';
+        if (btn) btn.disabled = false;
+    }
+}
+window._scanPractice = _scanPractice;
+function _scanCheck(btn) {
+    var row = btn.closest ? btn.closest('.scan-prac-row') : null; if (!row) return;
+    var inp = row.querySelector('.scan-prac-input'), resEl = row.querySelector('.scan-prac-res');
+    if (!inp || !resEl) return;
+    var norm = function (s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, '').replace(/^x=|^y=/, ''); };
+    var given = norm(inp.value), want = norm(inp.getAttribute('data-ans'));
+    if (!given) { resEl.textContent = 'type an answer first'; resEl.className = 'scan-prac-res muted'; return; }
+    var ok = given === want || (want && given === want.replace(/[()]/g, '')) || (given && want === given.replace(/[()]/g, ''));
+    resEl.textContent = ok ? '✅ correct!' : ('❌ answer: ' + (inp.getAttribute('data-ans') || ''));
+    resEl.className = 'scan-prac-res ' + (ok ? 'ok' : 'no');
+    if (ok && typeof updateStudyStats === 'function') updateStudyStats('problem_solved');
+}
+window._scanCheck = _scanCheck;
 function _scanTeach(i) {
     var p = _scanProblems[i]; if (!p) return;
     var topic = p.topic || p.text.slice(0, 60);
@@ -18960,6 +19017,33 @@ async function _grExplain() {
     }
 }
 window._grExplain = _grExplain;
+// v24.31 — Table of values for the first y=… function over the current x-window.
+function _grTable() {
+    var out = document.getElementById('gr-table-out'); if (!out) return;
+    // toggle off if already showing
+    if (out.dataset.open === '1') { out.innerHTML = ''; out.dataset.open = '0'; return; }
+    var fnRaw = null;
+    for (var i = 0; i < _grExprs.length; i++) { var p = _grParse(_grExprs[i].raw); if (p && p.fn) { fnRaw = p.fn; break; } }
+    if (!fnRaw) { out.innerHTML = '<div class="gr-table-hint">Add a <code>y = …</code> function to see a table.</div>'; out.dataset.open = '1'; return; }
+    var jsExpr = null;
+    if (typeof _mathExprToJs === 'function') { try { jsExpr = _mathExprToJs(fnRaw); } catch (e) { jsExpr = null; } }
+    if (!jsExpr) jsExpr = fnRaw.replace(/\^/g, '**');
+    var params = (typeof _grParams === 'function') ? _grParams([fnRaw]) : [];
+    var argNames = ['x'].concat(params);
+    var f;
+    try { f = new Function(argNames.join(','), 'with(Math){ return (' + jsExpr + '); }'); } catch (e) { out.innerHTML = '<div class="gr-table-hint">Couldn’t build a table for that one.</div>'; out.dataset.open = '1'; return; }
+    var dom = _grDomain.x, lo = Math.ceil(dom[0]), hi = Math.floor(dom[1]);
+    var span = hi - lo, stepN = Math.max(1, Math.round(span / 8));
+    var rows = '';
+    for (var x = lo; x <= hi; x += stepN) {
+        var y; try { y = f.apply(null, [x].concat(params.map(function (k) { return (_grScope[k] !== undefined ? _grScope[k] : 1); }))); } catch (e) { y = NaN; }
+        var yd = (typeof y === 'number' && isFinite(y)) ? (Math.round(y * 1000) / 1000) : '—';
+        rows += '<tr><td>' + x + '</td><td>' + yd + '</td></tr>';
+    }
+    out.innerHTML = '<table class="gr-table"><thead><tr><th>x</th><th>y</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    out.dataset.open = '1';
+}
+window._grTable = _grTable;
 // quick-insert example chips (Desmos "try this" feel)
 var _GR_EXAMPLES = [
     { t: 'Line', eq: 'y = 2x + 3' },
@@ -19008,6 +19092,8 @@ function openGrapher(seedEq) {
         + '<div id="gr-expr-list" style="margin-top:12px;"></div>'
         + '<div id="gr-sliders" style="margin-top:4px;"></div>'
         + '<button onclick="_grExplain()" class="gr-explain-btn"><i class="ph ph-sparkle"></i> Explain this graph</button>'
+        + '<button onclick="_grTable()" class="gr-table-btn"><i class="ph ph-table"></i> Table of values</button>'
+        + '<div id="gr-table-out"></div>'
         + '<div id="gr-explain-out" style="margin-top:10px;font-size:0.82rem;color:#dde0ee;line-height:1.55;"></div>'
         + '<div style="margin-top:auto;padding-top:14px;">'
         + '<button onclick="_grToggleGuide()" class="gr-guide-head"><i id="gr-guide-caret" class="ph ph-caret-right"></i> How to use this</button>'
@@ -22720,6 +22806,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.31',
+        date: 'October 29, 2026',
+        tag: 'UPDATE — STUDY UPDATE +',
+        tagColor: '#2ed3cd',
+        changes: [
+            'PRACTICE AFTER A SCAN — Finished a Scan & Guide walkthrough? Tap "Give me 3 to practice" for three fresh problems on the same skill, with type-and-check answers (and a "New set" for more).',
+            'GRAPH IT FROM CHAT — When your companion mentions an equation, a "Graph it" button appears to drop it straight into the full graphing calculator.',
+            'TABLE OF VALUES — The grapher now has a "Table of values" button (and you can hover any curve to read its coordinates) — great for plotting by hand and checking your work.',
+        ]
+    },
     {
         version: 'v24.30',
         date: 'October 29, 2026',
@@ -27600,6 +27697,19 @@ async function sendCompanionMessage() {
                 ? convertMarkdownLeaks(finalText).replace(/\n/g, '<br>')
                 : finalText.replace(/\n/g, '<br>');
             contentEl.innerHTML = formatted;
+            // v24.31 — if the reply mentions a graphable equation, offer a quick "Graph it"
+            try {
+                if (typeof _graphableFromText === 'function') {
+                    const _geqs = _graphableFromText(finalText);
+                    if (_geqs.length && !liveBubble.querySelector('.companion-graph-btn')) {
+                        const gb = document.createElement('button');
+                        gb.className = 'companion-graph-btn';
+                        gb.innerHTML = '<i class="ph ph-chart-line"></i> Graph it';
+                        gb.onclick = function () { if (typeof openGrapher === 'function') openGrapher(_geqs[0]); };
+                        liveBubble.appendChild(gb);
+                    }
+                }
+            } catch (_) {}
             msgs.scrollTop = msgs.scrollHeight;
         };
         // Timer-based reveal (NOT requestAnimationFrame — rAF pauses when the tab is
