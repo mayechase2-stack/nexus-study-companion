@@ -10350,7 +10350,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.31';
+const NEXUS_CURRENT_VERSION = 'v24.32';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18877,6 +18877,7 @@ function copyPromptEngineOutput() { return copyEnglishGenPromptOutput(); }
 // ════════════════════════════════════════════════════════════════════
 var _fpLoading = false, _fpCbs = [], _grInstance = null;
 var _grExprs = [], _grScope = {}, _grDomain = { x: [-10, 10], y: [-7, 7] };
+var _grShowMarkers = true; // auto-mark roots (x-intercepts) + intersections
 var _GR_COLORS = ['#6C5CE7', '#2ed3cd', '#f07a72', '#f5a35e', '#45c78d', '#a29bfe'];
 var _GR_KNOWN = { x: 1, y: 1, e: 1, pi: 1 };
 ['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sqrt', 'abs', 'log', 'ln', 'exp', 'floor', 'ceil', 'round', 'sinh', 'cosh', 'tanh', 'max', 'min', 'pow', 'cot', 'sec', 'csc', 'sign'].forEach(function (f) { _GR_KNOWN[f] = 1; });
@@ -18912,6 +18913,87 @@ function _grParams(fns) {
     fns.forEach(function (f) { (String(f).match(/[a-zA-Z]+/g) || []).forEach(function (t) { if (t.length === 1 && !_GR_KNOWN[t]) set[t] = 1; }); });
     return Object.keys(set);
 }
+// ── v24.32 — ROOT & INTERSECTION MARKERS ──────────────────────────────
+// Snap near-integers so markers read "(2, 0)" not "(1.9998, 0)".
+function _grSnap(n) {
+    if (!isFinite(n)) return n;
+    var r = Math.round(n);
+    if (Math.abs(n - r) < 0.02) return r;
+    return Math.round(n * 100) / 100;
+}
+// Compile an explicit function expression to a JS fn of x, with current slider values baked in.
+function _grCompileFn(fnRaw) {
+    var jsExpr = null;
+    if (typeof _mathExprToJs === 'function') { try { jsExpr = _mathExprToJs(fnRaw); } catch (e) { jsExpr = null; } }
+    if (!jsExpr) jsExpr = String(fnRaw).replace(/\^/g, '**');
+    var params = _grParams([fnRaw]);
+    var f;
+    try { f = new Function(['x'].concat(params).join(','), 'with(Math){ return (' + jsExpr + '); }'); } catch (e) { return null; }
+    var args = params.map(function (k) { return (_grScope[k] !== undefined ? _grScope[k] : 1); });
+    return function (x) { try { var v = f.apply(null, [x].concat(args)); return (typeof v === 'number') ? v : NaN; } catch (e) { return NaN; } };
+}
+// Numerically find x where g(x)=0 in a domain (sign-change + bisection). The
+// |g(root)|<tol check rejects vertical-asymptote sign flips (e.g. 1/x at 0).
+function _grZerosOf(g, domain) {
+    var zeros = [], lo = domain[0], hi = domain[1], N = 700, step = (hi - lo) / N;
+    if (!(step > 0)) return zeros;
+    var px = lo, py = g(lo);
+    for (var i = 1; i <= N; i++) {
+        var x = lo + i * step, y = g(x);
+        if (isFinite(py) && isFinite(y)) {
+            if (py === 0) { zeros.push(px); }
+            else if (py * y < 0) {
+                var a = px, b = x, fa = py;
+                for (var k = 0; k < 50; k++) { var m = (a + b) / 2, fm = g(m); if (!isFinite(fm)) { break; } if (fa * fm <= 0) b = m; else { a = m; fa = fm; } }
+                var root = (a + b) / 2, fr = g(root);
+                if (isFinite(fr) && Math.abs(fr) < 1e-2) zeros.push(root);
+            }
+        }
+        px = x; py = y;
+    }
+    zeros.sort(function (p, q) { return p - q; });
+    var out = [];
+    zeros.forEach(function (z) { if (!out.length || Math.abs(z - out[out.length - 1]) > 0.04) out.push(z); });
+    return out;
+}
+// Compute root (x-intercept) + intersection points for the current functions.
+function _grComputeMarkers() {
+    var fns = [];
+    _grExprs.forEach(function (e) {
+        if (!e.raw || !e.raw.trim()) return;
+        var p = _grParse(e.raw);
+        if (p && p.fn) { var cf = _grCompileFn(p.fn); if (cf) fns.push(cf); }
+    });
+    var roots = [], inters = [], dom = _grDomain.x, ydom = _grDomain.y;
+    fns.forEach(function (f) {
+        _grZerosOf(f, dom).forEach(function (x) { if (roots.length < 14) roots.push([_grSnap(x), 0]); });
+    });
+    for (var i = 0; i < fns.length && inters.length < 14; i++) {
+        for (var j = i + 1; j < fns.length && inters.length < 14; j++) {
+            (function (fi, fj) {
+                _grZerosOf(function (x) { return fi(x) - fj(x); }, dom).forEach(function (x) {
+                    if (inters.length >= 14) return;
+                    var y = fi(x);
+                    if (isFinite(y) && y >= ydom[0] - 0.5 && y <= ydom[1] + 0.5) inters.push([_grSnap(x), _grSnap(y)]);
+                });
+            })(fns[i], fns[j]);
+        }
+    }
+    return { roots: roots, inters: inters };
+}
+function _grMarkerSummary(mk) {
+    function fmt(pts) { return pts.map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join('  '); }
+    var parts = [];
+    if (mk.roots.length) parts.push('<div class="gr-mk-line"><span class="gr-mk-dot gr-mk-root"></span><b>Roots</b> (x-intercepts): ' + fmt(mk.roots) + '</div>');
+    if (mk.inters.length) parts.push('<div class="gr-mk-line"><span class="gr-mk-dot gr-mk-int"></span><b>Intersections</b>: ' + fmt(mk.inters) + '</div>');
+    return parts.join('');
+}
+function _grToggleMarkers() {
+    _grShowMarkers = !_grShowMarkers;
+    var b = document.getElementById('gr-markers-btn'); if (b) b.classList.toggle('on', _grShowMarkers);
+    _grRenderPlot(true);
+}
+window._grToggleMarkers = _grToggleMarkers;
 function _grRenderPlot(preserveDomain) {
     var host = document.getElementById('fnplot-area'); if (!host || !window.functionPlot) return;
     var data = [], allFns = [];
@@ -18931,6 +19013,17 @@ function _grRenderPlot(preserveDomain) {
     if (!preserveDomain) {
         try { if (_grInstance && _grInstance.meta && _grInstance.meta.xScale) { _grDomain = { x: _grInstance.meta.xScale.domain().slice(), y: _grInstance.meta.yScale.domain().slice() }; } } catch (_) {}
     }
+    // v24.32 — compute + overlay root/intersection markers (domain is now final)
+    var markerSummary = '';
+    if (_grShowMarkers) {
+        try {
+            var mk = _grComputeMarkers();
+            if (mk.roots.length) data.push({ points: mk.roots, fnType: 'points', graphType: 'scatter', color: '#ff9f43', attr: { r: 4.5 } });
+            if (mk.inters.length) data.push({ points: mk.inters, fnType: 'points', graphType: 'scatter', color: '#ffffff', attr: { r: 4.5 } });
+            markerSummary = _grMarkerSummary(mk);
+        } catch (_) {}
+    }
+    var mo = document.getElementById('gr-markers-out'); if (mo) mo.innerHTML = markerSummary;
     host.innerHTML = '';
     try {
         _grInstance = functionPlot({
@@ -19091,6 +19184,8 @@ function openGrapher(seedEq) {
         + '<div class="gr-chips">' + chips + '</div>'
         + '<div id="gr-expr-list" style="margin-top:12px;"></div>'
         + '<div id="gr-sliders" style="margin-top:4px;"></div>'
+        + '<button id="gr-markers-btn" onclick="_grToggleMarkers()" class="gr-markers-btn on"><i class="ph ph-map-pin"></i> Roots &amp; intersections</button>'
+        + '<div id="gr-markers-out"></div>'
         + '<button onclick="_grExplain()" class="gr-explain-btn"><i class="ph ph-sparkle"></i> Explain this graph</button>'
         + '<button onclick="_grTable()" class="gr-table-btn"><i class="ph ph-table"></i> Table of values</button>'
         + '<div id="gr-table-out"></div>'
@@ -22806,6 +22901,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.32',
+        date: 'October 29, 2026',
+        tag: 'GRAPHER — KEY POINTS',
+        tagColor: '#ff9f43',
+        changes: [
+            'ROOTS & INTERSECTIONS — The grapher now auto-marks the important points: orange dots on every x-intercept (root) and white dots wherever two curves cross, with all their coordinates listed in the sidebar. Toggle them off with one tap. This is what most problems actually ask for — now you can read it straight off the graph.',
+        ]
+    },
     {
         version: 'v24.31',
         date: 'October 29, 2026',

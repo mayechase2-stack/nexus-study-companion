@@ -4063,6 +4063,17 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
 .gr-table-hint { font-size: 0.8rem; color: var(--text-muted); }
 .gr-table-hint code { background: rgba(108,92,231,0.2); padding: 1px 5px; border-radius: 4px; color: #c9c4ff; }
 
+/* v24.32 — root & intersection markers */
+.gr-markers-btn { width: 100%; margin-top: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 9px; color: #dde0ee; padding: 9px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.gr-markers-btn:hover { background: rgba(255,255,255,0.1); }
+.gr-markers-btn.on { background: rgba(255,159,67,0.16); border-color: rgba(255,159,67,0.5); color: #ffd3a3; }
+#gr-markers-out:not(:empty) { margin-top: 8px; }
+.gr-mk-line { font-size: 0.76rem; color: #dde0ee; line-height: 1.5; margin-bottom: 4px; font-family: monospace; }
+.gr-mk-line b { font-family: inherit; color: #fff; }
+.gr-mk-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.gr-mk-dot.gr-mk-root { background: #ff9f43; }
+.gr-mk-dot.gr-mk-int { background: #fff; border: 1px solid #9aa0b8; }
+
 /* v24.31 — companion "Graph it" quick button */
 .companion-graph-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; background: rgba(46,211,205,0.14); border: 1px solid rgba(46,211,205,0.4); color: #bff3f0; border-radius: 8px; padding: 5px 11px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
 .companion-graph-btn:hover { background: rgba(46,211,205,0.26); }
