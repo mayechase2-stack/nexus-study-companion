@@ -10350,7 +10350,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.33';
+const NEXUS_CURRENT_VERSION = 'v24.34';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -22902,6 +22902,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.34',
+        date: 'November 1, 2026',
+        tag: 'TEACHING BOARD — SUBJECT-MATCHED VISUALS',
+        tagColor: '#2ed3cd',
+        changes: [
+            'THE RIGHT VISUAL FOR EACH SUBJECT — Lessons now show what fits the topic: a real interactive graph for anything that plots, a labeled diagram for science structures, and REAL PHOTOS (pulled from Wikipedia) for history, geography, and biology — the actual landmark, person, animal, or artifact you\'re learning about, with a source link.',
+            'TUNED FOR ACCURACY — Added an accuracy pass to the tutor: facts, dates, formulas, and every practice answer are held to a correct-or-don\'t-say-it bar.',
+        ]
+    },
+    {
         version: 'v24.33',
         date: 'November 1, 2026',
         tag: 'TEACHING BOARD — DEEPER LESSONS',
@@ -30621,7 +30631,18 @@ DIAGRAMS — when a topic has a STRUCTURE or process worth seeing (DNA, a cell a
 
 GRAPHS — when a topic is genuinely visual (a line, a parabola, plotting points, slope, intercepts, a system of equations), DRAW it: emit <div class="teach-plot" data-fns="y=2x+3;y=-x+1" data-points="2,7;0,3" data-caption="short label"></div> and it renders as a real coordinate-plane graph in the lesson. Use data-fns for one or more functions of x (semicolon-separated, e.g. "y=x^2-4"), data-points for dots "x,y;x,y", and an optional short data-caption. Only include a plot when it truly helps understanding — never force one, and never for non-graphable topics.
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-mistakes">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+PHOTOS — for a real, specific thing a student should actually SEE (a historical figure, a landmark or building, a country or its flag, an animal, a plant, an organ, a planet, a famous artwork or invention), show a REAL photo: emit <div class="teach-image" data-query="EXACT Wikipedia article title" data-caption="short label"></div>. The app pulls an accurate, sourced photo from Wikipedia. Use the most specific, unambiguous title (e.g. data-query="Colosseum", data-query="George Washington", data-query="Mitochondrion", data-query="Great Wall of China"). Use this ESPECIALLY for HISTORY, GEOGRAPHY, and BIOLOGY, where seeing the real thing matters most. Never use it for abstract or math concepts, and NEVER for graphic, violent, or sensitive subject matter — pick a neutral related landmark, person, or object instead, or skip the image.
+
+MATCH THE VISUAL TO THE SUBJECT — include the RIGHT kind of visual for the topic whenever one helps, and never the wrong kind:
+• Math that plots (lines, parabolas, points, systems, intercepts) → a teach-plot graph.
+• Science / geometry STRUCTURES or processes (cells, atoms, the water cycle, a labeled triangle) → a labeled inline <svg> diagram.
+• History, geography, biology SPECIFICS (people, places, landmarks, animals, artifacts) → a teach-image real photo.
+• English / writing structure (story arc, sentence types, parts of speech) → a small labeled <svg> or a clear list.
+Pick what fits the subject — don't put a graph on a history lesson or a photo on an equation. At most one or two visuals per card, only when they genuinely help.
+
+ACCURACY — everything you state must be correct: facts, dates, names, definitions, formulas, and every number in a worked example or practice answer. Double-check arithmetic and that each practice problem's data-answers value is actually right. If you're not certain of a specific fact, teach the reliable core and don't invent specifics. Never state a wrong date, misattribute a quote, or give a practice answer that doesn't match its problem.
+
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-mistakes">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-image" data-query="..." ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
 FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
@@ -31110,6 +31131,7 @@ function _teachEnhanceCards(el) {
             };
         });
         _teachRenderPlots(el);
+        _teachRenderImages(el);
         _teachRenderNext(el);
         _teachEnhancePractice(el);
         _teachAddCardActions(el);
@@ -31366,6 +31388,34 @@ function _teachRenderPlots(el) {
             node.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;">Graph unavailable.</div>';
         }
         if (cap) { var c = document.createElement('div'); c.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin:2px 0 0;'; c.textContent = cap; node.appendChild(c); }
+    });
+}
+// v24.34 — REAL REFERENCE IMAGES in lessons (history, biology, landmarks, people,
+// artworks, planets…). The tutor emits <div class="teach-image" data-query="Colosseum"
+// data-caption="…"></div> and we fetch an actual photo + title from Wikipedia
+// (accurate, sourced, free, CORS-enabled). Falls back silently if none exists.
+function _teachRenderImages(el) {
+    if (!el) return;
+    el.querySelectorAll('.teach-image').forEach(function (node) {
+        if (node.dataset.rendered) return; node.dataset.rendered = '1';
+        var q = (node.getAttribute('data-query') || node.textContent || '').trim();
+        if (!q) { node.remove(); return; }
+        var cap = (node.getAttribute('data-caption') || '').trim();
+        node.innerHTML = '<div class="teach-img-loading"><i class="ph ph-spinner ph-spin"></i> finding an image…</div>';
+        fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.replace(/\s+/g, '_')))
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+                var img = d && (d.thumbnail || d.originalimage);
+                if (!d || d.type === 'disambiguation' || !img || !img.source) { node.remove(); return; }
+                var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
+                var title = d.title || q;
+                var pageUrl = (d.content_urls && d.content_urls.desktop && d.content_urls.desktop.page) || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(q.replace(/\s+/g, '_')));
+                node.innerHTML = '<figure class="teach-img-fig">'
+                    + '<img src="' + esc(img.source) + '" alt="' + esc(title) + '" loading="lazy" referrerpolicy="no-referrer">'
+                    + '<figcaption>' + esc(cap || title) + ' · <a href="' + esc(pageUrl) + '" target="_blank" rel="noopener">📷 Wikipedia</a></figcaption>'
+                    + '</figure>';
+            })
+            .catch(function () { node.remove(); });
     });
 }
 function _teachDrawPlot(ctx, W, H, fns, pts, progress) {

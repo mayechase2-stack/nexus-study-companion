@@ -3394,6 +3394,14 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
   color: #ffd4d4;
 }
 #teach-chat-messages .teach-mistakes strong { color: #ff9f9f; }
+/* v24.34 — real reference photos (Wikipedia) inside history/biology/etc. lessons */
+#teach-chat-messages .teach-image { margin: 12px 0; }
+#teach-chat-messages .teach-img-loading { font-size: 0.8rem; color: var(--text-muted); padding: 10px 0; }
+#teach-chat-messages .teach-img-fig { margin: 0; border: 1px solid var(--glass-border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.03); max-width: 420px; }
+#teach-chat-messages .teach-img-fig img { display: block; width: 100%; max-height: 340px; object-fit: cover; background: #0c0e1c; }
+#teach-chat-messages .teach-img-fig figcaption { padding: 8px 12px; font-size: 0.8rem; color: var(--text-muted); }
+#teach-chat-messages .teach-img-fig figcaption a { color: #8ab4ff; text-decoration: none; }
+#teach-chat-messages .teach-img-fig figcaption a:hover { text-decoration: underline; }
 #teach-chat-messages .teach-practice {
   background: rgba(0, 206, 201, 0.09);
   border: 1px dashed rgba(0, 206, 201, 0.45);
