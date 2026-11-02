@@ -10350,7 +10350,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.32';
+const NEXUS_CURRENT_VERSION = 'v24.33';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -22902,6 +22902,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.33',
+        date: 'November 1, 2026',
+        tag: 'TEACHING BOARD — DEEPER LESSONS',
+        tagColor: '#a29bfe',
+        changes: [
+            'LESSONS NOW TEACH THE WHOLE TOPIC — Every Teaching Board lesson, in every subject, now covers the full picture: the key vocabulary and TYPES/classifications (polynomials → monomial/binomial/trinomial, essays → narrative/persuasive/argumentative, reactions → synthesis/decomposition…), what counts vs. what doesn\'t (with a non-example), the facts you\'re expected to know, and a dedicated "Common mistakes" box with how to handle the tricky cases — not just a definition and steps.',
+        ]
+    },
+    {
         version: 'v24.32',
         date: 'October 29, 2026',
         tag: 'GRAPHER — KEY POINTS',
@@ -30539,16 +30548,33 @@ FIRST, READ WHAT THEY'RE ACTUALLY ASKING and match your reply to it — this mat
 
 TEACH IT, DON'T JUST DEFINE IT. The #1 thing students say is that lessons give "the precise definition and nothing else." Don't do that. A good card leaves the student understanding WHY, not just WHAT: give the intuition, an everyday analogy or mental picture, where a formula comes from, and what each step is really doing. Explain like a patient tutor talking to a real person — warm and in plain language. Still scannable (a few clear sentences per section, never a paragraph dump), but genuinely explanatory, not a bare textbook entry.
 
+TEACH THE WHOLE TOPIC — COVER IT LIKE A REAL TEACHER WOULD, not a one-paragraph summary. This applies to EVERY subject — math, science, English/language arts, history/social studies, and any other — NOT just math. A definition + a how-to is NOT enough. A complete lesson also teaches:
+• THE VOCABULARY & TYPES / CLASSIFICATION. If the topic has named sub-types, categories, forms, or key terms, you MUST name each one, give its defining rule, and a quick example. This is true in every subject:
+  — Math: polynomials → by number of terms (monomial / binomial / trinomial) AND by degree (linear / quadratic / cubic); triangles → acute / right / obtuse, scalene / isosceles / equilateral.
+  — Science: chemical reactions → synthesis / decomposition / combustion / single- & double-replacement; cells → prokaryotic vs eukaryotic; bonds → ionic / covalent / metallic.
+  — English: essays → narrative / expository / persuasive / argumentative; figurative language → simile / metaphor / personification / hyperbole; sentences → simple / compound / complex; points of view → 1st / 2nd / 3rd person.
+  — History / social studies: governments → democracy / monarchy / dictatorship / oligarchy; sources → primary vs secondary; causes vs effects of an event.
+  Do NOT teach a topic without naming its real sub-types (e.g. "polynomials" without binomial/trinomial, "figurative language" without simile/metaphor) — that's exactly the gap to avoid.
+• WHAT COUNTS AND WHAT DOESN'T — the rule that qualifies something as the concept, plus a clear non-example. (Math: a polynomial needs whole-number exponents and no variable in a denominator or under a root, so 3x² + 2x − 5 qualifies but 1/x and √x do NOT. English: a complete sentence needs a subject and a verb and a complete thought, so "The dog ran" is one but "Running fast" is not. Science: a physical change keeps the substance the same, so melting ice is physical but burning wood is chemical.)
+• THE FACTS a student is expected to KNOW about it (key properties, dates, rules, special cases, important values, defining features).
+• COMMON MISTAKES + HOW TO HANDLE CASES — the specific things students get wrong in THIS topic (in any subject), and "when you run into ___, do ___" for the tricky situations.
+Breadth AND depth: name the parts, draw the distinctions, state the rules and the facts — then keep each section tight and skimmable so it's thorough without being a wall of text.
+
 HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card so the student can scan it. One card per topic. If the student names SEVERAL topics (commas, "and", or a list), make ONE card for EACH, in the order named — never teach only the first and skip the rest. EVERY card MUST include its own Practice block (the <div class="teach-practice" data-answers="…"> with its own problems + answers) — do NOT give practice for only the first topic and skip it on the rest; each topic gets its own practice. Use this shape EXACTLY for every card:
 
 <div class="teach-card">
 <h4>Topic name</h4>
 <div class="teach-what">2–3 plain sentences: what it is AND the intuition — what it actually MEANS in everyday terms (a quick analogy or mental picture), not just the textbook definition. If it has a formula or key equation, show it on its own line (e.g. y = mx + b, or slope = (y₂ − y₁)/(x₂ − x₁)) and say in words what each part means.</div>
+<h5>Key terms &amp; types</h5>
+<ul><li>Name EACH important type/category or vocabulary word with its DEFINING rule and a quick example — e.g. for polynomials: <strong>monomial</strong> = 1 term (5x³), <strong>binomial</strong> = 2 terms (x + 3), <strong>trinomial</strong> = 3 terms (x² + 2x − 5); then classify by <strong>degree</strong>: linear = 1, quadratic = 2, cubic = 3.</li></ul>
+<p><strong>What counts / what doesn't:</strong> state the rule that qualifies something as the concept, with a non-example — e.g. a polynomial needs whole-number exponents and no variable in a denominator or under a root, so 3x² + 2x − 5 IS one, but 1/x and √x are NOT.</p>
+(Include "Key terms &amp; types" whenever the topic HAS named types, categories, or special vocabulary — most do. Omit only for a topic that genuinely has none.)
 <h5>How to do it</h5>
 <ol><li>each step: what you DO and, in plain words, WHY you do it / what it's really accomplishing (not just the action)</li></ol>
 <h5>Why it works</h5>
 <p>2–3 sentences of real reasoning — the intuition for WHY this method works (where the formula comes from, what's really going on), not a one-line restatement of the definition.</p>
-<div class="teach-tip">💡 <strong>Tip:</strong> a trick, shortcut, mnemonic, or common gotcha for THIS topic — e.g. "the butterfly method for cross-multiplying fractions", "dividing both sides of an inequality by a negative flips the sign". Include this box ONLY when there's a genuinely useful tip; otherwise leave it out entirely.</div>
+<div class="teach-mistakes">⚠️ <strong>Common mistakes:</strong> the 1–3 things students most often get wrong on THIS topic and how to avoid each, PLUS a quick "when you run into ___, do ___" for the tricky case — e.g. "a negative or fractional exponent means it's NOT a polynomial", "the degree of a term with several variables is the SUM of their exponents", "don't confuse a term with a coefficient". REQUIRED whenever the topic has real pitfalls (almost always).</div>
+<div class="teach-tip">💡 <strong>Tip:</strong> a trick, shortcut, mnemonic, or clever shortcut for THIS topic — e.g. "the butterfly method for cross-multiplying fractions". Include this box ONLY when there's a genuinely useful tip; otherwise leave it out entirely.</div>
 <div class="teach-practice" data-answers="answer1;answer2;answer3"><strong>✏️ Practice — try these 3</strong>
 <ol><li>problem 1</li><li>problem 2</li><li>problem 3</li></ol></div>
 (Put each problem's SHORT final answer in the data-answers attribute, semicolon-separated, in the SAME order as the problems — e.g. data-answers="3;2;undefined". Keep each answer short and exact so it can be auto-checked; the app turns each problem into a "type your answer + Check" box.)
@@ -30581,7 +30607,7 @@ AFTER the card(s): ONE friendly line. If you taught several topics, ask which on
 
 LEARNING PATH — when you TEACH a topic (not for a direct follow-up question), end your reply with <div class="teach-next" data-topics="Next topic;Another next topic;A third"></div> listing 2-3 logical NEXT topics that build on what you just taught, in a sensible learning order (e.g. after "slope" → "Writing linear equations;Slope-intercept graphing;Systems of equations"). These render as tap-to-continue buttons so the student can move through a path. Keep each topic short (a few words). Omit this for a direct clarifying question.
 
-DEPTH scales the SAME card shape: QUICK = a lean card (topic, what-it-is, one short "How to do it", skip the practice or give just one) — a few lines. STANDARD = the full card above. DEEP = expand each card: add a second, harder worked example, more on the "why", the main sub-types/cases and common mistakes, and keep the 3 practice.
+DEPTH scales the SAME card shape: QUICK = a lean card (topic, what-it-is, the key types in one line if any, one short "How to do it") — a few lines; may skip the practice/mistakes boxes. STANDARD = the FULL card above, including "Key terms & types" and "Common mistakes". DEEP = expand each card: add a second, harder worked example, more on the "why", MORE sub-types/edge-cases and a fuller common-mistakes list, and keep the 3 practice.
 
 WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder", "quiz me"): expand the current topic's card — why it works, other cases, common mistakes, a harder worked example. Still a clean card, still skimmable.
 
@@ -30595,7 +30621,7 @@ DIAGRAMS — when a topic has a STRUCTURE or process worth seeing (DNA, a cell a
 
 GRAPHS — when a topic is genuinely visual (a line, a parabola, plotting points, slope, intercepts, a system of equations), DRAW it: emit <div class="teach-plot" data-fns="y=2x+3;y=-x+1" data-points="2,7;0,3" data-caption="short label"></div> and it renders as a real coordinate-plane graph in the lesson. Use data-fns for one or more functions of x (semicolon-separated, e.g. "y=x^2-4"), data-points for dots "x,y;x,y", and an optional short data-caption. Only include a plot when it truly helps understanding — never force one, and never for non-graphable topics.
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-mistakes">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
 FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];

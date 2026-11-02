@@ -3384,6 +3384,16 @@ body.theme-light .status-indicator { color: #1f2233 !important; }
   color: #ffe9c7;
 }
 #teach-chat-messages .teach-tip strong { color: #ffcf85; }
+/* v24.33 — common-mistakes callout (distinct red "watch out" style) */
+#teach-chat-messages .teach-mistakes {
+  background: rgba(255, 107, 107, 0.1);
+  border-left: 3px solid #ff6b6b;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 12px 0 2px;
+  color: #ffd4d4;
+}
+#teach-chat-messages .teach-mistakes strong { color: #ff9f9f; }
 #teach-chat-messages .teach-practice {
   background: rgba(0, 206, 201, 0.09);
   border: 1px dashed rgba(0, 206, 201, 0.45);
