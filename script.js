@@ -30806,8 +30806,8 @@ function _teachOpeningAsk(topic) {
     const multi = /,| and /i.test(topic);
     let ask = 'Teach me: ' + topic + '. ';
     if (_teachDepth === 'quick') ask += 'Just the gist — the quickest overview that lets me try one. Keep it short.';
-    else if (_teachDepth === 'deep') ask += 'Give me the FULL deep dive right now — thorough but still skimmable.';
-    else ask += 'Give the TIGHT OVERVIEW first — just enough to understand it and try one myself, not the whole topic. Then offer the deep dive.';
+    else if (_teachDepth === 'deep') ask += 'Give me the FULL deep dive right now — thorough but still skimmable: all the types/classifications, what counts vs not, the facts, why it works, common mistakes, a second harder example, and 3 practice.';
+    else ask += 'Give me the COMPLETE lesson card — thorough but clean and skimmable: what it is, its key terms & TYPES/classifications (name each with its rule), what counts vs what does not, how to do it, why it works, the common mistakes, and 3 practice problems. Include the RIGHT visual for the subject (a graph if it plots, a labeled diagram for a structure, a real photo for a specific person / place / thing). Do NOT give a bare "tight overview" that skips the types or mistakes.';
     if (multi) ask += ' I listed several things — cover EACH one I named, do not skip any.';
     return ask;
 }
