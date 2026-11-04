@@ -1942,6 +1942,7 @@ function updateHomeStats() {
     const continueBtn = el('home-continue-btn');
     if (typeof _updateMistakeBadge === 'function') _updateMistakeBadge();   // v23.2 mistakes CTA count
     if (typeof _updateLessonReviewBadge === 'function') _updateLessonReviewBadge();   // v23.3 due-lessons CTA count
+    if (typeof _updateReviewQueueBadge === 'function') _updateReviewQueueBadge();   // v24.35 unified review queue + coach card
     let _teachResume = null;
     try { _teachResume = (typeof _teachLoadArchive === 'function') ? (_teachLoadArchive()[0] || null) : null; } catch (_) {}
     if (continueBar && _teachResume && _teachResume.id) {
@@ -10350,7 +10351,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.34';
+const NEXUS_CURRENT_VERSION = 'v24.35';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -14770,8 +14771,11 @@ function openPracticeHub() {
     var ex = document.getElementById('practice-hub-modal'); if (ex) ex.remove();
     var mistakeN = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
     var dueN = (typeof _lessonReviewsDue === 'function') ? _lessonReviewsDue().length : 0;
+    var queueN = (typeof _reviewQueueTotal === 'function') ? _reviewQueueTotal() : 0;
     var rooms = [
+        { fn: 'openReviewQueue', icon: '🗂️', c: '#6c5ce7', title: 'Daily review', desc: 'Everything due today — cards, mistakes & lessons — in one queue.', badge: queueN ? (queueN + ' due') : '' },
         { fn: 'startQuiz', icon: '⚡', c: '#ffc312', title: 'Quick check', desc: 'Test your understanding of a topic right now.' },
+        { fn: 'openPracticeTest', icon: '📝', c: '#fd79a8', title: 'Practice test', desc: 'A timed, mixed test with a scored report and weak-topic breakdown.' },
         { fn: "openFlashcards('ai')", icon: '🃏', c: '#00cec9', title: 'Memorize', desc: 'Drill facts with flashcards until they stick (spaced repetition).' },
         { fn: 'openMistakeReview', icon: '🔁', c: '#ffbe5a', title: 'Fix my mistakes', desc: 'Redo only the questions you got wrong.', badge: mistakeN ? (mistakeN + ' waiting') : '' },
         { fn: 'openLessonReview', icon: '🧠', c: '#a29bfe', title: 'Due for review', desc: 'Quick recall on past lessons, timed so they stick.', badge: dueN ? (dueN + ' due') : '' },
@@ -14799,6 +14803,429 @@ function openPracticeHub() {
     document.body.appendChild(m);
 }
 window.openPracticeHub = openPracticeHub;
+
+// ════════════════════════════════════════════════════════════════════
+// v24.35 — FRONTIER FEATURES (Chase: "the best study app anyone can use").
+// Six high-leverage builds from the command-center Frontier board:
+//  1. Diagnose my work      — find the exact wrong step in the student's OWN work
+//  2. Teach-back / Feynman  — student explains it back, NEXUS scores understanding
+//  3. Proactive study coach — nudges from real on-device data
+//  4. Teach-me-this bridge  — one tap from any answer into the Teaching Board
+//  5. Unified daily review  — one "Review — N due" queue (cards/mistakes/lessons)
+//  6. Practice-test builder — timed mixed test + scored report that feeds mistakes
+// ════════════════════════════════════════════════════════════════════
+function _frApiKey() { return (typeof getApiKey === 'function') ? getApiKey() : ''; }
+function _frEsc(s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s) : String(s == null ? '' : s); }
+function _frLoad(t) { return (typeof _nxLoadingHTML === 'function') ? _nxLoadingHTML(t) : ('<div style="text-align:center;color:var(--text-muted);padding:18px;">' + _frEsc(t) + '</div>'); }
+function _frModal(id) {
+    var ex = document.getElementById(id); if (ex) ex.remove();
+    var m = document.createElement('div'); m.id = id;
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.onclick = function (e) { if (e.target === m) m.remove(); };
+    return m;
+}
+async function _frAskJSON(system, user, model, temp) {
+    var res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _frApiKey() },
+        body: JSON.stringify({ model: model || 'gpt-4o', temperature: (typeof temp === 'number' ? temp : 0.2), response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] })
+    });
+    var data = await res.json();
+    if (data && data.error) throw new Error(data.error.message || 'error');
+    return JSON.parse((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}');
+}
+
+// ── 4. "Teach me this" bridge — one tap from any answer into the Teaching Board ──
+function _teachMeThis(topic) {
+    topic = String(topic || '').trim(); if (!topic) return;
+    var clean = topic.replace(/^(solve|simplify|factor|evaluate|find|calculate|graph|compute|what is|what are|how do i|how to|explain|describe)\b[:\s]*/i, '').trim() || topic;
+    try { if (typeof switchTab === 'function') switchTab('teach'); } catch (_) {}
+    setTimeout(function () { if (typeof startTeachingTopic === 'function') startTeachingTopic(clean.slice(0, 120)); }, 170);
+}
+window._teachMeThis = _teachMeThis;
+
+// Small action row appended under a Math/Science answer: Teach-me-this + Check-my-work.
+function _appendLearnActions(container, seed) {
+    try {
+        if (!container) return;
+        var seedStr = String(seed || '').slice(0, 160);
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;';
+        var b1 = document.createElement('button'); b1.className = 'btn-secondary';
+        b1.style.cssText = 'flex:1;min-width:150px;background:rgba(108,92,231,0.12);border:1px solid rgba(108,92,231,0.4);color:#c7bcff;font-size:0.82rem;';
+        b1.innerHTML = '<i class="ph ph-chalkboard-teacher"></i> Teach me this';
+        b1.onclick = function () { _teachMeThis(seedStr); };
+        var b2 = document.createElement('button'); b2.className = 'btn-secondary';
+        b2.style.cssText = 'flex:1;min-width:150px;background:rgba(255,190,90,0.10);border:1px solid rgba(255,190,90,0.4);color:#ffe0ad;font-size:0.82rem;';
+        b2.innerHTML = '<i class="ph ph-magnifying-glass"></i> Check my work';
+        b2.onclick = function () { openDiagnose(seedStr); };
+        row.appendChild(b1); row.appendChild(b2); container.appendChild(row);
+    } catch (_) {}
+}
+window._appendLearnActions = _appendLearnActions;
+
+// ── 1. Diagnose my work — pinpoint the exact wrong step in the student's solution ──
+const NEXUS_DIAGNOSE_PROMPT = "You are NEXUS Work Checker. A student gives you a PROBLEM and THEIR OWN attempt at solving it. Your job is NOT to just give the answer — it is to find the EXACT first place their work goes wrong and coach them there.\n\nRules:\n- Work the problem yourself, correctly and carefully. For math/science, substitute every result back into the ORIGINAL to VERIFY, and keep divisions as exact reduced fractions (never round -8/5 to -2).\n- Compare their steps to the correct path. Find the FIRST step that is wrong (or confirm every step is right).\n- Be encouraging and specific. Quote their exact wrong line. Name the mistake type (sign error, wrong formula, arithmetic slip, skipped step, misread the problem).\n- Then show the corrected step and how the rest should go, briefly.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n \"verdict\": \"correct\" | \"mistake\" | \"unclear\",\n \"headline\": \"<one encouraging sentence: either 'Your work checks out!' or where it went wrong>\",\n \"correctAnswer\": \"<the right final answer, short>\",\n \"steps\": [ {\"text\":\"<the student's step, quoted or paraphrased>\",\"status\":\"ok\"|\"wrong\"|\"fixed\",\"note\":\"<for the wrong step: why it's wrong; for a fixed step: the corrected version>\"} ],\n \"mistakeType\": \"<short label, empty string if correct>\",\n \"tip\": \"<one memory hook / how to avoid this next time>\"\n}\nMark every step 'ok' up to the first wrong one; mark that one 'wrong' with a clear note; then add 1-3 'fixed' steps showing the correct continuation. If their work is fully correct, all steps 'ok' and verdict 'correct'. If you can't read their work, verdict 'unclear' and ask for it in headline.";
+
+async function _runDiagnose() {
+    var prob = (document.getElementById('diag-problem') || {}).value || '';
+    var work = (document.getElementById('diag-work') || {}).value || '';
+    var out = document.getElementById('diag-output');
+    if (prob.trim().length < 3) { if (typeof showToast === 'function') showToast('Type the problem first.', 'warning'); return; }
+    if (work.trim().length < 2) { if (typeof showToast === 'function') showToast('Type your work or your answer so I can check it.', 'warning'); return; }
+    if (out) out.innerHTML = _frLoad('Checking your work…');
+    try {
+        var g = await _frAskJSON(NEXUS_DIAGNOSE_PROMPT, 'PROBLEM:\n' + prob.trim().slice(0, 2000) + '\n\nMY WORK / MY ANSWER:\n' + work.trim().slice(0, 4000), 'gpt-4o', 0.1);
+        if (out) out.innerHTML = _renderDiagnose(g);
+    } catch (e) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t check that right now — try again.</div>'; }
+}
+window._runDiagnose = _runDiagnose;
+
+function _renderDiagnose(g) {
+    var esc = _frEsc, v = g.verdict || 'unclear';
+    var top = v === 'correct' ? { c: '#45c78d', bg: 'rgba(69,199,141,0.12)', ic: '✅' } : v === 'mistake' ? { c: '#ffbe5a', bg: 'rgba(255,190,90,0.12)', ic: '🔎' } : { c: '#a29bfe', bg: 'rgba(162,155,254,0.12)', ic: '🤔' };
+    var h = '<div style="display:flex;gap:12px;align-items:flex-start;background:' + top.bg + ';border:1px solid ' + top.c + ';border-radius:12px;padding:13px 15px;">'
+        + '<div style="font-size:1.5rem;line-height:1;">' + top.ic + '</div>'
+        + '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:' + top.c + ';font-size:0.98rem;">' + esc(g.headline || '') + '</div>'
+        + (g.correctAnswer ? '<div style="font-size:0.84rem;color:#dde0ee;margin-top:3px;">Correct answer: <b>' + esc(g.correctAnswer) + '</b></div>' : '')
+        + (g.mistakeType ? '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:3px;">Mistake type: ' + esc(g.mistakeType) + '</div>' : '') + '</div></div>';
+    if (Array.isArray(g.steps) && g.steps.length) {
+        h += '<div style="margin-top:12px;display:flex;flex-direction:column;gap:7px;">' + g.steps.map(function (s) {
+            var st = s.status || 'ok';
+            var mk = st === 'wrong' ? { c: '#f07a72', ic: '✗', bg: 'rgba(240,122,114,0.10)' } : st === 'fixed' ? { c: '#45c78d', ic: '→', bg: 'rgba(69,199,141,0.10)' } : { c: '#8aa0c6', ic: '✓', bg: 'rgba(255,255,255,0.03)' };
+            return '<div style="display:flex;gap:10px;align-items:flex-start;background:' + mk.bg + ';border-radius:9px;padding:9px 12px;">'
+                + '<span style="color:' + mk.c + ';font-weight:800;flex-shrink:0;">' + mk.ic + '</span>'
+                + '<div style="flex:1;min-width:0;"><div style="color:' + (st === 'wrong' ? '#ffd0cc' : '#e6e9f5') + ';font-size:0.86rem;' + (st === 'wrong' ? 'text-decoration:line-through;text-decoration-color:rgba(240,122,114,0.6);' : '') + '">' + esc(s.text || '') + '</div>'
+                + (s.note ? '<div style="color:' + mk.c + ';font-size:0.82rem;margin-top:3px;">' + esc(s.note) + '</div>' : '') + '</div></div>';
+        }).join('') + '</div>';
+    }
+    if (g.tip) h += '<div style="margin-top:12px;background:rgba(108,92,231,0.12);border-radius:10px;padding:10px 13px;font-size:0.84rem;color:#d6ccff;">💡 <b>Avoid it next time:</b> ' + esc(g.tip) + '</div>';
+    h += '<div style="margin-top:14px;"><button class="btn-secondary" onclick="_teachMeThis(((document.getElementById(\'diag-problem\')||{}).value||\'\'))" style="width:100%;background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.4);color:#c7bcff;"><i class="ph ph-chalkboard-teacher"></i> Teach me this properly</button></div>';
+    return h;
+}
+
+function openDiagnose(seedProblem) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('homework')) return;
+    if (typeof trackFeature === 'function') trackFeature('diagnose_work');
+    var esc = _frEsc, m = _frModal('diagnose-modal');
+    m.innerHTML = '<div class="glass-panel" style="max-width:620px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-magnifying-glass" style="color:#ffbe5a;"></i> Diagnose my work</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">Show your own solution — NEXUS finds the exact step where it went wrong, not just the answer.</p></div>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'diagnose-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;">'
+        + '<label style="font-size:0.76rem;color:var(--text-muted);">The problem</label>'
+        + '<textarea id="diag-problem" placeholder="e.g. Solve 6 − |5x + 6| = 4" style="width:100%;min-height:54px;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;resize:vertical;">' + esc(seedProblem || '') + '</textarea>'
+        + '<label style="font-size:0.76rem;color:var(--text-muted);display:block;margin-top:10px;">Your work / your answer</label>'
+        + '<textarea id="diag-work" placeholder="Type every step you did (or paste it). The more you show, the better I can pinpoint the slip." style="width:100%;min-height:120px;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;resize:vertical;"></textarea>'
+        + '<button class="btn-primary" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#f0932b,#ffbe5a);color:#201400;" onclick="_runDiagnose()"><i class="ph ph-magnifying-glass"></i> Find my mistake</button>'
+        + '<div id="diag-output" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    setTimeout(function () { var t = document.getElementById(seedProblem ? 'diag-work' : 'diag-problem'); if (t) t.focus(); }, 60);
+}
+window.openDiagnose = openDiagnose;
+
+// ── 2. Teach-back / Feynman mode — student explains it back, NEXUS scores it ──
+const NEXUS_TEACHBACK_PROMPT = "You are NEXUS Teach-Back coach. The student is using the Feynman technique: they try to explain a concept in their OWN words, and you judge how well they actually understand it. Be warm, encouraging, and honest.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n \"score\": <integer 0-100>,\n \"level\": \"<one of: Solid / Getting there / Shaky / Missed it>\",\n \"nailed\": [\"<specific thing they got right or explained well>\"],\n \"gaps\": [\"<specific thing they got wrong, missed, or were vague about — include the correct idea>\"],\n \"followUp\": \"<ONE probing question that targets their biggest gap, to push understanding>\",\n \"modelAnswer\": \"<2-3 sentence crisp correct explanation of the concept, as a gold standard>\",\n \"tip\": \"<one way to lock it in>\"\n}\nScore on correctness AND completeness of THEIR explanation, not grammar or spelling. 1-3 nailed, 1-3 gaps (empty gaps only if truly excellent). If they wrote almost nothing or off-topic, score low and say so kindly in level.";
+
+async function _runTeachBack() {
+    var concept = (document.getElementById('tb-concept') || {}).value || '';
+    var expl = (document.getElementById('tb-expl') || {}).value || '';
+    var out = document.getElementById('tb-output');
+    if (concept.trim().length < 2) { if (typeof showToast === 'function') showToast('What concept are you explaining?', 'warning'); return; }
+    if (expl.trim().length < 15) { if (typeof showToast === 'function') showToast('Explain it in your own words first — a few sentences.', 'warning'); return; }
+    if (out) out.innerHTML = _frLoad('Scoring your explanation…');
+    try {
+        var g = await _frAskJSON(NEXUS_TEACHBACK_PROMPT, 'CONCEPT the student is explaining: ' + concept.trim().slice(0, 200) + '\n\nTHEIR EXPLANATION:\n' + expl.trim().slice(0, 4000), 'gpt-4o', 0.3);
+        if (out) out.innerHTML = _renderTeachBack(g);
+    } catch (e) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t score that right now — try again.</div>'; }
+}
+window._runTeachBack = _runTeachBack;
+
+function _renderTeachBack(g) {
+    var esc = _frEsc, sc = Math.max(0, Math.min(100, parseInt(g.score, 10) || 0));
+    var col = sc >= 80 ? '#45c78d' : sc >= 60 ? '#2ed3cd' : sc >= 40 ? '#ffbe5a' : '#f07a72';
+    var h = '<div style="display:flex;align-items:center;gap:16px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;">'
+        + '<div style="width:62px;height:62px;flex-shrink:0;border-radius:50%;background:conic-gradient(' + col + ' ' + (sc * 3.6) + 'deg, rgba(255,255,255,0.08) 0);display:flex;align-items:center;justify-content:center;">'
+        + '<div style="width:48px;height:48px;border-radius:50%;background:#12152b;display:flex;align-items:center;justify-content:center;font-weight:800;color:' + col + ';font-size:1.05rem;">' + sc + '</div></div>'
+        + '<div style="flex:1;min-width:0;"><div style="font-weight:800;color:' + col + ';font-size:1.05rem;">' + esc(g.level || '') + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">How well you explained it back</div></div></div>';
+    function list(title, arr, color, bg, ic) {
+        if (!Array.isArray(arr) || !arr.length) return '';
+        return '<div style="margin-top:12px;background:' + bg + ';border-radius:10px;padding:11px 14px;"><div style="font-weight:700;color:' + color + ';font-size:0.85rem;margin-bottom:6px;">' + ic + ' ' + title + '</div><ul style="margin:0;padding-left:18px;color:#dde0ee;font-size:0.84rem;line-height:1.55;">' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+    }
+    h += list('You nailed', g.nailed, '#8ce6bb', 'rgba(69,199,141,0.10)', '✅');
+    h += list('Gaps to close', g.gaps, '#ffe0ad', 'rgba(255,190,90,0.10)', '🔧');
+    if (g.followUp) h += '<div style="margin-top:12px;background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.4);border-radius:10px;padding:12px 14px;"><div style="font-weight:700;color:#c7bcff;font-size:0.85rem;">🤔 Answer this to go deeper</div><div style="color:#e6e9f5;font-size:0.88rem;margin-top:5px;">' + esc(g.followUp) + '</div></div>';
+    if (g.modelAnswer) h += '<details style="margin-top:12px;"><summary style="cursor:pointer;color:#8ab4ff;font-size:0.85rem;font-weight:600;">See a model explanation</summary><div style="margin-top:7px;background:rgba(0,0,0,0.25);border-radius:9px;padding:11px 13px;color:#dde0ee;font-size:0.86rem;line-height:1.55;">' + esc(g.modelAnswer) + '</div></details>';
+    if (g.tip) h += '<div style="margin-top:12px;font-size:0.83rem;color:#d6ccff;">💡 ' + esc(g.tip) + '</div>';
+    h += '<button class="btn-primary" style="width:100%;margin-top:14px;background:linear-gradient(135deg,#6C5CE7,#a29bfe);" onclick="var e=document.getElementById(\'tb-expl\');if(e){e.value=\'\';e.focus();}document.getElementById(\'tb-output\').innerHTML=\'\';"><i class="ph ph-arrow-counter-clockwise"></i> Try explaining again</button>';
+    return h;
+}
+
+function openTeachBack(seedConcept) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('learn')) return;
+    if (typeof trackFeature === 'function') trackFeature('teach_back');
+    var esc = _frEsc, m = _frModal('teachback-modal');
+    m.innerHTML = '<div class="glass-panel" style="max-width:600px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-student" style="color:#2ed3cd;"></i> Teach it back</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">Explain it in your own words — the best way to find out if you really get it. NEXUS scores your understanding and shows the gaps.</p></div>'
+        + '<button class="btn-icon" onclick="document.getElementById(\'teachback-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;">'
+        + '<label style="font-size:0.76rem;color:var(--text-muted);">Concept you\'re explaining</label>'
+        + '<input id="tb-concept" placeholder="e.g. Why does dividing by a negative flip the inequality?" maxlength="200" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;" value="' + esc(seedConcept || '') + '">'
+        + '<label style="font-size:0.76rem;color:var(--text-muted);display:block;margin-top:10px;">Explain it like you\'re teaching a friend</label>'
+        + '<textarea id="tb-expl" placeholder="In your own words — no notes. Pretend your friend has never heard of it." style="width:100%;min-height:130px;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;resize:vertical;"></textarea>'
+        + '<button class="btn-primary" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#0a938f,#2ed3cd);color:#00201f;" onclick="_runTeachBack()"><i class="ph ph-check-circle"></i> Score my explanation</button>'
+        + '<div id="tb-output" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+    setTimeout(function () { var t = document.getElementById(seedConcept ? 'tb-expl' : 'tb-concept'); if (t) t.focus(); }, 60);
+}
+window.openTeachBack = openTeachBack;
+
+// ── 3. Proactive study coach — nudges computed from real on-device data ──
+function _coachNudges() {
+    var n = [];
+    var mistakes = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
+    var due = (typeof _lessonReviewsDue === 'function') ? _lessonReviewsDue().length : 0;
+    var R = (typeof _computeReadiness === 'function') ? _computeReadiness() : { pct: 0 };
+    var stats = (typeof getStudyStats === 'function') ? getStudyStats() : {};
+    var sessions = (typeof getStudySessions === 'function') ? getStudySessions() : [];
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var studiedToday = (sessions || []).some(function (s) { return s && s.date === todayStr; });
+    var lastDate = null; (sessions || []).forEach(function (s) { if (s && s.date && (!lastDate || s.date > lastDate)) lastDate = s.date; });
+    var daysSince = lastDate ? Math.floor((Date.parse(todayStr + 'T12:00:00') - Date.parse(lastDate + 'T12:00:00')) / 86400000) : null;
+    if (due > 0) n.push({ icon: '🧠', sev: 2, text: due + ' lesson' + (due > 1 ? 's have' : ' has') + ' come back up for review — a 2-minute recall keeps ' + (due > 1 ? 'them' : 'it') + ' from fading.', cta: 'Review now', fn: 'openLessonReview' });
+    if (mistakes > 0) n.push({ icon: '🔁', sev: 2, text: 'You\'ve got ' + mistakes + ' saved mistake' + (mistakes > 1 ? 's' : '') + ' to redo. Fixing a miss is worth more than two new problems.', cta: 'Fix my mistakes', fn: 'openMistakeReview' });
+    if (daysSince != null && daysSince >= 2) n.push({ icon: '⏰', sev: 3, text: 'It\'s been ' + daysSince + ' days since your last study session. A short set today restarts the momentum.', cta: 'Quick practice', fn: 'openPracticeHub' });
+    if ((stats.currentStreak || 0) >= 1 && !studiedToday) n.push({ icon: '🔥', sev: 1, text: 'Your ' + stats.currentStreak + '-day streak is alive — do one thing today so you don\'t lose it.', cta: 'Keep it going', fn: 'openPracticeHub' });
+    if (R.pct > 0 && R.pct < 55) n.push({ icon: '📈', sev: 2, text: 'Your readiness is at ' + R.pct + '%. Closing your review backlog is the fastest way to pull it up.', cta: 'See my plan', fn: 'openReviewQueue' });
+    if (!n.length) n.push({ icon: '✅', sev: 0, text: studiedToday ? 'You\'re caught up and you studied today — nice work. Want to get ahead?' : 'Nothing overdue — you\'re in good shape. Want to get ahead with a quick set?', cta: 'Get ahead', fn: 'startQuiz' });
+    n.sort(function (a, b) { return b.sev - a.sev; });
+    return n;
+}
+window._coachNudges = _coachNudges;
+
+function openCoach() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('companion')) return;
+    if (typeof trackFeature === 'function') trackFeature('study_coach');
+    var esc = _frEsc, nudges = _coachNudges(), name = '';
+    try { name = (JSON.parse(localStorage.getItem('nexus_profile') || '{}').name) || ''; } catch (_) {}
+    var m = _frModal('coach-modal');
+    var rows = nudges.map(function (x) {
+        return '<div style="display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:12px;padding:13px 15px;margin-bottom:10px;">'
+            + '<div style="font-size:1.4rem;line-height:1;flex-shrink:0;">' + x.icon + '</div>'
+            + '<div style="flex:1;min-width:0;"><div style="color:#e6e9f5;font-size:0.88rem;line-height:1.5;">' + esc(x.text) + '</div>'
+            + '<button class="btn-secondary" style="margin-top:9px;font-size:0.8rem;padding:6px 12px;background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.4);color:#c7bcff;" onclick="document.getElementById(\'coach-modal\').remove();' + x.fn + '()">' + esc(x.cta) + ' <i class="ph ph-arrow-right"></i></button></div></div>';
+    }).join('');
+    m.innerHTML = '<div class="glass-panel" style="max-width:540px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.08rem;"><i class="ph ph-compass" style="color:#a29bfe;"></i> Your study coach</h3><button class="btn-icon" onclick="document.getElementById(\'coach-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow-y:auto;">'
+        + '<p style="font-size:0.84rem;color:var(--text-muted);margin:0 0 14px;">' + (name ? ('Hey ' + esc(name) + ' — here') : 'Here') + '\'s what would move you forward most right now, based on your own activity.</p>'
+        + rows + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openCoach = openCoach;
+
+function _renderCoachCard() {
+    var el = document.getElementById('home-coach-card'); if (!el) return;
+    try {
+        var top = _coachNudges()[0]; if (!top) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.innerHTML = '<div style="display:flex;gap:12px;align-items:center;">'
+            + '<div style="font-size:1.5rem;flex-shrink:0;">' + top.icon + '</div>'
+            + '<div style="flex:1;min-width:0;"><div style="font-size:0.72rem;color:#a29bfe;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">Your coach</div>'
+            + '<div style="color:#e6e9f5;font-size:0.9rem;margin-top:2px;line-height:1.45;">' + _frEsc(top.text) + '</div></div>'
+            + '<button class="btn-secondary" style="flex-shrink:0;font-size:0.82rem;padding:7px 13px;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.45);color:#c7bcff;" onclick="' + top.fn + '()">' + _frEsc(top.cta) + '</button></div>';
+    } catch (_) { el.style.display = 'none'; }
+}
+window._renderCoachCard = _renderCoachCard;
+
+// ── 5. Unified daily review queue — one "Review — N due" across all SM-2 sources ──
+function _frFlashcardsDueCount() {
+    try {
+        var total = 0, now = Date.now();
+        var raw = JSON.parse(localStorage.getItem('nexus_flashcards') || 'null');
+        function scan(cards) { if (Array.isArray(cards)) cards.forEach(function (c) { var d = c && (c.due || c.dueDate || c.nextReview); if (d) { var t = typeof d === 'number' ? d : Date.parse(d); if (!isNaN(t) && t <= now) total++; } }); }
+        if (Array.isArray(raw)) scan(raw);
+        else if (raw && typeof raw === 'object') Object.keys(raw).forEach(function (k) { var v = raw[k]; scan(Array.isArray(v) ? v : (v && v.cards)); });
+        return total;
+    } catch (_) { return 0; }
+}
+function _reviewQueueItems() {
+    var items = [];
+    var due = (typeof _lessonReviewsDue === 'function') ? _lessonReviewsDue().length : 0;
+    var mistakes = (typeof _mistakeCount === 'function') ? _mistakeCount() : 0;
+    var fcDue = _frFlashcardsDueCount();
+    if (due > 0) items.push({ icon: '🧠', c: '#a29bfe', title: 'Lessons to review', n: due, fn: 'openLessonReview()' });
+    if (mistakes > 0) items.push({ icon: '🔁', c: '#ffbe5a', title: 'Mistakes to fix', n: mistakes, fn: 'openMistakeReview()' });
+    if (fcDue > 0) items.push({ icon: '🃏', c: '#00cec9', title: 'Flashcards due', n: fcDue, fn: "openFlashcards('ai')" });
+    return items;
+}
+function _reviewQueueTotal() { return _reviewQueueItems().reduce(function (s, x) { return s + x.n; }, 0); }
+window._reviewQueueTotal = _reviewQueueTotal;
+
+function openReviewQueue() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
+    if (typeof trackFeature === 'function') trackFeature('review_queue');
+    var esc = _frEsc, items = _reviewQueueItems(), m = _frModal('reviewq-modal');
+    var body;
+    if (!items.length) {
+        body = '<div style="text-align:center;padding:30px 10px;"><div style="font-size:2.4rem;">✅</div><div style="color:#fff;font-weight:700;margin-top:8px;">Nothing due right now</div><div style="color:var(--text-muted);font-size:0.86rem;margin-top:5px;">You\'re all caught up. Want to get ahead?</div>'
+            + '<button class="btn-primary" style="margin-top:14px;background:linear-gradient(135deg,#6C5CE7,#a29bfe);" onclick="document.getElementById(\'reviewq-modal\').remove();startQuiz()">Get ahead with a quiz</button></div>';
+    } else {
+        body = '<p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 14px;">Everything due today in one place — clear it and you\'re done.</p>' + items.map(function (x) {
+            return '<button onclick="document.getElementById(\'reviewq-modal\').remove();' + x.fn + '" style="display:flex;align-items:center;gap:14px;text-align:left;width:100%;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-left:3px solid ' + x.c + ';border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;">'
+                + '<div style="width:44px;height:44px;flex-shrink:0;background:rgba(255,255,255,0.05);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;">' + x.icon + '</div>'
+                + '<div style="flex:1;min-width:0;"><div style="color:#fff;font-weight:700;font-size:0.96rem;">' + esc(x.title) + '</div><div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">' + x.n + ' waiting</div></div>'
+                + '<span style="background:' + x.c + ';color:#1a1c2e;font-weight:800;border-radius:20px;padding:3px 11px;font-size:0.82rem;flex-shrink:0;">' + x.n + '</span></button>';
+        }).join('');
+    }
+    m.innerHTML = '<div class="glass-panel" style="max-width:520px;width:97%;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;"><h3 style="margin:0;color:#fff;font-size:1.08rem;"><i class="ph ph-list-checks" style="color:#a29bfe;"></i> Daily review</h3><button class="btn-icon" onclick="document.getElementById(\'reviewq-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:16px 20px;overflow-y:auto;">' + body + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openReviewQueue = openReviewQueue;
+
+function _updateReviewQueueBadge() {
+    var total = _reviewQueueTotal();
+    var btn = document.getElementById('home-reviewq-btn');
+    if (btn) { btn.style.display = total > 0 ? 'flex' : 'none'; var c = document.getElementById('home-reviewq-count'); if (c) c.textContent = total; }
+    if (typeof _renderCoachCard === 'function') _renderCoachCard();
+}
+window._updateReviewQueueBadge = _updateReviewQueueBadge;
+
+// ── 6. Practice-test builder — timed mixed test + scored report that feeds mistakes ──
+const NEXUS_PTEST_PROMPT = "You are NEXUS Test Builder. Generate a focused practice test. Mix difficulty from easy to hard across the subject. Every question is clean multiple-choice with exactly 4 options and exactly one correct answer; no 'all of the above', no trick wording.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n \"title\": \"<short test title>\",\n \"questions\": [ {\"q\":\"<question>\",\"choices\":[\"<A>\",\"<B>\",\"<C>\",\"<D>\"],\"answer\":<0-3 index of the correct choice>,\"topic\":\"<2-4 word subtopic>\",\"why\":\"<1 sentence why the correct answer is right>\"} ]\n}\nMake EXACTLY the requested number of questions. For math, pick numbers that work out cleanly and double-check every answer by solving it. Vary the subtopics across the test.";
+
+var _ptest = null, _ptTimer = null;
+async function _ptGenerate() {
+    var subject = (document.getElementById('pt-subject') || {}).value || 'Mixed';
+    var count = parseInt((document.getElementById('pt-count') || {}).value || '10', 10);
+    var level = (document.getElementById('pt-level') || {}).value || 'High school';
+    var out = document.getElementById('pt-output');
+    if (out) out.innerHTML = _frLoad('Building your ' + count + '-question test…');
+    try {
+        var g = await _frAskJSON(NEXUS_PTEST_PROMPT, 'Subject/topic: ' + subject + '\nLevel: ' + level + '\nNumber of questions: ' + count, 'gpt-4o', 0.5);
+        var qs = (g.questions || []).slice(0, count).filter(function (q) { return q && Array.isArray(q.choices) && q.choices.length >= 2 && typeof q.answer === 'number'; });
+        if (!qs.length) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t build that test — try again.</div>'; return; }
+        _ptest = { title: g.title || ('Practice: ' + subject), questions: qs, answers: new Array(qs.length).fill(-1), subject: subject, startedAt: Date.now(), durationMin: Math.max(5, Math.round(qs.length * 1.5)) };
+        _ptRenderTest();
+    } catch (e) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t build that test — try again.</div>'; }
+}
+window._ptGenerate = _ptGenerate;
+
+function _ptRenderTest() {
+    var out = document.getElementById('pt-output'); if (!out || !_ptest) return; var esc = _frEsc;
+    var qhtml = _ptest.questions.map(function (q, i) {
+        var opts = q.choices.map(function (c, ci) {
+            return '<label style="display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border:1px solid var(--glass-border);border-radius:9px;margin-bottom:6px;cursor:pointer;background:rgba(255,255,255,0.02);">'
+                + '<input type="radio" name="pt-q' + i + '" value="' + ci + '" onchange="_ptSelect(' + i + ',' + ci + ')" style="margin-top:3px;flex-shrink:0;">'
+                + '<span style="color:#e6e9f5;font-size:0.88rem;">' + esc(c) + '</span></label>';
+        }).join('');
+        return '<div class="pt-q" data-i="' + i + '" style="background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;margin-bottom:12px;">'
+            + '<div style="font-weight:700;color:#fff;font-size:0.92rem;margin-bottom:10px;"><span style="color:#a29bfe;">' + (i + 1) + '.</span> ' + esc(q.q) + '</div>' + opts + '</div>';
+    }).join('');
+    out.innerHTML = '<div style="position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;background:rgba(18,21,43,0.96);border:1px solid rgba(108,92,231,0.4);border-radius:10px;padding:9px 14px;margin-bottom:12px;">'
+        + '<div style="font-weight:700;color:#fff;font-size:0.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(_ptest.title) + '</div>'
+        + '<div id="pt-timer" class="mono" style="font-weight:700;color:#2ed3cd;font-size:0.95rem;flex-shrink:0;margin-left:10px;">--:--</div></div>'
+        + qhtml
+        + '<button class="btn-primary" style="width:100%;background:linear-gradient(135deg,#6C5CE7,#a29bfe);margin-top:4px;" onclick="_ptSubmit(false)"><i class="ph ph-flag-checkered"></i> Submit test</button>';
+    _ptStartTimer();
+}
+function _ptStartTimer() {
+    if (_ptTimer) clearInterval(_ptTimer);
+    var endAt = _ptest.startedAt + _ptest.durationMin * 60000;
+    function tick() {
+        var el = document.getElementById('pt-timer'); if (!el) { clearInterval(_ptTimer); return; }
+        var left = Math.max(0, endAt - Date.now());
+        var mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
+        el.textContent = mm + ':' + (ss < 10 ? '0' : '') + ss;
+        el.style.color = left < 60000 ? '#f07a72' : '#2ed3cd';
+        if (left <= 0) { clearInterval(_ptTimer); _ptSubmit(true); }
+    }
+    tick(); _ptTimer = setInterval(tick, 1000);
+}
+function _ptSelect(i, choice) {
+    if (!_ptest) return; _ptest.answers[i] = choice;
+    var q = document.querySelector('.pt-q[data-i="' + i + '"]'); if (!q) return;
+    q.querySelectorAll('label').forEach(function (l) { var inp = l.querySelector('input'); var on = inp && inp.checked; l.style.borderColor = on ? 'rgba(108,92,231,0.7)' : 'var(--glass-border)'; l.style.background = on ? 'rgba(108,92,231,0.12)' : 'rgba(255,255,255,0.02)'; });
+}
+window._ptSelect = _ptSelect;
+function _ptSubmit(auto) {
+    if (!_ptest) return; if (_ptTimer) clearInterval(_ptTimer);
+    var correct = 0, byTopic = {}, wrong = [];
+    _ptest.questions.forEach(function (q, i) {
+        var pick = _ptest.answers[i], ok = pick === q.answer, tp = q.topic || 'General';
+        byTopic[tp] = byTopic[tp] || { c: 0, n: 0 }; byTopic[tp].n++; if (ok) { byTopic[tp].c++; correct++; }
+        if (!ok) wrong.push({ q: q, pick: pick });
+    });
+    var pct = Math.round(correct / _ptest.questions.length * 100);
+    try { if (typeof _recordMistake === 'function') wrong.forEach(function (w) { _recordMistake({ q: w.q.q, options: w.q.choices, correct: w.q.answer, why: w.q.why || '', source: 'Practice test', topic: w.q.topic || '' }); }); } catch (_) {}
+    try { if (typeof updateStudyStats === 'function') updateStudyStats('problem_solved'); } catch (_) {}
+    _ptRenderReport(pct, correct, byTopic, wrong, auto);
+    if (typeof _updateReviewQueueBadge === 'function') _updateReviewQueueBadge();
+    if (typeof _updateMistakeBadge === 'function') _updateMistakeBadge();
+}
+window._ptSubmit = _ptSubmit;
+function _ptRenderReport(pct, correct, byTopic, wrong, auto) {
+    var out = document.getElementById('pt-output'); if (!out) return; var esc = _frEsc;
+    var col = pct >= 85 ? '#45c78d' : pct >= 70 ? '#2ed3cd' : pct >= 50 ? '#ffbe5a' : '#f07a72';
+    var h = '<div style="text-align:center;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:14px;padding:18px;">'
+        + (auto ? '<div style="color:#ffbe5a;font-size:0.78rem;margin-bottom:6px;">⏰ Time\'s up — graded where you were.</div>' : '')
+        + '<div style="font-size:2.6rem;font-weight:800;color:' + col + ';line-height:1;">' + pct + '%</div>'
+        + '<div style="color:#dde0ee;font-size:0.9rem;margin-top:4px;">' + correct + ' of ' + _ptest.questions.length + ' correct</div></div>';
+    var topics = Object.keys(byTopic);
+    if (topics.length) {
+        h += '<div style="margin-top:14px;"><div style="font-weight:700;color:#fff;font-size:0.9rem;margin-bottom:8px;">By topic</div>'
+            + topics.map(function (t) {
+                var o = byTopic[t], p = Math.round(o.c / o.n * 100), rc = p >= 80 ? '#45c78d' : p >= 50 ? '#ffbe5a' : '#f07a72';
+                return '<div style="margin-bottom:9px;"><div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:3px;"><span style="color:#e6e9f5;">' + esc(t) + '</span><span style="color:var(--text-muted);">' + o.c + '/' + o.n + '</span></div><div style="height:7px;background:rgba(0,0,0,0.35);border-radius:5px;overflow:hidden;"><div style="height:100%;width:' + p + '%;background:' + rc + ';"></div></div></div>';
+            }).join('') + '</div>';
+    }
+    if (wrong.length) {
+        h += '<div style="margin-top:14px;"><div style="font-weight:700;color:#fff;font-size:0.9rem;margin-bottom:8px;">Review the misses</div>'
+            + wrong.map(function (w) {
+                var q = w.q;
+                return '<div style="border:1px solid var(--glass-border);border-radius:10px;padding:11px 13px;margin-bottom:8px;"><div style="color:#e6e9f5;font-size:0.85rem;font-weight:600;">' + esc(q.q) + '</div>'
+                    + '<div style="font-size:0.8rem;color:#f0a9a3;margin-top:5px;">Your answer: ' + (w.pick >= 0 ? esc(q.choices[w.pick]) : '<i>blank</i>') + '</div>'
+                    + '<div style="font-size:0.8rem;color:#8ce6bb;margin-top:2px;">Correct: ' + esc(q.choices[q.answer]) + '</div>'
+                    + (q.why ? '<div style="font-size:0.79rem;color:var(--text-muted);margin-top:4px;">' + esc(q.why) + '</div>' : '') + '</div>';
+            }).join('') + '</div>';
+    } else h += '<div style="margin-top:14px;text-align:center;color:#8ce6bb;font-weight:700;">🎉 Perfect — no misses!</div>';
+    h += '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-secondary" style="flex:1;" onclick="openPracticeTest()"><i class="ph ph-arrows-counter-clockwise"></i> New test</button>'
+        + (wrong.length ? '<button class="btn-primary" style="flex:1;background:linear-gradient(135deg,#f0932b,#ffbe5a);color:#201400;" onclick="document.getElementById(\'ptest-modal\').remove();openMistakeReview()"><i class="ph ph-repeat"></i> Drill my misses</button>' : '') + '</div>';
+    out.innerHTML = h;
+    try { out.parentNode.scrollTop = 0; } catch (_) {}
+}
+function openPracticeTest(seedSubject) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('practice')) return;
+    if (typeof trackFeature === 'function') trackFeature('practice_test');
+    _ptest = null; if (_ptTimer) clearInterval(_ptTimer);
+    var m = _frModal('ptest-modal');
+    var subjects = ['Mixed', 'Math', 'Algebra', 'Geometry', 'Science', 'Biology', 'Chemistry', 'Physics', 'English', 'History', 'Social Studies'];
+    var levels = ['Middle school', 'High school', 'AP / Honors', 'College'];
+    m.innerHTML = '<div class="glass-panel" style="max-width:640px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
+        + '<div style="display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
+        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-exam" style="color:#fd79a8;"></i> Practice test</h3>'
+        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">A timed, mixed test — then a scored report with your weak topics, and your misses feed the review queue.</p></div>'
+        + '<button class="btn-icon" onclick="if(_ptTimer)clearInterval(_ptTimer);document.getElementById(\'ptest-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
+        + '<div style="padding:14px 20px;overflow-y:auto;">'
+        + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+        + '<label style="flex:1;min-width:150px;font-size:0.76rem;color:var(--text-muted);">Subject / topic<br><select id="pt-subject" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + subjects.map(function (s) { return '<option' + (seedSubject && s.toLowerCase() === String(seedSubject).toLowerCase() ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>'
+        + '<label style="flex:1;min-width:120px;font-size:0.76rem;color:var(--text-muted);">Level<br><select id="pt-level" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + levels.map(function (l) { return '<option' + (l === 'High school' ? ' selected' : '') + '>' + l + '</option>'; }).join('') + '</select></label>'
+        + '<label style="flex:1;min-width:110px;font-size:0.76rem;color:var(--text-muted);">Questions<br><select id="pt-count" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>'
+        + '</div>'
+        + '<button class="btn-primary" style="width:100%;margin-top:12px;background:linear-gradient(135deg,#e84393,#fd79a8);" onclick="_ptGenerate()"><i class="ph ph-play"></i> Start test</button>'
+        + '<div id="pt-output" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.appendChild(m);
+}
+window.openPracticeTest = openPracticeTest;
 
 // ════════════════════════════════════════════════════════════════════
 // v23.3 — SPACED REVIEW OF LESSONS (Chase request). Every Teaching Board topic
@@ -15738,6 +16165,7 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
                 _scienceTutorTurns.push({ role: 'assistant', content: rendered });
                 appendTutorAnswerBox(output, 'science');
                 _appendVisualizeBtn(output, input);
+                _appendLearnActions(output, input);
                 addToHistory('science', input || '[Image analysis]', answer, scienceImageBase64 || null);
                 clearScienceImage();
             },
@@ -18073,6 +18501,7 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 // otherwise fall back to the AI concept-visualizer button.
                 var _didGraph = _maybeEmbedGraph(output, text, content);
                 if (!_didGraph) _appendVisualizeBtn(output, text);
+                _appendLearnActions(output, text);
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
@@ -22901,6 +23330,19 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.35',
+        date: 'November 3, 2026',
+        tag: 'FIVE NEW WAYS TO ACTUALLY LEARN IT',
+        tagColor: '#a29bfe',
+        changes: [
+            'DIAGNOSE MY WORK — Stuck on why you got it wrong? Type the problem AND your own steps, and NEXUS pinpoints the EXACT line where it went off — names the mistake, shows the fix, and gives you a tip so it doesn\'t happen again. Not just the answer — the moment you slipped. (Also sits under every Math & Science answer as "Check my work".)',
+            'TEACH IT BACK — The single best way to know you really get something: explain it in your own words and NEXUS scores your understanding, shows what you nailed, the gaps, and asks one question to push you further. In the Teaching Board and on Home.',
+            'YOUR STUDY COACH — NEXUS now nudges you first: it watches your own activity and tells you the one thing that would help most right now — a review that\'s due, a mistake to fix, a streak to save. Right on your Home screen.',
+            'TEACH ME THIS — One tap under any Math or Science answer jumps you straight into a full Teaching Board lesson on that exact concept. Solve it here, learn it there.',
+            'ONE REVIEW QUEUE + PRACTICE TESTS — Everything due today — flashcards, missed questions, and lessons — now lives in a single "Review — N due" queue. Plus a new timed Practice Test builder that gives you a scored report, your weak topics, and feeds any misses into your review.',
+        ]
+    },
     {
         version: 'v24.34',
         date: 'November 1, 2026',
