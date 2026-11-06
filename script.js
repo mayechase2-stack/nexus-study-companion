@@ -5408,83 +5408,481 @@ async function checkNotebookGrammar() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// v24.21 — STUDY BOOSTERS #1: VISUAL LEARNING EVERYWHERE.
-// Turn ANY concept, in any subject, into one clean labeled diagram the AI
-// draws as inline SVG. Available app-wide (Home + a "See it visually" button
-// on answers) so visual learners get a picture of anything on demand.
-// Part of the `boosters` module (gated via _gateFeature).
+// v24.37 — AUTO VISUALIZER (replaces the v24.21 "Visualize anything" modal).
+// Chase: no button, no modal. The moment a student submits a question and the
+// answer lands, a collapsible "Visualizer" drop-down appears at the bottom of
+// the answer, says "Loading visualizer…", then slides open with a drawing.
+// The student can close / reopen it (the choice is remembered).
+// QUALITY: the AI no longer free-hands SVG (that produced the sloppy blocks).
+// It only PICKS the visual type + supplies the data as JSON; our own renderers
+// draw it — rounded nodes, curved connectors, animated draw-in, on-theme.
+// Math facts (the X-game pair, factor pairs) are COMPUTED here, so the
+// picture can't be wrong.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_VISUALIZE_PROMPT = "You are NEXUS Visual Explainer. Turn the student's concept into ONE clear, LABELED diagram that actually teaches it — the real structure, relationship, process, or shape, not decoration.\n\nOUTPUT EXACTLY: a single inline <svg>…</svg>, then one <p> caption (≤20 words). NOTHING else — no markdown, no code fences, no extra prose.\n\nSVG RULES:\n- Start with <svg viewBox=\"0 0 440 320\" xmlns=\"http://www.w3.org/2000/svg\"> and NO width/height attributes (it scales).\n- DARK background will be behind it. Use light/vivid colors only: text #e8e6f5; shapes & strokes #8f80f4, #2ed3cd, #f5a35e, #f07a72, #7ee0b8. NEVER black or dark fills, never rely on a white background.\n- font-family: sans-serif; label font-size 13–15, small notes 11. Every important part gets a <text> label.\n- Make it genuinely explanatory: use arrows/lines for relationships or steps; lay a process left→right or top→down. Math → draw the actual graph / shape / number line with axes & key points. Science → the structure or cycle. History → a timeline. English → a structure diagram (essay parts, plot arc, sentence tree).\n- Clean and uncluttered: 4–9 labeled elements max. Keep everything inside the 440×320 viewBox.\n\nReturn only the SVG then the caption.";
+const NEXUS_VIZSPEC_PROMPT = `You design the study visual for a student's question and the tutor's answer. You do NOT draw — you choose the single best visual TYPE and give its DATA as JSON. A renderer draws it.
 
-async function _runVisualize(topic) {
-    topic = String(topic || '').trim();
-    var out = document.getElementById('viz-output');
-    if (!topic) { if (typeof showToast === 'function') showToast('Type what you want to see.', 'warning'); var inp = document.getElementById('viz-input'); if (inp) inp.focus(); return; }
-    if (out) out.innerHTML = _nxLoadingHTML('Drawing it out…');
-    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
-    try {
-        var res = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-            body: JSON.stringify({
-                model: 'gpt-4o', temperature: 0.4, max_tokens: 1600,
-                messages: [{ role: 'system', content: NEXUS_VISUALIZE_PROMPT }, { role: 'user', content: 'Visualize this for a student: ' + topic }]
-            })
+Return JSON: {"visuals":[ ...1 visual, or 2 only if the question clearly has two parts... ], "caption":"one plain sentence, max 16 words"}
+Return {"visuals":[]} when a picture would NOT genuinely help (greetings, chit-chat, opinions, yes/no, a single word's definition, grammar or writing feedback, an essay or story).
+
+TYPES — use the student's REAL numbers and terms. Labels 1-4 words. Details max 12 words.
+1. {"type":"diamond","product":12,"sum":7} — the X method / diamond / "X game": two numbers that MULTIPLY to one value and ADD to another; factoring trinomials (for ax²+bx+c use product = a×c, sum = b).
+2. {"type":"factor_pairs","n":12} — factors, factor pairs, product pairs, divisibility of one whole number (1-10000).
+3. {"type":"number_line","min":-5,"max":5,"step":1,"points":[2],"open":false,"shade":"right"} — integers, ordering, absolute value, inequalities. shade = "right" | "left" | "between" | null; open = true for < or >; for "between" give two points.
+4. {"type":"area_model","cols":["x","2"],"rows":["x","3"],"cells":["x²","2x","3x","6"]} — multiplying binomials or multi-digit numbers, distributing, box-method factoring. cells go left to right, top row first.
+5. {"type":"graph","fns":["y=2x+3"],"points":[[0,3]]} — anything that plots: lines, slope, intercepts, parabolas, systems, functions.
+6. {"type":"flow","title":"How a bill becomes a law","steps":[{"label":"Bill drafted","detail":"a member of Congress writes it"}]} — an ordered process or procedure, 3-6 steps.
+7. {"type":"cycle","title":"Water cycle","steps":[{"label":"Evaporation","detail":"sun heats water into vapor"}]} — a process that loops back to its start, 3-6 steps.
+8. {"type":"parts","center":"Animal cell","parts":[{"label":"Nucleus","detail":"holds the DNA"}]} — the parts / components / branches of ONE thing, 3-8 parts.
+9. {"type":"compare","title":"Mitosis vs meiosis","columns":[{"heading":"Mitosis","items":["2 identical cells"]},{"heading":"Meiosis","items":["4 unique cells"]}]} — comparing 2-3 things; 2-5 items each, in parallel order.
+10. {"type":"timeline","title":"American Revolution","events":[{"date":"1775","label":"Lexington and Concord"}]} — dated events in order, 3-7.
+11. {"type":"photo","query":"Exact Wikipedia article title"} — a real person, place, landmark, animal, organ, artwork or planet the student should SEE.
+
+RULES: Pick the type that matches how the concept is really learned (X game → diamond, factor pairs → factor_pairs, water cycle → cycle, parts of a cell → parts). Every fact, date and number must be correct and must match the tutor's answer. If the user message lists types ALREADY SHOWN, never return those types. JSON only.`;
+
+var _NXV_P = ['#8f80f4', '#2ed3cd', '#f5a35e', '#f07a72', '#7ee0b8', '#ffd166'];
+function _nxvE(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function _nxvNum(t) { var n = Math.round(Number(t) * 1000) / 1000; return isFinite(n) ? String(n) : String(t); }
+function _nxvReduced() { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; } }
+function _nxvArr(x, keepEmpty) {
+    var a = Array.isArray(x) ? x : (x == null ? [] : String(x).split(';'));
+    a = a.map(function (s) { return String(s == null ? '' : s).trim(); });
+    return keepEmpty ? a : a.filter(Boolean);
+}
+function _nxvStep(s) {
+    if (s == null) return null;
+    if (typeof s === 'string') return s.trim() ? { label: s.trim(), detail: '' } : null;
+    var l = String(s.label || s.name || s.title || s.step || '').trim();
+    return l ? { label: l, detail: String(s.detail || s.description || '').trim() } : null;
+}
+function _nxvWrap(text, max, maxLines) {
+    var words = String(text || '').split(/\s+/).filter(Boolean), lines = [], cur = '';
+    words.forEach(function (w) {
+        if (w.length > max + 2) w = w.slice(0, max + 1) + '…';
+        if (!cur) cur = w; else if ((cur + ' ' + w).length <= max) cur += ' ' + w; else { lines.push(cur); cur = w; }
+    });
+    if (cur) lines.push(cur);
+    maxLines = maxLines || 2;
+    if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        var l = lines[maxLines - 1]; if (l.length > max - 1) l = l.slice(0, max - 1);
+        lines[maxLines - 1] = l.replace(/[\s,.;:]+$/, '') + '…';
+    }
+    return lines;
+}
+function _nxvEdge(c, toward, hw, hh) {
+    var dx = toward.x - c.x, dy = toward.y - c.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    var t = Math.min(ux ? hw / Math.abs(ux) : 1e9, uy ? hh / Math.abs(uy) : 1e9);
+    return { x: c.x + ux * t, y: c.y + uy * t };
+}
+function _nxvHead(tip, from, col, delay) {
+    var dx = tip.x - from.x, dy = tip.y - from.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    var bx = tip.x - ux * 10, by = tip.y - uy * 10, px = -uy * 5.5, py = ux * 5.5;
+    return '<path class="nxv-pop" style="animation-delay:' + delay.toFixed(2) + 's" d="M' + tip.x.toFixed(1) + ' ' + tip.y.toFixed(1)
+        + ' L' + (bx + px).toFixed(1) + ' ' + (by + py).toFixed(1) + ' L' + (bx - px).toFixed(1) + ' ' + (by - py).toFixed(1) + ' Z" fill="' + col + '"/>';
+}
+function _nxvPill(x, y, w, h, label, col, delay) {
+    var lines = _nxvWrap(label, Math.floor(w / 7.4), 2);
+    var s = '<g class="nxv-pop" style="animation-delay:' + delay.toFixed(2) + 's">'
+        + '<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - h / 2).toFixed(1) + '" width="' + w + '" height="' + h + '" rx="14" fill="#171b38"/>'
+        + '<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - h / 2).toFixed(1) + '" width="' + w + '" height="' + h + '" rx="14" fill="' + col + '" fill-opacity=".17" stroke="' + col + '" stroke-width="2"/>';
+    var y0 = lines.length === 1 ? y : y - 7.5;
+    lines.forEach(function (ln, i) {
+        s += '<text x="' + x.toFixed(1) + '" y="' + (y0 + i * 15).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="700" fill="currentColor" font-family="inherit">' + _nxvE(ln) + '</text>';
+    });
+    return s + '</g>';
+}
+function _nxvBadge(x, y, val, col, delay) {
+    var blank = (val === '?' || val == null || val === '');
+    var t = blank ? '?' : String(val), r = t.length > 3 ? 28 : 24, fs = t.length > 4 ? 13 : (t.length > 3 ? 15.5 : 19);
+    return '<g class="nxv-pop" style="animation-delay:' + delay + 's"><circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#171b38"/>'
+        + '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + col + '" fill-opacity="' + (blank ? 0.06 : 0.2) + '" stroke="' + col + '" stroke-width="2.2"' + (blank ? ' stroke-dasharray="4 4"' : '') + '/>'
+        + '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" font-size="' + fs + '" font-weight="800" font-family="inherit" fill="' + (blank ? 'rgba(200,200,220,.55)' : 'currentColor') + '">' + _nxvE(t) + '</text></g>';
+}
+function _nxvSmall(x, y, t, delay) {
+    return '<text class="nxv-rise" style="animation-delay:' + delay + 's" x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" font-size="10.5" font-weight="700" letter-spacing="1.2" fill="currentColor" fill-opacity=".55" font-family="inherit">' + _nxvE(t) + '</text>';
+}
+
+// ---- math facts are computed, never trusted from the model ----
+function _nxvSolvePair(p, s) {
+    if (!isFinite(p) || !isFinite(s) || p !== Math.round(p) || s !== Math.round(s) || Math.abs(p) > 1000000) return null;
+    if (p === 0) return { a: 0, b: s };
+    var ap = Math.abs(p), lim = Math.floor(Math.sqrt(ap));
+    for (var d = 1; d <= lim; d++) {
+        if (ap % d) continue;
+        var e = ap / d, c = p > 0 ? [[d, e], [-d, -e]] : [[d, -e], [-d, e]];
+        for (var k = 0; k < c.length; k++) if (c[k][0] + c[k][1] === s) return { a: Math.min(c[k][0], c[k][1]), b: Math.max(c[k][0], c[k][1]) };
+    }
+    return null;
+}
+
+// ---- renderers ----
+function _nxvDiamond(v) {
+    var p = Number(v.product), s = Number(v.sum);
+    if (!isFinite(p) || !isFinite(s)) return null;
+    var pr = _nxvSolvePair(p, s), a = pr ? pr.a : '?', b = pr ? pr.b : '?';
+    var svg = '<svg class="nxv-svg" viewBox="0 0 300 252" style="max-width:290px" role="img" aria-label="X method: multiply to ' + _nxvE(p) + ', add to ' + _nxvE(s) + '">'
+        + _nxvSmall(150, 14, 'MULTIPLY  ×', 0.45)
+        + '<line class="nxv-draw" style="--len:264" x1="62" y1="32" x2="238" y2="220" stroke="#8f80f4" stroke-width="3.5" stroke-linecap="round"/>'
+        + '<line class="nxv-draw" style="--len:264;animation-delay:.18s" x1="238" y1="32" x2="62" y2="220" stroke="#8f80f4" stroke-width="3.5" stroke-linecap="round"/>'
+        + _nxvBadge(150, 76, _nxvNum(p), '#8f80f4', 0.5)
+        + _nxvBadge(150, 178, _nxvNum(s), '#2ed3cd', 0.62)
+        + _nxvBadge(88, 127, a === '?' ? '?' : _nxvNum(a), '#f5a35e', 0.85)
+        + _nxvBadge(212, 127, b === '?' ? '?' : _nxvNum(b), '#f07a72', 0.97)
+        + _nxvSmall(150, 240, 'ADD  +', 0.45)
+        + '</svg>';
+    var par = function (n) { return n < 0 ? '(' + _nxvNum(n) + ')' : _nxvNum(n); };
+    var check = pr
+        ? '<div class="nxv-check nxv-rise" style="animation-delay:1.1s"><span>' + par(a) + ' × ' + par(b) + ' = <b>' + _nxvNum(p) + '</b></span><span>' + par(a) + ' + ' + par(b) + ' = <b>' + _nxvNum(s) + '</b></span></div>'
+        : '<div class="nxv-cap">No whole-number pair multiplies to ' + _nxvE(_nxvNum(p)) + ' and adds to ' + _nxvE(_nxvNum(s)) + ' — so it won’t factor this way.</div>';
+    return { title: 'The X method', html: svg + check };
+}
+function _nxvFactorPairs(v) {
+    var n = Number(v.n);
+    if (!isFinite(n) || n !== Math.round(n) || n < 1 || n > 10000) return null;
+    var f = []; for (var i = 1; i <= n; i++) if (n % i === 0) f.push(i);
+    var pairs = []; for (var k = 0; k < Math.ceil(f.length / 2); k++) pairs.push([f[k], f[f.length - 1 - k]]);
+    var svg = '';
+    if (f.length >= 2 && f.length <= 14) {
+        var sp = 46, W = Math.max(300, (f.length - 1) * sp + 60), x0 = (W - (f.length - 1) * sp) / 2;
+        var maxR = (f.length - 1) * sp / 2, base = maxR + 38, H = base + 34, arcs = '', nodes = '';
+        pairs.forEach(function (pr, i) {
+            var j = f.length - 1 - i, x1 = x0 + i * sp, x2 = x0 + j * sp, col = _NXV_P[i % _NXV_P.length];
+            if (i === j) { arcs += '<circle class="nxv-pop" style="animation-delay:' + (0.2 + i * 0.14).toFixed(2) + 's" cx="' + x1 + '" cy="' + (base - 31) + '" r="9" fill="none" stroke="' + col + '" stroke-width="2.6"/>'; return; }
+            var r = (x2 - x1) / 2, len = Math.round(Math.PI * r) + 6;
+            arcs += '<path class="nxv-draw" style="--len:' + len + ';animation-delay:' + (0.15 + i * 0.14).toFixed(2) + 's" d="M' + x1 + ' ' + (base - 19) + ' A' + r + ' ' + r + ' 0 0 1 ' + x2 + ' ' + (base - 19) + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linecap="round"/>';
         });
-        var data = await res.json();
-        if (data && data.error) throw new Error(data.error.message || 'error');
-        var content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-        if (!out) return;
-        if (!/<svg[\s>]/i.test(content)) { out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Couldn’t draw that one clearly — try rephrasing (e.g. add the subject, like “the water cycle” or “y = x²”).</div>'; return; }
-        var html = (typeof sanitizeHTML === 'function') ? sanitizeHTML(content) : content;
-        out.innerHTML = '<div style="background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:12px;padding:16px;">' + html + '</div>'
-            + '<button class="btn-secondary" style="width:100%;margin-top:12px;" onclick="_runVisualize((document.getElementById(\'viz-input\')||{}).value)"><i class="ph ph-arrows-clockwise"></i> Redraw</button>';
-    } catch (e) {
-        if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Couldn’t draw that right now — please try again.</div>';
+        f.forEach(function (val, k2) {
+            var pi = Math.min(k2, f.length - 1 - k2), col = _NXV_P[pi % _NXV_P.length], x = x0 + k2 * sp;
+            nodes += '<g class="nxv-pop" style="animation-delay:' + (k2 * 0.05).toFixed(2) + 's"><circle cx="' + x + '" cy="' + base + '" r="17" fill="#171b38"/><circle cx="' + x + '" cy="' + base + '" r="17" fill="' + col + '" fill-opacity=".2" stroke="' + col + '" stroke-width="2"/>'
+                + '<text x="' + x + '" y="' + base + '" text-anchor="middle" dominant-baseline="central" font-size="' + (String(val).length > 2 ? 11.5 : 14) + '" font-weight="800" fill="currentColor" font-family="inherit">' + val + '</text></g>';
+        });
+        svg = '<svg class="nxv-svg" viewBox="0 0 ' + W + ' ' + H + '" style="max-width:' + Math.min(W, 520) + 'px" role="img" aria-label="Factor pairs of ' + n + '">' + arcs + nodes + '</svg>';
+    }
+    var chips = '<div class="nxv-chips">' + pairs.map(function (pr, i) {
+        var col = _NXV_P[i % _NXV_P.length];
+        return '<span class="nxv-chip nxv-rise" style="animation-delay:' + (0.55 + i * 0.08).toFixed(2) + 's;border-color:' + col + '99;background:' + col + '22"><b>' + pr[0] + ' × ' + pr[1] + '</b> = ' + n + '</span>';
+    }).join('') + '</div>';
+    return { title: 'Factor pairs of ' + n, html: svg + chips + '<div class="nxv-cap">' + n + ' has ' + f.length + ' factor' + (f.length === 1 ? '' : 's') + ': ' + f.join(', ') + '</div>' };
+}
+function _nxvNumberLine(v) {
+    var min = Number(v.min), max = Number(v.max);
+    if (!isFinite(min) || !isFinite(max) || max <= min) return null;
+    var step = Number(v.step); if (!isFinite(step) || step <= 0) step = 1;
+    if ((max - min) / step > 24) step = Math.ceil((max - min) / 12);
+    var pts = (Array.isArray(v.points) ? v.points : (v.points != null && v.points !== '' ? [v.points] : [])).map(Number).filter(function (p) { return isFinite(p) && p >= min && p <= max; });
+    var W = 460, H = 96, pad = 30, y = 50, sx = function (t) { return pad + (t - min) / (max - min) * (W - 2 * pad); };
+    var s = '<svg class="nxv-svg" viewBox="0 0 ' + W + ' ' + H + '" style="max-width:480px" role="img" aria-label="Number line">';
+    var shade = String(v.shade || '').toLowerCase();
+    if (pts.length && (shade === 'right' || shade === 'left' || (shade === 'between' && pts.length > 1))) {
+        var xa = sx(pts[0]), xb = shade === 'right' ? W - pad + 6 : (shade === 'left' ? pad - 6 : sx(pts[1]));
+        s += '<rect class="nxv-rise" style="animation-delay:.55s" x="' + Math.min(xa, xb).toFixed(1) + '" y="' + (y - 7) + '" width="' + Math.abs(xb - xa).toFixed(1) + '" height="14" rx="7" fill="#2ed3cd" fill-opacity=".35"/>';
+    }
+    s += '<line class="nxv-draw" style="--len:420" x1="' + pad + '" y1="' + y + '" x2="' + (W - pad) + '" y2="' + y + '" stroke="currentColor" stroke-opacity=".75" stroke-width="2.5" stroke-linecap="round"/>';
+    s += '<path class="nxv-rise" style="animation-delay:.4s" d="M' + (pad - 9) + ' ' + y + ' l11 -6 v12 z" fill="currentColor" fill-opacity=".75"/>';
+    s += '<path class="nxv-rise" style="animation-delay:.4s" d="M' + (W - pad + 9) + ' ' + y + ' l-11 -6 v12 z" fill="currentColor" fill-opacity=".75"/>';
+    var k = 0;
+    for (var t = min; t <= max + 1e-9; t += step) {
+        var x = sx(t), zero = Math.abs(t) < 1e-9;
+        s += '<g class="nxv-rise" style="animation-delay:' + (0.1 + k * 0.025).toFixed(3) + 's"><line x1="' + x.toFixed(1) + '" y1="' + (y - 7) + '" x2="' + x.toFixed(1) + '" y2="' + (y + 7) + '" stroke="currentColor" stroke-opacity="' + (zero ? 0.9 : 0.55) + '" stroke-width="' + (zero ? 2.5 : 1.6) + '"/>'
+            + '<text x="' + x.toFixed(1) + '" y="' + (y + 25) + '" text-anchor="middle" font-size="12" font-weight="' + (zero ? 800 : 500) + '" fill="currentColor" fill-opacity="' + (zero ? 0.95 : 0.7) + '" font-family="inherit">' + _nxvNum(t) + '</text></g>';
+        k++;
+    }
+    var open = v.open === true || v.open === 'true';
+    pts.forEach(function (p, i) {
+        var x = sx(p);
+        s += '<g class="nxv-pop" style="animation-delay:' + (0.7 + i * 0.12).toFixed(2) + 's"><circle cx="' + x.toFixed(1) + '" cy="' + y + '" r="8" fill="' + (open ? '#171b38' : '#f5a35e') + '" stroke="#f5a35e" stroke-width="3"/>'
+            + '<text x="' + x.toFixed(1) + '" y="' + (y - 20) + '" text-anchor="middle" font-size="12.5" font-weight="800" fill="#f5a35e" font-family="inherit">' + _nxvNum(p) + '</text></g>';
+    });
+    return { title: 'Number line', html: s + '</svg>' };
+}
+function _nxvArea(v) {
+    var cols = _nxvArr(v.cols), rows = _nxvArr(v.rows), cells = _nxvArr(v.cells, true);
+    if (!cols.length || !rows.length || cols.length > 5 || rows.length > 5) return null;
+    var C = cols.length, g = '<div class="nxv-area" style="grid-template-columns:repeat(' + (C + 1) + ',minmax(52px,84px))"><div></div>';
+    cols.forEach(function (c, j) { g += '<div class="nxv-area-h nxv-rise" style="animation-delay:' + (j * 0.06).toFixed(2) + 's">' + _nxvE(c) + '</div>'; });
+    rows.forEach(function (r, i) {
+        g += '<div class="nxv-area-h nxv-rise" style="animation-delay:' + (0.15 + i * 0.06).toFixed(2) + 's">' + _nxvE(r) + '</div>';
+        cols.forEach(function (c, j) { var val = cells[i * C + j]; g += '<div class="nxv-area-c nxv-pop" style="animation-delay:' + (0.35 + (i * C + j) * 0.09).toFixed(2) + 's">' + _nxvE(val == null ? '' : val) + '</div>'; });
+    });
+    return { title: 'Area (box) model', html: g + '</div>' };
+}
+function _nxvGraph(v) {
+    var fns = _nxvArr(v.fns || v.fn).map(function (f) { f = String(f).replace(/²/g, '^2').replace(/³/g, '^3'); return /=/.test(f) ? f : 'y=' + f; });
+    var pts = (Array.isArray(v.points) ? v.points : []).filter(function (p) { return Array.isArray(p) && p.length === 2 && isFinite(+p[0]) && isFinite(+p[1]); })
+        .map(function (p) { return '(' + (+p[0]) + ',' + (+p[1]) + ')'; });
+    var eqs = fns.concat(pts);
+    if (!eqs.length || typeof _embedInlineGraph !== 'function') return null;
+    var id = 'nxvg' + Math.random().toString(36).slice(2, 9);
+    return { title: null, html: '<div id="' + id + '" class="nxv-graph"></div>', after: function (root) { var el = root.querySelector('#' + id); if (el) _embedInlineGraph(el, eqs); } };
+}
+function _nxvFlow(v) {
+    var steps = (Array.isArray(v.steps) ? v.steps : []).slice(0, 7).map(_nxvStep).filter(Boolean);
+    if (steps.length < 2) return null;
+    var h = '<div class="nxv-flow">';
+    steps.forEach(function (st, i) {
+        if (i) h += '<div class="nxv-arrow nxv-rise" style="animation-delay:' + (i * 0.16 - 0.06).toFixed(2) + 's"><svg width="14" height="22" viewBox="0 0 14 22" aria-hidden="true"><path d="M7 1v15" stroke="#2ed3cd" stroke-width="2.4" stroke-linecap="round"/><path d="M2 13l5 6 5-6" fill="none" stroke="#2ed3cd" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
+        h += '<div class="nxv-step nxv-rise" style="animation-delay:' + (i * 0.16).toFixed(2) + 's"><span class="nxv-step-n">' + (i + 1) + '</span><div><b>' + _nxvE(st.label) + '</b>' + (st.detail ? '<small>' + _nxvE(st.detail) + '</small>' : '') + '</div></div>';
+    });
+    return { title: v.title || 'Step by step', html: h + '</div>' };
+}
+function _nxvLegend(items, delay0) {
+    if (!items.some(function (st) { return st.detail; })) return '';
+    return '<ul class="nxv-legend">' + items.map(function (st, i) {
+        return '<li class="nxv-rise" style="animation-delay:' + (delay0 + i * 0.07).toFixed(2) + 's"><b>' + (i + 1) + '. ' + _nxvE(st.label) + '</b>' + (st.detail ? ' — ' + _nxvE(st.detail) : '') + '</li>';
+    }).join('') + '</ul>';
+}
+function _nxvCycle(v) {
+    var steps = (Array.isArray(v.steps) ? v.steps : []).slice(0, 6).map(_nxvStep).filter(Boolean);
+    if (steps.length < 3) return null;
+    var N = steps.length, W = 460, H = 320, cx = 230, cy = 160, rx = 160, ry = 112, pw = 118, ph = 42;
+    var pos = steps.map(function (_, i) { var a = -Math.PI / 2 + i * 2 * Math.PI / N; return { x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }; });
+    // crop the canvas to the drawing (pills + the outward bulge of each arrow) so there's no dead space
+    var ys = [];
+    pos.forEach(function (p, i) {
+        var B = pos[(i + 1) % N], mxy = (p.y + B.y) / 2, cty = cy + (mxy - cy) * 1.42;
+        ys.push(p.y - ph / 2, p.y + ph / 2, 0.25 * p.y + 0.5 * cty + 0.25 * B.y);
+    });
+    var vy0 = Math.floor(Math.min.apply(null, ys) - 12), vy1 = Math.ceil(Math.max.apply(null, ys) + 12);
+    var s = '<svg class="nxv-svg" viewBox="0 ' + vy0 + ' ' + W + ' ' + (vy1 - vy0) + '" style="max-width:500px" role="img" aria-label="' + _nxvE(v.title || 'Cycle') + '">';
+    _nxvWrap(v.title || '↻', 14, 2).forEach(function (ln, i, arr) {
+        s += '<text class="nxv-rise" style="animation-delay:.2s" x="' + cx + '" y="' + (cy + (i - (arr.length - 1) / 2) * 17) + '" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="800" fill="currentColor" fill-opacity=".8" font-family="inherit">' + _nxvE(ln) + '</text>';
+    });
+    for (var i = 0; i < N; i++) {
+        var A = pos[i], B = pos[(i + 1) % N], mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+        var ctl = { x: cx + (mx - cx) * 1.42, y: cy + (my - cy) * 1.42 };
+        var p0 = _nxvEdge(A, ctl, pw / 2 + 4, ph / 2 + 4), p1 = _nxvEdge(B, ctl, pw / 2 + 6, ph / 2 + 6);
+        var len = Math.round(Math.hypot(ctl.x - p0.x, ctl.y - p0.y) + Math.hypot(p1.x - ctl.x, p1.y - ctl.y)) + 6;
+        var col = _NXV_P[i % _NXV_P.length], d = 0.35 + i * 0.22;
+        s += '<path class="nxv-draw" style="--len:' + len + ';animation-delay:' + d.toFixed(2) + 's" d="M' + p0.x.toFixed(1) + ' ' + p0.y.toFixed(1) + ' Q' + ctl.x.toFixed(1) + ' ' + ctl.y.toFixed(1) + ' ' + p1.x.toFixed(1) + ' ' + p1.y.toFixed(1) + '" fill="none" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round"/>';
+        s += _nxvHead(p1, ctl, col, d + 0.6);
+    }
+    pos.forEach(function (p, j) { s += _nxvPill(p.x, p.y, pw, ph, steps[j].label, _NXV_P[j % _NXV_P.length], j * 0.12); });
+    return { title: 'The cycle', html: s + '</svg>' + _nxvLegend(steps, 0.7) };
+}
+function _nxvParts(v) {
+    var parts = (Array.isArray(v.parts) ? v.parts : []).slice(0, 8).map(_nxvStep).filter(Boolean);
+    if (parts.length < 2) return null;
+    var N = parts.length, W = 460, H = 312, cx = 230, cy = 156, rx = 168, ry = 112, pw = 112, ph = 40, hubR = 48;
+    var pos = parts.map(function (_, i) { var a = -Math.PI / 2 + i * 2 * Math.PI / N; return { x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }; });
+    var center = String(v.center || v.title || '').trim();
+    var ys = [cy - hubR, cy + hubR];
+    pos.forEach(function (p) { ys.push(p.y - ph / 2, p.y + ph / 2); });
+    var vy0 = Math.floor(Math.min.apply(null, ys) - 12), vy1 = Math.ceil(Math.max.apply(null, ys) + 12);
+    var s = '<svg class="nxv-svg" viewBox="0 ' + vy0 + ' ' + W + ' ' + (vy1 - vy0) + '" style="max-width:500px" role="img" aria-label="Parts of ' + _nxvE(center || 'the topic') + '">';
+    pos.forEach(function (p, i) {
+        var dx = p.x - cx, dy = p.y - cy, L = Math.hypot(dx, dy) || 1;
+        var a = { x: cx + dx / L * (hubR + 3), y: cy + dy / L * (hubR + 3) }, b = _nxvEdge(p, { x: cx, y: cy }, pw / 2 + 2, ph / 2 + 2);
+        var len = Math.round(Math.hypot(b.x - a.x, b.y - a.y)) + 4;
+        s += '<line class="nxv-draw" style="--len:' + len + ';animation-delay:' + (0.3 + i * 0.09).toFixed(2) + 's" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '" stroke="' + _NXV_P[i % _NXV_P.length] + '" stroke-opacity=".85" stroke-width="2.2" stroke-linecap="round"/>';
+    });
+    s += '<g class="nxv-pop"><circle cx="' + cx + '" cy="' + cy + '" r="' + hubR + '" fill="#171b38"/><circle cx="' + cx + '" cy="' + cy + '" r="' + hubR + '" fill="#6C5CE7" fill-opacity=".28" stroke="#8f80f4" stroke-width="2.6"/>';
+    _nxvWrap(center || '•', 11, 3).forEach(function (ln, i, arr) {
+        s += '<text x="' + cx + '" y="' + (cy + (i - (arr.length - 1) / 2) * 15) + '" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="800" fill="currentColor" font-family="inherit">' + _nxvE(ln) + '</text>';
+    });
+    s += '</g>';
+    pos.forEach(function (p, i) { s += _nxvPill(p.x, p.y, pw, ph, parts[i].label, _NXV_P[i % _NXV_P.length], 0.45 + i * 0.09); });
+    return { title: center ? 'Parts of ' + center : 'The parts', html: s + '</svg>' + _nxvLegend(parts, 0.8) };
+}
+function _nxvCompare(v) {
+    var cols = (Array.isArray(v.columns) ? v.columns : []).slice(0, 3).filter(function (c) { return c && c.heading; });
+    if (cols.length < 2) return null;
+    var h = '<div class="nxv-cols">' + cols.map(function (c, i) {
+        return '<div class="nxv-col nxv-rise" style="animation-delay:' + (i * 0.12).toFixed(2) + 's"><div class="nxv-col-h">' + _nxvE(c.heading) + '</div><ul>'
+            + _nxvArr(c.items).slice(0, 6).map(function (it) { return '<li>' + _nxvE(it) + '</li>'; }).join('') + '</ul></div>';
+    }).join('') + '</div>';
+    return { title: v.title || 'Side by side', html: h };
+}
+function _nxvTimeline(v) {
+    var ev = (Array.isArray(v.events) ? v.events : []).slice(0, 8).filter(function (e) { return e && (e.label || e.event); });
+    if (ev.length < 2) return null;
+    return { title: v.title || 'Timeline', html: '<div class="nxv-tl">' + ev.map(function (e, i) {
+        return '<div class="nxv-ev nxv-rise" style="animation-delay:' + (i * 0.12).toFixed(2) + 's"><b>' + _nxvE(e.date || '') + '</b><div>' + _nxvE(e.label || e.event) + '</div></div>';
+    }).join('') + '</div>' };
+}
+function _nxvPhoto(v) {
+    var q = String(v.query || '').trim();
+    if (!q) return null;
+    var id = 'nxvp' + Math.random().toString(36).slice(2, 9);
+    return {
+        title: null,
+        html: '<div id="' + id + '" class="nxv-photo"><div class="nxv-shimmer" style="height:170px;border-radius:12px"></div></div>',
+        after: function (root) {
+            var el = root.querySelector('#' + id); if (!el) return;
+            var drop = function () { var fig = el.closest('.nxv-fig'); if (fig) fig.remove(); _nxvMaybeEmpty(root); };
+            fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.replace(/\s+/g, '_')))
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d || d.type === 'disambiguation' || !(d.thumbnail || d.originalimage)) { drop(); return; }
+                    var src = (d.originalimage && d.originalimage.width && d.originalimage.width <= 640) ? d.originalimage.source
+                        : (d.thumbnail ? d.thumbnail.source.replace(/\/\d+px-/, '/640px-') : d.originalimage.source);
+                    var page = (d.content_urls && d.content_urls.desktop && d.content_urls.desktop.page) || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(q.replace(/\s+/g, '_')));
+                    el.innerHTML = '<img class="nxv-rise" src="' + _nxvE(src) + '" alt="' + _nxvE(d.title || q) + '" loading="lazy" referrerpolicy="no-referrer">'
+                        + '<div class="nxv-cap">' + _nxvE(d.title || q) + ' · <a href="' + _nxvE(page) + '" target="_blank" rel="noopener">Wikipedia</a></div>';
+                    var img = el.querySelector('img'); if (img) img.onerror = drop;
+                })
+                .catch(drop);
+        }
+    };
+}
+function _nxvOne(v) {
+    if (!v || typeof v !== 'object') return null;
+    var t = String(v.type || v.kind || '').toLowerCase().replace(/[\s-]+/g, '_');
+    try {
+        switch (t) {
+            case 'diamond': case 'x_game': case 'xgame': case 'x_method': case 'x': return _nxvDiamond(v);
+            case 'factor_pairs': case 'factors': case 'factor_rainbow': case 'product_pairs': return _nxvFactorPairs(v);
+            case 'number_line': case 'numberline': return _nxvNumberLine(v);
+            case 'area_model': case 'area': case 'box': case 'box_model': return _nxvArea(v);
+            case 'graph': case 'plot': return _nxvGraph(v);
+            case 'flow': case 'steps': case 'process': return _nxvFlow(v);
+            case 'cycle': return _nxvCycle(v);
+            case 'parts': case 'structure': return _nxvParts(v);
+            case 'compare': case 'comparison': return _nxvCompare(v);
+            case 'timeline': return _nxvTimeline(v);
+            case 'photo': case 'image': return _nxvPhoto(v);
+        }
+    } catch (e) {}
+    return null;
+}
+function _nxvRender(content, spec) {
+    var html = '', post = [], n = 0;
+    (spec.visuals || []).forEach(function (v) {
+        var r = _nxvOne(v);
+        if (!r || !r.html) return;
+        html += '<div class="nxv-fig">' + (r.title ? '<div class="nxv-fig-title">' + _nxvE(r.title) + '</div>' : '') + r.html + '</div>';
+        if (r.after) post.push(r.after);
+        n++;
+    });
+    if (!n) return false;
+    if (spec.caption) html += '<div class="nxv-cap nxv-rise" style="animation-delay:.9s">' + _nxvE(spec.caption) + '</div>';
+    content.innerHTML = html;
+    post.forEach(function (fn) { try { fn(content); } catch (_) {} });
+    return true;
+}
+
+// ---- the drop-down panel ----
+function _nxvAllowed() {
+    try {
+        if (typeof FREE_BETA !== 'undefined' && FREE_BETA) return true;
+        if (typeof hasModule === 'function') return !!hasModule('boosters');
+    } catch (_) {}
+    return true;
+}
+function _nxvPrefOpen() { try { return localStorage.getItem('nxv_open') !== '0'; } catch (_) { return true; } }
+function _nxvSetStatus(panel) {
+    var s = panel.querySelector('.nxv-status'); if (!s) return;
+    if (!panel._ready) { s.innerHTML = '<span class="nxv-dot"></span>Loading visualizer…'; return; }
+    s.textContent = panel.dataset.open === 'true' ? 'Hide' : 'Show drawing';
+}
+function _nxvRemove(panel) {
+    try {
+        if (!panel || !panel.parentNode) return;
+        var gone = function () { if (panel.parentNode) panel.remove(); };
+        if (panel.animate && !_nxvReduced()) {
+            var h = panel.offsetHeight;
+            var a = panel.animate([{ height: h + 'px', opacity: 1, marginTop: '14px' }, { height: '0px', opacity: 0, marginTop: '0px' }], { duration: 380, easing: 'ease', fill: 'forwards' });
+            a.onfinish = gone;
+            setTimeout(gone, 450);   // guaranteed: a backgrounded tab may never tick the animation to "finished"
+        } else gone();
+    } catch (_) { try { panel.remove(); } catch (__) {} }
+}
+function _nxvMaybeEmpty(root) {
+    var panel = root && root.closest ? root.closest('.nxv-panel') : null;
+    if (panel && !panel.querySelector('.nxv-fig')) _nxvRemove(panel);
+}
+function _nxvFill(panel, spec) {
+    if (!panel || !panel.parentNode) return;
+    var vis = (spec && Array.isArray(spec.visuals)) ? spec.visuals.filter(Boolean).slice(0, 2) : [];
+    if (!vis.length) { _nxvRemove(panel); return; }
+    var content = panel.querySelector('.nxv-content'), inner = panel.querySelector('.nxv-inner');
+    var before = inner ? inner.offsetHeight : 0;
+    panel._spec = { visuals: vis, caption: String((spec && spec.caption) || '').slice(0, 160) };
+    if (!_nxvRender(content, panel._spec)) { _nxvRemove(panel); return; }
+    panel._ready = true;
+    _nxvSetStatus(panel);
+    if (panel.dataset.open === 'true' && inner && inner.animate && !_nxvReduced()) {
+        var after = inner.scrollHeight;
+        if (after !== before) inner.animate([{ height: before + 'px' }, { height: after + 'px' }], { duration: 460, easing: 'cubic-bezier(.2,.8,.2,1)' });
     }
 }
-window._runVisualize = _runVisualize;
-
-function openVisualizer(seedTopic) {
-    if (typeof _gateFeature === 'function' && !_gateFeature('boosters')) return;
-    if (typeof trackFeature === 'function') trackFeature('visualize');
-    var seed = (typeof seedTopic === 'string') ? seedTopic.slice(0, 160) : '';
-    var ex = document.getElementById('visualizer-modal'); if (ex) ex.remove();
-    var esc = (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe : function (s) { return String(s == null ? '' : s); };
-    var m = document.createElement('div');
-    m.id = 'visualizer-modal';
-    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);z-index:1000060;display:flex;align-items:center;justify-content:center;padding:20px;';
-    m.onclick = function (e) { if (e.target === m) m.remove(); };
-    var chips = ['the water cycle', 'y = x²', 'how a bill becomes a law', 'parts of a cell', 'the structure of an essay'];
-    m.innerHTML = '<div class="glass-panel" style="max-width:560px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
-        + '<div style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
-        + '<div style="flex:1;min-width:0;"><h3 style="margin:0;color:#fff;font-size:1.12rem;"><i class="ph ph-palette" style="color:#2ed3cd;"></i> Visualize anything</h3>'
-        + '<p style="margin:5px 0 0;font-size:0.8rem;color:var(--text-muted);">Type any concept — any subject — and get a labeled diagram to learn from.</p></div>'
-        + '<button class="btn-icon" onclick="document.getElementById(\'visualizer-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
-        + '<div style="padding:14px 20px;overflow-y:auto;">'
-        + '<div style="display:flex;gap:8px;"><input id="viz-input" value="' + esc(seed) + '" placeholder="e.g. photosynthesis, the slope of a line, WWII alliances" maxlength="160" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:11px 13px;font-size:0.92rem;" onkeydown="if(event.key===\'Enter\')_runVisualize(this.value)">'
-        + '<button class="btn-primary" style="flex-shrink:0;background:linear-gradient(135deg,#6C5CE7,#2ed3cd);" onclick="_runVisualize((document.getElementById(\'viz-input\')||{}).value)"><i class="ph ph-sparkle"></i> Draw it</button></div>'
-        + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">' + chips.map(function (c) { return '<button onclick="var i=document.getElementById(\'viz-input\');i.value=' + JSON.stringify(c).replace(/"/g, '&quot;') + ';_runVisualize(i.value)" style="background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:20px;color:var(--text-muted);font-size:0.76rem;padding:4px 11px;cursor:pointer;">' + esc(c) + '</button>'; }).join('') + '</div>'
-        + '<div id="viz-output" style="margin-top:16px;min-height:60px;"></div>'
-        + '</div></div>';
-    document.body.appendChild(m);
-    if (seed) _runVisualize(seed); else { var i = document.getElementById('viz-input'); if (i) i.focus(); }
+async function _nxvFetchSpec(q, ans, opts) {
+    var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    var shown = (opts && opts.shown) ? opts.shown.filter(Boolean) : [];
+    var user = 'Student question: ' + q.slice(0, 600)
+        + '\n\nTutor answer (excerpt): ' + ans.slice(0, 1800)
+        + (opts && opts.subject ? '\n\nSubject: ' + opts.subject : '')
+        + (shown.length ? '\n\nALREADY SHOWN (do not repeat these types): ' + shown.filter(function (x, i, a) { return a.indexOf(x) === i; }).join(', ') : '');
+    var res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+            model: 'gpt-4o-mini', temperature: 0.2, max_tokens: 700,
+            response_format: { type: 'json_object' },
+            messages: [{ role: 'system', content: NEXUS_VIZSPEC_PROMPT }, { role: 'user', content: user }]
+        })
+    });
+    var data = await res.json();
+    if (!data || data.error) throw new Error((data && data.error && data.error.message) || 'visualizer failed');
+    var txt = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+    return JSON.parse(txt);
 }
-window.openVisualizer = openVisualizer;
-
-// Append a "See it visually" button under an answer, seeded with the question.
-function _appendVisualizeBtn(container, seed) {
+// container = the answer's output element; question = what the student asked;
+// answer = the tutor's reply (html or text); opts = { subject, shown: ['graph'|'photo'] }
+function _autoVisualize(container, question, answer, opts) {
     try {
-        if (!container || typeof openVisualizer !== 'function') return;
-        var b = document.createElement('button');
-        b.className = 'btn-secondary';
-        b.style.cssText = 'margin-top:12px;background:rgba(46,211,205,0.10);border:1px solid rgba(46,211,205,0.4);color:#bff3f0;';
-        b.innerHTML = '<i class="ph ph-palette"></i> See it visually';
-        b.onclick = function () { openVisualizer(String(seed || '').slice(0, 160)); };
-        container.appendChild(b);
-    } catch (_) {}
+        if (!container || !_nxvAllowed()) return null;
+        var apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+        if (!apiKey) return null;
+        var q = String(question || '').replace(/\s+/g, ' ').trim();
+        var ans = String(answer || '').replace(/<svg[\s\S]*?<\/svg>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!q && !ans) return null;
+        var old = container.querySelector(':scope > .nxv-panel'); if (old) old.remove();
+        opts = opts || {};
+        var shown = (opts.shown || []).slice();
+        if (container.querySelector('img')) shown.push('photo');
+        if (container.querySelector('.inline-graph-embed, .function-plot, .ig-plot')) shown.push('graph');
+        opts.shown = shown;
+        var panel = document.createElement('div');
+        panel.className = 'nxv-panel';
+        panel.dataset.open = _nxvPrefOpen() ? 'true' : 'false';
+        panel.innerHTML = '<button type="button" class="nxv-head" aria-expanded="' + panel.dataset.open + '">'
+            + '<span class="nxv-ico"><i class="ph ph-sparkle"></i></span><span class="nxv-title">Visualizer</span>'
+            + '<span class="nxv-status"></span><i class="ph ph-caret-down nxv-caret"></i></button>'
+            + '<div class="nxv-body"><div class="nxv-inner"><div class="nxv-content">'
+            + '<div class="nxv-loading"><div class="nxv-shimmer" style="width:84%"></div><div class="nxv-shimmer" style="width:62%;animation-delay:.15s"></div><div class="nxv-shimmer" style="width:74%;animation-delay:.3s"></div></div>'
+            + '</div></div></div>';
+        container.appendChild(panel);
+        _nxvSetStatus(panel);
+        var head = panel.querySelector('.nxv-head');
+        head.onclick = function () {
+            var open = panel.dataset.open !== 'true';
+            panel.dataset.open = open ? 'true' : 'false';
+            head.setAttribute('aria-expanded', String(open));
+            try { localStorage.setItem('nxv_open', open ? '1' : '0'); } catch (_) {}
+            _nxvSetStatus(panel);
+            if (open && panel._ready && panel._spec) _nxvRender(panel.querySelector('.nxv-content'), panel._spec);   // replay the draw-in
+        };
+        _nxvFetchSpec(q, ans, opts).then(function (spec) { _nxvFill(panel, spec); }).catch(function () { _nxvRemove(panel); });
+        if (typeof trackFeature === 'function') trackFeature('auto_visualize');
+        return panel;
+    } catch (_) { return null; }
+}
+window._autoVisualize = _autoVisualize;
+
+// Back-compat: older call sites used a "See it visually" button. It now just
+// attaches the automatic visualizer drop-down.
+function _appendVisualizeBtn(container, seed, answer, opts) {
+    return _autoVisualize(container, seed, answer != null ? answer : (container ? container.innerText : ''), opts);
 }
 window._appendVisualizeBtn = _appendVisualizeBtn;
+// Back-compat: the old "Visualize anything" modal is gone. Any stale caller is
+// routed to the Teaching Board, which now auto-visualizes every lesson.
+function openVisualizer(seedTopic) {
+    if (typeof switchTab === 'function') switchTab('teach');
+    var seed = (typeof seedTopic === 'string') ? seedTopic.trim().slice(0, 120) : '';
+    if (seed && typeof startTeachingTopic === 'function') setTimeout(function () { startTeachingTopic(seed); }, 170);
+}
+window.openVisualizer = openVisualizer;
 
 // ════════════════════════════════════════════════════════════════════
 // v24.22 — STUDY BOOSTERS #2: AI ESSAY GRADER.
@@ -10351,7 +10749,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.36';
+const NEXUS_CURRENT_VERSION = 'v24.37';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -16181,8 +16579,8 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
                 output.innerHTML = rendered;
                 _scienceTutorTurns.push({ role: 'assistant', content: rendered });
                 appendTutorAnswerBox(output, 'science');
-                _appendVisualizeBtn(output, input);
                 _appendLearnActions(output, input);
+                _autoVisualize(output, input, answer, { subject: 'science' });   // v24.37 — automatic drop-down visualizer, at the bottom
                 addToHistory('science', input || '[Image analysis]', answer, scienceImageBase64 || null);
                 clearScienceImage();
             },
@@ -16440,6 +16838,8 @@ ACCURACY: If you are uncertain about a specific date or detail, say so explicitl
         } catch (_) { /* Wikipedia is best-effort; ignore failures */ }
 
         outElem.innerHTML = imgHtml + content;
+        // v24.37 — automatic drop-down visualizer (timelines, comparisons, flows…).
+        _autoVisualize(outElem, query, content, { subject: 'history / social studies', shown: imgHtml ? ['photo'] : [] });
 
         // v19.1 — if the output lives inside a collapsed <details> (Region
         // Explorer), open it and scroll it into view. Quick-chip clicks loaded
@@ -18517,8 +18917,10 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 // v24.30 — auto-show a real interactive graph when the problem is graphable;
                 // otherwise fall back to the AI concept-visualizer button.
                 var _didGraph = _maybeEmbedGraph(output, text, content);
-                if (!_didGraph) _appendVisualizeBtn(output, text);
                 _appendLearnActions(output, text);
+                // v24.37 — automatic drop-down visualizer (X game, factor pairs, number line, box model…).
+                // If a graph is already embedded, tell it not to draw another graph.
+                _autoVisualize(output, text, content, { subject: 'math', shown: _didGraph ? ['graph'] : [] });
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
@@ -23347,6 +23749,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.37',
+        date: 'November 6, 2026',
+        tag: 'EVERY ANSWER COMES WITH A PICTURE',
+        tagColor: '#2ed3cd',
+        changes: [
+            'AUTOMATIC VISUALIZER — No more "See it visually" button. Ask anything in Math, Science, Social Studies, or the Teaching Board and a Visualizer drop-down appears at the bottom of your answer — it says "Loading visualizer…", then slides open with a drawing made for exactly what you asked. Close it or reopen it any time (it remembers your choice).',
+            'DRAWINGS THAT ACTUALLY TEACH — The X game is drawn as a real X (multiply on top, add on the bottom, the two numbers on the sides, checked for you). Factor pairs show as a rainbow linking each pair. Plus number lines with shading, box models, step-by-step flows, cycles (like the water cycle), labeled parts (like a cell), side-by-side comparisons, timelines, graphs, and real photos.',
+            'SMOOTH, NOT BLOCKY — The visuals are now drawn by NEXUS itself instead of improvised, so they come out clean every time: rounded shapes, curved arrows, and lines that draw themselves in. The numbers in math visuals are calculated, so they\'re always right.',
+        ]
+    },
     {
         version: 'v24.36',
         date: 'November 6, 2026',
@@ -32308,6 +32721,13 @@ async function _teachGenerate(retryCount) {
                 contentEl.innerHTML = formatted;
                 _teachEnhanceCards(liveBubble);            // step-by-step walk buttons on the fresh lesson
                 _teachSmoothReveal(contentEl);             // glide the sections in instead of popping
+                // v24.37 — if the lesson didn't draw its own visual, attach the automatic
+                // drop-down visualizer at the bottom (so EVERY question gets a picture).
+                if (!contentEl.querySelector('.teach-draw, .teach-plot, .teach-image, .inline-graph-embed, svg, img')) {
+                    var _lastQ = '';
+                    for (var _qi = _teachHistory.length - 1; _qi >= 0; _qi--) { if (_teachHistory[_qi].role === 'user') { _lastQ = String(_teachHistory[_qi].content || ''); break; } }
+                    _autoVisualize(liveBubble, _lastQ, full, { subject: _teachSubject || '' });
+                }
                 _teachBusy = false;
                 _teachHistory.push({ role: 'assistant', content: full });
                 if (!_teachTitle) _teachTitle = _teachDeriveTitle(_teachHistory);
