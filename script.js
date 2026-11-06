@@ -10351,7 +10351,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.35';
+const NEXUS_CURRENT_VERSION = 'v24.36';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -23348,6 +23348,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.36',
+        date: 'November 6, 2026',
+        tag: 'LESSONS THAT DRAW IT OUT — & GLIDE IN',
+        tagColor: '#00cec9',
+        changes: [
+            'IT DRAWS THE X-GAME (and more) — When a lesson is about something you need to SEE worked out — the X-method / diamond for factoring, a number line, an area (box) model — NEXUS now draws the real picture with YOUR actual numbers, instead of just describing it in words or skipping the visual.',
+            'PICKS THE RIGHT VISUAL ON ITS OWN — For a brand-new topic it has never focused on, the tutor now builds the visual the concept needs on the spot — a graph, a real photo, a labeled diagram, or a hand-drawn figure — so the picture that makes it click shows up automatically.',
+            'SMOOTH AS BUTTER — Finished lessons now glide in section by section instead of popping onto the screen all at once, for a calmer, cleaner read.',
+        ]
+    },
+    {
         version: 'v24.35',
         date: 'November 3, 2026',
         tag: 'FIVE NEW WAYS TO ACTUALLY LEARN IT',
@@ -31092,12 +31103,20 @@ GRAPHS — when a topic is genuinely visual (a line, a parabola, plotting points
 
 PHOTOS — for a real, specific thing a student should actually SEE (a historical figure, a landmark or building, a country or its flag, an animal, a plant, an organ, a planet, a famous artwork or invention), show a REAL photo: emit <div class="teach-image" data-query="EXACT Wikipedia article title" data-caption="short label"></div>. The app pulls an accurate, sourced photo from Wikipedia. Use the most specific, unambiguous title (e.g. data-query="Colosseum", data-query="George Washington", data-query="Mitochondrion", data-query="Great Wall of China"). Use this ESPECIALLY for HISTORY, GEOGRAPHY, and BIOLOGY, where seeing the real thing matters most. Never use it for abstract or math concepts, and NEVER for graphic, violent, or sensitive subject matter — pick a neutral related landmark, person, or object instead, or skip the image.
 
+DRAWN MATH VISUALS (teach-draw) — when a MATH PROCEDURE is best understood by SEEING it worked out, draw it with the ACTUAL numbers using a teach-draw block. These render as clean, labeled diagrams, so PREFER them over describing the picture in words:
+• The X-method / diamond / "X game" (factoring, finding a factor pair, factoring trinomials by grouping) → <div class="teach-draw" data-kind="diamond" data-product="12" data-sum="7" data-a="3" data-b="4"></div>. product = the number the two factors MULTIPLY to (top), sum = what they ADD to (bottom), a and b = the two factors (sides). Give data-a / data-b only when you're SHOWING the solved answer; OMIT them to pose the puzzle for the student to fill in. For the X-game you MUST draw this — never only describe it.
+• A number line (comparing, inequalities, integers, intervals) → <div class="teach-draw" data-kind="number-line" data-min="-3" data-max="3" data-step="1" data-point="2" data-caption="short label"></div> (data-point optional; semicolons for several points).
+• An area / box model (multiplying binomials, distributing, factoring) → <div class="teach-draw" data-kind="area-model" data-cols="x;2" data-rows="x;3" data-cells="x²;2x;3x;6"></div> (cells left-to-right, top row first).
+GENERATE-ANYTHING VISUAL — for ANY other concept that would genuinely help to SEE and isn't a graph, photo, or one of the kinds above (a geometry figure, a free-body diagram, a labeled process, a flow, a hand-drawn schematic) → draw your OWN labeled inline <svg> (shapes/paths/text only, as in DIAGRAMS above). You are expected to invent the right picture for the topic — if a concept is visual, build the visual.
+
 MATCH THE VISUAL TO THE SUBJECT — include the RIGHT kind of visual for the topic whenever one helps, and never the wrong kind:
 • Math that plots (lines, parabolas, points, systems, intercepts) → a teach-plot graph.
+• Math PROCEDURES with a worked structure (X-method/diamond, number line, area/box model) → a teach-draw block with the real numbers.
 • Science / geometry STRUCTURES or processes (cells, atoms, the water cycle, a labeled triangle) → a labeled inline <svg> diagram.
 • History, geography, biology SPECIFICS (people, places, landmarks, animals, artifacts) → a teach-image real photo.
 • English / writing structure (story arc, sentence types, parts of speech) → a small labeled <svg> or a clear list.
 Pick what fits the subject — don't put a graph on a history lesson or a photo on an equation. At most one or two visuals per card, only when they genuinely help.
+NEVER NARRATE YOUR VISUAL CHOICE — do not write sentences like "No visual is needed here", "Let me draw a diagram", or "Here's a picture". Either include the visual or don't; never announce the decision. If a concept is inherently visual, spatial, or procedural (like the X-game), a worked picture with the real numbers is REQUIRED, not optional.
 
 ACCURACY — everything you state must be correct: facts, dates, names, definitions, formulas, and every number in a worked example or practice answer. Double-check arithmetic and that each practice problem's data-answers value is actually right. If you're not certain of a specific fact, teach the reliable core and don't invent specifics. Never state a wrong date, misattribute a quote, or give a practice answer that doesn't match its problem.
 
@@ -31591,6 +31610,7 @@ function _teachEnhanceCards(el) {
         });
         _teachRenderPlots(el);
         _teachRenderImages(el);
+        _teachRenderDrawings(el);
         _teachRenderNext(el);
         _teachEnhancePractice(el);
         _teachAddCardActions(el);
@@ -31877,6 +31897,166 @@ function _teachRenderImages(el) {
             .catch(function () { node.remove(); });
     });
 }
+// ════════════════════════════════════════════════════════════════════
+// v24.36 — GENERATIVE LESSON VISUALS (teach-draw)
+// Chase request: when a concept is best SEEN as a worked structure/procedure
+// (the X-method/diamond "X game", a number line, an area/box model, …) the
+// tutor should DRAW the real picture with the actual numbers — not just
+// describe it in text or decide "no visual needed".
+//   • Parametric kinds (diamond / number-line / area-model) always render
+//     cleanly, so the AI gets guaranteed-good math diagrams.
+//   • kind="svg" is a generate-anything escape hatch: the AI hand-draws an
+//     inline <svg> for the long tail, which we SANITIZE and theme.
+// The tutor emits: <div class="teach-draw" data-kind="diamond"
+//     data-product="12" data-sum="7" data-a="3" data-b="4"></div>
+// ════════════════════════════════════════════════════════════════════
+function _tdEsc(s) { s = String(s == null ? '' : s); return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _tdFmt(v) { var n = parseFloat(v); if (!isFinite(n)) return String(v); return (Math.round(n * 1000) / 1000).toString(); }
+function _tdText(x, y, t, size, weight) {
+    var blank = (t == null || t === '');
+    var val = blank ? '?' : String(t);
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" font-size="' + size
+        + '" font-weight="' + (weight || '600') + '" font-family="inherit" fill="' + (blank ? 'rgba(150,150,170,.55)' : 'currentColor') + '">' + _tdEsc(val) + '</text>';
+}
+function _tdLabel(x, y, t) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" font-size="10.5" font-weight="500" font-family="inherit" fill="rgba(150,150,170,.75)" letter-spacing="0.3">' + _tdEsc(t) + '</text>';
+}
+function _tdRect(x, y, w, h, op) {
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="var(--accent,#6C5CE7)" fill-opacity="' + (op || 0)
+        + '" stroke="var(--accent,#6C5CE7)" stroke-opacity="0.45" stroke-width="1.5"/>';
+}
+// The X-method / diamond ("X game"): product on top, sum on bottom, the two factors left & right.
+function _tdDiamond(ds) {
+    var ACC = 'var(--accent,#6C5CE7)';
+    return '<svg viewBox="0 0 240 220" width="100%" style="max-width:260px;color:inherit" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="X method: multiply to the top number, add to the bottom number">'
+        + '<line x1="40" y1="40" x2="200" y2="180" stroke="' + ACC + '" stroke-width="3" stroke-linecap="round"/>'
+        + '<line x1="200" y1="40" x2="40" y2="180" stroke="' + ACC + '" stroke-width="3" stroke-linecap="round"/>'
+        + _tdLabel(120, 24, 'product (×)')
+        + _tdText(120, 74, ds.product, 19, '700')
+        + _tdText(76, 112, ds.a, 19, '700')
+        + _tdText(164, 112, ds.b, 19, '700')
+        + _tdText(120, 150, ds.sum, 19, '700')
+        + _tdLabel(120, 200, 'sum (+)')
+        + '</svg>';
+}
+function _tdNumberLine(ds) {
+    var min = parseFloat(ds.min), max = parseFloat(ds.max);
+    if (!isFinite(min) || !isFinite(max) || max <= min) return '';
+    var step = parseFloat(ds.step); if (!isFinite(step) || step <= 0) step = 1;
+    if ((max - min) / step > 40) step = (max - min) / 20;   // guard against too many ticks
+    var W = 360, H = 64, padX = 26, y = 30;
+    var span = max - min, sx = function (v) { return padX + (v - min) / span * (W - 2 * padX); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="max-width:440px;color:inherit" xmlns="http://www.w3.org/2000/svg">';
+    s += '<line x1="' + padX + '" y1="' + y + '" x2="' + (W - padX) + '" y2="' + y + '" stroke="currentColor" stroke-width="2"/>';
+    s += '<path d="M' + padX + ' ' + y + ' l9 -5 l0 10 z" fill="currentColor"/>';
+    s += '<path d="M' + (W - padX) + ' ' + y + ' l-9 -5 l0 10 z" fill="currentColor"/>';
+    for (var v = min; v <= max + 1e-9; v += step) {
+        var x = sx(v);
+        s += '<line x1="' + x + '" y1="' + (y - 5) + '" x2="' + x + '" y2="' + (y + 5) + '" stroke="currentColor" stroke-width="1.5"/>';
+        s += _tdText(x, y + 17, _tdFmt(v), 11, '500');
+    }
+    (ds.point || '').split(';').map(function (p) { return p.trim(); }).filter(Boolean).forEach(function (p) {
+        var pv = parseFloat(p); if (!isFinite(pv)) return;
+        s += '<circle cx="' + sx(pv) + '" cy="' + y + '" r="6.5" fill="var(--accent,#6C5CE7)"/>';
+    });
+    return s + '</svg>';
+}
+// Area / box model for multiplying or factoring: header row = cols, header col = rows, inner = products.
+function _tdAreaModel(ds) {
+    var cols = (ds.cols || '').split(';').map(function (s) { return s.trim(); }).filter(Boolean);
+    var rows = (ds.rows || '').split(';').map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!cols.length || !rows.length) return '';
+    var cells = (ds.cells || '').split(';').map(function (s) { return s.trim(); });
+    var C = cols.length, R = rows.length, cw = 78, ch = 50, W = (C + 1) * cw, H = (R + 1) * ch;
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="max-width:' + Math.min(W, 440) + 'px;color:inherit" xmlns="http://www.w3.org/2000/svg">';
+    s += _tdRect(0, 0, cw, ch, 0.04);
+    for (var j = 0; j < C; j++) { var hx = (j + 1) * cw; s += _tdRect(hx, 0, cw, ch, 0.14) + _tdText(hx + cw / 2, ch / 2, cols[j], 16, '700'); }
+    for (var i = 0; i < R; i++) { var hy = (i + 1) * ch; s += _tdRect(0, hy, cw, ch, 0.14) + _tdText(cw / 2, hy + ch / 2, rows[i], 16, '700'); }
+    for (var r = 0; r < R; r++) for (var c = 0; c < C; c++) {
+        var x = (c + 1) * cw, yy = (r + 1) * ch, v = cells[r * C + c];
+        s += _tdRect(x, yy, cw, ch, 0) + _tdText(x + cw / 2, yy + ch / 2, (v == null ? '' : v), 15, '600');
+    }
+    return s + '</svg>';
+}
+// Generate-anything escape hatch: take the AI's hand-drawn inline <svg>, strip
+// anything unsafe, make it responsive + theme-aware, and return clean markup.
+function _teachSanitizeSvg(html) {
+    try {
+        var m = String(html || '').match(/<svg[\s\S]*<\/svg>/i); if (!m) return '';
+        var tmp = document.createElement('div'); tmp.innerHTML = m[0];
+        var svg = tmp.querySelector('svg'); if (!svg) return '';
+        svg.querySelectorAll('script,foreignObject,image,iframe,use,a,style,animate,set').forEach(function (n) { n.remove(); });
+        (function walk(n) {
+            [].slice.call(n.attributes || []).forEach(function (at) {
+                var nm = at.name.toLowerCase();
+                if (nm.indexOf('on') === 0 || nm === 'href' || nm === 'xlink:href' || /url\s*\(|javascript:|expression\s*\(/i.test(at.value)) n.removeAttribute(at.name);
+            });
+            [].slice.call(n.children).forEach(walk);
+        })(svg);
+        if (!svg.getAttribute('viewBox') && svg.getAttribute('width') && svg.getAttribute('height')) {
+            svg.setAttribute('viewBox', '0 0 ' + parseInt(svg.getAttribute('width'), 10) + ' ' + parseInt(svg.getAttribute('height'), 10));
+        }
+        svg.setAttribute('width', '100%'); svg.removeAttribute('height');
+        svg.style.maxWidth = '440px'; svg.style.color = 'inherit';
+        return svg.outerHTML;
+    } catch (e) { return ''; }
+}
+function _teachRenderDrawings(el) {
+    if (!el) return;
+    el.querySelectorAll('.teach-draw').forEach(function (node) {
+        if (node.dataset.rendered) return; node.dataset.rendered = '1';
+        var kind = (node.getAttribute('data-kind') || '').toLowerCase().replace(/[\s_]/g, '-');
+        var ds = {
+            product: node.getAttribute('data-product'), sum: node.getAttribute('data-sum'),
+            a: node.getAttribute('data-a'), b: node.getAttribute('data-b'),
+            min: node.getAttribute('data-min'), max: node.getAttribute('data-max'),
+            step: node.getAttribute('data-step'), point: node.getAttribute('data-point'),
+            cols: node.getAttribute('data-cols'), rows: node.getAttribute('data-rows'), cells: node.getAttribute('data-cells')
+        };
+        var cap = (node.getAttribute('data-caption') || '').trim();
+        var svg = '';
+        try {
+            if (kind === 'diamond' || kind === 'x' || kind === 'x-game' || kind === 'xgame') svg = _tdDiamond(ds);
+            else if (kind === 'number-line' || kind === 'numberline') svg = _tdNumberLine(ds);
+            else if (kind === 'area-model' || kind === 'area' || kind === 'box' || kind === 'box-model') svg = _tdAreaModel(ds);
+            else svg = _teachSanitizeSvg(node.innerHTML);   // kind="svg"/"draw"/unknown → raw hand-drawn svg
+        } catch (e) { svg = ''; }
+        if (!svg) { node.remove(); return; }
+        var capHtml = cap ? ('<div style="font-size:0.78rem;color:var(--text-muted,#9a9ab0);margin-top:7px;">' + (typeof escapeHtmlSafe === 'function' ? escapeHtmlSafe(cap) : _tdEsc(cap)) + '</div>') : '';
+        node.innerHTML = '<div style="margin:12px 0;padding:14px 12px;border:1px solid var(--border,rgba(140,140,170,0.22));border-radius:14px;background:var(--card-2,rgba(130,120,200,0.055));text-align:center;overflow-x:auto;">' + svg + capHtml + '</div>';
+    });
+}
+// v24.36 — SMOOTH REVEAL (Chase request: "appear line by line smoothly / smooth
+// as butter"). Instead of the finished lesson POPPING in all at once when the
+// stream resolves, glide its sections in one after another with a short staggered
+// fade-up. Honors prefers-reduced-motion and cleans up its inline styles after.
+function _teachSmoothReveal(container) {
+    try {
+        if (!container) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var blocks = [];
+        container.querySelectorAll('.teach-card').forEach(function (card) {
+            [].slice.call(card.children).forEach(function (ch) { blocks.push(ch); });
+        });
+        if (!blocks.length) blocks = [].slice.call(container.children);
+        blocks = blocks.filter(function (b) { return b && b.nodeType === 1 && b.offsetParent !== null || (b && b.nodeType === 1); });
+        if (!blocks.length || blocks.length > 70) return;   // skip if nothing or so many it would drag
+        blocks.forEach(function (b, i) {
+            b.style.opacity = '0';
+            b.style.transform = 'translateY(7px)';
+            b.style.transition = 'opacity .34s ease, transform .34s ease';
+            b.style.transitionDelay = Math.min(i * 0.065, 2.4) + 's';
+        });
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                blocks.forEach(function (b) { b.style.opacity = '1'; b.style.transform = 'none'; });
+            });
+        });
+        setTimeout(function () {
+            blocks.forEach(function (b) { b.style.transition = ''; b.style.transitionDelay = ''; b.style.transform = ''; b.style.opacity = ''; });
+        }, 65 * blocks.length + 1200);
+    } catch (e) {}
+}
 function _teachDrawPlot(ctx, W, H, fns, pts, progress) {
     if (progress == null) progress = 1;   // v24.5 — <1 draws the graph in left-to-right (animated)
     var penX = W * progress;
@@ -32127,6 +32307,7 @@ async function _teachGenerate(retryCount) {
                 formatted = _teachRestoreSvg(formatted, _svgStore);
                 contentEl.innerHTML = formatted;
                 _teachEnhanceCards(liveBubble);            // step-by-step walk buttons on the fresh lesson
+                _teachSmoothReveal(contentEl);             // glide the sections in instead of popping
                 _teachBusy = false;
                 _teachHistory.push({ role: 'assistant', content: full });
                 if (!_teachTitle) _teachTitle = _teachDeriveTitle(_teachHistory);
