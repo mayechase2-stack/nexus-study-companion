@@ -10397,6 +10397,23 @@ function updateNewBadge() {
             dot.remove();
         }
     });
+    // AUTOMATIC CHANGELOG GUARD — runs on every load. If we ever bump the app
+    // version without adding a matching UPDATE_LOG entry (so the Updates tab would
+    // be stale), scream in the console immediately instead of waiting for the
+    // manual self-test. Every release MUST ship UPDATE_LOG[0].version === NEXUS_CURRENT_VERSION.
+    if (!updateNewBadge._changelogChecked) {
+        updateNewBadge._changelogChecked = true;
+        try {
+            if (typeof UPDATE_LOG === 'undefined' || !UPDATE_LOG.length) {
+                console.error('[NEXUS changelog] UPDATE_LOG is empty — the Updates tab has nothing to show.');
+            } else if (UPDATE_LOG[0].version !== NEXUS_CURRENT_VERSION) {
+                console.error('[NEXUS changelog] STALE: app is ' + NEXUS_CURRENT_VERSION +
+                    ' but the newest Updates entry is ' + UPDATE_LOG[0].version +
+                    '. Add a v' + NEXUS_CURRENT_VERSION.replace(/^v/, '') +
+                    ' entry at the top of UPDATE_LOG so this release shows in the Updates tab.');
+            }
+        } catch (e) { /* never block load */ }
+    }
 }
 
 function markUpdatesAsSeen() {
