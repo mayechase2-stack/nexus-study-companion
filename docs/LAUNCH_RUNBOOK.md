@@ -97,7 +97,9 @@ Supabase → **SQL Editor**. The entitlement columns already exist (`profiles.mo
 - [ ] `0009_messaging.sql`
 - [ ] `0010_feature_events.sql` (usage analytics)
 
-If unsure, paste each file's contents and run it; no harm if already applied.
+**Fastest:** paste `supabase/migrations/ALL_pending_0007-0010.sql` (all four bundled, v24.39) once and press Run. If unsure, paste each file's contents and run it; no harm if already applied.
+
+> v24.39 changed `supabase/functions/ai/index.ts` (closes the untagged-request bypass of the plan check). **Redeploy the `ai` function** before or at launch so the fix is live — it has no effect until `ENFORCE_MODULES=true`.
 
 ---
 

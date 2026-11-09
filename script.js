@@ -1480,6 +1480,14 @@ window.showStudyMemory = showStudyMemory;
                             if (lastUser && typeof lastUser.content === 'string') {
                                 NexusMemory.record(localStorage.getItem('last_tab') || '', lastUser.content);
                             }
+                            // v24.39 — class library: relevant excerpts from the ACTIVE class's own notes
+                            try {
+                                if (lastUser && typeof _libContextFor === 'function') {
+                                    const _lq = typeof lastUser.content === 'string' ? lastUser.content : (Array.isArray(lastUser.content) ? ((lastUser.content.find(function (p) { return p && p.type === 'text'; }) || {}).text || '') : '');
+                                    const _lc = _libContextFor(_lq);
+                                    if (_lc) extras.push(_lc);
+                                }
+                            } catch (_) {}
                         }
                         if (extras.length) {
                             const block = extras.join('\n\n');
@@ -5434,7 +5442,8 @@ async function checkNotebookGrammar() {
 const NEXUS_VIZSPEC_PROMPT = `You design the study visual for a student's question and the tutor's answer. You do NOT draw — you choose the single best visual TYPE and give its DATA as JSON. A renderer draws it.
 
 Return JSON: {"visuals":[ ...1 visual, or 2 only if the question clearly has two parts... ], "caption":"one plain sentence, max 16 words"}
-Return {"visuals":[]} when a picture would NOT genuinely help (greetings, chit-chat, opinions, yes/no, a single word's definition, grammar or writing feedback, an essay or story).
+Return {"visuals":[]} when a picture would NOT genuinely help (greetings, chit-chat, opinions, yes/no, a single word's definition, a list of spelling fixes, an essay or story you were asked to write).
+ENGLISH / LITERATURE answers DO get a visual when it teaches structure: a plot → "timeline" or "flow" (exposition → rising action → climax → falling action → resolution, with the story's real events); an essay's structure or a summary's argument → "flow" (hook/thesis → each main point → conclusion); characters, themes or two texts side by side → "compare"; the parts of a sentence or a paragraph → "parts". A grammar answer gets a visual ONLY when it explains a rule with structure (e.g. clauses in a compound sentence) — otherwise return none.
 
 TYPES — use the student's REAL numbers and terms. Labels 1-4 words. Details max 12 words.
 1. {"type":"diamond","product":12,"sum":7} — the X method / diamond / "X game": two numbers that MULTIPLY to one value and ADD to another; factoring trinomials (for ax²+bx+c use product = a×c, sum = b).
@@ -5824,7 +5833,12 @@ async function _nxvFetchSpec(q, ans, opts) {
         + '\n\nTutor answer (excerpt): ' + ans.slice(0, 1800)
         + (opts && opts.subject ? '\n\nSubject: ' + opts.subject : '')
         + (shown.length ? '\n\nALREADY SHOWN (do not repeat these types): ' + shown.filter(function (x, i, a) { return a.indexOf(x) === i; }).join(', ') : '');
-    var res = await fetch('https://api.openai.com/v1/chat/completions', {
+    // v24.39 — tag this call with the Study Boosters module (server-side plan check).
+    // The interceptor reads the module synchronously when fetch() is called.
+    window._nxModuleOverride = 'boosters';
+    var _vizReq;
+    try {
+    _vizReq = fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
         body: JSON.stringify({
@@ -5833,10 +5847,21 @@ async function _nxvFetchSpec(q, ans, opts) {
             messages: [{ role: 'system', content: NEXUS_VIZSPEC_PROMPT }, { role: 'user', content: user }]
         })
     });
+    } finally { window._nxModuleOverride = ''; }
+    var res = await _vizReq;
     var data = await res.json();
     if (!data || data.error) throw new Error((data && data.error && data.error.message) || 'visualizer failed');
     var txt = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
     return JSON.parse(txt);
+}
+// v24.39 — is this companion message a real study question worth a picture?
+// Small talk ("hi", "lol", "how are you") never triggers the visualizer.
+function _nxvStudyish(q, reply) {
+    q = String(q || '').trim();
+    if (q.length < 12 || String(reply || '').length < 160) return false;
+    if (/^(hi|hey|hello|yo|sup|thanks|thank you|ok|okay|lol|lmao|bye|good ?(morning|night)|how are you|what'?s up)\b/i.test(q) && q.length < 40) return false;
+    if (/[0-9]\s*[-+*/^=x×÷]\s*[0-9a-z(]|[=²³√π]/i.test(q)) return true;
+    return /\b(explain|how (do|does|to|can)|why (do|does|is|are|did)|what (is|are|was|were|causes?)|solve|factor|graph|define|definition|difference between|compare|steps?|process|cycle|equation|formula|theorem|law of|cell|atom|molecule|reaction|photosynthesis|energy|force|war|revolution|empire|treaty|timeline|government|plot|theme|essay|thesis|metaphor|grammar|sentence|fraction|slope|polynomial|quadratic|percent|ratio|area|volume|angle|triangle)\b/i.test(q);
 }
 // container = the answer's output element; question = what the student asked;
 // answer = the tutor's reply (html or text); opts = { subject, shown: ['graph'|'photo'] }
@@ -5856,7 +5881,7 @@ function _autoVisualize(container, question, answer, opts) {
         opts.shown = shown;
         var panel = document.createElement('div');
         panel.className = 'nxv-panel';
-        panel.dataset.open = _nxvPrefOpen() ? 'true' : 'false';
+        panel.dataset.open = (!opts.startClosed && _nxvPrefOpen()) ? 'true' : 'false';
         panel.innerHTML = '<button type="button" class="nxv-head" aria-expanded="' + panel.dataset.open + '">'
             + '<span class="nxv-ico"><i class="ph ph-sparkle"></i></span><span class="nxv-title">Visualizer' + (opts.label ? '<span class="nxv-label"> · ' + _nxvE(String(opts.label).slice(0, 60)) + '</span>' : '') + '</span>'
             + '<span class="nxv-status"></span><i class="ph ph-caret-down nxv-caret"></i></button>'
@@ -6355,6 +6380,13 @@ Use <h3>, <p>, <ul>, <li>, <blockquote>, <strong>.`
         checkHardModeReward(engContent);
         engContent = engContent.replace('[HARD_MODE_PASS]', '<div style="background:linear-gradient(135deg,rgba(0,200,0,0.2),rgba(0,150,0,0.1));padding:12px;border-radius:8px;margin-top:16px;border:2px solid #00cc00;text-align:center;"><strong style="color:#00cc00;">HARD MODE PASSED (+25 credits)</strong></div>');
         output.innerHTML = `<h3>${labels[type]}</h3>${sanitizeHTML(engContent)}`;
+        // v24.39 — Visualizer for English: plot arcs, essay structure, theme/character
+        // comparisons and sentence structure — only for ANALYSIS-style tools (never
+        // under a rewrite or a plagiarism check, where a drawing is clutter).
+        if (/^(analyze|summarize|essay-score|grammar)$/.test(type)) {
+            _autoVisualize(output, (labels[type] || type) + ': ' + (text || '').slice(0, 400), engContent, { subject: 'english / language arts — ' + type });
+        }
+        nexusTypeOut(output);
         // v19.5 — KEEP the attached image after a run. English Aid has 7 tools and
         // the natural workflow is one screenshot → Fix Grammar → Essay Scorer →
         // Summarize. Auto-clearing forced a re-paste before every tool. Staleness
@@ -6620,7 +6652,7 @@ async function analyzeBook(mode) {
     if (!promptFn) return;
     const sysPrompt = promptFn(openBookData.title, openBookData.author || 'unknown author');
 
-    output.innerHTML = `<div style="display:flex;align-items:center;gap:12px;color:var(--text-muted);"><i class="ph ph-spinner ph-spin"></i> Generating ${labels[mode]}...</div>`;
+    output.innerHTML = _nxWritingHtml('Writing the ' + labels[mode].toLowerCase() + '…');   // v24.39
 
     try {
         await streamChat({
@@ -6630,11 +6662,12 @@ async function analyzeBook(mode) {
                 { role: 'system', content: sysPrompt },
                 { role: 'user', content: `Provide the ${labels[mode]} for "${openBookData.title}".` }
             ],
-            onChunk: (delta, full) => {
-                output.innerHTML = `<h3 style="color:var(--accent);margin-bottom:12px;">${labels[mode]}</h3>` + sanitizeHTML(full.replace(/\n/g, '<br>'));
-            },
+            onChunk: () => {},   // v24.39 — written out smoothly once complete
             onDone: (full) => {
                 output.innerHTML = `<h3 style="color:var(--accent);margin-bottom:12px;">${labels[mode]}</h3>` + sanitizeHTML(full.replace(/\n/g, '<br>'));
+                // v24.39 — Visualizer for English: plot arc, character/theme comparisons
+                if (/^(summary|themes|characters)$/.test(mode)) _autoVisualize(output, labels[mode] + ' of "' + openBookData.title + '"', full, { subject: 'english / literature — ' + mode });
+                nexusTypeOut(output);
             },
             onError: (err) => { output.innerHTML = `Error: ${err.message}`; }
         });
@@ -10762,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.38';
+const NEXUS_CURRENT_VERSION = 'v24.39';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15293,7 +15326,7 @@ function _appendLearnActions(container, seed) {
 window._appendLearnActions = _appendLearnActions;
 
 // ── 1. Diagnose my work — pinpoint the exact wrong step in the student's solution ──
-const NEXUS_DIAGNOSE_PROMPT = "You are NEXUS Work Checker. A student gives you a PROBLEM and THEIR OWN attempt at solving it. Your job is NOT to just give the answer — it is to find the EXACT first place their work goes wrong and coach them there.\n\nRules:\n- Work the problem yourself, correctly and carefully. For math/science, substitute every result back into the ORIGINAL to VERIFY, and keep divisions as exact reduced fractions (never round -8/5 to -2).\n- Compare their steps to the correct path. Find the FIRST step that is wrong (or confirm every step is right).\n- Be encouraging and specific. Quote their exact wrong line. Name the mistake type (sign error, wrong formula, arithmetic slip, skipped step, misread the problem).\n- Then show the corrected step and how the rest should go, briefly.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n \"verdict\": \"correct\" | \"mistake\" | \"unclear\",\n \"headline\": \"<one encouraging sentence: either 'Your work checks out!' or where it went wrong>\",\n \"correctAnswer\": \"<the right final answer, short>\",\n \"steps\": [ {\"text\":\"<the student's step, quoted or paraphrased>\",\"status\":\"ok\"|\"wrong\"|\"fixed\",\"note\":\"<for the wrong step: why it's wrong; for a fixed step: the corrected version>\"} ],\n \"mistakeType\": \"<short label, empty string if correct>\",\n \"tip\": \"<one memory hook / how to avoid this next time>\"\n}\nMark every step 'ok' up to the first wrong one; mark that one 'wrong' with a clear note; then add 1-3 'fixed' steps showing the correct continuation. If their work is fully correct, all steps 'ok' and verdict 'correct'. If you can't read their work, verdict 'unclear' and ask for it in headline.";
+const NEXUS_DIAGNOSE_PROMPT = "You are NEXUS Work Checker. A student gives you a PROBLEM and THEIR OWN attempt at solving it. Your job is NOT to just give the answer — it is to find the EXACT first place their work goes wrong and coach them there.\n\nRules:\n- Work the problem yourself, correctly and carefully. For math/science, substitute every result back into the ORIGINAL to VERIFY, and keep divisions as exact reduced fractions (never round -8/5 to -2).\n- Compare their steps to the correct path. Find the FIRST step that is wrong (or confirm every step is right).\n- Be encouraging and specific. Quote their exact wrong line. Name the mistake type (sign error, wrong formula, arithmetic slip, skipped step, misread the problem).\n- Then show the corrected step and how the rest should go, briefly.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n \"verdict\": \"correct\" | \"mistake\" | \"unclear\",\n \"headline\": \"<one encouraging sentence: either 'Your work checks out!' or where it went wrong>\",\n \"correctAnswer\": \"<the right final answer, short>\",\n \"steps\": [ {\"text\":\"<the student's step, quoted or paraphrased>\",\"status\":\"ok\"|\"wrong\"|\"fixed\",\"note\":\"<for the wrong step: why it's wrong; for a fixed step: the corrected version>\"} ],\n \"mistakeType\": \"<short label, empty string if correct>\",\n \"why\": \"<2-3 plain sentences on the MISCONCEPTION behind the slip — what the student was probably thinking and why that idea doesn't work (empty if correct)>\",\n \"selfCheck\": \"<one quick way the student could have caught this themselves, e.g. plug the answer back in>\",\n \"tryThis\": {\"problem\":\"<ONE similar problem that targets the same mistake>\",\"answer\":\"<its short answer>\"},\n \"tip\": \"<one memory hook / how to avoid this next time>\"\n}\nMark every step 'ok' up to the first wrong one; mark that one 'wrong' with a clear note; then add 1-3 'fixed' steps showing the correct continuation. If their work is fully correct, all steps 'ok' and verdict 'correct'. If you can't read their work, verdict 'unclear' and ask for it in headline.";
 
 async function _runDiagnose() {
     var prob = (document.getElementById('diag-problem') || {}).value || '';
@@ -15327,6 +15360,10 @@ function _renderDiagnose(g) {
                 + (s.note ? '<div style="color:' + mk.c + ';font-size:0.82rem;margin-top:3px;">' + esc(s.note) + '</div>' : '') + '</div></div>';
         }).join('') + '</div>';
     }
+    // v24.39 — deeper Diagnose: the misconception behind the slip, how to self-check, and a targeted retry
+    if (g.why) h += '<div style="margin-top:12px;background:rgba(240,122,114,0.08);border:1px solid rgba(240,122,114,0.28);border-radius:10px;padding:10px 13px;font-size:0.85rem;color:#f5d6d3;line-height:1.55;">🧠 <b>Why this happens:</b> ' + esc(g.why) + '</div>';
+    if (g.selfCheck) h += '<div style="margin-top:10px;background:rgba(46,211,205,0.08);border:1px solid rgba(46,211,205,0.28);border-radius:10px;padding:10px 13px;font-size:0.85rem;color:#c9f3f1;">🔁 <b>Catch it yourself:</b> ' + esc(g.selfCheck) + '</div>';
+    if (g.tryThis && g.tryThis.problem) h += '<div style="margin-top:10px;background:rgba(0,0,0,0.25);border:1px dashed rgba(162,155,254,0.5);border-radius:10px;padding:11px 13px;"><div style="font-weight:700;color:#c7bcff;font-size:0.85rem;">✏️ Try one like it</div><div style="color:#e6e9f5;font-size:0.9rem;margin-top:5px;">' + esc(g.tryThis.problem) + '</div>' + (g.tryThis.answer ? '<details style="margin-top:6px;"><summary style="cursor:pointer;color:#8ab4ff;font-size:0.8rem;">Show answer</summary><div style="color:#8ce6bb;font-size:0.86rem;margin-top:4px;font-weight:700;">' + esc(g.tryThis.answer) + '</div></details>' : '') + '</div>';
     if (g.tip) h += '<div style="margin-top:12px;background:rgba(108,92,231,0.12);border-radius:10px;padding:10px 13px;font-size:0.84rem;color:#d6ccff;">💡 <b>Avoid it next time:</b> ' + esc(g.tip) + '</div>';
     h += '<div style="margin-top:14px;"><button class="btn-secondary" onclick="_teachMeThis(((document.getElementById(\'diag-problem\')||{}).value||\'\'))" style="width:100%;background:rgba(108,92,231,0.14);border:1px solid rgba(108,92,231,0.4);color:#c7bcff;"><i class="ph ph-chalkboard-teacher"></i> Teach me this properly</button></div>';
     return h;
@@ -15361,6 +15398,7 @@ async function _runTeachBack() {
     var concept = (document.getElementById('tb-concept') || {}).value || '';
     var expl = (document.getElementById('tb-expl') || {}).value || '';
     var out = document.getElementById('tb-output');
+    if (_tbRec) { try { _tbRec.stop(); } catch (_) {} }
     if (concept.trim().length < 2) { if (typeof showToast === 'function') showToast('What concept are you explaining?', 'warning'); return; }
     if (expl.trim().length < 15) { if (typeof showToast === 'function') showToast('Explain it in your own words first — a few sentences.', 'warning'); return; }
     if (out) out.innerHTML = _frLoad('Scoring your explanation…');
@@ -15392,7 +15430,48 @@ function _renderTeachBack(g) {
     return h;
 }
 
+// v24.39 — SPOKEN TEACH-BACK. Explaining out loud is the real Feynman technique,
+// so the student can talk instead of type; speech is transcribed into the box
+// (they can still edit it) and scored the same way.
+var _tbRec = null;
+function _tbSpeechOK() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function _tbToggleMic() {
+    var btn = document.getElementById('tb-mic'), box = document.getElementById('tb-expl');
+    if (!btn || !box) return;
+    if (_tbRec) { try { _tbRec.stop(); } catch (_) {} return; }
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { if (typeof showToast === 'function') showToast('Voice input isn\'t supported in this browser — try Chrome or Edge.', 'info'); return; }
+    var rec = new SR();
+    rec.lang = (navigator.language || 'en-US'); rec.continuous = true; rec.interimResults = true;
+    var base = box.value ? box.value.replace(/\s*$/, ' ') : '';
+    var finalTxt = '';
+    rec.onresult = function (e) {
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+            var t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalTxt += t + ' '; else interim += t;
+        }
+        box.value = (base + finalTxt + interim).replace(/\s+/g, ' ').trimStart();
+    };
+    var stop = function () {
+        _tbRec = null;
+        btn.setAttribute('aria-pressed', 'false');
+        btn.style.background = 'rgba(46,211,205,0.12)';
+        btn.querySelector('span').textContent = 'Say it out loud';
+        box.value = (base + finalTxt).replace(/\s+/g, ' ').trim();
+    };
+    rec.onend = stop;
+    rec.onerror = function (ev) { if (ev && ev.error === 'not-allowed' && typeof showToast === 'function') showToast('Microphone access was blocked — allow it to explain out loud.', 'warning'); stop(); };
+    try { rec.start(); } catch (_) { return; }
+    _tbRec = rec;
+    btn.setAttribute('aria-pressed', 'true');
+    btn.style.background = 'rgba(240,122,114,0.22)';
+    btn.querySelector('span').textContent = 'Listening… tap to stop';
+    if (typeof trackFeature === 'function') trackFeature('teach_back_voice');
+}
+window._tbToggleMic = _tbToggleMic;
 function openTeachBack(seedConcept) {
+    if (_tbRec) { try { _tbRec.stop(); } catch (_) {} }
     if (typeof _gateFeature === 'function' && !_gateFeature('learn')) return;
     if (typeof trackFeature === 'function') trackFeature('teach_back');
     var esc = _frEsc, m = _frModal('teachback-modal');
@@ -15404,7 +15483,9 @@ function openTeachBack(seedConcept) {
         + '<div style="padding:14px 20px;overflow-y:auto;">'
         + '<label style="font-size:0.76rem;color:var(--text-muted);">Concept you\'re explaining</label>'
         + '<input id="tb-concept" placeholder="e.g. Why does dividing by a negative flip the inequality?" maxlength="200" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;" value="' + esc(seedConcept || '') + '">'
-        + '<label style="font-size:0.76rem;color:var(--text-muted);display:block;margin-top:10px;">Explain it like you\'re teaching a friend</label>'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:10px;"><label style="font-size:0.76rem;color:var(--text-muted);">Explain it like you\'re teaching a friend</label>'
+        + (_tbSpeechOK() ? '<button type="button" id="tb-mic" onclick="_tbToggleMic()" aria-pressed="false" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:rgba(46,211,205,0.12);border:1px solid rgba(46,211,205,0.45);color:#7ff0ec;border-radius:999px;padding:5px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;"><i class="ph ph-microphone"></i> <span>Say it out loud</span></button>' : '')
+        + '</div>'
         + '<textarea id="tb-expl" placeholder="In your own words — no notes. Pretend your friend has never heard of it." style="width:100%;min-height:130px;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:9px;color:#fff;padding:10px 12px;font-size:0.9rem;box-sizing:border-box;resize:vertical;"></textarea>'
         + '<button class="btn-primary" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#0a938f,#2ed3cd);color:#00201f;" onclick="_runTeachBack()"><i class="ph ph-check-circle"></i> Score my explanation</button>'
         + '<div id="tb-output" style="margin-top:16px;"></div>'
@@ -15431,6 +15512,18 @@ function _coachNudges() {
     if (daysSince != null && daysSince >= 2) n.push({ icon: '⏰', sev: 3, text: 'It\'s been ' + daysSince + ' days since your last study session. A short set today restarts the momentum.', cta: 'Quick practice', fn: 'openPracticeHub' });
     if ((stats.currentStreak || 0) >= 1 && !studiedToday) n.push({ icon: '🔥', sev: 1, text: 'Your ' + stats.currentStreak + '-day streak is alive — do one thing today so you don\'t lose it.', cta: 'Keep it going', fn: 'openPracticeHub' });
     if (R.pct > 0 && R.pct < 55) n.push({ icon: '📈', sev: 2, text: 'Your readiness is at ' + R.pct + '%. Closing your review backlog is the fastest way to pull it up.', cta: 'See my plan', fn: 'openReviewQueue' });
+    // v24.39 — usage-aware: suggest ONE strong study tool the student hasn't tried yet
+    // (from the feature-usage counts the app already keeps on this device).
+    try {
+        var used = JSON.parse(localStorage.getItem('nexus_feature_counts') || '{}');
+        var tools = [
+            { k: 'teach_back', icon: '🗣️', text: 'You haven\'t tried Teach it back yet. Explaining a topic in your own words — out loud or typed — is the fastest way to find what you don\'t really know.', cta: 'Teach it back', fn: 'openTeachBack' },
+            { k: 'practice_test', icon: '📝', text: 'Try a practice test — it adapts to you, stepping up after a strong score and focusing on your weak topics.', cta: 'Start a test', fn: 'openPracticeTest' },
+            { k: 'diagnose_work', icon: '🔎', text: 'Stuck on why an answer was wrong? Diagnose my work finds the exact step that slipped and gives you one like it to retry.', cta: 'Check my work', fn: 'openDiagnose' }
+        ];
+        var pick = tools.filter(function (t) { return !used[t.k]; })[0];
+        if (pick && (n.length < 3)) n.push({ icon: pick.icon, sev: 1, text: pick.text, cta: pick.cta, fn: pick.fn });
+    } catch (_) {}
     if (!n.length) n.push({ icon: '✅', sev: 0, text: studiedToday ? 'You\'re caught up and you studied today — nice work. Want to get ahead?' : 'Nothing overdue — you\'re in good shape. Want to get ahead with a quick set?', cta: 'Get ahead', fn: 'startQuiz' });
     n.sort(function (a, b) { return b.sev - a.sev; });
     return n;
@@ -15531,17 +15624,47 @@ window._updateReviewQueueBadge = _updateReviewQueueBadge;
 const NEXUS_PTEST_PROMPT = "You are NEXUS Test Builder. Generate a focused practice test. Mix difficulty from easy to hard across the subject. Every question is clean multiple-choice with exactly 4 options and exactly one correct answer; no 'all of the above', no trick wording.\n\nReturn ONLY JSON (no prose, no markdown) in exactly this shape:\n{\n \"title\": \"<short test title>\",\n \"questions\": [ {\"q\":\"<question>\",\"choices\":[\"<A>\",\"<B>\",\"<C>\",\"<D>\"],\"answer\":<0-3 index of the correct choice>,\"topic\":\"<2-4 word subtopic>\",\"why\":\"<1 sentence why the correct answer is right>\"} ]\n}\nMake EXACTLY the requested number of questions. For math, pick numbers that work out cleanly and double-check every answer by solving it. Vary the subtopics across the test.";
 
 var _ptest = null, _ptTimer = null;
+// v24.39 — ADAPTIVE PRACTICE TESTS. Each finished test is remembered per subject
+// (score + weak topics). "Adaptive" difficulty steps up after a strong score,
+// eases off after a rough one, and aims more questions at the weak topics.
+var _PT_TIERS = ['easier', 'standard', 'harder', 'challenge'];
+function _ptHistLoad() { try { var a = JSON.parse(localStorage.getItem('nexus_ptest_history') || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+function _ptHistSave(a) { try { localStorage.setItem('nexus_ptest_history', JSON.stringify(a.slice(-40))); } catch (_) {} }
+function _ptDifficultyPlan(subject, sel) {
+    var key = String(subject || '').toLowerCase();
+    var last = _ptHistLoad().filter(function (h) { return String(h.subject || '').toLowerCase() === key; }).pop();
+    var tier = sel;
+    if (sel === 'adaptive') {
+        if (!last) tier = 'standard';
+        else {
+            var i = Math.max(0, _PT_TIERS.indexOf(last.tier || 'standard'));
+            if (last.pct >= 85) i = Math.min(_PT_TIERS.length - 1, i + 1);
+            else if (last.pct < 55) i = Math.max(0, i - 1);
+            tier = _PT_TIERS[i];
+        }
+    }
+    if (_PT_TIERS.indexOf(tier) < 0) tier = 'standard';
+    var words = { easier: 'EASIER than usual: mostly warm-up and standard questions, friendly numbers, one idea per question.', standard: 'a normal spread from easy to hard.', harder: 'HARDER than usual: mostly standard-to-hard questions with multi-step reasoning and trickier (but fair) distractors.', challenge: 'CHALLENGE level: hard, multi-step questions that combine ideas — still fair, no trick wording.' };
+    var d = 'Difficulty: ' + words[tier];
+    if (sel === 'adaptive' && last) {
+        d += ' (The student scored ' + last.pct + '% on their last ' + subject + ' test.)';
+        if (last.weak && last.weak.length) d += ' Put about HALF the questions on these weak topics: ' + last.weak.slice(0, 4).join('; ') + '.';
+    }
+    return { tier: tier, directive: d, label: sel === 'adaptive' ? ('Adaptive · ' + tier) : '' };
+}
 async function _ptGenerate() {
     var subject = (document.getElementById('pt-subject') || {}).value || 'Mixed';
     var count = parseInt((document.getElementById('pt-count') || {}).value || '10', 10);
     var level = (document.getElementById('pt-level') || {}).value || 'High school';
+    var diffSel = (document.getElementById('pt-diff') || {}).value || 'adaptive';
     var out = document.getElementById('pt-output');
-    if (out) out.innerHTML = _frLoad('Building your ' + count + '-question test…');
+    var plan = _ptDifficultyPlan(subject, diffSel);
+    if (out) out.innerHTML = _frLoad('Building your ' + count + '-question test' + (plan.label ? ' (' + plan.label.toLowerCase() + ')' : '') + '…');
     try {
-        var g = await _frAskJSON(NEXUS_PTEST_PROMPT, 'Subject/topic: ' + subject + '\nLevel: ' + level + '\nNumber of questions: ' + count, 'gpt-4o', 0.5);
+        var g = await _frAskJSON(NEXUS_PTEST_PROMPT, 'Subject/topic: ' + subject + '\nLevel: ' + level + '\nNumber of questions: ' + count + '\n' + plan.directive, 'gpt-4o', 0.5);
         var qs = (g.questions || []).slice(0, count).filter(function (q) { return q && Array.isArray(q.choices) && q.choices.length >= 2 && typeof q.answer === 'number'; });
         if (!qs.length) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t build that test — try again.</div>'; return; }
-        _ptest = { title: g.title || ('Practice: ' + subject), questions: qs, answers: new Array(qs.length).fill(-1), subject: subject, startedAt: Date.now(), durationMin: Math.max(5, Math.round(qs.length * 1.5)) };
+        _ptest = { title: g.title || ('Practice: ' + subject), questions: qs, answers: new Array(qs.length).fill(-1), subject: subject, level: level, diff: plan.tier, startedAt: Date.now(), durationMin: Math.max(5, Math.round(qs.length * 1.5)) };
         _ptRenderTest();
     } catch (e) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t build that test — try again.</div>'; }
 }
@@ -15593,6 +15716,10 @@ function _ptSubmit(auto) {
         if (!ok) wrong.push({ q: q, pick: pick });
     });
     var pct = Math.round(correct / _ptest.questions.length * 100);
+    try {   // v24.39 — remember the result so the next Adaptive test can step up / ease off
+        var weak = Object.keys(byTopic).filter(function (t) { return byTopic[t].c / byTopic[t].n < 0.67; });
+        var hist = _ptHistLoad(); hist.push({ subject: _ptest.subject, pct: pct, tier: _ptest.diff || 'standard', weak: weak, at: Date.now() }); _ptHistSave(hist);
+    } catch (_) {}
     try { if (typeof _recordMistake === 'function') wrong.forEach(function (w) { _recordMistake({ q: w.q.q, options: w.q.choices, correct: w.q.answer, why: w.q.why || '', source: 'Practice test', topic: w.q.topic || '' }); }); } catch (_) {}
     try { if (typeof updateStudyStats === 'function') updateStudyStats('problem_solved'); } catch (_) {}
     _ptRenderReport(pct, correct, byTopic, wrong, auto);
@@ -15625,7 +15752,9 @@ function _ptRenderReport(pct, correct, byTopic, wrong, auto) {
                     + (q.why ? '<div style="font-size:0.79rem;color:var(--text-muted);margin-top:4px;">' + esc(q.why) + '</div>' : '') + '</div>';
             }).join('') + '</div>';
     } else h += '<div style="margin-top:14px;text-align:center;color:#8ce6bb;font-weight:700;">🎉 Perfect — no misses!</div>';
-    h += '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-secondary" style="flex:1;" onclick="openPracticeTest()"><i class="ph ph-arrows-counter-clockwise"></i> New test</button>'
+    var _nextTier = _ptDifficultyPlan(_ptest.subject, 'adaptive').tier;
+    h += '<div style="margin-top:14px;background:rgba(108,92,231,0.10);border:1px solid rgba(108,92,231,0.35);border-radius:10px;padding:10px 13px;font-size:0.84rem;color:#d6ccff;">📈 <b>Next adaptive test:</b> ' + (_nextTier === (_ptest.diff || 'standard') ? 'stays at ' : 'moves to ') + '<b>' + _nextTier + '</b>' + (pct >= 85 ? ' — you earned a step up.' : pct < 55 ? ' — easing off to rebuild.' : ' — and it will lean on your weak topics.') + '</div>';
+    h += '<div style="display:flex;gap:8px;margin-top:14px;"><button class="btn-secondary" style="flex:1;" onclick="openPracticeTest(' + _frEsc(JSON.stringify(_ptest.subject)).replace(/"/g, '&quot;') + ')"><i class="ph ph-arrows-counter-clockwise"></i> Next test</button>'
         + (wrong.length ? '<button class="btn-primary" style="flex:1;background:linear-gradient(135deg,#f0932b,#ffbe5a);color:#201400;" onclick="document.getElementById(\'ptest-modal\').remove();openMistakeReview()"><i class="ph ph-repeat"></i> Drill my misses</button>' : '') + '</div>';
     out.innerHTML = h;
     try { out.parentNode.scrollTop = 0; } catch (_) {}
@@ -15646,6 +15775,7 @@ function openPracticeTest(seedSubject) {
         + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
         + '<label style="flex:1;min-width:150px;font-size:0.76rem;color:var(--text-muted);">Subject / topic<br><select id="pt-subject" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + subjects.map(function (s) { return '<option' + (seedSubject && s.toLowerCase() === String(seedSubject).toLowerCase() ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>'
         + '<label style="flex:1;min-width:120px;font-size:0.76rem;color:var(--text-muted);">Level<br><select id="pt-level" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + levels.map(function (l) { return '<option' + (l === 'High school' ? ' selected' : '') + '>' + l + '</option>'; }).join('') + '</select></label>'
+        + '<label style="flex:1;min-width:130px;font-size:0.76rem;color:var(--text-muted);">Difficulty<br><select id="pt-diff" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;"><option value="adaptive" selected>Adaptive</option><option value="easier">Easier</option><option value="standard">Standard</option><option value="harder">Harder</option><option value="challenge">Challenge</option></select></label>'
         + '<label style="flex:1;min-width:110px;font-size:0.76rem;color:var(--text-muted);">Questions<br><select id="pt-count" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>'
         + '</div>'
         + '<button class="btn-primary" style="width:100%;margin-top:12px;background:linear-gradient(135deg,#e84393,#fd79a8);" onclick="_ptGenerate()"><i class="ph ph-play"></i> Start test</button>'
@@ -15654,6 +15784,418 @@ function openPracticeTest(seedSubject) {
     document.body.appendChild(m);
 }
 window.openPracticeTest = openPracticeTest;
+
+// ════════════════════════════════════════════════════════════════════
+// v24.39 — A LIBRARY FOR EACH CLASS (gap board: "Uploaded notes and PDFs stay
+// organized by class, so every tool can draw on your own material").
+//   • Make classes (Biology, Algebra I…), add PDFs / .txt files / pasted notes.
+//   • Docs live on THIS device in IndexedDB (big enough for real PDFs; nothing
+//     is uploaded anywhere until the student asks a question).
+//   • Pick an ACTIVE class → every AI tool (Math, Science, Teaching Board,
+//     Companion…) quietly gets the 2-3 most relevant excerpts from that class's
+//     notes for the question being asked, and says "from your notes" when it
+//     uses them. Retrieval is simple keyword overlap, done locally.
+//   • Each doc: Make a study set · Teach me from this · Remove.
+// ════════════════════════════════════════════════════════════════════
+var _LIB_DB = 'nexus_class_library', _libChunks = {}, _libSel = '';
+function _libClasses() { try { var a = JSON.parse(localStorage.getItem('nexus_classes') || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+function _libSaveClasses(a) { try { localStorage.setItem('nexus_classes', JSON.stringify(a.slice(0, 30))); } catch (_) {} }
+function _libActive() { try { return localStorage.getItem('nexus_active_class') || ''; } catch (_) { return ''; } }
+function _libSetActive(id) { try { if (id) localStorage.setItem('nexus_active_class', id); else localStorage.removeItem('nexus_active_class'); } catch (_) {} _libRefreshCache(); }
+function _libOpen() {
+    return new Promise(function (res, rej) {
+        if (!window.indexedDB) return rej(new Error('Storage unavailable'));
+        var r = indexedDB.open(_LIB_DB, 1);
+        r.onupgradeneeded = function () { var db = r.result; if (!db.objectStoreNames.contains('docs')) { var s = db.createObjectStore('docs', { keyPath: 'id' }); s.createIndex('cls', 'cls'); } };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+    });
+}
+async function _libDocs(cls) {
+    var db = await _libOpen();
+    return new Promise(function (res) {
+        var out = [], tx = db.transaction('docs', 'readonly'), idx = tx.objectStore('docs').index('cls');
+        idx.openCursor(IDBKeyRange.only(cls)).onsuccess = function (e) { var c = e.target.result; if (c) { out.push(c.value); c.continue(); } else res(out.sort(function (a, b) { return b.added - a.added; })); };
+        tx.onerror = function () { res([]); };
+    });
+}
+async function _libPut(doc) { var db = await _libOpen(); return new Promise(function (res, rej) { var tx = db.transaction('docs', 'readwrite'); tx.objectStore('docs').put(doc); tx.oncomplete = function () { res(); }; tx.onerror = function () { rej(tx.error); }; }); }
+async function _libDel(id) { var db = await _libOpen(); return new Promise(function (res) { var tx = db.transaction('docs', 'readwrite'); tx.objectStore('docs').delete(id); tx.oncomplete = function () { res(); }; tx.onerror = function () { res(); }; }); }
+// chunk the active class's docs into ~900-char passages for keyword retrieval
+async function _libRefreshCache() {
+    var cls = _libActive(); _libChunks = {};
+    if (!cls) return;
+    try {
+        var docs = await _libDocs(cls), chunks = [];
+        docs.forEach(function (d) {
+            var t = String(d.text || '').replace(/\s+/g, ' ').trim();
+            for (var i = 0; i < t.length && chunks.length < 600; i += 800) chunks.push({ doc: d.name, text: t.slice(i, i + 900) });
+        });
+        _libChunks[cls] = chunks;
+    } catch (_) {}
+}
+var _LIB_STOP = { the: 1, and: 1, for: 1, are: 1, but: 1, not: 1, you: 1, all: 1, can: 1, her: 1, was: 1, one: 1, our: 1, out: 1, day: 1, get: 1, has: 1, him: 1, his: 1, how: 1, man: 1, new: 1, now: 1, old: 1, see: 1, two: 1, way: 1, who: 1, did: 1, its: 1, let: 1, put: 1, say: 1, she: 1, too: 1, use: 1, that: 1, with: 1, have: 1, this: 1, will: 1, your: 1, from: 1, they: 1, know: 1, want: 1, been: 1, good: 1, much: 1, some: 1, time: 1, very: 1, when: 1, come: 1, here: 1, just: 1, like: 1, long: 1, make: 1, many: 1, more: 1, only: 1, over: 1, such: 1, take: 1, than: 1, them: 1, well: 1, were: 1, what: 1, explain: 1, teach: 1, does: 1, about: 1, give: 1, help: 1, please: 1, question: 1, lesson: 1, card: 1, right: 1, amount: 1, everything: 1, important: 1, nothing: 1, padded: 1, terms: 1, types: 1, matter: 1, counts: 1, works: 1, mistakes: 1, problems: 1, practice: 1, visual: 1, subject: 1, graph: 1, diagram: 1, photo: 1, person: 1, place: 1, thing: 1, short: 1, line: 1, point: 1, include: 1, full: 1, keep: 1, topic: 1, list: 1, worked: 1, drawing: 1, procedure: 1, plots: 1, labeled: 1, structure: 1, real: 1, specific: 1, every: 1 };
+function _libTerms(s) { return String(s || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []; }
+// Synchronous (cache-based) so the fetch interceptor can use it without awaiting.
+function _libContextFor(question) {
+    try {
+        var cls = _libActive(); if (!cls) return '';
+        var chunks = _libChunks[cls]; if (!chunks || !chunks.length) return '';
+        var q = {}; _libTerms(question).forEach(function (t) { if (!_LIB_STOP[t]) q[t] = 1; });
+        var keys = Object.keys(q); if (keys.length < 1) return '';
+        var scored = chunks.map(function (c) {
+            var lc = c.text.toLowerCase(), sc = 0;
+            keys.forEach(function (k) { if (lc.indexOf(k) >= 0) sc += (k.length > 6 ? 2 : 1); });
+            return { c: c, sc: sc };
+        }).filter(function (x) { return x.sc >= 2; }).sort(function (a, b) { return b.sc - a.sc; }).slice(0, 3);
+        if (!scored.length) return '';
+        var name = ((_libClasses().filter(function (k) { return k.id === cls; })[0]) || {}).name || 'their class';
+        return "THE STUDENT'S OWN CLASS NOTES (" + name + ") — excerpts that may relate to this question. When they're relevant, base your explanation on them, match their teacher's terms and methods, and say \"from your notes\" when you use them. If they don't relate, ignore them. Never invent content that isn't in them and attribute it to their notes.\n"
+            + scored.map(function (x, i) { return '[' + (i + 1) + '] (' + x.c.doc + ') ' + x.c.text; }).join('\n');
+    } catch (_) { return ''; }
+}
+window._libContextFor = _libContextFor;
+setTimeout(_libRefreshCache, 1200);
+
+function openClassLibrary() {
+    if (typeof _gateFeature === 'function' && !_gateFeature('capture')) return;
+    if (typeof trackFeature === 'function') trackFeature('class_library');
+    var m = _frModal('library-modal');
+    m.innerHTML = '<div class="glass-panel lib-shell" role="dialog" aria-label="Class library">'
+        + '<div class="sim-head"><div style="min-width:0;"><h3><i class="ph ph-books" style="color:#a29bfe;"></i> Class library</h3><p>Keep notes and PDFs by class. Turn a class on and every NEXUS tool can use your own notes.</p></div>'
+        + '<button class="btn-icon" aria-label="Close class library" onclick="document.getElementById(\'library-modal\').remove()"><i class="ph ph-x"></i></button></div>'
+        + '<div class="lib-body"><aside class="lib-classes" id="lib-classes"></aside><section class="lib-docs" id="lib-docs"></section></div></div>';
+    document.body.appendChild(m);
+    var cls = _libClasses();
+    _libSel = _libActive() || (cls[0] && cls[0].id) || '';
+    _libRenderClasses(); _libRenderDocs();
+}
+window.openClassLibrary = openClassLibrary;
+function _libRenderClasses() {
+    var el = document.getElementById('lib-classes'); if (!el) return;
+    var cls = _libClasses(), act = _libActive();
+    el.innerHTML = '<div class="lib-k">Your classes</div>'
+        + (cls.length ? cls.map(function (c) {
+            return '<button type="button" class="lib-class' + (c.id === _libSel ? ' is-sel' : '') + '" onclick="_libSel=\'' + c.id + '\';_libRenderClasses();_libRenderDocs();">'
+                + '<span class="lib-dot" style="background:' + (c.color || '#8f80f4') + '"></span><span class="lib-cn">' + _frEsc(c.name) + '</span>' + (c.id === act ? '<span class="lib-on">ON</span>' : '') + '</button>';
+        }).join('') : '<p class="lib-empty">No classes yet.</p>')
+        + '<form class="lib-add" onsubmit="event.preventDefault();_libAddClass();"><input id="lib-new-class" maxlength="40" placeholder="Add a class (e.g. Biology)" aria-label="New class name"><button type="submit" aria-label="Add class"><i class="ph ph-plus"></i></button></form>';
+}
+function _libAddClass() {
+    var inp = document.getElementById('lib-new-class'); var name = inp ? inp.value.trim() : '';
+    if (!name) return;
+    var colors = ['#8f80f4', '#00cec9', '#ffbe5a', '#ff8fa3', '#45c78d', '#74b9ff', '#fd79a8'];
+    var cls = _libClasses();
+    if (cls.some(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })) { if (typeof showToast === 'function') showToast('You already have that class.', 'info'); return; }
+    var c = { id: 'c_' + Date.now().toString(36), name: name.slice(0, 40), color: colors[cls.length % colors.length] };
+    cls.push(c); _libSaveClasses(cls); _libSel = c.id;
+    _libRenderClasses(); _libRenderDocs();
+}
+window._libAddClass = _libAddClass;
+async function _libRenderDocs() {
+    var el = document.getElementById('lib-docs'); if (!el) return;
+    var c = _libClasses().filter(function (k) { return k.id === _libSel; })[0];
+    if (!c) { el.innerHTML = '<div class="lib-blank"><i class="ph ph-books"></i><p>Add your first class on the left, then drop in your notes.</p></div>'; return; }
+    var on = _libActive() === c.id;
+    var docs = []; try { docs = await _libDocs(c.id); } catch (_) {}
+    el.innerHTML = '<div class="lib-top"><h4>' + _frEsc(c.name) + '</h4>'
+        + '<label class="lib-toggle"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="_libSetActive(this.checked?\'' + c.id + '\':\'\');_libRenderClasses();_libRenderDocs();"> <span>Use these notes in every tool</span></label></div>'
+        + (on ? '<p class="lib-note"><i class="ph ph-check-circle"></i> On — when you ask NEXUS anything, it checks these notes first and tells you when it uses them.</p>' : '')
+        + '<div class="lib-addrow"><label class="btn-secondary lib-file"><i class="ph ph-file-arrow-up"></i> Add PDF / .txt<input type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple style="display:none;" onchange="_libAddFiles(this)"></label>'
+        + '<button type="button" class="btn-secondary" onclick="_libPasteToggle()"><i class="ph ph-clipboard-text"></i> Paste notes</button><span id="lib-status" class="lib-status" aria-live="polite"></span></div>'
+        + '<div id="lib-paste" hidden class="lib-paste"><input id="lib-paste-name" maxlength="60" placeholder="Title (e.g. Ch. 4 notes)" aria-label="Notes title"><textarea id="lib-paste-text" placeholder="Paste your notes here" aria-label="Notes text"></textarea><button type="button" class="btn-primary" onclick="_libSavePaste()"><i class="ph ph-floppy-disk"></i> Save to ' + _frEsc(c.name) + '</button></div>'
+        + (docs.length ? '<div class="lib-list">' + docs.map(function (d) {
+            return '<div class="lib-doc"><div class="lib-di">' + (d.kind === 'pdf' ? '📕' : '📝') + '</div><div class="lib-dm"><div class="lib-dn">' + _frEsc(d.name) + '</div><div class="lib-ds">' + (d.chars || 0).toLocaleString() + ' characters · added ' + new Date(d.added).toLocaleDateString() + '</div></div>'
+                + '<div class="lib-da"><button type="button" onclick="_libStudySet(\'' + d.id + '\')" title="Make a study set"><i class="ph ph-cards"></i><span>Study set</span></button>'
+                + '<button type="button" onclick="_libTeach(\'' + d.id + '\')" title="Teach me from this"><i class="ph ph-chalkboard-teacher"></i><span>Teach me</span></button>'
+                + '<button type="button" class="lib-del" onclick="_libRemove(this,\'' + d.id + '\')" aria-label="Remove ' + _frEsc(d.name) + '"><i class="ph ph-trash"></i></button></div></div>';
+        }).join('') + '</div>' : '<div class="lib-blank small"><p>No notes in this class yet. Add a PDF or paste notes above.</p></div>')
+        + '<div class="lib-foot"><button type="button" class="lib-delclass" onclick="_libDeleteClass(this,\'' + c.id + '\')">Delete this class</button><span>Notes stay on this device.</span></div>';
+}
+function _libPasteToggle() { var p = document.getElementById('lib-paste'); if (p) { p.hidden = !p.hidden; if (!p.hidden) { var t = document.getElementById('lib-paste-name'); if (t) t.focus(); } } }
+window._libPasteToggle = _libPasteToggle;
+async function _libSavePaste() {
+    var name = (document.getElementById('lib-paste-name') || {}).value || '', text = (document.getElementById('lib-paste-text') || {}).value || '';
+    if (text.trim().length < 20) { if (typeof showToast === 'function') showToast('Paste a bit more text first.', 'warning'); return; }
+    await _libPut({ id: 'd_' + Date.now().toString(36), cls: _libSel, name: (name.trim() || 'Pasted notes').slice(0, 60), kind: 'text', text: text.slice(0, 400000), chars: text.length, added: Date.now() });
+    if (_libActive() === _libSel) _libRefreshCache();
+    _libRenderDocs();
+}
+window._libSavePaste = _libSavePaste;
+async function _libAddFiles(input) {
+    var files = [].slice.call(input.files || []); if (!files.length) return;
+    var st = document.getElementById('lib-status');
+    for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        if (st) st.textContent = 'Reading “' + f.name + '”…';
+        try {
+            var text = '', kind = 'text';
+            if (/\.txt$|text\/plain/i.test(f.name + f.type)) text = await f.text();
+            else {
+                kind = 'pdf';
+                var lib = await _loadPdfJs(), pdf = await lib.getDocument({ data: await f.arrayBuffer() }).promise, out = [];
+                for (var p = 1; p <= Math.min(pdf.numPages, 80); p++) { var pg = await pdf.getPage(p); var tc = await pg.getTextContent(); out.push(tc.items.map(function (it) { return it.str; }).join(' ')); }
+                text = out.join('\n');
+            }
+            if (!text.trim()) { if (st) st.textContent = '⚠ “' + f.name + '” has no selectable text (scanned?). Try pasting it.'; continue; }
+            await _libPut({ id: 'd_' + Date.now().toString(36) + i, cls: _libSel, name: f.name.replace(/\.(pdf|txt)$/i, '').slice(0, 60), kind: kind, text: text.slice(0, 400000), chars: text.length, added: Date.now() });
+            if (st) st.textContent = '✓ Added ' + f.name;
+        } catch (e) { if (st) st.textContent = '⚠ Couldn\'t read ' + f.name; }
+    }
+    if (_libActive() === _libSel) _libRefreshCache();
+    _libRenderDocs();
+}
+window._libAddFiles = _libAddFiles;
+async function _libGet(id) { var docs = await _libDocs(_libSel); return docs.filter(function (d) { return d.id === id; })[0]; }
+async function _libStudySet(id) {
+    var d = await _libGet(id); if (!d) return;
+    var lm = document.getElementById('library-modal'); if (lm) lm.remove();
+    openStudyUpload();
+    _studyUploadText = d.text; _studyUploadName = d.name;
+    var fn = document.getElementById('studyupload-filename'); if (fn) fn.textContent = '✓ ' + d.name + ' (from your class library)';
+}
+window._libStudySet = _libStudySet;
+async function _libTeach(id) {
+    var d = await _libGet(id); if (!d) return;
+    var lm = document.getElementById('library-modal'); if (lm) lm.remove();
+    if (_libActive() !== _libSel) _libSetActive(_libSel);   // so the lesson can pull from these notes
+    var gist = String(d.text || '').replace(/\s+/g, ' ').slice(0, 200);
+    if (typeof switchTab === 'function') switchTab('teach');
+    setTimeout(function () { if (typeof startTeachingTopic === 'function') startTeachingTopic('the main ideas in my notes "' + d.name + '" (' + gist + '…)'); }, 200);
+}
+window._libTeach = _libTeach;
+async function _libRemove(btn, id) {
+    if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.classList.add('is-sure'); btn.innerHTML = 'Remove?'; setTimeout(function () { if (btn.isConnected) { btn.dataset.sure = ''; btn.classList.remove('is-sure'); btn.innerHTML = '<i class="ph ph-trash"></i>'; } }, 3000); return; }
+    await _libDel(id); if (_libActive() === _libSel) _libRefreshCache(); _libRenderDocs();
+}
+window._libRemove = _libRemove;
+async function _libDeleteClass(btn, cid) {
+    if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; btn.textContent = 'Tap again to delete the class and its notes'; setTimeout(function () { if (btn.isConnected) { btn.dataset.sure = ''; btn.textContent = 'Delete this class'; } }, 3500); return; }
+    try { var docs = await _libDocs(cid); for (var i = 0; i < docs.length; i++) await _libDel(docs[i].id); } catch (_) {}
+    _libSaveClasses(_libClasses().filter(function (c) { return c.id !== cid; }));
+    if (_libActive() === cid) _libSetActive('');
+    var rest = _libClasses(); _libSel = rest[0] ? rest[0].id : '';
+    _libRenderClasses(); _libRenderDocs();
+}
+window._libDeleteClass = _libDeleteClass;
+
+// ════════════════════════════════════════════════════════════════════
+// v24.39 — DRAG-TO-EXPLORE SCIENCE SIMULATIONS (gap board: "Pendulums, circuits
+// and reactions students can play with"). Three hands-on labs in one modal:
+//   • Pendulum   — drag the bob to any angle and let go; change length & planet.
+//   • Circuit    — Ohm's law: slide voltage/resistance, watch current flow and
+//                  the bulb brighten; I = V / R and P = V × I update live.
+//   • Projectile — drag the launcher to aim (direction = angle, length = speed);
+//                  every launch leaves a faded trail so shots can be compared.
+// Real physics, real units, all drawn on canvas (no libraries). Gated by the
+// Visual Tools module. Stops animating the moment the modal closes.
+// ════════════════════════════════════════════════════════════════════
+var _simState = null;
+var _SIM_PLANETS = [{ n: 'Earth', g: 9.81 }, { n: 'Moon', g: 1.62 }, { n: 'Mars', g: 3.71 }, { n: 'Jupiter', g: 24.79 }];
+function openSimulations(which) {
+    if (typeof _gateFeature === 'function' && !_gateFeature('visual')) return;
+    if (typeof trackFeature === 'function') trackFeature('science_sims');
+    var m = _frModal('sims-modal');
+    var tabs = [['pendulum', 'ph-clock-clockwise', 'Pendulum'], ['circuit', 'ph-lightning', 'Circuit'], ['projectile', 'ph-paper-plane-tilt', 'Projectile']];
+    m.innerHTML = '<div class="glass-panel sim-shell" role="dialog" aria-label="Science simulations">'
+        + '<div class="sim-head"><div style="min-width:0;"><h3><i class="ph ph-flask"></i> Explore it — science simulations</h3><p>Drag, slide and launch. The numbers update live with the real formulas.</p></div>'
+        + '<button class="btn-icon" aria-label="Close simulations" onclick="_simClose()"><i class="ph ph-x"></i></button></div>'
+        + '<div class="sim-tabs" role="tablist">' + tabs.map(function (t) { return '<button type="button" role="tab" class="sim-tab" data-sim="' + t[0] + '" onclick="_simShow(\'' + t[0] + '\')"><i class="ph ' + t[1] + '"></i> ' + t[2] + '</button>'; }).join('') + '</div>'
+        + '<div class="sim-body"><div class="sim-stage"><canvas id="sim-canvas" aria-label="Simulation canvas"></canvas></div><div id="sim-controls" class="sim-controls"></div><div id="sim-read" class="sim-read" aria-live="polite"></div></div>'
+        + '</div>';
+    m.onclick = function (e) { if (e.target === m) _simClose(); };
+    document.body.appendChild(m);
+    _simShow(which && /^(pendulum|circuit|projectile)$/.test(which) ? which : 'pendulum');
+}
+window.openSimulations = openSimulations;
+function _simClose() { if (_simState) _simState.stop = true; _simState = null; var m = document.getElementById('sims-modal'); if (m) m.remove(); }
+window._simClose = _simClose;
+function _simShow(kind) {
+    if (_simState) _simState.stop = true;
+    document.querySelectorAll('#sims-modal .sim-tab').forEach(function (b) { var on = b.getAttribute('data-sim') === kind; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+    var cv = document.getElementById('sim-canvas'); if (!cv) return;
+    var stage = cv.parentElement, W = Math.min(680, Math.max(280, stage.clientWidth || 640)), H = Math.round(Math.min(340, W * 0.56));
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    var ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var st = { kind: kind, stop: false, W: W, H: H, ctx: ctx, cv: cv };
+    _simState = st;
+    cv.onpointerdown = cv.onpointermove = cv.onpointerup = cv.onpointerleave = null;
+    if (kind === 'pendulum') _simPendulum(st); else if (kind === 'circuit') _simCircuit(st); else _simProjectile(st);
+    var last = performance.now();
+    (function loop(now) {
+        if (st.stop || !document.getElementById('sim-canvas')) return;
+        var dt = Math.min(0.033, (now - last) / 1000); last = now;
+        try { st.step(dt); st.draw(); } catch (_) {}
+        requestAnimationFrame(loop);
+    })(last);
+}
+window._simShow = _simShow;
+function _simSlider(id, label, min, max, step, val, unit) {
+    return '<label class="sim-slider"><span class="sim-sl-top"><span>' + label + '</span><b id="' + id + '-v">' + val + ' ' + unit + '</b></span>'
+        + '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + val + '" aria-label="' + label + '"></label>';
+}
+function _simBind(id, unit, fn, digits) {
+    var el = document.getElementById(id), out = document.getElementById(id + '-v'); if (!el) return;
+    var upd = function () { var v = parseFloat(el.value); if (out) out.textContent = (digits != null ? v.toFixed(digits) : v) + ' ' + unit; fn(v); };
+    el.oninput = upd; upd();
+}
+function _simPlanetSelect(id) {
+    return '<label class="sim-slider"><span class="sim-sl-top"><span>Planet</span></span><select id="' + id + '" class="sim-select" aria-label="Planet gravity">'
+        + _SIM_PLANETS.map(function (p, i) { return '<option value="' + i + '">' + p.n + ' (g = ' + p.g + ' m/s²)</option>'; }).join('') + '</select></label>';
+}
+function _simPt(st, e) { var r = st.cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * (st.W / r.width), y: (e.clientY - r.top) * (st.H / r.height) }; }
+function _simGrid(ctx, W, H) {
+    ctx.fillStyle = '#0d0f22'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(143,128,244,0.08)'; ctx.lineWidth = 1;
+    for (var x = 0; x < W; x += 28) { ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+    for (var y = 0; y < H; y += 28) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+}
+
+// ── Pendulum ──
+function _simPendulum(st) {
+    var p = { L: 1.5, g: 9.81, th: 0.6, w: 0, damp: false, drag: false, t: 0, lastCross: null, measured: null, prevTh: 0.6 };
+    document.getElementById('sim-controls').innerHTML = _simSlider('sim-len', 'String length', 0.3, 3, 0.1, 1.5, 'm') + _simPlanetSelect('sim-planet')
+        + '<label class="sim-check"><input type="checkbox" id="sim-damp"> Air resistance</label>'
+        + '<p class="sim-hint"><i class="ph ph-hand-pointing"></i> Drag the ball to pull it back, then let go.</p>';
+    _simBind('sim-len', 'm', function (v) { p.L = v; p.measured = null; }, 1);
+    var pl = document.getElementById('sim-planet'); pl.onchange = function () { p.g = _SIM_PLANETS[+pl.value].g; p.measured = null; };
+    var dm = document.getElementById('sim-damp'); dm.onchange = function () { p.damp = dm.checked; };
+    var pivot = function () { return { x: st.W / 2, y: 26 }; };
+    var scale = function () { return (st.H - 70) / 3; };   // px per metre (3 m fits)
+    var bob = function () { var pv = pivot(), r = p.L * scale(); return { x: pv.x + r * Math.sin(p.th), y: pv.y + r * Math.cos(p.th) }; };
+    st.cv.onpointerdown = function (e) { var q = _simPt(st, e), b = bob(); if (Math.hypot(q.x - b.x, q.y - b.y) < 34) { p.drag = true; st.cv.setPointerCapture(e.pointerId); } };
+    st.cv.onpointermove = function (e) { if (!p.drag) return; var q = _simPt(st, e), pv = pivot(); p.th = Math.max(-1.45, Math.min(1.45, Math.atan2(q.x - pv.x, Math.max(1, q.y - pv.y)))); p.w = 0; p.measured = null; p.lastCross = null; };
+    st.cv.onpointerup = st.cv.onpointerleave = function () { p.drag = false; };
+    st.step = function (dt) {
+        if (p.drag) return;
+        var sub = 4, h = dt / sub;
+        for (var i = 0; i < sub; i++) {
+            var a = -(p.g / p.L) * Math.sin(p.th) - (p.damp ? 0.35 * p.w : 0);
+            p.w += a * h; p.th += p.w * h; p.t += h;
+            if (p.prevTh < 0 && p.th >= 0 && p.w > 0) { if (p.lastCross != null) p.measured = p.t - p.lastCross; p.lastCross = p.t; }
+            p.prevTh = p.th;
+        }
+    };
+    st.draw = function () {
+        var c = st.ctx, W = st.W, H = st.H; _simGrid(c, W, H);
+        var pv = pivot(), b = bob(), r = p.L * scale();
+        c.strokeStyle = 'rgba(162,155,254,0.18)'; c.setLineDash([4, 5]); c.beginPath(); c.arc(pv.x, pv.y, r, Math.PI / 2 - 1.45, Math.PI / 2 + 1.45); c.stroke(); c.setLineDash([]);
+        c.fillStyle = '#3b3570'; c.fillRect(pv.x - 46, pv.y - 8, 92, 6);
+        c.strokeStyle = '#cfcaf0'; c.lineWidth = 2; c.beginPath(); c.moveTo(pv.x, pv.y); c.lineTo(b.x, b.y); c.stroke();
+        var grd = c.createRadialGradient(b.x - 5, b.y - 6, 2, b.x, b.y, 18); grd.addColorStop(0, '#9ff7f4'); grd.addColorStop(1, '#00a9a4');
+        c.fillStyle = grd; c.beginPath(); c.arc(b.x, b.y, 16, 0, Math.PI * 2); c.fill();
+        if (p.drag || Math.abs(p.th) > 0.05) { c.fillStyle = '#ffbe5a'; c.font = '600 12px Figtree, Inter, sans-serif'; c.fillText(Math.round(p.th * 180 / Math.PI) + '°', pv.x + 8, pv.y + 34); }
+        var T = 2 * Math.PI * Math.sqrt(p.L / p.g), v = Math.abs(p.w * p.L);
+        document.getElementById('sim-read').innerHTML = '<div class="sim-formula">T = 2π √(L / g) = 2π √(' + p.L.toFixed(1) + ' / ' + p.g + ') ≈ <b>' + T.toFixed(2) + ' s</b></div>'
+            + '<div class="sim-stats"><span>Speed <b>' + v.toFixed(2) + ' m/s</b></span><span>Measured period <b>' + (p.measured ? p.measured.toFixed(2) + ' s' : '—') + '</b></span></div>'
+            + '<p class="sim-why">Longer string → slower swing. Stronger gravity → faster. The mass doesn\'t matter at all — try the Moon.</p>';
+    };
+}
+
+// ── Circuit (Ohm's law) ──
+function _simCircuit(st) {
+    var k = { V: 6, R: 12, phase: 0 };
+    document.getElementById('sim-controls').innerHTML = _simSlider('sim-v', 'Battery voltage', 1, 12, 0.5, 6, 'V') + _simSlider('sim-r', 'Resistance', 1, 60, 1, 12, 'Ω')
+        + '<p class="sim-hint"><i class="ph ph-hand-pointing"></i> Drag the sliders — watch the electrons and the bulb.</p>';
+    _simBind('sim-v', 'V', function (v) { k.V = v; }, 1);
+    _simBind('sim-r', 'Ω', function (v) { k.R = v; });
+    st.step = function (dt) { k.phase += dt * (k.V / k.R) * 90; };
+    st.draw = function () {
+        var c = st.ctx, W = st.W, H = st.H; _simGrid(c, W, H);
+        var x0 = W * 0.16, x1 = W * 0.84, y0 = H * 0.2, y1 = H * 0.8, I = k.V / k.R, P = k.V * I;
+        // wire loop
+        c.strokeStyle = '#6c5ce7'; c.lineWidth = 4; c.lineJoin = 'round'; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
+        // electrons flowing around the loop (conventional current shown clockwise)
+        var per = 2 * ((x1 - x0) + (y1 - y0)), n = 22;
+        for (var i = 0; i < n; i++) {
+            var d = ((i / n) * per + k.phase) % per, ex, ey;
+            if (d < x1 - x0) { ex = x0 + d; ey = y0; } else if ((d -= x1 - x0) < y1 - y0) { ex = x1; ey = y0 + d; } else if ((d -= y1 - y0) < x1 - x0) { ex = x1 - d; ey = y1; } else { d -= x1 - x0; ex = x0; ey = y1 - d; }
+            c.fillStyle = '#7ff0ec'; c.beginPath(); c.arc(ex, ey, 3.2, 0, Math.PI * 2); c.fill();
+        }
+        // battery (left side)
+        var by = (y0 + y1) / 2; c.fillStyle = '#0d0f22'; c.fillRect(x0 - 16, by - 30, 32, 60);
+        c.strokeStyle = '#ffbe5a'; c.lineWidth = 4; c.beginPath(); c.moveTo(x0 - 16, by - 8); c.lineTo(x0 + 16, by - 8); c.stroke();
+        c.lineWidth = 2; c.beginPath(); c.moveTo(x0 - 9, by + 8); c.lineTo(x0 + 9, by + 8); c.stroke();
+        c.fillStyle = '#ffd591'; c.font = '700 12px Figtree, Inter, sans-serif'; c.fillText(k.V.toFixed(1) + ' V', x0 + 22, by + 4);
+        // resistor (top) — zigzag
+        var rx = (x0 + x1) / 2; c.fillStyle = '#0d0f22'; c.fillRect(rx - 44, y0 - 12, 88, 24);
+        c.strokeStyle = '#ff8fa3'; c.lineWidth = 3; c.beginPath(); c.moveTo(rx - 44, y0);
+        for (var z = 0; z < 8; z++) c.lineTo(rx - 44 + (z + 0.5) * 11, y0 + (z % 2 ? 9 : -9));
+        c.lineTo(rx + 44, y0); c.stroke();
+        c.fillStyle = '#ffb3c1'; c.fillText(k.R + ' Ω', rx - 14, y0 - 18);
+        // bulb (right side) — glow scales with power
+        var bx = x1, gy = by, glow = Math.min(1, P / 40);
+        var g2 = c.createRadialGradient(bx, gy, 4, bx, gy, 30 + glow * 60); g2.addColorStop(0, 'rgba(255,230,140,' + (0.25 + glow * 0.75) + ')'); g2.addColorStop(1, 'rgba(255,200,80,0)');
+        c.fillStyle = g2; c.beginPath(); c.arc(bx, gy, 30 + glow * 60, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255,240,190,' + (0.35 + glow * 0.65) + ')'; c.beginPath(); c.arc(bx, gy, 15, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#ffe9a8'; c.lineWidth = 2; c.stroke();
+        document.getElementById('sim-read').innerHTML = '<div class="sim-formula">I = V / R = ' + k.V.toFixed(1) + ' / ' + k.R + ' = <b>' + I.toFixed(2) + ' A</b></div>'
+            + '<div class="sim-stats"><span>Power to the bulb <b>P = V × I = ' + P.toFixed(1) + ' W</b></span></div>'
+            + '<p class="sim-why">More voltage pushes more current. More resistance chokes it. Double the voltage and the current doubles — that straight-line link is Ohm\'s law.</p>';
+    };
+}
+
+// ── Projectile ──
+function _simProjectile(st) {
+    var j = { ang: 45, v: 18, g: 9.81, ball: null, trails: [], aiming: false };
+    document.getElementById('sim-controls').innerHTML = _simSlider('sim-ang', 'Launch angle', 5, 85, 1, 45, '°') + _simSlider('sim-spd', 'Launch speed', 5, 30, 0.5, 18, 'm/s') + _simPlanetSelect('sim-pplanet')
+        + '<div class="sim-btns"><button type="button" class="sim-go" id="sim-launch"><i class="ph ph-rocket-launch"></i> Launch</button><button type="button" class="sim-ghost" id="sim-clear">Clear trails</button></div>'
+        + '<p class="sim-hint"><i class="ph ph-hand-pointing"></i> Or drag from the launcher to aim — the arrow\'s length is the speed.</p>';
+    var sync = function () { var a = document.getElementById('sim-ang'), s = document.getElementById('sim-spd'); if (a) { a.value = Math.round(j.ang); a.oninput(); } if (s) { s.value = (Math.round(j.v * 2) / 2); s.oninput(); } };
+    _simBind('sim-ang', '°', function (v) { j.ang = v; });
+    _simBind('sim-spd', 'm/s', function (v) { j.v = v; }, 1);
+    var pp = document.getElementById('sim-pplanet'); pp.onchange = function () { j.g = _SIM_PLANETS[+pp.value].g; };
+    var origin = function () { return { x: 34, y: st.H - 26 }; };
+    var range = function () { return Math.max(10, (30 * 30) / 9.81 * 1.05); };   // world width (m) at max speed on Earth
+    var sc = function () { return (st.W - 60) / Math.max(range(), (j.v * j.v / j.g) * 1.05); };
+    var launch = function () {
+        var a = j.ang * Math.PI / 180;
+        if (j.ball && j.ball.pts.length > 1) j.trails.push(j.ball.pts.slice());
+        if (j.trails.length > 4) j.trails.shift();
+        j.ball = { x: 0, y: 0, vx: j.v * Math.cos(a), vy: j.v * Math.sin(a), t: 0, pts: [[0, 0]], done: false, maxY: 0, g: j.g };
+    };
+    document.getElementById('sim-launch').onclick = launch;
+    document.getElementById('sim-clear').onclick = function () { j.trails = []; j.ball = null; };
+    st.cv.onpointerdown = function (e) { var q = _simPt(st, e), o = origin(); if (Math.hypot(q.x - o.x, q.y - o.y) < 90) { j.aiming = true; st.cv.setPointerCapture(e.pointerId); st.cv.onpointermove(e); } };
+    st.cv.onpointermove = function (e) {
+        if (!j.aiming) return; var q = _simPt(st, e), o = origin(), dx = q.x - o.x, dy = o.y - q.y;
+        j.ang = Math.max(5, Math.min(85, Math.atan2(Math.max(1, dy), Math.max(1, dx)) * 180 / Math.PI));
+        j.v = Math.max(5, Math.min(30, Math.hypot(dx, dy) / 5)); sync();
+    };
+    st.cv.onpointerup = st.cv.onpointerleave = function () { if (j.aiming) { j.aiming = false; launch(); } };
+    st.step = function (dt) {
+        var b = j.ball; if (!b || b.done) return;
+        var sub = 4, h = dt * 1.6 / sub;   // 1.6× real time so long shots don't drag
+        for (var i = 0; i < sub && !b.done; i++) {
+            b.vy -= b.g * h; b.x += b.vx * h; b.y += b.vy * h; b.t += h; b.maxY = Math.max(b.maxY, b.y);
+            if (b.y <= 0 && b.t > 0.02) { b.y = 0; b.done = true; }
+        }
+        b.pts.push([b.x, b.y]);
+    };
+    st.draw = function () {
+        var c = st.ctx, W = st.W, H = st.H; _simGrid(c, W, H);
+        var o = origin(), s = sc();
+        c.fillStyle = '#1a1838'; c.fillRect(0, o.y, W, H - o.y);
+        c.strokeStyle = 'rgba(162,155,254,0.35)'; c.beginPath(); c.moveTo(0, o.y + 0.5); c.lineTo(W, o.y + 0.5); c.stroke();
+        c.fillStyle = 'rgba(207,202,240,0.55)'; c.font = '10px Figtree, Inter, sans-serif';
+        var tick = s * 10 > 40 ? 10 : 20; for (var m = tick; m * s < W - 40; m += tick) { var tx = o.x + m * s; c.fillRect(tx, o.y, 1, 5); c.fillText(m + ' m', tx - 8, o.y + 16); }
+        j.trails.forEach(function (tr, ti) { c.strokeStyle = 'rgba(162,155,254,' + (0.18 + ti * 0.06) + ')'; c.lineWidth = 2; c.beginPath(); tr.forEach(function (pt, k2) { var X = o.x + pt[0] * s, Y = o.y - pt[1] * s; if (k2) c.lineTo(X, Y); else c.moveTo(X, Y); }); c.stroke(); });
+        var a = j.ang * Math.PI / 180, len = j.v * 5;
+        c.strokeStyle = '#ffbe5a'; c.lineWidth = 3; c.beginPath(); c.moveTo(o.x, o.y); c.lineTo(o.x + Math.cos(a) * len, o.y - Math.sin(a) * len); c.stroke();
+        c.fillStyle = '#ffbe5a'; c.beginPath(); c.arc(o.x + Math.cos(a) * len, o.y - Math.sin(a) * len, 4, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#6c5ce7'; c.beginPath(); c.arc(o.x, o.y, 11, Math.PI, 0); c.fill();
+        var b = j.ball;
+        if (b) {
+            c.strokeStyle = '#00cec9'; c.lineWidth = 2.5; c.beginPath(); b.pts.forEach(function (pt, k2) { var X = o.x + pt[0] * s, Y = o.y - pt[1] * s; if (k2) c.lineTo(X, Y); else c.moveTo(X, Y); }); c.stroke();
+            c.fillStyle = '#9ff7f4'; c.beginPath(); c.arc(o.x + b.x * s, o.y - b.y * s, 7, 0, Math.PI * 2); c.fill();
+        }
+        var R = j.v * j.v * Math.sin(2 * a) / j.g, Hm = Math.pow(j.v * Math.sin(a), 2) / (2 * j.g), T = 2 * j.v * Math.sin(a) / j.g;
+        document.getElementById('sim-read').innerHTML = '<div class="sim-formula">Range = v² sin(2θ) / g = <b>' + R.toFixed(1) + ' m</b></div>'
+            + '<div class="sim-stats"><span>Max height <b>' + Hm.toFixed(1) + ' m</b></span><span>Time in the air <b>' + T.toFixed(2) + ' s</b></span>' + (b && b.done ? '<span>Landed at <b>' + b.x.toFixed(1) + ' m</b></span>' : '') + '</div>'
+            + '<p class="sim-why">45° goes farthest on flat ground. 30° and 60° land in the SAME spot — launch both and compare the trails.</p>';
+    };
+}
 
 // ════════════════════════════════════════════════════════════════════
 // v23.3 — SPACED REVIEW OF LESSONS (Chase request). Every Teaching Board topic
@@ -16562,9 +17104,9 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
         ];
 
         // v10.7 — STREAM the science response
-        output.innerHTML = '<div><span class="streaming-content"></span><span class="streaming-cursor">▍</span></div>';
+        output.innerHTML = '<div>' + _nxWritingHtml('Working it out…') + '<span class="streaming-content" hidden></span></div>';   // v24.39
         const contentEl = output.querySelector('.streaming-content');
-        const cursorEl = output.querySelector('.streaming-cursor');
+        const cursorEl = null;
         // v24.13 — same "have both" routing as Math: computational science (numbers,
         // formulas, stoichiometry, physics quantities…) uses the accurate gpt-4o at a
         // low temperature; conceptual questions ("what is photosynthesis") use the fast
@@ -16578,7 +17120,7 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
             messages: _scienceTutorTurns,
             max_tokens: 6000,
             temperature: _sciCompute ? 0.2 : 0.7,
-            onChunk: (delta, full) => { contentEl.textContent = stripHtmlForStream(full); },
+            onChunk: () => {},   // v24.39 — the finished answer types itself out below
             onDone: (full) => {
                 if (cursorEl) cursorEl.remove();
                 let answer = full;
@@ -16594,6 +17136,7 @@ VIBE: Enthusiastic and curious, like a science teacher who genuinely loves this 
                 appendTutorAnswerBox(output, 'science');
                 _appendLearnActions(output, input);
                 _autoVisualize(output, input, answer, { subject: 'science' });   // v24.37 — automatic drop-down visualizer, at the bottom
+                nexusTypeOut(output);   // v24.39 — write the answer out smoothly
                 addToHistory('science', input || '[Image analysis]', answer, scienceImageBase64 || null);
                 clearScienceImage();
             },
@@ -16853,6 +17396,7 @@ ACCURACY: If you are uncertain about a specific date or detail, say so explicitl
         outElem.innerHTML = imgHtml + content;
         // v24.37 — automatic drop-down visualizer (timelines, comparisons, flows…).
         _autoVisualize(outElem, query, content, { subject: 'history / social studies', shown: imgHtml ? ['photo'] : [] });
+        nexusTypeOut(outElem);   // v24.39 — write the answer out smoothly
 
         // v19.1 — if the output lives inside a collapsed <details> (Region
         // Explorer), open it and scroll it into view. Quick-chip clicks loaded
@@ -18892,9 +19436,11 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
         ];
 
         // v10.7 — STREAM the math response so it types in live
-        output.innerHTML = '<div class="streaming-math"><span class="streaming-content"></span><span class="streaming-cursor">▍</span></div>';
+        // v24.39 — smooth everywhere: a calm "working it out" indicator, then the
+        // finished answer writes itself out (no raw-text flash, no sudden pop-in).
+        output.innerHTML = '<div class="streaming-math">' + _nxWritingHtml('Working it out…') + '<span class="streaming-content" hidden></span></div>';
         const contentEl = output.querySelector('.streaming-content');
-        const cursorEl = output.querySelector('.streaming-cursor');
+        const cursorEl = null;
         let final = '';
         // v24.12 — HAVE BOTH speed AND accuracy by routing on what the question needs.
         // Accuracy is the priority: anything that actually COMPUTES (equations, numbers,
@@ -18912,11 +19458,7 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
             // pin it low for computation so arithmetic is steady, a touch warmer for
             // conceptual explanations.
             temperature: _mathCompute ? 0.2 : 0.5,
-            onChunk: (delta, full) => {
-                final = full;
-                // v11.0 — strip HTML tags during streaming so users don't see raw <h3>
-                contentEl.textContent = stripHtmlForStream(full);
-            },
+            onChunk: (delta, full) => { final = full; },
             onDone: (full) => {
                 if (cursorEl) cursorEl.remove();
                 let content = full.replace(/```html/g, '').replace(/```/g, '');
@@ -18934,6 +19476,7 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 // v24.37 — automatic drop-down visualizer (X game, factor pairs, number line, box model…).
                 // If a graph is already embedded, tell it not to draw another graph.
                 _autoVisualize(output, text, content, { subject: 'math', shown: _didGraph ? ['graph'] : [] });
+                nexusTypeOut(output);   // v24.39 — write the answer out smoothly
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
@@ -22662,6 +23205,7 @@ var _featModule = '';
 // else the active view → tab → module.
 function _currentModuleId() {
     try {
+        if (window._nxModuleOverride) return window._nxModuleOverride;   // v24.39 — a single call tagged by its own module (e.g. the visualizer = boosters)
         if (_featModule) return _featModule;
         var v = document.querySelector('[id^="view-"].active');
         var tab = v ? v.id.replace('view-', '') : (localStorage.getItem('last_tab') || '');
@@ -23762,6 +24306,22 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.39',
+        date: 'November 9, 2026',
+        tag: 'THE OVERNIGHT BUILD',
+        tagColor: '#2ed3cd',
+        changes: [
+            'SIMULATIONS — Science Lab and Home have a new Simulations button with three hands-on labs. Drag a pendulum back and let it swing (try it on the Moon). Slide a circuit\'s voltage and resistance and watch the bulb glow. Drag to aim a launcher and compare where shots land. The real formulas update live as you play.',
+            'CLASS LIBRARY — Keep your notes and PDFs organized by class. Turn a class on, and Math, Science, the Teaching Board, and the Companion use your own notes when they relate to your question, and they tell you when they do. Each file can also become a study set or a lesson in one tap. Files stay on your device.',
+            'SMOOTH EVERYWHERE — Math, Science, Social Studies, English, and Library answers now write themselves out smoothly instead of popping onto the screen. In the Companion chat, scrolling up holds your place while the reply finishes.',
+            'MORE VISUALIZERS — English analysis, summaries, essay scores, and book breakdowns get a Visualizer (plot arcs, essay structure, character and theme comparisons). The Companion adds one for real study questions, folded shut so the chat stays tidy. Small talk never triggers a drawing.',
+            'SMARTER FRONTIER TOOLS — Teach it back has a "Say it out loud" mic button, so you can explain by talking. Diagnose my work now explains WHY the mistake happens, shows how to catch it yourself, and gives you one like it to retry. Practice tests are Adaptive: they step up after a strong score, ease off after a rough one, and focus on your weak topics.',
+            'A SMARTER COACH — Your study coach now suggests a strong study tool you haven\'t tried yet.',
+            'ACCESSIBILITY — The whole app works with a keyboard: sidebar tabs and every clickable card can be reached with Tab and opened with Enter. Screen readers now hear a name for every slider, field, and icon button. There\'s a clear focus ring and a "Skip to content" link.',
+            'PRIVACY POLICY UPDATED — It now spells out everything NEXUS actually does, including feature-usage counts, voice input, the class library, and each outside service (Wikipedia, YouTube, EmailJS, Turnstile, Stripe).',
+        ]
+    },
     {
         version: 'v24.38',
         date: 'November 8, 2026',
@@ -28742,7 +29302,14 @@ async function sendCompanionMessage() {
                     }
                 }
             } catch (_) {}
-            msgs.scrollTop = msgs.scrollHeight;
+            // v24.39 — Visualizer in the Companion chat, but ONLY for real study
+            // questions (small talk never triggers a drawing). Starts folded so the
+            // small chat box stays tidy; tap to open.
+            try {
+                var _cq = typeof text === 'string' ? text : '';
+                if (_nxvStudyish(_cq, finalText)) _autoVisualize(liveBubble, _cq, finalText, { subject: 'companion chat', startClosed: true });
+            } catch (_) {}
+            if ((msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 140) msgs.scrollTop = msgs.scrollHeight;
         };
         // Timer-based reveal (NOT requestAnimationFrame — rAF pauses when the tab is
         // backgrounded, which would freeze the reply mid-type). ~24ms ticks give a
@@ -28754,8 +29321,9 @@ async function sendCompanionMessage() {
                 const behind = target.length - revealed;
                 const step = Math.max(1, Math.ceil(behind / 22)); // ease-out: fast catch-up, slow tail
                 revealed = Math.min(target.length, revealed + step);
+                var _stickC = (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 64;   // v24.39 — scroll up to hold your place
                 contentEl.textContent = target.slice(0, revealed);
-                msgs.scrollTop = msgs.scrollHeight;
+                if (_stickC) msgs.scrollTop = msgs.scrollHeight;
             }
             if (streamDone && revealed >= stripHtmlForStream(accumulated).length) {
                 finalize();
@@ -29583,13 +30151,15 @@ function endOnboarding() {
 // ════════════════════════════════════════════════════════════════════
 const LEGAL_TEXT = {
     privacy: `<h3 style="color:var(--accent);">NEXUS Privacy Policy</h3>
-        <p><em>Last updated: July 2026</em></p>
+        <p><em>Last updated: November 2026</em></p>
         <p><strong>Plain-English summary:</strong> NEXUS is a study app. Most of your data lives in your browser. You can create an optional cloud account to sync across devices and to use NEXUS's built-in AI. When you use AI, your question is sent through our secure server to OpenAI to generate the answer. To keep the service safe and prevent abuse we record limited technical data (like your IP address and a usage count). We don't show ads, and we never sell your data.</p>
         <p style="font-size:0.85rem;color:var(--text-muted);"><em>NEXUS is in open beta. This policy will be reviewed by legal counsel before any paid launch.</em></p>
         <h4 style="color:white;margin-top:18px;">What we store on your device</h4>
-        <ul style="padding-left:20px;"><li>Your username, a one-way password hash (never the plain password), settings, study history, notes, flashcards, grades, inventory, credits, and quest progress.</li><li>Your recent tutor conversations, so help feels continuous.</li><li>If you don't create a cloud account, this all stays only in your browser.</li></ul>
+        <ul style="padding-left:20px;"><li>Your username, a one-way password hash (never the plain password), settings, study history, notes, flashcards, grades, inventory, credits, and quest progress.</li><li>Your recent tutor conversations, so help feels continuous.</li><li><strong>Class library:</strong> notes and PDFs you add to a class are kept only on this device (in your browser's storage). If you turn a class on, short excerpts that relate to your question are sent along with that AI question so the answer can use your notes — the files themselves are never uploaded.</li><li>If you don't create a cloud account, this all stays only in your browser.</li></ul>
         <h4 style="color:white;margin-top:14px;">What we store on our backend (Supabase)</h4>
-        <ul style="padding-left:20px;"><li><strong>Account:</strong> if you link an email, your email address and an authentication record.</li><li><strong>Synced app data:</strong> if you're signed in to a cloud account, a copy of your progress is synced so you can switch devices. <strong>This backup can include your study history, notes, flashcards, and tutor conversations.</strong> It's protected by per-user row-level security so only your account can read it.</li><li><strong>AI usage + abuse prevention:</strong> when you use AI, we record your IP address and a per-account and per-IP monthly request count. This is used to enforce free limits and stop account-farming — not to profile you.</li><li><strong>Feedback you send:</strong> if you use the Feedback tab, the message and category you submit are stored so our team can read and act on it.</li><li><strong>Error diagnostics:</strong> if the app hits a technical error, we may record the error message, the page it happened on, and your browser type to help us fix bugs.</li></ul>
+        <ul style="padding-left:20px;"><li><strong>Account:</strong> if you link an email, your email address and an authentication record.</li><li><strong>Synced app data:</strong> if you're signed in to a cloud account, a copy of your progress is synced so you can switch devices. <strong>This backup can include your study history, notes, flashcards, and tutor conversations.</strong> It's protected by per-user row-level security so only your account can read it.</li><li><strong>AI usage + abuse prevention:</strong> when you use AI, we record your IP address and a per-account and per-IP monthly request count. This is used to enforce free limits and stop account-farming — not to profile you.</li><li><strong>Feedback you send:</strong> if you use the Feedback tab, the message and category you submit are stored so our team can read and act on it.</li><li><strong>Error diagnostics:</strong> if the app hits a technical error, we may record the error message, the page it happened on, and your browser type to help us fix bugs.</li><li><strong>Feature usage:</strong> we record which features get opened (the feature's name, your in-app username, and the time) so we know what's useful and what to improve. It never includes what you typed or asked. Only the NEXUS team can read it.</li><li><strong>Sign-in session:</strong> to keep one active session per account, we store a session identifier and when it was last used.</li><li><strong>Leaderboard (optional):</strong> if you join the leaderboard, your username and score are visible to other users. You can leave it any time.</li></ul>
+        <h4 style="color:white;margin-top:14px;">Other services NEXUS uses</h4>
+        <ul style="padding-left:20px;"><li><strong>OpenAI</strong> — generates AI answers (see "How AI works").</li><li><strong>Supabase</strong> — accounts, sync, and the secure AI proxy.</li><li><strong>Wikipedia / Wikimedia</strong> — real photos in lessons and Social Studies are loaded from Wikipedia, so your browser connects to Wikimedia's servers to show them.</li><li><strong>YouTube</strong> — the optional lo-fi music player streams from YouTube when you press play.</li><li><strong>EmailJS</strong> — sends account emails: a welcome email, and the parent/guardian consent email for students under 13. Only the recipient's email address, the username, and the plan name are included.</li><li><strong>Cloudflare Turnstile</strong> — a privacy-friendly bot check at sign-up.</li><li><strong>Voice input</strong> — when you choose to speak (hands-free lessons, "Say it out loud" in Teach it back), your browser's built-in speech recognition turns speech into text; in some browsers (like Chrome) that audio is processed by the browser maker's servers. NEXUS never records or stores the audio.</li><li><strong>Stripe</strong> — when paid plans launch, payments are handled by Stripe. NEXUS never sees or stores your card number.</li><li>Fonts and icons load from Google Fonts and the jsDelivr / cdnjs content networks.</li></ul>
         <h4 style="color:white;margin-top:14px;">How AI works</h4>
         <p>When you ask NEXUS's AI a question, your prompt (and any image you attach) is sent through our secure server proxy to <strong>OpenAI</strong>, which generates the answer and returns it. OpenAI also runs an automated safety check on the input and output. We keep a usage count for limits, but we do <strong>not</strong> build advertising profiles from your prompts. OpenAI processes the request under its own privacy policy and API data-use terms. If you prefer, you can instead add your own OpenAI API key in Settings, which stays in your browser and talks only to OpenAI.</p>
         <h4 style="color:white;margin-top:14px;">What we never do</h4>
@@ -32550,7 +33120,105 @@ function _teachSmoothReveal(container) {
 // back). "Show all" finishes instantly. Time-based, so a background tab simply
 // catches up. Honors prefers-reduced-motion and localStorage teach_typeout=0.
 // ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// v24.39 — ACCESSIBILITY PASS (gap board: "Accessibility audit"). An audit of the
+// live app found: the sidebar tabs and ~60 other click targets were plain
+// <li>/<div onclick> (unreachable by keyboard, invisible to screen readers),
+// 48 inputs/sliders had no label, and a few images had no alt text. Because
+// much of NEXUS's UI is built at runtime (modals, lessons, tools), this pass runs
+// on load AND re-runs (debounced) whenever new UI appears:
+//   • clickable non-buttons → role="button" + tabindex=0 + Enter/Space activate
+//   • unlabeled inputs/selects/textareas → aria-label from their visible label,
+//     placeholder or id
+//   • images without alt → alt from their title, else alt="" (decorative)
+//   • icon-only buttons → aria-label from their title or icon
+//   • a "Skip to content" link for keyboard users
+// It only ADDS attributes — never changes layout, styling or behavior for mouse users.
+// ════════════════════════════════════════════════════════════════════
+(function () {
+    var ICON_NAMES = { 'ph-x': 'Close', 'ph-x-circle': 'Close', 'ph-trash': 'Delete', 'ph-copy': 'Copy', 'ph-pencil': 'Edit', 'ph-pencil-simple': 'Edit', 'ph-plus': 'Add', 'ph-gear': 'Settings', 'ph-microphone': 'Voice input', 'ph-paper-plane-tilt': 'Send', 'ph-paper-plane-right': 'Send', 'ph-speaker-high': 'Read aloud', 'ph-play': 'Play', 'ph-pause': 'Pause', 'ph-arrow-left': 'Back', 'ph-caret-left': 'Previous', 'ph-caret-right': 'Next', 'ph-magnifying-glass': 'Search', 'ph-list': 'Menu', 'ph-question': 'Help', 'ph-bell': 'Notifications', 'ph-image': 'Add image', 'ph-camera': 'Take photo', 'ph-download-simple': 'Download', 'ph-share-network': 'Share', 'ph-sliders': 'Options', 'ph-sliders-horizontal': 'Options', 'ph-dots-three': 'More options' };
+    function humanize(id) {
+        return String(id || '').replace(/^(cc|tb|pt|diag|sim|nx|eng|lib)-/i, '').replace(/[-_]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();
+    }
+    function labelFor(el) {
+        if (el.id) { try { var l = document.querySelector('label[for="' + CSS.escape(el.id) + '"]'); if (l && l.textContent.trim()) return null; } catch (_) {} }
+        if (el.closest('label') && el.closest('label').textContent.trim()) return null;
+        var prev = el.previousElementSibling;
+        if (prev && /^(LABEL|SPAN|DIV|P|B|STRONG)$/.test(prev.tagName) && prev.textContent.trim() && prev.textContent.trim().length < 60 && !prev.querySelector('input,select,textarea,button')) return prev.textContent.trim();
+        if (el.placeholder) return el.placeholder.trim().slice(0, 80);
+        var h = humanize(el.id || el.name);
+        if (el.type === 'range' && h) return h + ' slider';
+        if (el.type === 'file') return 'Choose a file';
+        return h || null;
+    }
+    function pass(root) {
+        try {
+            root = root || document;
+            // clickable non-buttons → keyboard + screen-reader operable
+            root.querySelectorAll('div[onclick], span[onclick], li[onclick], img[onclick], label[onclick], td[onclick]').forEach(function (el) {
+                if (el.dataset.nxKb) return;
+                el.dataset.nxKb = '1';
+                var idc = (el.id + ' ' + (typeof el.className === 'string' ? el.className : '')).toLowerCase();
+                if (/overlay|backdrop|modal-bg/.test(idc)) return;          // full-screen click-to-close backdrops stay mouse-only
+                if (el.closest('button, a, [role="button"]') && el.closest('button, a, [role="button"]') !== el) return;
+                if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+                if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+                if (!el.getAttribute('aria-label') && !el.textContent.trim() && el.title) el.setAttribute('aria-label', el.title);
+            });
+            // unlabeled form fields
+            root.querySelectorAll('input:not([type="hidden"]):not([aria-label]):not([aria-labelledby]), select:not([aria-label]):not([aria-labelledby]), textarea:not([aria-label]):not([aria-labelledby])').forEach(function (el) {
+                if (el.title) { el.setAttribute('aria-label', el.title); return; }
+                var t = labelFor(el); if (t) el.setAttribute('aria-label', t);
+            });
+            // images
+            root.querySelectorAll('img:not([alt])').forEach(function (img) { img.setAttribute('alt', img.title || ''); });
+            // icon-only buttons
+            root.querySelectorAll('button:not([aria-label]), [role="button"]:not([aria-label])').forEach(function (b) {
+                if (b.textContent.trim()) return;
+                if (b.title) { b.setAttribute('aria-label', b.title); return; }
+                var i = b.querySelector('i[class*="ph-"]'); if (!i) return;
+                var k = [].slice.call(i.classList).find(function (c) { return ICON_NAMES[c]; });
+                if (k) b.setAttribute('aria-label', ICON_NAMES[k]);
+            });
+        } catch (_) {}
+    }
+    // Enter / Space activates role="button" elements that aren't native buttons
+    document.addEventListener('keydown', function (e) {
+        var t = e.target;
+        if (!t || !t.dataset || !t.dataset.nxKb || t.getAttribute('role') !== 'button') return;
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); t.click(); }
+    });
+    var timer = null;
+    function schedule() { if (timer) return; timer = setTimeout(function () { timer = null; pass(document); }, 350); }
+    function boot() {
+        pass(document);
+        try { new MutationObserver(function (muts) { for (var i = 0; i < muts.length; i++) { var ad = muts[i].addedNodes; for (var j = 0; j < ad.length; j++) { var n = ad[j]; if (n.nodeType === 1 && !(n.classList && n.classList.contains('tw-caret'))) { schedule(); return; } } } }).observe(document.body, { childList: true, subtree: true }); } catch (_) {}
+        // skip link → the main content
+        try {
+            var main = document.querySelector('main, [role="main"]');
+            if (main && !document.querySelector('.nx-skip-link')) {
+                if (!main.id) main.id = 'nx-main';
+                if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+                var a = document.createElement('a'); a.className = 'nx-skip-link'; a.href = '#' + main.id; a.textContent = 'Skip to content';
+                a.onclick = function (e) { e.preventDefault(); main.focus(); };
+                document.body.insertBefore(a, document.body.firstChild);
+            }
+        } catch (_) {}
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+    window._nxA11yPass = pass;
+})();
 var _teachTypers = [];
+// v24.39 — SMOOTH EVERYWHERE: the same write-out for Math / Science / Social /
+// English answers. Those areas scroll with the page, so there's no auto-follow
+// (the answer simply grows where you're reading) and no floating pills.
+function _nxWritingHtml(label) {
+    return '<div class="teach-writing"><span class="tw-dots"><i></i><i></i><i></i></span><span>' + (label || 'Working it out…') + '</span></div>';
+}
+function nexusTypeOut(el) {
+    try { return _teachTypeOut(el, null, { dock: false }); } catch (_) { return Promise.resolve(); }
+}
+window.nexusTypeOut = nexusTypeOut;
 function _teachFinishTyping() {
     _teachTypers.slice().forEach(function (t) { try { t.finish(); } catch (_) {} });
 }

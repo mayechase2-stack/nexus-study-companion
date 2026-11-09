@@ -62,6 +62,8 @@ const IP_PER_MIN = parseInt(Deno.env.get("IP_PER_MIN_LIMIT") ?? "20", 10);
 const IP_ANON_MONTHLY = parseInt(Deno.env.get("IP_ANON_MONTHLY_LIMIT") ?? "25", 10);
 
 const ALLOWED_MODELS = new Set(["gpt-4o", "gpt-4o-mini"]);
+// Must match NEXUS_MODULES ids in script.js (the build-your-plan catalog).
+const KNOWN_MODULES = new Set(["homework", "learn", "capture", "practice", "visual", "writing", "companion", "boosters"]);
 const MAX_BODY_BYTES = 3_000_000;  // ~3 MB — detailed Live Vision graph screenshots can exceed 600 KB; still blocks true abuse
 const MAX_OUTPUT_TOKENS = 1500;
 
@@ -172,9 +174,21 @@ Deno.serve(async (req) => {
   // Only active once ENFORCE_MODULES is turned on (paid launch). A request the
   // client tags with a `module` the user hasn't bought is refused server-side,
   // so unlocking a tab in the browser devtools gets you nothing. Owners bypass.
-  // An untagged request is allowed here (the client UI still gates those).
+  // v24.39 — CLOSED THE UNTAGGED BYPASS. Before, a request with NO module tag
+  // (or a made-up one) skipped this check entirely, so anyone could strip the
+  // tag from a direct POST and get AI without a plan. Now an untagged / unknown
+  // tag is only allowed for an account that owns at least one module (e.g. a
+  // paying student asking from Home); an account with no plan is refused.
   if (ENFORCE_MODULES && tier !== "owner") {
-    const reqModule = typeof body?.module === "string" ? body.module : "";
+    const rawModule = typeof body?.module === "string" ? body.module : "";
+    const reqModule = KNOWN_MODULES.has(rawModule) ? rawModule : "";
+    if (!reqModule && ownedModules.length === 0) {
+      return json({
+        error: "Pick a plan to keep using NEXUS AI. Build your plan from any locked feature.",
+        reason: "module_locked",
+        module: "",
+      }, 403);
+    }
     if (reqModule && ownedModules.indexOf(reqModule) < 0) {
       return json({
         error: "This is part of a module you haven't added to your plan yet. Add it to keep using this feature.",
