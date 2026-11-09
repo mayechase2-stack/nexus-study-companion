@@ -1300,10 +1300,21 @@ function _isCompanionCall(body) {
     } catch (_) {}
     return false;
 }
+function _isTeachBoardCall(body) {
+    try {
+        var ms = (body && body.messages) || [];
+        for (var i = 0; i < ms.length; i++) {
+            var c = ms[i] && ms[i].role === 'system' && ms[i].content;
+            if (typeof c === 'string' && (c.indexOf('You are the NEXUS Teaching Board') === 0 || c.indexOf('You are the NEXUS Teaching Board tutor') === 0)) return true;
+        }
+    } catch (_) {}
+    return false;
+}
 function _nexusTeachingQualityDirective(body) {
     try {
         if (body && body.response_format) return null;   // structured/JSON tools keep their schema
         if (_isCompanionCall(body)) return null;          // companion stays short/conversational
+        if (_isTeachBoardCall(body)) return null;         // v24.38 — Teaching Board has its own (tighter) rules
         if (localStorage.getItem('teach_quality_off') === '1') return null;   // escape hatch
         return NEXUS_TEACHING_QUALITY;
     } catch (_) { return null; }
@@ -1318,6 +1329,7 @@ function _nexusVisualDirective(body) {
     try {
         if (body && body.response_format) return null;
         if (_isCompanionCall(body)) return null;          // keep companion replies short — no auto-diagrams
+        if (_isTeachBoardCall(body)) return null;         // v24.38 — Teaching Board prompt already defines its visuals
         if (localStorage.getItem('visuals_off') === '1') return null;   // escape hatch
         return NEXUS_VISUAL_DIAGRAMS;
     } catch (_) { return null; }
@@ -5846,12 +5858,13 @@ function _autoVisualize(container, question, answer, opts) {
         panel.className = 'nxv-panel';
         panel.dataset.open = _nxvPrefOpen() ? 'true' : 'false';
         panel.innerHTML = '<button type="button" class="nxv-head" aria-expanded="' + panel.dataset.open + '">'
-            + '<span class="nxv-ico"><i class="ph ph-sparkle"></i></span><span class="nxv-title">Visualizer</span>'
+            + '<span class="nxv-ico"><i class="ph ph-sparkle"></i></span><span class="nxv-title">Visualizer' + (opts.label ? '<span class="nxv-label"> · ' + _nxvE(String(opts.label).slice(0, 60)) + '</span>' : '') + '</span>'
             + '<span class="nxv-status"></span><i class="ph ph-caret-down nxv-caret"></i></button>'
             + '<div class="nxv-body"><div class="nxv-inner"><div class="nxv-content">'
             + '<div class="nxv-loading"><div class="nxv-shimmer" style="width:84%"></div><div class="nxv-shimmer" style="width:62%;animation-delay:.15s"></div><div class="nxv-shimmer" style="width:74%;animation-delay:.3s"></div></div>'
             + '</div></div></div>';
-        container.appendChild(panel);
+        if (opts.before && opts.before.parentNode === container) container.insertBefore(panel, opts.before);
+        else container.appendChild(panel);
         _nxvSetStatus(panel);
         var head = panel.querySelector('.nxv-head');
         head.onclick = function () {
@@ -10749,7 +10762,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.37';
+const NEXUS_CURRENT_VERSION = 'v24.38';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -23750,6 +23763,19 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.38',
+        date: 'November 8, 2026',
+        tag: 'LESSONS THAT WRITE THEMSELVES OUT',
+        tagColor: '#a29bfe',
+        changes: [
+            'LIVE WRITING — Teaching Board lessons no longer pop onto the screen all at once. They write themselves out line by line, with headings, steps, and drawings appearing as the writing reaches them. Scroll up any time to stay where you are while it keeps writing below. Tap "Latest" to jump back down, or "Show all" to finish it instantly.',
+            'MANY TOPICS? YOUR CHOICE — List several topics (like "factoring, slope, the x game") and the Teaching Board asks how you want to go: All at once (taught back-to-back) or One at a time (finish one, tap Next). A progress strip at the top tracks every topic; tap one to jump to it. Each topic is taught on its own, so long lists never get cut off.',
+            'A VISUALIZER FOR EVERY TOPIC — Each topic card now gets its own Visualizer drop-down, labeled with the topic it belongs to. Five topics means five visualizers.',
+            'THE RIGHT AMOUNT OF TEXT — Lessons get to the point first and cut the filler. Each card keeps what matters (what it is, the key terms, the steps, why it works, the top mistakes, practice) with every line kept short.',
+            'FIXED: LESSONS CUT OFF MID-SENTENCE — Sometimes a card stopped after a few words because a drawing swallowed the rest of it. That can no longer happen.',
+        ]
+    },
+    {
         version: 'v24.37',
         date: 'November 6, 2026',
         tag: 'EVERY ANSWER COMES WITH A PICTURE',
@@ -31439,6 +31465,13 @@ FIRST, READ WHAT THEY'RE ACTUALLY ASKING and match your reply to it — this mat
 • If they ask you to TEACH a topic (a new topic, "teach me…", or they tap Go deeper / Another example / Quiz me), use the TOPIC CARD format below.
 • If they ask a SPECIFIC follow-up or clarifying question — e.g. "why does y get set to 0?", "wait why the negative?", "what about step 2?", "I don't get that part" — just ANSWER THAT ONE QUESTION. Lead with the answer in the very first sentence. Keep it short and focused on exactly what they asked. Do NOT re-teach the whole topic, do NOT force the card sections (no "How to do it" / practice / etc.), do NOT pile on things they didn't ask about. Answer only what was asked, then you may offer ONE small next step ("make sense? want an example?"). Buried, over-long answers to a simple question frustrate the student — the point comes FIRST, not last.
 
+THE RIGHT AMOUNT — the balance to hit on EVERY reply (when this conflicts with "cover everything" below, THIS wins). Students want the CORRECT info, fast: not a textbook, not a teaser.
+• Point first: the first sentence of every card says what the thing IS or what you DO, in plain words.
+• Every sentence must earn its place. If cutting it would not make the student understand less, cut it. No restating the same idea twice, no warm-up lines, no "In this lesson we'll…", no closing summary that repeats the card.
+• Concrete beats wordy: one worked example with real numbers teaches more than three sentences of description.
+• Size of a STANDARD card (roughly 200–300 words, not counting practice): what-it-is = 2 sentences; Key terms = only the ones they'll actually need (max ~5, one line each); How to do it = 3–6 steps, one short line each; Why it works = 1–2 sentences; Common mistakes = the top 2, one line each; Tip = one line, only if it's genuinely useful.
+• Breadth means NAMING the important parts briefly — not explaining every corner. The deeper detail is what "Go deeper" is for.
+
 TEACH IT, DON'T JUST DEFINE IT. The #1 thing students say is that lessons give "the precise definition and nothing else." Don't do that. A good card leaves the student understanding WHY, not just WHAT: give the intuition, an everyday analogy or mental picture, where a formula comes from, and what each step is really doing. Explain like a patient tutor talking to a real person — warm and in plain language. Still scannable (a few clear sentences per section, never a paragraph dump), but genuinely explanatory, not a bare textbook entry.
 
 TEACH THE WHOLE TOPIC — COVER IT LIKE A REAL TEACHER WOULD, not a one-paragraph summary. This applies to EVERY subject — math, science, English/language arts, history/social studies, and any other — NOT just math. A definition + a how-to is NOT enough. A complete lesson also teaches:
@@ -31451,7 +31484,7 @@ TEACH THE WHOLE TOPIC — COVER IT LIKE A REAL TEACHER WOULD, not a one-paragrap
 • WHAT COUNTS AND WHAT DOESN'T — the rule that qualifies something as the concept, plus a clear non-example. (Math: a polynomial needs whole-number exponents and no variable in a denominator or under a root, so 3x² + 2x − 5 qualifies but 1/x and √x do NOT. English: a complete sentence needs a subject and a verb and a complete thought, so "The dog ran" is one but "Running fast" is not. Science: a physical change keeps the substance the same, so melting ice is physical but burning wood is chemical.)
 • THE FACTS a student is expected to KNOW about it (key properties, dates, rules, special cases, important values, defining features).
 • COMMON MISTAKES + HOW TO HANDLE CASES — the specific things students get wrong in THIS topic (in any subject), and "when you run into ___, do ___" for the tricky situations.
-Breadth AND depth: name the parts, draw the distinctions, state the rules and the facts — then keep each section tight and skimmable so it's thorough without being a wall of text.
+Breadth AND depth: name the parts, draw the distinctions, state the rules and the facts — in as FEW words as it takes (see THE RIGHT AMOUNT). Thorough means nothing important is missing, NOT that everything is long.
 
 HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card so the student can scan it. One card per topic. If the student names SEVERAL topics (commas, "and", or a list), make ONE card for EACH, in the order named — never teach only the first and skip the rest. EVERY card MUST include its own Practice block (the <div class="teach-practice" data-answers="…"> with its own problems + answers) — do NOT give practice for only the first topic and skip it on the rest; each topic gets its own practice. Use this shape EXACTLY for every card:
 
@@ -31528,7 +31561,7 @@ MATCH THE VISUAL TO THE SUBJECT — include the RIGHT kind of visual for the top
 • Science / geometry STRUCTURES or processes (cells, atoms, the water cycle, a labeled triangle) → a labeled inline <svg> diagram.
 • History, geography, biology SPECIFICS (people, places, landmarks, animals, artifacts) → a teach-image real photo.
 • English / writing structure (story arc, sentence types, parts of speech) → a small labeled <svg> or a clear list.
-Pick what fits the subject — don't put a graph on a history lesson or a photo on an equation. At most one or two visuals per card, only when they genuinely help.
+Pick what fits the subject — don't put a graph on a history lesson or a photo on an equation. ALWAYS write a visual tag with a real closing tag — <div class="teach-draw" …></div> — NEVER self-closing like <div … />. At most one or two visuals per card, only when they genuinely help.
 NEVER NARRATE YOUR VISUAL CHOICE — do not write sentences like "No visual is needed here", "Let me draw a diagram", or "Here's a picture". Either include the visual or don't; never announce the decision. If a concept is inherently visual, spatial, or procedural (like the X-game), a worked picture with the real numbers is REQUIRED, not optional.
 
 ACCURACY — everything you state must be correct: facts, dates, names, definitions, formulas, and every number in a worked example or practice answer. Double-check arithmetic and that each practice problem's data-answers value is actually right. If you're not certain of a specific fact, teach the reliable core and don't invent specifics. Never state a wrong date, misattribute a quote, or give a practice answer that doesn't match its problem.
@@ -31688,17 +31721,27 @@ function _teachRedoAtDepth() {
     if (!_teachTitle) return;
     const topic = _teachTitle;
     _teachHistory = [];
+    _teachFinishTyping();
     const msgs = document.getElementById('teach-chat-messages');
     if (msgs) msgs.innerHTML = '';
+    // v24.38 — a multi-topic plan re-runs topic by topic at the new depth
+    if (_teachPlan && _teachPlan.mode) {
+        var _pt = _teachPlan.topics.slice(), _pm = _teachPlan.mode, _raw = _teachPlan.raw;
+        addTeachMessage('user', _teachEsc(_raw));
+        _teachPlan = { id: 'tp_' + Date.now(), topics: _pt, mode: '', auto: false, done: {}, cur: -1, raw: _raw };
+        _teachStartPlan(_pm);
+        return;
+    }
+    _teachPlan = null;
     _sendTeachingBoardTurn(_teachOpeningAsk(topic), topic);
 }
 // Builds the opening request, tuned to depth + multi-topic coverage.
-function _teachOpeningAsk(topic) {
-    const multi = /,| and /i.test(topic);
+function _teachOpeningAsk(topic, solo) {
+    const multi = !solo && /,| and /i.test(topic);
     let ask = 'Teach me: ' + topic + '. ';
     if (_teachDepth === 'quick') ask += 'Just the gist — the quickest overview that lets me try one. Keep it short.';
     else if (_teachDepth === 'deep') ask += 'Give me the FULL deep dive right now — thorough but still skimmable: all the types/classifications, what counts vs not, the facts, why it works, common mistakes, a second harder example, and 3 practice.';
-    else ask += 'Give me the COMPLETE lesson card — thorough but clean and skimmable: what it is, its key terms & TYPES/classifications (name each with its rule), what counts vs what does not, how to do it, why it works, the common mistakes, and 3 practice problems. Include the RIGHT visual for the subject (a graph if it plots, a labeled diagram for a structure, a real photo for a specific person / place / thing). Do NOT give a bare "tight overview" that skips the types or mistakes.';
+    else ask += 'Give me the full lesson card at the RIGHT AMOUNT — everything important, nothing padded: what it is, the key terms & types that matter, what counts vs what does not, how to do it, why it works, the top mistakes, and 3 practice problems. Get to the point and keep every line short. Include the RIGHT visual for the subject (a worked drawing for a procedure, a graph if it plots, a labeled diagram for a structure, a real photo for a specific person / place / thing).';
     if (multi) ask += ' I listed several things — cover EACH one I named, do not skip any.';
     return ask;
 }
@@ -31717,7 +31760,9 @@ function _teachSanitizeHistory(hist) {
         if (!m || (m.role !== 'user' && m.role !== 'assistant')) return;
         const c = typeof m.content === 'string' ? m.content : '';
         if (!c.trim()) return;                       // drop blank turns
-        out.push({ role: m.role, content: c });
+        var o = { role: m.role, content: c };
+        if (m.display && typeof m.display === 'string') o.display = m.display.slice(0, 160);   // v24.38 short label for plan topics
+        out.push(o);
     });
     while (out.length && out[out.length - 1].role === 'user') out.pop();  // drop dangling unanswered question(s)
     return out;
@@ -31822,7 +31867,7 @@ function _teachRenderExisting() {
     msgs.innerHTML = '';
     _teachHistory.forEach(function (m) {
         if (m.role === 'user' || m.role === 'assistant') {
-            addTeachMessage(m.role === 'user' ? 'user' : 'ai', typeof m.content === 'string' ? m.content : '');
+            addTeachMessage(m.role === 'user' ? 'user' : 'ai', m.role === 'user' && m.display ? _teachEsc(m.display) : (typeof m.content === 'string' ? m.content : ''));
         }
     });
     _teachShowQuickActions();
@@ -31963,6 +32008,8 @@ function _teachRestoreSvg(html, store) {
 
 function _teachCleanHtml(s) {
     s = String(s == null ? '' : s);
+    // v24.38 — <div class="teach-…" … /> is NOT self-closing in HTML; expand it so it can't swallow the rest of the card
+    s = s.replace(/<div(\s[^<>]*?class\s*=\s*["']teach-[^<>]*?)\s*\/>/gi, '<div$1></div>');
     // v21.4 — render \frac{a}{b} as a clean STACKED fraction (numerator over
     // denominator with a bar), not cramped "(a)/(b)". Loop a few times so a
     // fraction nested one level inside another still converts.
@@ -32113,12 +32160,12 @@ function _teachInlineAsk(card, apiPrompt, displayQ, kind) {
     ans.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;"><i class="ph ph-spinner ph-spin"></i> ' + (kind === 'explain' ? 'Expanding this…' : 'Thinking…') + '</span>';
     thread.appendChild(ans);
     var cardText = (card.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1400);
-    var sys = 'You are the NEXUS Teaching Board tutor. The student is looking at THIS lesson block:\n"""' + cardText + '"""\nAnswer their request about this block only. Return ONLY light HTML fragments (NO <div class="teach-card"> wrapper): short <p>, <ul>/<ol>/<li>, <strong>, <em>, <h5>, <div class="teach-formula">, <div class="teach-tip">, and — if a picture helps — a labeled inline <svg> or <div class="teach-plot" data-fns="..." data-points="..."></div>. Use \\frac{a}{b} for fractions. NEVER markdown. Be genuinely explanatory (intuition + why), warm, and clear — not a wall of text.';
+    var sys = 'You are the NEXUS Teaching Board tutor. The student is looking at THIS lesson block:\n"""' + cardText + '"""\nAnswer their request about this block only. Return ONLY light HTML fragments (NO <div class="teach-card"> wrapper): short <p>, <ul>/<ol>/<li>, <strong>, <em>, <h5>, <div class="teach-formula">, <div class="teach-tip">, and — if a picture helps — a labeled inline <svg> or <div class="teach-plot" data-fns="..." data-points="..."></div>. Use \\frac{a}{b} for fractions. NEVER markdown. Be genuinely explanatory (intuition + why), warm, and clear — lead with the point, keep it to what they asked, and cut anything that does not help them understand. Not a wall of text.';
     if (typeof streamChat !== 'function') { ans.innerHTML = '<em style="color:#ff9a9a;">Voice engine unavailable.</em>'; card.dataset.inlineBusy = '0'; return; }
     streamChat({
         apiKey: apiKey, model: localStorage.getItem('ai_model') || 'gpt-4o', temperature: 0.6, max_tokens: 1100,
         messages: [{ role: 'system', content: sys }, { role: 'user', content: apiPrompt }],
-        onChunk: function (delta, full) { ans.textContent = (typeof stripHtmlForStream === 'function') ? stripHtmlForStream(full) : full; },
+        onChunk: function () {},   // v24.38 — written out with the paced type-out below instead of popping in
         onDone: function (full) {
             if (!full || !String(full).trim()) { ans.innerHTML = '<em style="color:#ff9a9a;">That came back blank — try again.</em>'; card.dataset.inlineBusy = '0'; return; }
             var store = []; var html = _teachProtectSvg(full, store); html = _teachCleanHtml(html);
@@ -32127,6 +32174,7 @@ function _teachInlineAsk(card, apiPrompt, displayQ, kind) {
             ans.innerHTML = html;
             _teachEnhanceCards(ans);   // render any plots/practice/fractions in the expansion
             card.dataset.inlineBusy = '0';
+            _teachTypeOut(ans, document.getElementById('teach-chat-messages'));
         },
         onError: function (err) { ans.innerHTML = '<em style="color:#ff9a9a;">Hit a snag: ' + esc0(err && err.message) + '</em>'; card.dataset.inlineBusy = '0'; }
     });
@@ -32260,6 +32308,7 @@ function _teachRenderPlots(el) {
     if (!el) return;
     el.querySelectorAll('.teach-plot').forEach(function (node) {
         if (node.dataset.rendered) return; node.dataset.rendered = '1';
+        _teachUnswallow(node, false);
         var fns = (node.getAttribute('data-fns') || node.getAttribute('data-fn') || '')
             .replace(/²/g, '^2').replace(/³/g, '^3')     // convertMarkdownLeaks turns ^2 into ² — undo for the parser
             .split(';').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -32290,7 +32339,9 @@ function _teachRenderImages(el) {
     if (!el) return;
     el.querySelectorAll('.teach-image').forEach(function (node) {
         if (node.dataset.rendered) return; node.dataset.rendered = '1';
-        var q = (node.getAttribute('data-query') || node.textContent || '').trim();
+        var _q0 = (node.getAttribute('data-query') || '').trim();
+        if (_q0) _teachUnswallow(node, false);
+        var q = (_q0 || node.textContent || '').trim();
         if (!q) { node.remove(); return; }
         var cap = (node.getAttribute('data-caption') || '').trim();
         node.innerHTML = '<div class="teach-img-loading"><i class="ph ph-spinner ph-spin"></i> finding an image…</div>';
@@ -32414,10 +32465,28 @@ function _teachSanitizeSvg(html) {
         return svg.outerHTML;
     } catch (e) { return ''; }
 }
+// v24.38 — FIX "lesson cut off mid-sentence". When the AI writes a visual as a
+// self-closing tag (<div class="teach-draw" … />), HTML treats it as an OPEN div,
+// so everything after it got swallowed inside the visual — and was then wiped
+// when the visual rendered. Move any swallowed content back out after the node.
+function _teachUnswallow(node, keepSvg) {
+    try {
+        var kids = [].slice.call(node.childNodes);
+        var after = node.nextSibling, parent = node.parentNode;
+        if (!parent) return;
+        kids.forEach(function (k) {
+            if (keepSvg && k.nodeType === 1 && k.tagName && k.tagName.toLowerCase() === 'svg') return;
+            if (k.nodeType === 3 && !String(k.nodeValue || '').trim()) return;
+            parent.insertBefore(k, after);
+        });
+    } catch (_) {}
+}
 function _teachRenderDrawings(el) {
     if (!el) return;
     el.querySelectorAll('.teach-draw').forEach(function (node) {
         if (node.dataset.rendered) return; node.dataset.rendered = '1';
+        var _k0 = (node.getAttribute('data-kind') || '').toLowerCase();
+        _teachUnswallow(node, !/diamond|^x|number|area|box/.test(_k0));
         var kind = (node.getAttribute('data-kind') || '').toLowerCase().replace(/[\s_]/g, '-');
         var ds = {
             product: node.getAttribute('data-product'), sum: node.getAttribute('data-sum'),
@@ -32469,6 +32538,321 @@ function _teachSmoothReveal(container) {
             blocks.forEach(function (b) { b.style.transition = ''; b.style.transitionDelay = ''; b.style.transform = ''; b.style.opacity = ''; });
         }, 65 * blocks.length + 1200);
     } catch (e) {}
+}
+// ════════════════════════════════════════════════════════════════════
+// v24.38 — LIVE TYPE-OUT (Chase: "I hate this sudden spit ball… I want the
+// build-up to the finish, and if I want to stop I scroll up and hold there while
+// it finishes typing"). The hosted AI returns the whole lesson in ONE piece, so
+// we write the FINISHED, formatted lesson out progressively — text character by
+// character, visuals/buttons fading in the moment the writing reaches them, the
+// box growing as it goes. Auto-follows the bottom ONLY while you're at the
+// bottom: scroll up and it leaves you where you are (a "Latest" pill brings you
+// back). "Show all" finishes instantly. Time-based, so a background tab simply
+// catches up. Honors prefers-reduced-motion and localStorage teach_typeout=0.
+// ════════════════════════════════════════════════════════════════════
+var _teachTypers = [];
+function _teachFinishTyping() {
+    _teachTypers.slice().forEach(function (t) { try { t.finish(); } catch (_) {} });
+}
+function _teachNearBottom(sc) { return !sc || (sc.scrollHeight - sc.scrollTop - sc.clientHeight) < 64; }
+var _TW_ATOM = 'svg,canvas,img,video,button,input,textarea,select,details,.teach-draw,.teach-plot,.teach-image,.inline-graph-embed,.frac,.nxv-panel,.teach-img-loading';
+function _teachTypeOut(root, scroller, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+        var reduced = false, off = false;
+        try { reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) {}
+        try { off = localStorage.getItem('teach_typeout') === '0'; } catch (_) {}
+        if (!root || reduced || off) { resolve(); return; }
+        var units = [], total = 0;
+        (function walk(node) {
+            for (var ch = node.firstChild; ch; ch = ch.nextSibling) {
+                if (ch.nodeType === 3) {
+                    var t = ch.nodeValue || '';
+                    units.push({ n: ch, t: t, w: t.trim() ? t.length : 0 });
+                    if (t.trim()) total += t.length;
+                } else if (ch.nodeType === 1) {
+                    var atom = false; try { atom = ch.matches(_TW_ATOM); } catch (_) {}
+                    if (atom || !ch.firstChild) { units.push({ n: ch, a: true, w: atom ? 26 : 0 }); total += atom ? 26 : 0; }
+                    else walk(ch);
+                }
+            }
+        })(root);
+        if (total < 60) { resolve(); return; }
+        // hide everything not yet written (never the insides of an atom — an svg's shapes etc.)
+        var hidden = [];
+        [].slice.call(root.querySelectorAll('*')).forEach(function (el) {
+            var anc = el.parentElement;
+            while (anc && anc !== root) { try { if (anc.matches(_TW_ATOM)) return; } catch (_) {} anc = anc.parentElement; }
+            el.classList.add('tw-h'); hidden.push(el);
+        });
+        units.forEach(function (u) { if (!u.a && u.w) u.n.nodeValue = ''; });
+        var caret = document.createElement('span'); caret.className = 'tw-caret'; caret.setAttribute('aria-hidden', 'true');
+        var dock = null, latestBtn = null;
+        if (scroller && opts.dock !== false) {
+            dock = document.createElement('div'); dock.className = 'tw-dock';
+            dock.innerHTML = '<button type="button" class="tw-latest" hidden><i class="ph ph-arrow-down"></i> Latest</button>'
+                + '<button type="button" class="tw-skip"><i class="ph ph-fast-forward"></i> Show all</button>';
+            scroller.appendChild(dock);
+            latestBtn = dock.querySelector('.tw-latest');
+            latestBtn.onclick = function () { try { scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' }); } catch (_) { scroller.scrollTop = scroller.scrollHeight; } };
+            dock.querySelector('.tw-skip').onclick = function () { finish(); };
+        }
+        // ~5–10 s for a typical lesson; long ones write faster so they never drag
+        var rate = Math.max(260, Math.min(760, total / 8.5));
+        var ui = 0, pos = 0, start = performance.now(), done = false, timer = null;
+        function reveal(el) {
+            while (el && el !== root) {
+                if (!el.classList || !el.classList.contains('tw-h')) break;   // ancestors already shown
+                el.classList.remove('tw-h');
+                el = el.parentElement;
+            }
+        }
+        function step() {
+            if (done) return;
+            var stick = _teachNearBottom(scroller);
+            var target = Math.min(total, (performance.now() - start) / 1000 * rate);
+            var placed = false;
+            while (ui < units.length) {
+                var u = units[ui];
+                if (u.a) {
+                    if (u.w && pos + u.w > target) break;
+                    reveal(u.n);
+                    if (u.w) u.n.classList.add('tw-in');
+                    pos += u.w; ui++; continue;
+                }
+                if (!u.w) { reveal(u.n.parentElement); ui++; continue; }
+                reveal(u.n.parentElement);
+                var avail = target - pos;
+                if (avail >= u.w) { u.n.nodeValue = u.t; pos += u.w; ui++; continue; }
+                u.n.nodeValue = u.t.slice(0, Math.max(0, Math.floor(avail)));
+                if (u.n.parentNode) { u.n.parentNode.insertBefore(caret, u.n.nextSibling); placed = true; }
+                break;
+            }
+            if (!placed && caret.parentNode && ui < units.length) { /* keep caret where it was while a visual fades in */ }
+            if (ui >= units.length) { finish(); return; }
+            if (scroller && stick) scroller.scrollTop = scroller.scrollHeight;
+            if (latestBtn) latestBtn.hidden = stick;
+        }
+        function finish() {
+            if (done) return; done = true;
+            clearInterval(timer);
+            units.forEach(function (u) { if (!u.a && u.n.nodeValue !== u.t) u.n.nodeValue = u.t; });
+            hidden.forEach(function (el) { el.classList.remove('tw-h'); });
+            root.querySelectorAll('.tw-in').forEach(function (el) { setTimeout(function () { el.classList.remove('tw-in'); }, 500); });
+            if (caret.parentNode) caret.remove();
+            if (dock && dock.parentNode) dock.remove();
+            var ix = _teachTypers.indexOf(api); if (ix >= 0) _teachTypers.splice(ix, 1);
+            resolve();
+        }
+        var api = { finish: finish, root: root };
+        _teachTypers.push(api);
+        timer = setInterval(step, 33);
+        step();
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v24.38 — MULTI-TOPIC PLAN (Chase: "if someone asks for a lot of topics at once
+// they should have the chance to go through all of it at once or one by one").
+// A list of topics ("factoring, slope, the x game") is split client-side and the
+// student picks: ▶ All at once (taught back-to-back, one topic per AI call — so
+// nothing gets cut off by the per-reply length cap) or ① One at a time (finish a
+// topic, tap Next). A sticky progress strip tracks every topic; each topic gets
+// its own card AND its own visualizer.
+// ════════════════════════════════════════════════════════════════════
+var _teachPlan = null;   // { id, topics:[], mode:'all'|'one'|'', auto:bool, done:{}, cur:-1, raw }
+function _teachSplitTopics(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    if (!s || s.length > 700) return [s];
+    var lead = /^(?:please\s+)?(?:can you\s+|could you\s+)?(?:teach me(?:\s+about)?|explain|help me(?:\s+with|\s+understand)?|i need(?:\s+help with|\s+to learn)?|go over|review|study|quiz me on)\s*:?\s*/i;
+    var body = s.replace(lead, '').trim();
+    var parts;
+    if (/\n/.test(body)) parts = body.split(/\n+/);
+    else if (/(?:^|\s)\d+[.)]\s+\S/.test(body) && (body.match(/(?:^|\s)\d+[.)]\s+/g) || []).length >= 2) parts = body.split(/(?:^|\s)\d+[.)]\s+/);
+    else if (/[;,](?!\d{3}\b)/.test(body)) {
+        if (/[=<>]/.test(body)) return [s];                 // "solve 2x+3=7, then…" is ONE problem
+        // a question with commas ("how does X work, and why…?") is ONE topic, not a list
+        if (/\?/.test(body) || /^(?:how|why|what|when|where|who|which|whose|does|do|did|is|are|was|were|can|could|should|would|will)\b/i.test(body)) return [s];
+        parts = body.split(/\s*[;,](?!\d{3}\b)\s*/);
+        // Oxford-style tail: "a, b and c" → split the last item on " and "
+        var last = parts[parts.length - 1] || '';
+        if (/\s(?:and|&)\s/i.test(last) && last.length < 70) {
+            parts.pop();
+            last.split(/\s+(?:and|&)\s+/i).forEach(function (x) { parts.push(x); });
+        }
+    } else return [s];
+    parts = parts.map(function (p) {
+        return String(p).replace(/^\s*(?:[-•*]|\d+[.)])\s*/, '').replace(/^(?:and|&|also|plus|then)\s+/i, '').replace(/[.?!:]+$/, '').trim();
+    }).filter(function (p) { return p.length >= 2; });
+    var seen = {};
+    parts = parts.filter(function (p) { var k = p.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; });
+    if (parts.length < 2 || parts.length > 10) return [s];
+    if (parts.some(function (p) { return p.length > 90 || p.split(/\s+/).length > 12; })) return [s];   // sentences, not a list
+    return parts;
+}
+function _teachEsc(s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s == null ? '' : s) : String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function _teachShowPlanChoice(topics, raw) {
+    var msgs = document.getElementById('teach-chat-messages'); if (!msgs) return;
+    _teachPlan = { id: 'tp_' + Date.now(), topics: topics.slice(0, 10), mode: '', auto: false, done: {}, cur: -1, raw: raw || topics.join(', ') };
+    var box = document.createElement('div');
+    box.className = 'companion-msg-ai teach-plan-choice';
+    box.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';
+    box.innerHTML = '<div class="tpc-head"><i class="ph ph-list-numbers"></i> You listed <strong>' + topics.length + ' topics</strong></div>'
+        + '<ol class="tpc-list">' + topics.map(function (t) { return '<li>' + _teachEsc(t) + '</li>'; }).join('') + '</ol>'
+        + '<div class="tpc-q">How do you want to go through them?</div>'
+        + '<div class="tpc-btns">'
+        + '<button type="button" class="tpc-opt" data-m="all"><span class="tpc-ico">▶</span><span><strong>All at once</strong><em>Taught back-to-back. Read at your own pace while the rest writes.</em></span></button>'
+        + '<button type="button" class="tpc-opt" data-m="one"><span class="tpc-ico">①</span><span><strong>One at a time</strong><em>Finish a topic, then tap Next when you\'re ready.</em></span></button>'
+        + '</div>'
+        + '<button type="button" class="tpc-merge">Actually, that\'s all one topic</button>';
+    msgs.appendChild(box);
+    msgs.scrollTop = msgs.scrollHeight;
+    var pick = function (mode) {
+        box.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+        var chosen = box.querySelector('.tpc-opt[data-m="' + mode + '"]'); if (chosen) chosen.classList.add('is-picked');
+        box.classList.add('is-done');
+        _teachStartPlan(mode);
+    };
+    box.querySelectorAll('.tpc-opt').forEach(function (b) { b.onclick = function () { pick(b.getAttribute('data-m')); }; });
+    box.querySelector('.tpc-merge').onclick = function () {
+        var rawTopic = _teachPlan ? _teachPlan.raw : topics.join(', ');
+        _teachPlan = null;
+        box.remove();
+        _teachHistory.push({ role: 'user', content: _teachOpeningAsk(rawTopic) });
+        _teachGenerate(0);
+    };
+}
+function _teachPlanTopicAsk(i) {
+    var p = _teachPlan, t = p.topics[i], n = p.topics.length;
+    return _teachOpeningAsk(t, true)
+        + ' (This is topic ' + (i + 1) + ' of ' + n + ' from my list: ' + p.topics.join('; ') + '. Teach ONLY "' + t + '" right now, as ONE card — the other topics get their own turn, so do not preview them'
+        + (i < n - 1 ? ', skip the teach-next learning-path block, and skip the closing "which one next" line.)' : '. This is the last one — end with the teach-next block as usual.)');
+}
+function _teachStartPlan(mode) {
+    var p = _teachPlan; if (!p) return;
+    p.mode = mode; p.auto = (mode === 'all');
+    _teachRenderPlanBar();
+    _teachRunPlanTopic(0, true);
+}
+function _teachPlanNextIndex() {
+    var p = _teachPlan; if (!p) return -1;
+    for (var i = 0; i < p.topics.length; i++) if (!p.done[i] && i !== p.cur) return i;
+    return -1;
+}
+async function _teachRunPlanTopic(i, userClick) {
+    var p = _teachPlan; if (!p || i < 0 || i >= p.topics.length) return;
+    if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the current topic…', 'info', 2200); return; }
+    var msgs = document.getElementById('teach-chat-messages'); if (!msgs) return;
+    var id = p.id, n = p.topics.length, t = p.topics[i];
+    _teachFinishTyping();
+    msgs.querySelectorAll('.teach-next-topic').forEach(function (x) { x.remove(); });
+    p.cur = i; _teachRenderPlanBar();
+    var div = document.createElement('div');
+    div.className = 'teach-topic-divider'; div.setAttribute('data-ti', String(i));
+    div.innerHTML = '<span class="ttd-n">Topic ' + (i + 1) + ' of ' + n + '</span><span class="ttd-t">' + _teachEsc(t) + '</span>';
+    var _follow = userClick || _teachNearBottom(msgs);
+    msgs.appendChild(div);
+    if (_follow) msgs.scrollTop = msgs.scrollHeight;
+    _teachHistory.push({ role: 'user', content: _teachPlanTopicAsk(i), display: '📘 Topic ' + (i + 1) + ' of ' + n + ': ' + t });
+    var ok = await _teachGenerate(0);
+    if (!_teachPlan || _teachPlan.id !== id) return;          // a new lesson started meanwhile
+    if (ok) p.done[i] = true;
+    p.cur = -1; _teachRenderPlanBar();
+    var next = _teachPlanNextIndex();
+    if (next < 0) { _teachPlanFinished(); return; }
+    if (_teachBusy) return;                                    // the student jumped in with their own question — its turn shows "Next" when done
+    if (ok && p.auto) { _teachRunPlanTopic(next); return; }
+    _teachShowNextTopic(next);
+}
+function _teachShowNextTopic(i) {
+    var p = _teachPlan, msgs = document.getElementById('teach-chat-messages');
+    if (!p || !msgs || i < 0) return;
+    msgs.querySelectorAll('.teach-next-topic').forEach(function (x) { x.remove(); });
+    var left = p.topics.length - Object.keys(p.done).length;
+    var bar = document.createElement('div');
+    bar.className = 'teach-next-topic';
+    bar.innerHTML = '<div class="tnt-l"><span class="tnt-k">Up next · Topic ' + (i + 1) + ' of ' + p.topics.length + '</span><span class="tnt-t">' + _teachEsc(p.topics[i]) + '</span></div>'
+        + '<div class="tnt-b"><button type="button" class="tnt-go">Teach it <i class="ph ph-arrow-right"></i></button>'
+        + (left > 1 ? '<button type="button" class="tnt-all">Do the other ' + left + ' at once</button>' : '') + '</div>';
+    msgs.appendChild(bar);
+    bar.querySelector('.tnt-go').onclick = function () { if (_teachPlan) _teachPlan.auto = false; _teachRunPlanTopic(i, true); };
+    var all = bar.querySelector('.tnt-all');
+    if (all) all.onclick = function () { if (_teachPlan) { _teachPlan.auto = true; _teachPlan.mode = 'all'; } _teachRunPlanTopic(i, true); };
+    if (_teachNearBottom(msgs)) msgs.scrollTop = msgs.scrollHeight;   // never yank a student who scrolled up to read
+}
+function _teachPlanFinished() {
+    var p = _teachPlan, msgs = document.getElementById('teach-chat-messages');
+    if (!p || !msgs || msgs.querySelector('.teach-plan-done[data-plan="' + p.id + '"]')) return;
+    var box = document.createElement('div');
+    box.className = 'teach-plan-done'; box.setAttribute('data-plan', p.id);
+    box.innerHTML = '<span class="tpd-check">✓</span><span class="tpd-t">All ' + p.topics.length + ' topics covered.</span>'
+        + '<button type="button" class="tpd-quiz">Quiz me on all of them</button>';
+    msgs.appendChild(box);
+    box.querySelector('.tpd-quiz').onclick = function () {
+        sendTeachingBoardMessage('Quiz me: give me ONE quick question on each of these topics, numbered, and wait for my answers: ' + p.topics.join('; ') + '.');
+    };
+    if (_teachNearBottom(msgs)) msgs.scrollTop = msgs.scrollHeight;
+}
+function _teachRenderPlanBar() {
+    var msgs = document.getElementById('teach-chat-messages'); if (!msgs) return;
+    var bar = document.getElementById('teach-plan-bar');
+    var p = _teachPlan;
+    if (!p || !p.mode) { if (bar) bar.remove(); return; }
+    if (!bar) { bar = document.createElement('div'); bar.id = 'teach-plan-bar'; bar.className = 'teach-plan-bar'; msgs.insertBefore(bar, msgs.firstChild); }
+    var doneN = Object.keys(p.done).length;
+    bar.innerHTML = '<span class="tpb-count">' + doneN + '/' + p.topics.length + '</span>' + p.topics.map(function (t, i) {
+        var st = p.done[i] ? 'is-done' : (p.cur === i ? 'is-cur' : 'is-next');
+        var ico = p.done[i] ? '✓' : (p.cur === i ? '<i class="ph ph-spinner ph-spin"></i>' : String(i + 1));
+        return '<button type="button" class="tpb-chip ' + st + '" data-ti="' + i + '" title="' + _teachEsc(t) + '"><span class="tpb-i">' + ico + '</span><span class="tpb-t">' + _teachEsc(t) + '</span></button>';
+    }).join('');
+    bar.querySelectorAll('.tpb-chip').forEach(function (c) {
+        c.onclick = function () {
+            var i = parseInt(c.getAttribute('data-ti'), 10);
+            var d = msgs.querySelector('.teach-topic-divider[data-ti="' + i + '"]');
+            if (d && (p.done[i] || p.cur === i)) { try { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) { d.scrollIntoView(); } return; }
+            if (!_teachBusy) { p.auto = false; _teachRunPlanTopic(i, true); }
+            else if (typeof showToast === 'function') showToast('One sec — finishing the current topic…', 'info', 2000);
+        };
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// v24.38 — ONE VISUALIZER PER TOPIC (Chase: "if they type out 5 topics they
+// should get 5 visualizers, noted to what it is"). Each lesson card gets its own
+// labeled Visualizer drop-down at the bottom of the card. Types the card already
+// draws itself are passed as "shown" so the visualizer adds something new
+// instead of repeating it (and folds away if there's nothing new to add).
+// ════════════════════════════════════════════════════════════════════
+function _teachShownVisuals(el) {
+    var s = [];
+    el.querySelectorAll('.teach-draw').forEach(function (d) {
+        var k = (d.getAttribute('data-kind') || '').toLowerCase();
+        if (/diamond|^x/.test(k)) s.push('diamond'); else if (/number/.test(k)) s.push('number_line'); else if (/area|box/.test(k)) s.push('area_model'); else s.push('parts');
+    });
+    if (el.querySelector('.teach-plot, .inline-graph-embed')) s.push('graph');
+    if (el.querySelector('.teach-image, img')) s.push('photo');
+    return s;
+}
+function _teachAttachVisualizers(bubble, contentEl, question, full) {
+    try {
+        if (typeof _autoVisualize !== 'function' || !contentEl) return;
+        var cards = [].slice.call(contentEl.querySelectorAll('.teach-card'));
+        if (!cards.length) {
+            if (!contentEl.querySelector('.teach-draw, .teach-plot, .teach-image, .inline-graph-embed, svg, img'))
+                _autoVisualize(bubble, question, full, { subject: _teachSubject || '' });
+            return;
+        }
+        cards.slice(0, 10).forEach(function (card, i) {
+            var h = card.querySelector('h4');
+            var topic = (card.getAttribute('data-topic') || (h ? h.textContent : '') || '').trim().slice(0, 80);
+            var before = null;
+            [].slice.call(card.children).forEach(function (ch) { if (!before && ch.style && /border-top/.test(ch.getAttribute('style') || '') && ch.querySelector('button')) before = ch; });
+            var text = (card.innerText || card.textContent || '').slice(0, 1800);
+            setTimeout(function () {
+                _autoVisualize(card, topic ? ('Topic: ' + topic) : question, text, { subject: _teachSubject || '', label: topic, before: before, shown: _teachShownVisuals(card) });
+            }, i * 260);
+        });
+    } catch (_) {}
 }
 function _teachDrawPlot(ctx, W, H, fns, pts, progress) {
     if (progress == null) progress = 1;   // v24.5 — <1 draws the graph in left-to-right (animated)
@@ -32619,6 +33003,17 @@ function startTeachingTopic(presetTopic) {
     _teachSyncTTSBtn();
     const msgs = document.getElementById('teach-chat-messages');
     if (msgs) msgs.innerHTML = '';
+    _teachFinishTyping();
+    _teachPlan = null;
+    // v24.38 — several topics listed? let the student pick: all at once or one by one
+    const topics = _teachSplitTopics(topic);
+    if (topics.length >= 2) {
+        _teachTitle = topics.join(', ').slice(0, 70);
+        if (title) title.textContent = _teachTitleText();
+        addTeachMessage('user', _teachEsc(topic));
+        _teachShowPlanChoice(topics, topic);
+        return;
+    }
     _sendTeachingBoardTurn(_teachOpeningAsk(topic), topic);
 }
 
@@ -32630,7 +33025,13 @@ async function sendTeachingBoardMessage(presetText) {
     // were wiping the in-progress answer. Keep the student's text so it's not lost.
     if (_teachBusy) { if (typeof showToast === 'function') showToast('One sec — finishing the last answer…', 'info', 2500); return; }
     if (input && !(typeof presetText === 'string' && presetText)) { input.value = ''; input.style.height = ''; }
+    // v24.38 — the student jumped in mid-plan: pause the auto run; offer "Next" after their answer
+    if (_teachPlan && _teachPlan.auto) _teachPlan.auto = false;
     await _sendTeachingBoardTurn(text);
+    if (_teachPlan && _teachPlan.mode && !_teachBusy && _teachPlan.cur < 0) {
+        var _nx = _teachPlanNextIndex();
+        if (_nx >= 0) _teachShowNextTopic(_nx);
+    }
 }
 
 async function _sendTeachingBoardTurn(sendText, displayOverride) {
@@ -32647,65 +33048,72 @@ async function _sendTeachingBoardTurn(sendText, displayOverride) {
 // duplicate user message. retryCount guards against infinite retries.
 async function _teachGenerate(retryCount) {
     const msgs = document.getElementById('teach-chat-messages');
-    if (!msgs) return;
+    if (!msgs) return false;
     _teachStopSpeak();          // a new answer is coming — silence any lesson still being read
+    _teachFinishTyping();       // v24.38 — a lesson still typing out snaps to complete first
     _teachBusy = true;
 
     const apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
     if (!apiKey) {
         addTeachMessage('ai', "I need an OpenAI API key first — add one (or sign in) in Settings, then come back.");
         _teachBusy = false;
-        return;
+        return false;
     }
 
-    const typing = document.createElement('div');
-    typing.className = 'companion-msg-ai';
-    typing.id = 'teach-typing';
-    typing.innerHTML = '<i class="ph ph-spinner ph-spin"></i> thinking…';
-    msgs.appendChild(typing);
-    msgs.scrollTop = msgs.scrollHeight;
-
     const subjectLine = _teachSubject ? ('\n\nThe student says this is for: ' + _teachSubject + '.') : '';
+    // send only role+content (history items may carry a local display label)
     const messages = [
         { role: 'system', content: NEXUS_TEACHING_BOARD_PROMPT + subjectLine + _teachDepthDirective() }
-    ].concat(_teachHistory.slice(-16));
+    ].concat(_teachHistory.slice(-16).map(function (m) { return { role: m.role, content: m.content }; }));
 
-    try {
-        const typingEl = document.getElementById('teach-typing');
-        if (typingEl) typingEl.remove();
-        const liveBubble = document.createElement('div');
-        liveBubble.className = 'companion-msg-ai';
-        liveBubble.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';   // v20.8 block-flow, full width, left
-        liveBubble.innerHTML = '<span class="streaming-content"></span><span class="streaming-cursor">▍</span>';
-        msgs.appendChild(liveBubble);
-        msgs.scrollTop = msgs.scrollHeight;
-        const contentEl = liveBubble.querySelector('.streaming-content');
-        const cursorEl = liveBubble.querySelector('.streaming-cursor');
+    // v24.38 — one bubble from the start: a gentle "writing" indicator, then the
+    // lesson types itself out INTO this same bubble (no sudden pop-in).
+    const liveBubble = document.createElement('div');
+    liveBubble.className = 'companion-msg-ai';
+    liveBubble.style.cssText = 'max-width:100%;margin:0 auto 12px 0;';   // v20.8 block-flow, full width, left
+    var _followNew = _teachNearBottom(msgs);
+    liveBubble.innerHTML = '<div class="teach-writing"><span class="tw-dots"><i></i><i></i><i></i></span><span>Writing your lesson…</span></div><div class="streaming-content"></div>';
+    msgs.appendChild(liveBubble);
+    if (_followNew) msgs.scrollTop = msgs.scrollHeight;   // hold the student's place if they scrolled up to read
+    const contentEl = liveBubble.querySelector('.streaming-content');
+    const writingEl = liveBubble.querySelector('.teach-writing');
+    var _lastQ = '';
+    for (var _qi = _teachHistory.length - 1; _qi >= 0; _qi--) { if (_teachHistory[_qi].role === 'user') { _lastQ = String(_teachHistory[_qi].display || _teachHistory[_qi].content || ''); break; } }
 
-        await streamChat({
+    return new Promise(function (resolveTurn) {
+        var settled = false;
+        var settle = function (v) { if (!settled) { settled = true; resolveTurn(v); } };
+        var fail = function (msg) {
+            if (writingEl && writingEl.parentNode) writingEl.remove();
+            // Drop the unanswered question so the failed turn can't poison the next one.
+            if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
+            _teachSaveHistory();
+            contentEl.innerHTML = '<em style="color:#ff9a9a;">Hit a snag: ' + esc0(msg) + '. Try sending again.</em>';
+            _teachBusy = false;
+            settle(false);
+        };
+        Promise.resolve(streamChat({
             apiKey: apiKey,
             model: localStorage.getItem('ai_model') || 'gpt-4o',
             messages: messages,
             temperature: 0.7,
-            max_tokens: 1400,
-            onChunk: function (delta, full) {
-                contentEl.textContent = (typeof stripHtmlForStream === 'function') ? stripHtmlForStream(full) : full;
-                msgs.scrollTop = msgs.scrollHeight;
-            },
+            max_tokens: 1500,
+            // The hosted AI arrives in one piece; the paced type-out below does the
+            // "writing", so we don't flash raw partial text here.
+            onChunk: function () {},
             onDone: function (full) {
-                if (cursorEl) cursorEl.remove();
+                if (writingEl && writingEl.parentNode) writingEl.remove();
                 // Blank reply (the model returned nothing). NEVER leave a silent
                 // void or save an empty turn — auto-retry once, then show a clear note.
                 if (!full || !String(full).trim()) {
                     liveBubble.remove();
-                    if (retryCount < 1) { _teachGenerate(retryCount + 1); return; }
-                    // Give up gracefully: drop the unanswered user turn from history so
-                    // it can't poison later turns, and tell the student clearly.
+                    if (retryCount < 1) { _teachGenerate(retryCount + 1).then(settle); return; }
                     if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
                     _teachSaveHistory();
                     addTeachMessage('ai', '<em style="color:#ff9a9a;">That reply came back blank — the AI hiccuped. Send your question again and it\'ll come through.</em>');
                     _teachBusy = false;
                     _teachShowQuickActions();
+                    settle(false);
                     return;
                 }
                 // Protect any labeled <svg> diagram from the text-cleaning passes,
@@ -32719,46 +33127,30 @@ async function _teachGenerate(retryCount) {
                 formatted = _teachCleanHtml(formatted);   // second pass: tidy anything markdown-conversion surfaced
                 formatted = _teachRestoreSvg(formatted, _svgStore);
                 contentEl.innerHTML = formatted;
-                _teachEnhanceCards(liveBubble);            // step-by-step walk buttons on the fresh lesson
-                _teachSmoothReveal(contentEl);             // glide the sections in instead of popping
-                // v24.37 — if the lesson didn't draw its own visual, attach the automatic
-                // drop-down visualizer at the bottom (so EVERY question gets a picture).
-                if (!contentEl.querySelector('.teach-draw, .teach-plot, .teach-image, .inline-graph-embed, svg, img')) {
-                    var _lastQ = '';
-                    for (var _qi = _teachHistory.length - 1; _qi >= 0; _qi--) { if (_teachHistory[_qi].role === 'user') { _lastQ = String(_teachHistory[_qi].content || ''); break; } }
-                    _autoVisualize(liveBubble, _lastQ, full, { subject: _teachSubject || '' });
-                }
-                _teachBusy = false;
+                _teachEnhanceCards(liveBubble);            // walk buttons, plots, drawings, practice — before typing so they appear in place
+                // Save the answer right away (a refresh mid-type-out keeps it).
                 _teachHistory.push({ role: 'assistant', content: full });
                 if (!_teachTitle) _teachTitle = _teachDeriveTitle(_teachHistory);
                 _teachSaveHistory();
-                _teachArchiveCurrent();               // keep Past sessions current after each real answer
-                if (typeof _lessonReviewAdd === 'function') _lessonReviewAdd(_teachTitle, _teachSubject);   // schedule spaced review
+                _teachArchiveCurrent();
+                if (typeof _lessonReviewAdd === 'function') _lessonReviewAdd(_teachTitle, _teachSubject);
                 _teachRenderHistoryPanel();
-                _teachShowQuickActions();
-                if (_teachHandsFree) _teachSpeak(full);   // only auto-speak during a hands-free voice session
-
                 if (typeof recordQuestProgress === 'function') recordQuestProgress('teaching_board');
                 if (typeof logActivity === 'function') logActivity('study', 'Used Teaching Board' + (_teachSubject ? (': ' + _teachSubject) : ''));
                 if (typeof updateStudyStats === 'function') updateStudyStats('problem_solved');
-            },
-            onError: function (err) {
-                if (cursorEl) cursorEl.remove();
-                // Drop the unanswered question so the failed turn can't poison the next one.
-                if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
-                _teachSaveHistory();
-                contentEl.innerHTML = '<em style="color:#ff9a9a;">Hit a snag: ' + esc0(err && err.message) + '. Try sending again.</em>';
+                // The AI part is done — the student may type while it writes out.
                 _teachBusy = false;
-            }
-        });
-    } catch (err) {
-        _teachBusy = false;
-        const typingEl2 = document.getElementById('teach-typing');
-        if (typingEl2) typingEl2.remove();
-        if (_teachHistory.length && _teachHistory[_teachHistory.length - 1].role === 'user') _teachHistory.pop();
-        _teachSaveHistory();
-        addTeachMessage('ai', 'Hit a snag: ' + ((err && err.message) || err) + '. Try sending again.');
-    }
+                _teachTypeOut(contentEl, msgs).then(function () {
+                    // v24.38 — a labeled visualizer for EACH topic card (or one for the reply)
+                    _teachAttachVisualizers(liveBubble, contentEl, _lastQ, full);
+                    _teachShowQuickActions();
+                    if (_teachHandsFree) _teachSpeak(full);   // only auto-speak during a hands-free voice session
+                    settle(true);
+                });
+            },
+            onError: function (err) { fail((err && err.message) || 'the AI did not answer'); }
+        })).catch(function (err) { fail((err && err.message) || String(err)); });
+    });
 }
 function esc0(s) { return (typeof escapeHtmlSafe === 'function') ? escapeHtmlSafe(s == null ? '' : s) : String(s == null ? '' : s); }
 
