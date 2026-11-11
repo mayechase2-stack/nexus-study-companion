@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.42';
+const NEXUS_CURRENT_VERSION = 'v24.43';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18773,6 +18773,8 @@ GRAPH / CHART READING — READ IT CAREFULLY, this is where mistakes happen:
   -> LINEAR FUNCTION / SLOPE: pick TWO points the line clearly passes through (ideally where it crosses gridline intersections), read them exactly, then slope m = (y₂ − y₁)/(x₂ − x₁). The y-intercept b is where the line crosses the y-axis (x = 0). Write the equation y = mx + b. Double-check the sign of the slope: up-to-the-right is positive, down-to-the-right is negative.
   -> State the points you read in the explanation so the student can verify you read the graph correctly. If the graph is blurry or the scale is unclear, SAY you are unsure of the exact values rather than guessing.
   -> For bar/line charts: read the requested value, trend, max/min, or intercept the same careful way, with units.
+  -> Prefer points where the graph crosses gridline INTERSECTIONS exactly (and any drawn dots), read the y-intercept straight off the y-axis labels, and confirm your equation passes through at least THREE such points before answering.
+  -> ALWAYS fill the "graph" field for these questions — NEXUS zooms in on that area and double-checks your reading.
 DIAGRAM / LABELING: a labeled figure (cell, anatomy, circuit, map, molecule) with parts to identify.
   -> "answer" = the label(s) for the marked part(s), e.g. "A = nucleus, B = mitochondrion".
 DATA TABLE: a table of values to read from or compute with.
@@ -18797,6 +18799,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
+  "graph": "ONLY when answering requires reading a coordinate graph — otherwise null. Shape: {\"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"equation\":\"y = … for the line/curve you identified, or null\"}",
   "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\"}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
@@ -18881,6 +18884,49 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 }
             }
         } catch (_) {}
+        // v24.43 — GRAPH RE-READ: crop the graph from the full-resolution share,
+        // read it up close, verify the reading, and correct the answer if needed.
+        let _graphRes = null, _graphFixed = false;
+        try {
+            const _gq = ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
+            if (_gq && typeof _lvGraphReread === 'function' && typeof NxMath !== 'undefined') {
+                const s1 = document.getElementById('lv-fetch-status');
+                if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Zooming in on the graph to double-check…';
+                const gr = await _lvGraphReread(video, ai.graph && ai.graph.box, apiKey);
+                const gc = _lvGraphConsistent(gr);
+                if (gr && gc.ok) {
+                    _graphRes = gr;
+                    const _ansEq = function (a) { const m = String((a && a.graph && a.graph.equation) || '').trim() || ((String((a && a.answer) || '').replace(/<[^>]+>/g, ' ').match(/y\s*=\s*[^,;«»"]+/i) || [''])[0]); return _lvEqFn(m); };
+                    const mainF = _ansEq(ai);
+                    const mainPts = (ai.graph && Array.isArray(ai.graph.points)) ? ai.graph.points.filter(function (p) { return Array.isArray(p) && isFinite(+p[0]) && isFinite(+p[1]); }) : [];
+                    const ptsOff = mainPts.some(function (p) { const y = gc.f(+p[0]); return !isFinite(y) || Math.abs(y - (+p[1])) > 0.1 * Math.max(1, +gr.yStep || 1); });
+                    const disagree = mainF ? !_lvSameLine(mainF, gc.f) : ptsOff;
+                    if (disagree) {
+                        if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> The close-up disagrees — re-answering…';
+                        const ptsTxt = gc.pts.map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
+                        const gMsg = 'A ZOOMED-IN, verified reading of the graph found that it passes exactly through ' + ptsTxt + '; slope ' + (gr.slope || 'n/a') + ', y-intercept ' + (gr.yIntercept != null ? gr.yIntercept : 'n/a') + '; equation ' + gr.equation + ' (checked: it passes through every one of those points). Your previous answer ("' + String(ai.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 200) + '") does not match that graph. Re-answer the question using this verified reading — if it is multiple choice, choose the option that matches it. Explain using these points. Same JSON format.';
+                        try {
+                            const r3 = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                                body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0,
+                                    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: data.choices[0].message.content }, { role: 'user', content: gMsg }] })
+                            });
+                            const d3 = await r3.json();
+                            if (!d3.error) {
+                                const ai3 = JSON.parse(d3.choices[0].message.content);
+                                const f3 = _ansEq(ai3);
+                                if (!f3 || _lvSameLine(f3, gc.f)) { ai = ai3; _graphFixed = true; }
+                            }
+                        } catch (_) {}
+                        if (!_graphFixed && mainF && !/multiple|multi-select/i.test(String(ai.questionType || ''))) {
+                            ai.explanation = '<strong>NEXUS zoomed in on the graph and checked it.</strong> The line passes exactly through ' + ptsTxt + ', so the slope is ' + (gr.slope || '?') + ' and the y-intercept is ' + gr.yIntercept + '.'
+                                + '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + String(ai.explanation || '') + '</div></details>';
+                            ai.answer = gr.equation; _graphFixed = true;
+                        }
+                    }
+                }
+            }
+        } catch (_) {}
         clearInterval(phaseTimer); // stop the rotating-status animation
 
         // v13.1 — enhanced output with question type badge + fill-in-the-blank display
@@ -18930,6 +18976,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 const _chkView = _mathOverride ? Object.assign({}, _mathRes, { ok: false }) : _mathRes;
                 answerElFinal.insertAdjacentHTML('beforeend', _nxMathCheckHtml(_chkView, _mathOverride ? 'override' : _mathFixed));
             }
+            if (_graphRes && typeof _lvGraphCheckHtml === 'function') answerElFinal.insertAdjacentHTML('beforeend', _lvGraphCheckHtml(_graphRes, _graphFixed));
         } catch (_) {}
 
         // Show question type badge next to topic
@@ -21271,6 +21318,14 @@ function _nxMathKeys(el, opts) {
     });
     // pasted / dictated "x^2" → x²
     el.addEventListener('paste', function () { setTimeout(function () { var v = el.value, nv = v.replace(/\^\(?(-?\d+)\)?/g, function (_m, d) { return d.split('').map(function (c) { return c === '-' ? '⁻' : _NX_SUP[c]; }).join(''); }); if (nv !== v) { el.value = nv; el.dispatchEvent(new Event('input', { bubbles: true })); } }, 0); });
+    // v24.43 — tell students about it: a one-time tip the first time they click into any math box
+    el.addEventListener('focus', function () {
+        try {
+            if (localStorage.getItem('nx_exp_tip') === '1') return;
+            localStorage.setItem('nx_exp_tip', '1');
+            if (typeof showToast === 'function') showToast('💡 Exponents: type ^ like on a calculator — x^2 becomes x². Or tap the x² keys under the box.', 'info', 6500);
+        } catch (_) {}
+    });
     if (!opts.always) {
         el.addEventListener('focus', function () { bar.classList.add('is-on'); });
         el.addEventListener('blur', function () { setSup(false); setTimeout(function () { if (document.activeElement !== el) bar.classList.remove('is-on'); }, 120); });
@@ -21328,6 +21383,87 @@ function _nxAnswersMatch(typed, answer) {
     return false;
 }
 window._nxAnswersMatch = _nxAnswersMatch;
+// ════════════════════════════════════════════════════════════════════
+// v24.43 — LIVE VISION GRAPH RE-READ. Chase: Live Vision read y = −x + 3 off a
+// graph whose line actually goes through (−9, 8), (−6, 4), (0, −4) → y = −4/3x − 4.
+// The whole screen is shrunk into one image, so tiny tick labels and gridlines
+// blur. Now, for any graph question:
+//   1. The first answer marks WHERE the graph is on screen ("graph.box").
+//   2. NEXUS crops that area from the FULL-resolution screen share, enlarges it,
+//      and runs a dedicated, step-by-step graph reading (scale → y-intercept →
+//      exact gridline-corner points → slope as a fraction → check).
+//   3. The app verifies the reading itself: the equation must pass through
+//      EVERY point read, and (for a line) the points must line up.
+//   4. If the first answer disagrees with a verified reading, Live Vision
+//      re-answers with that evidence.
+// ════════════════════════════════════════════════════════════════════
+const NEXUS_GRAPHREAD_PROMPT = `You are reading a ZOOMED-IN coordinate graph from a student's screen. Accuracy is everything — work slowly.
+1. Read the axis tick LABELS. Decide how much one gridline is worth on x and on y (often 1, but check — it may be 2, 5, 0.5…).
+2. Read where the graph crosses the y-axis, exactly, from the y-axis labels.
+3. Find at least 4 points where the graph passes EXACTLY through a gridline intersection (or a drawn dot), spread far apart — include both ends of the visible graph if they land on gridline corners. For each, COUNT gridlines from the nearest labeled tick; never eyeball.
+4. Line: slope = (y₂ − y₁)/(x₂ − x₁) from two far-apart points, as a REDUCED fraction. A line falling from left to right has a NEGATIVE slope. Parabola: read the vertex and one more exact point.
+5. CHECK: plug every point into your equation. If any point fails, you misread something — re-read and fix it.
+Return ONLY JSON: {"work":"your counting and checks","xStep":1,"yStep":1,"kind":"line|parabola|other","points":[[x,y],[x,y],[x,y],[x,y]],"yIntercept":"exact value","slope":"reduced fraction or null","equation":"y = …  (plain text, fractions like -4/3x)"}`;
+function _lvEqFn(eq) {   // "y = -4/3x - 4" → function of x (or null)
+    try {
+        var s = String(eq || '').replace(/[−–—]/g, '-').replace(/\s+/g, '');
+        var m = /^(?:y|f\(x\))=(.+)$/i.exec(s); if (!m) return null;
+        var rhs = m[1].replace(/(\d+)\/(\d+)x/g, '($1/$2)x');      // "-4/3x" means (−4/3)·x, not −4/(3x)
+        var c = NxMath.compile(rhs); if (c.vars.length > 1 || (c.vars.length === 1 && c.vars[0] !== 'x')) return null;
+        return function (x) { return c.fn({ x: x }); };
+    } catch (_) { return null; }
+}
+function _lvGraphConsistent(g) {   // does the equation pass through every point read? do the points line up?
+    if (!g || !Array.isArray(g.points)) return { ok: false, why: 'no points' };
+    var pts = g.points.filter(function (p) { return Array.isArray(p) && isFinite(+p[0]) && isFinite(+p[1]); }).map(function (p) { return [+p[0], +p[1]]; });
+    if (pts.length < 3) return { ok: false, why: 'fewer than 3 points' };
+    var f = _lvEqFn(g.equation); if (!f) return { ok: false, why: 'equation unreadable', pts: pts };
+    var tolY = 0.08 * Math.max(1, +g.yStep || 1);
+    var miss = pts.filter(function (p) { var y = f(p[0]); return !isFinite(y) || Math.abs(y - p[1]) > tolY; });
+    return { ok: miss.length === 0, miss: miss, pts: pts, f: f };
+}
+function _lvSameLine(f1, f2) {
+    if (!f1 || !f2) return false;
+    return [-7, -2, 0, 3, 8].every(function (x) { var a = f1(x), b = f2(x); return isFinite(a) && isFinite(b) && Math.abs(a - b) < 0.05 * (1 + Math.abs(a)); });
+}
+async function _lvGraphReread(video, box, apiKey) {
+    var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
+    var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
+    if (!b.every(isFinite) || b[2] <= b[0] || b[3] <= b[1]) b = [0, 0, 1, 1];
+    var pad = 0.04;
+    var x0 = Math.max(0, b[0] - pad) * vw, y0 = Math.max(0, b[1] - pad) * vh, x1 = Math.min(1, b[2] + pad) * vw, y1 = Math.min(1, b[3] + pad) * vh;
+    var cw = x1 - x0, ch = y1 - y0; if (cw < 40 || ch < 40) return null;
+    var scale = Math.min(2.5, Math.max(1, 1400 / Math.max(cw, ch)));
+    var cv = document.createElement('canvas'); cv.width = Math.round(cw * scale); cv.height = Math.round(ch * scale);
+    var ctx = cv.getContext('2d'); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(video, x0, y0, cw, ch, 0, 0, cv.width, cv.height);
+    var q = 0.92, url = cv.toDataURL('image/jpeg', q);
+    while (url.length > 520000 && q > 0.5) { q -= 0.1; url = cv.toDataURL('image/jpeg', q); }
+    window._nxModuleOverride = 'capture';
+    var req;
+    try {
+        req = fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o', temperature: 0, max_tokens: 900, response_format: { type: 'json_object' },
+                messages: [{ role: 'system', content: NEXUS_GRAPHREAD_PROMPT }, { role: 'user', content: [{ type: 'text', text: 'Read this graph exactly.' }, { type: 'image_url', image_url: { url: url, detail: 'high' } }] }] })
+        });
+    } finally { window._nxModuleOverride = ''; }
+    var d = await (await req).json();
+    if (!d || d.error) return null;
+    return JSON.parse(d.choices[0].message.content);
+}
+window._lvGraphReread = _lvGraphReread;
+function _lvGraphCheckHtml(g, corrected) {
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var pts = (g.points || []).slice(0, 5).map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
+    var col = corrected ? '#ffbe5a' : '#45c78d';
+    return '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;">'
+        + '<div style="font-weight:700;color:' + col + ';">' + (corrected ? '🛠️ NEXUS zoomed in on the graph and corrected the answer' : '✅ Graph re-read up close and checked') + '</div>'
+        + '<div>The line passes exactly through ' + esc(pts) + (g.slope ? ' → slope ' + esc(g.slope) : '') + (g.yIntercept != null ? ', y-intercept ' + esc(g.yIntercept) : '') + '.</div>'
+        + '<div>Equation: <strong>' + esc(g.equation) + '</strong> — passes through every one of those points ✓</div></div>';
+}
+window._lvGraphCheckHtml = _lvGraphCheckHtml;
+
 
 // v24.40 — the same exact check for Math-tab answers (typed or photo). A small
 // extraction call pulls out the problem + the tutor's FINAL answer, then NxMath
@@ -24793,6 +24929,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.43',
+        date: 'November 11, 2026',
+        tag: 'GRAPHS, READ UP CLOSE',
+        tagColor: '#2ed3cd',
+        changes: [
+            'LIVE VISION READS GRAPHS UP CLOSE — For any graph question, NEXUS now zooms in on the graph from your full-resolution screen. It reads the scale, the y-intercept, and points where the line crosses gridline corners exactly, then checks that the equation passes through EVERY one of those points. If the first answer disagrees with that checked reading, Live Vision re-answers. (Fixes y = −x + 3 being given for a line that actually goes through (−9, 8), (−6, 4) and (0, −4), which is y = −4/3x − 4.)',
+            'SEE THE POINTS — Graph answers now show the exact points NEXUS read, the slope and the y-intercept, so you can match them against your graph yourself.',
+            'EXPONENT TIPS — The first time you click into a math box, a tip shows how to type exponents (^, like a calculator). The Math box and practice boxes say it too, and there\'s a new Help entry: "Typing math: exponents & symbols".',
+        ]
+    },
     {
         version: 'v24.42',
         date: 'November 11, 2026',
@@ -33308,7 +33455,7 @@ function _teachEnhancePractice(el) {
                 var wrap = document.createElement('div');
                 wrap.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;';
                 var inp = document.createElement('input');
-                inp.type = 'text'; inp.placeholder = 'Your answer';
+                inp.type = 'text'; inp.placeholder = 'Your answer (^ for exponents: x^2 → x²)';
                 inp.style.cssText = 'flex:1;min-width:140px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:7px;color:#fff;padding:9px 12px;font-size:0.98rem;';
                 var btn = document.createElement('button');
                 btn.type = 'button'; btn.textContent = 'Check';

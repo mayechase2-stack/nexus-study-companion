@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20261111v324">
+    <link rel="stylesheet" href="style.css?v=20261111v325">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -2420,7 +2420,7 @@
                                 Problem (Type, Upload Image, or Ctrl+V)</label>
 
                             <!-- Text Input -->
-                            <textarea id="math-text-input" placeholder="Type equation here (e.g. 2x + 5 = 15)..."
+                            <textarea id="math-text-input" placeholder="Type equation here (e.g. 2x + 5 = 15). Exponents: type ^ (x^2 → x²) or tap x² below."
                                 style="height: 80px; margin-bottom: 10px; font-family: monospace;"></textarea>
 
                             <!-- Image Input & Controls -->
@@ -4850,6 +4850,32 @@ if __name__ == '__main__':
                 </div>
 
                 <!-- Labs & Tools -->
+                <div class="help-topic" id="typing-math" data-keywords="exponent exponents power squared cubed superscript caret ^ square root symbol type math keyboard fraction pi less than greater than">
+                    <div class="glass-panel" style="padding:24px; margin-bottom:20px; border:1px solid rgba(0,206,201,0.3);">
+                        <h3 style="margin-top:0; color:#00cec9; display:flex; align-items:center; gap:10px;">
+                            <i class="ph ph-function"></i> Typing math: exponents &amp; symbols
+                        </h3>
+                        <div class="faq-item" style="margin-bottom:20px;">
+                            <h4 style="color:white; margin-bottom:8px;">How do I type an exponent like x²?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                Type <strong style="color:#fff;">^</strong> just like on a calculator (Shift + 6 on most keyboards): <strong style="color:#fff;">x ^ 2</strong> becomes <strong style="color:#fff;">x²</strong>. Numbers keep going up until you type something else, so 3x^2+8x turns into 3x²+8x. For a negative exponent, put a minus right after the ^ (x^-2 → x⁻²). You can also tap the <strong style="color:#fff;">x²</strong>, <strong style="color:#fff;">x³</strong> or <strong style="color:#fff;">xⁿ</strong> keys.
+                            </p>
+                        </div>
+                        <div class="faq-item" style="margin-bottom:20px;">
+                            <h4 style="color:white; margin-bottom:8px;">Where are the math keys?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                A row of keys (x², x³, xⁿ, √, π, ≤, ≥, ≠, ±, ×, ÷, |x|) sits under the Math problem box and pops up when you click into the Teaching Board, a practice answer box, or Diagnose my work.
+                            </p>
+                        </div>
+                        <div class="faq-item">
+                            <h4 style="color:white; margin-bottom:8px;">Does my answer have to match exactly?</h4>
+                            <p style="color:var(--text-muted); line-height:1.6; margin:0;">
+                                No. Practice answers are checked by their math value, so 3x^2+8x-5, 8x + 3x² − 5 and 3x² + 8x − 5 all count, and so do 4 and x = 4.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="help-topic" id="labs-tools" data-keywords="tools labs math science history visualizer simulator timeline notebook drawing">
                     <div class="glass-panel" style="padding:24px; margin-bottom:20px; border:1px solid rgba(0,184,148,0.2);">
                         <h3 style="margin-top:0; color:#00b894; display:flex; align-items:center; gap:10px;">
@@ -5470,7 +5496,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20261111v324"></script>
+    <script src="script.js?v=20261111v325"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {
