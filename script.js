@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.44';
+const NEXUS_CURRENT_VERSION = 'v24.45';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18884,37 +18884,58 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 }
             }
         } catch (_) {}
-        // v24.43 — GRAPH RE-READ: crop the graph from the full-resolution share,
-        // read it up close, verify the reading, and correct the answer if needed.
-        let _graphRes = null, _graphFixed = false;
+        // v24.45 — GRAPH CHECK BY 2-OF-3 VOTE. Three independent readings of the graph:
+        //   (A) the first AI answer, (B) NEXUS's pixel measurement, (C) an AI close-up re-read.
+        // The answer is only changed when TWO sources agree against it. When they don't
+        // line up, nothing is overwritten — the student gets a clear "double-check" note.
+        // (v24.44 let a single bad measurement overwrite a good answer with "y = 26".)
+        let _graphRes = null, _graphFixed = false, _graphUnsure = null;
         try {
             const _gq = ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
             if (_gq && typeof _lvGraphReread === 'function' && typeof NxMath !== 'undefined') {
                 const s1 = document.getElementById('lv-fetch-status');
-                if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Zooming in on the graph to double-check…';
-                // v24.44 — 1) MEASURE the line from the pixels (exact, no AI); 2) only if that isn't
-                // confident, fall back to the AI close-up re-read.
-                let gr = null, gc = { ok: false };
+                if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Double-checking the graph…';
+                const _ansEq = function (a) { const m = String((a && a.graph && a.graph.equation) || '').trim() || ((String((a && a.answer) || '').replace(/<[^>]+>/g, ' ').match(/y\s*=\s*[^,;«»"]+/i) || [''])[0]); return _lvEqFn(m); };
+                const _ptsOf = function (a) { return (a && a.graph && Array.isArray(a.graph.points)) ? a.graph.points.filter(function (p) { return Array.isArray(p) && isFinite(+p[0]) && isFinite(+p[1]); }) : []; };
+                const _ys = Math.max(1, +(ai.graph && ai.graph.yStep) || 1);
+                // does answer `a` agree with reading f?  true / false / null (can't tell)
+                const _agrees = function (a, f) {
+                    const af = _ansEq(a); if (af) return _lvSameLine(af, f);
+                    const pts = _ptsOf(a); if (pts.length >= 2) return !pts.some(function (p) { const y = f(+p[0]); return !isFinite(y) || Math.abs(y - (+p[1])) > 0.1 * _ys; });
+                    return null;
+                };
+                // (B) measure
+                let B = null;
                 try {
                     const cv = (typeof _lvMeasureGraph === 'function') ? _lvMeasureGraph(video, ai.graph && ai.graph.box, ai.graph && ai.graph.xStep, ai.graph && ai.graph.yStep) : null;
-                    if (cv && cv.ok && cv.confident) {
-                        gr = { measured: true, points: cv.lattice, slope: cv.slope, yIntercept: cv.b, equation: cv.equation, yStep: (ai.graph && ai.graph.yStep) || 1 };
-                        gc = { ok: true, f: _lvEqFn(cv.equation), pts: cv.lattice };
-                        if (typeof trackFeature === 'function') trackFeature('lv_graph_measured');
-                    }
+                    if (cv && cv.ok && cv.confident) { const f = _lvEqFn(cv.equation); if (f) B = { measured: true, points: cv.lattice, slope: cv.slope, yIntercept: cv.b, equation: cv.equation, f: f }; }
                 } catch (_) {}
-                if (!gc.ok) { gr = await _lvGraphReread(video, ai.graph && ai.graph.box, apiKey); gc = _lvGraphConsistent(gr); }
-                if (gr && gc.ok) {
-                    _graphRes = gr;
-                    const _ansEq = function (a) { const m = String((a && a.graph && a.graph.equation) || '').trim() || ((String((a && a.answer) || '').replace(/<[^>]+>/g, ' ').match(/y\s*=\s*[^,;«»"]+/i) || [''])[0]); return _lvEqFn(m); };
-                    const mainF = _ansEq(ai);
-                    const mainPts = (ai.graph && Array.isArray(ai.graph.points)) ? ai.graph.points.filter(function (p) { return Array.isArray(p) && isFinite(+p[0]) && isFinite(+p[1]); }) : [];
-                    const ptsOff = mainPts.some(function (p) { const y = gc.f(+p[0]); return !isFinite(y) || Math.abs(y - (+p[1])) > 0.1 * Math.max(1, +gr.yStep || 1); });
-                    const disagree = mainF ? !_lvSameLine(mainF, gc.f) : ptsOff;
-                    if (disagree) {
-                        if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> The close-up disagrees — re-answering…';
-                        const ptsTxt = gc.pts.map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
-                        const gMsg = (gr.measured ? 'NEXUS MEASURED the line directly from the screen pixels (exact, not a guess). It passes through ' : 'A ZOOMED-IN, verified reading of the graph found that it passes exactly through ') + ptsTxt + '; slope ' + (gr.slope || 'n/a') + ', y-intercept ' + (gr.yIntercept != null ? gr.yIntercept : 'n/a') + '; equation ' + gr.equation + ' (checked: it passes through every one of those points). Your previous answer ("' + String(ai.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 200) + '") does not match that graph. Re-answer the question using this verified reading — if it is multiple choice, choose the option that matches it. Explain using these points. Same JSON format.';
+                const aB = B ? _agrees(ai, B.f) : null;
+                if (B && aB === true) {
+                    _graphRes = B;                                   // A + B agree — done
+                    if (typeof trackFeature === 'function') trackFeature('lv_graph_agree');
+                } else {
+                    // (C) the tie-breaker / second opinion
+                    if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Zooming in on the graph for a second opinion…';
+                    let C = null;
+                    try {
+                        const rr = await _lvGraphReread(video, ai.graph && ai.graph.box, apiKey);
+                        const rc = _lvGraphConsistent(rr);
+                        if (rr && rc.ok) C = { points: rc.pts, slope: rr.slope, yIntercept: rr.yIntercept, equation: rr.equation, f: rc.f };
+                    } catch (_) {}
+                    const aC = C ? _agrees(ai, C.f) : null;
+                    let truth = null;
+                    if (B && C && _lvSameLine(B.f, C.f)) truth = B;                       // B + C agree
+                    else if (C && aC === true) _graphRes = C;                              // A + C agree → the answer stands
+                    else if (!B && C && aC === false) truth = Object.assign({ soft: true }, C);   // only C disagrees → ask A to look again, never force
+                    else if (B || C) _graphUnsure = { B: B, C: C };                       // no majority → warn, don't overwrite
+                    if (truth && (truth.soft || (aB === false || aC === false || _agrees(ai, truth.f) !== true))) {
+                        if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> The checks disagree with the answer — re-answering…';
+                        const ptsTxt = (truth.points || []).map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
+                        const gMsg = (truth.soft ? 'A zoomed-in re-read of the graph found that it passes through ' : 'TWO independent checks — a pixel measurement of the screen AND a zoomed-in re-read — agree that the graph passes through ')
+                            + ptsTxt + '; slope ' + (truth.slope || 'n/a') + ', y-intercept ' + (truth.yIntercept != null ? truth.yIntercept : 'n/a') + '; equation ' + truth.equation
+                            + '. Your previous answer ("' + String(ai.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 200) + '") does not match. Look at the graph again carefully' + (truth.soft ? ' and decide which reading is right' : '') + ', then re-answer — if it is multiple choice, choose the matching option. Explain using exact points. Same JSON format.';
+                        let ai3 = null;
                         try {
                             const r3 = await fetch('https://api.openai.com/v1/chat/completions', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -18922,17 +18943,16 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                                     messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: data.choices[0].message.content }, { role: 'user', content: gMsg }] })
                             });
                             const d3 = await r3.json();
-                            if (!d3.error) {
-                                const ai3 = JSON.parse(d3.choices[0].message.content);
-                                const f3 = _ansEq(ai3);
-                                if (!f3 || _lvSameLine(f3, gc.f)) { ai = ai3; _graphFixed = true; }
-                            }
+                            if (!d3.error) ai3 = JSON.parse(d3.choices[0].message.content);
                         } catch (_) {}
-                        if (!_graphFixed && mainF && !/multiple|multi-select/i.test(String(ai.questionType || ''))) {
-                            ai.explanation = '<strong>NEXUS zoomed in on the graph and checked it.</strong> The line passes exactly through ' + ptsTxt + ', so the slope is ' + (gr.slope || '?') + ' and the y-intercept is ' + gr.yIntercept + '.'
+                        const a3 = ai3 ? _agrees(ai3, truth.f) : null;
+                        if (ai3 && a3 !== false) { ai = ai3; _graphRes = truth; _graphFixed = true; }
+                        else if (!truth.soft && _ansEq(ai) && !/multiple|multi-select/i.test(String(ai.questionType || ''))) {
+                            // two independent checks agree and the AI still won't — show the checked answer
+                            ai.explanation = '<strong>NEXUS checked this graph two independent ways</strong> (measuring the line on your screen, and a zoomed-in re-read) and both agree: the line passes through ' + ptsTxt + ', so the slope is ' + (truth.slope || '?') + ' and the y-intercept is ' + truth.yIntercept + '.'
                                 + '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + String(ai.explanation || '') + '</div></details>';
-                            ai.answer = gr.equation; _graphFixed = true;
-                        }
+                            ai.answer = truth.equation; _graphRes = truth; _graphFixed = true;
+                        } else _graphUnsure = { B: B, C: C };
                     }
                 }
             }
@@ -18987,6 +19007,13 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 answerElFinal.insertAdjacentHTML('beforeend', _nxMathCheckHtml(_chkView, _mathOverride ? 'override' : _mathFixed));
             }
             if (_graphRes && typeof _lvGraphCheckHtml === 'function') answerElFinal.insertAdjacentHTML('beforeend', _lvGraphCheckHtml(_graphRes, _graphFixed));
+            else if (_graphUnsure) {
+                const _e = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+                const _rd = [];
+                if (_graphUnsure.B) _rd.push('measuring the line on your screen gives <strong>' + _e(_graphUnsure.B.equation) + '</strong> (through ' + _e((_graphUnsure.B.points || []).slice(0, 3).map(function (p) { return '(' + p.join(', ') + ')'; }).join(', ')) + ')');
+                if (_graphUnsure.C) _rd.push('a zoomed-in re-read gives <strong>' + _e(_graphUnsure.C.equation) + '</strong> (through ' + _e((_graphUnsure.C.points || []).slice(0, 3).map(function (p) { return '(' + p.join(', ') + ')'; }).join(', ')) + ')');
+                answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid #ffbe5a55;background:#ffbe5a14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:#ffbe5a;">⚠️ Double-check this one before you submit</div><div>NEXUS\'s own checks of the graph don\'t all agree with this answer: ' + _rd.join('; ') + '. Pick two points the line clearly passes through on YOUR graph and compare.</div></div>');
+            }
         } catch (_) {}
 
         // Show question type badge next to topic
@@ -21562,19 +21589,41 @@ var NxGraphCV = (function () {
             }
         }
         // axes = the longest dark runs
-        var rRuns = runs(dark, w, h, true), cRuns = runs(dark, w, h, false);
+        // thin-line masks: a dark pixel only counts toward an axis if it is NOT inside a filled dark area
+        // (dark backgrounds, dark themes, browser chrome would otherwise swallow the real axis)
+        var darkH = new Uint8Array(N), darkV = new Uint8Array(N), T4 = 4;
+        for (var ty = 0; ty < h; ty++) for (var tx = 0; tx < w; tx++) {
+            var ti = ty * w + tx; if (!dark[ti]) continue;
+            var up = ty >= T4 && dark[ti - T4 * w], dn = ty < h - T4 && dark[ti + T4 * w];
+            var lf = tx >= T4 && dark[ti - T4], rt = tx < w - T4 && dark[ti + T4];
+            if (!(up && dn)) darkH[ti] = 1;
+            if (!(lf && rt)) darkV[ti] = 1;
+        }
+        var rRuns = runs(darkH, w, h, true, 6), cRuns = runs(darkV, w, h, false, 6);   // small gaps (where the graph line crosses an axis) don't cut the axis short
+        // an axis is a THIN line: the pixels a few rows/cols away along it are mostly NOT dark
+        // (this rules out filled dark areas — browser chrome, dark themes — and rows of text)
+        var thin = function (arr, i, horizontal) {
+            var r = arr[i], s0 = r.end - r.len + 1, off = [-4, 4], bad = 0;
+            for (var o = 0; o < 2; o++) {
+                var j = i + off[o]; if (j < 0 || j >= (horizontal ? h : w)) continue;
+                var cnt = 0, tot = 0;
+                for (var t2 = s0; t2 <= r.end; t2 += 3) { tot++; if (horizontal ? dark[j * w + t2] : dark[t2 * w + j]) cnt++; }
+                if (tot && cnt / tot > 0.6) bad++;
+            }
+            return bad === 0;
+        };
         // the axes must CROSS each other (a long text-box border or panel edge won't) — try the longest candidates in pairs
-        var topIdx = function (arr) { return arr.map(function (r, i) { return i; }).sort(function (a, b) { return arr[b].len - arr[a].len; }).slice(0, 12); };
+        var topIdx = function (arr, horizontal) { return arr.map(function (r, i) { return i; }).filter(function (i) { return arr[i].len >= 100 && thin(arr, i, horizontal); }).sort(function (a, b) { return arr[b].len - arr[a].len; }).slice(0, 12); };
         var ax = -1, ay = -1, bestScore = 0;
-        topIdx(rRuns).forEach(function (ri) {
+        topIdx(rRuns, true).forEach(function (ri) {
             var r = rRuns[ri], rs = r.end - r.len + 1;
-            topIdx(cRuns).forEach(function (ci) {
+            topIdx(cRuns, false).forEach(function (ci) {
                 var c = cRuns[ci], cs = c.end - c.len + 1;
                 var crosses = ci > rs + 0.08 * r.len && ci < r.end - 0.08 * r.len && ri > cs + 0.08 * c.len && ri < c.end - 0.08 * c.len;
                 if (crosses && r.len + c.len > bestScore) { bestScore = r.len + c.len; ax = ci; ay = ri; }
             });
         });
-        if (ax < 0) return { ok: false, why: 'axes not found', dbg: { rows: topIdx(rRuns).map(function (i) { return [i, rRuns[i].len, rRuns[i].end]; }), cols: topIdx(cRuns).map(function (i) { return [i, cRuns[i].len, cRuns[i].end]; }) } };
+        if (ax < 0) return { ok: false, why: 'axes not found', dbg: { rows: topIdx(rRuns, true).map(function (i) { return [i, rRuns[i].len, rRuns[i].end]; }), cols: topIdx(cRuns, false).map(function (i) { return [i, cRuns[i].len, cRuns[i].end]; }) } };
         if (rRuns[ay].len < 120 || cRuns[ax].len < 120) return { ok: false, why: 'axes too short', dbg: { ax: ax, ay: ay, rl: rRuns[ay].len, cl: cRuns[ax].len } };
         // refine axis to the center of its (possibly 2-3px thick) band
         var band = function (arr, i0) { var lo = i0, hi = i0, L = arr[i0].len; while (lo > 0 && arr[lo - 1].len > 0.8 * L) lo--; while (hi < arr.length - 1 && arr[hi + 1].len > 0.8 * L) hi++; return (lo + hi) / 2; };
@@ -21601,11 +21650,18 @@ var NxGraphCV = (function () {
         if (Math.abs(ratio - 2) < 0.15) gx = gy; else if (Math.abs(ratio - 0.5) < 0.04) gy = gx;
         else if (Math.abs(ratio - 1) > 0.12) squareOk = false;
         var gL = walk(pkX, axisX, gx, -1), gR = walk(pkX, axisX, gx, 1), gT = walk(pkY, axisY, gy, -1), gB = walk(pkY, axisY, gy, 1);
-        // the graph line = the dominant colored hue
-        var top = 0; for (var k = 1; k < 18; k++) if (binCount[k] > binCount[top]) top = k;
-        if (binCount[top] < 150) return { ok: false, why: 'no colored line' };
+        var bothSides = (axisX - gL) >= 1.5 * gx && (gR - axisX) >= 1.5 * gx && (axisY - gT) >= 1.5 * gy && (gB - axisY) >= 1.5 * gy;
+        // v24.45 — ONLY look inside the plot: the box spanned by the two axes. Colored UI around the
+        // graph (buttons, tab bars, the NEXUS panel itself) can never be mistaken for the line.
+        var xr = rRuns[ay], yr = cRuns[ax];
+        var rx0 = xr.end - xr.len + 1, rx1 = xr.end, ry0 = yr.end - yr.len + 1, ry1 = yr.end;
+        if ((rx1 - rx0) / gx < 6 || (ry1 - ry0) / gy < 6) return { ok: false, why: 'not a coordinate grid' };
+        var bc = new Array(18).fill(0);
+        for (var py0 = Math.max(0, ry0); py0 <= Math.min(h - 1, ry1); py0++) for (var px0 = Math.max(0, rx0); px0 <= Math.min(w - 1, rx1); px0++) { var hb = hueBin[py0 * w + px0]; if (hb >= 0) bc[hb]++; }
+        var top = 0; for (var k = 1; k < 18; k++) if (bc[k] > bc[top]) top = k;
+        if (bc[top] < 150) return { ok: false, why: 'no colored line in the plot' };
         var pts = [];
-        for (var p = 0; p < N; p++) { var bb = hueBin[p]; if (bb === top || bb === (top + 1) % 18 || bb === (top + 17) % 18) pts.push([p % w, Math.floor(p / w)]); }
+        for (var py1 = Math.max(0, ry0); py1 <= Math.min(h - 1, ry1); py1++) for (var px1 = Math.max(0, rx0); px1 <= Math.min(w - 1, rx1); px1++) { var bb = hueBin[py1 * w + px1]; if (bb === top || bb === (top + 1) % 18 || bb === (top + 17) % 18) pts.push([px1, py1]); }
         // robust total-least-squares fit
         var fit = function (P) {
             var mx = 0, my = 0; P.forEach(function (q) { mx += q[0]; my += q[1]; }); mx /= P.length; my /= P.length;
@@ -21635,16 +21691,19 @@ var NxGraphCV = (function () {
         }
         var along = pts.map(function (q) { return (q[0] - F.mx) * F.ux + (q[1] - F.my) * F.uy; });
         var span = Math.max.apply(null, along) - Math.min.apply(null, along);
-        if (pts.length < 100 || span < 6 * Math.min(gx, gy)) return { ok: false, why: 'line too short' };
+        if (pts.length < 100 || span < 6 * Math.min(gx, gy) || span < 0.3 * Math.min(rx1 - rx0, ry1 - ry0)) return { ok: false, why: 'line too short for the plot' };
         if (F.rms > 3) return { ok: false, why: 'not a straight line', rms: F.rms };
-        if (Math.abs(F.ux) < 0.02) return { ok: false, why: 'vertical line' };
+        if (Math.abs(F.ux) < 0.02) return { ok: false, why: 'vertical line', dbg: { rect: [rx0, rx1, ry0, ry1], axisX: axisX, axisY: axisY, gx: gx, gy: gy, top: top, n: pts.length, mx: F.mx, my: F.my } };
         var xs = +opt.xStep || 1, ys = +opt.yStep || 1;
         var mPix = F.uy / F.ux;                               // pixel slope (down is +)
         var m = -mPix * (gx / gy) * (ys / xs);
         var pyAtAxis = F.my + (axisX - F.mx) * mPix;
         var b = (axisY - pyAtAxis) / gy * ys;
         var sm = snapFrac(m), sbUnits = Math.round(b / ys * 2) / 2, bErr = Math.abs(b / ys - sbUnits);
-        var conf = !!sm && bErr < 0.18 && F.rms < 2.2 && squareOk;
+        // an intercept far off the visible grid can't be double-checked by eye — don't be "confident" about it
+        var yTopU = (axisY - ry0) / gy, yBotU = (axisY - ry1) / gy, bU = b / ys;
+        var inRange = bU <= yTopU + 1 && bU >= yBotU - 1;
+        var conf = !!sm && bErr < 0.18 && F.rms < 2.2 && squareOk && inRange && bothSides;
         var mStr = sm ? fracStr(sm.p, sm.q) : String(Math.round(m * 1000) / 1000);
         var bVal = sbUnits * ys, bStr = String(bVal);
         var eq = 'y = ' + (mStr === '0' ? '' : (mStr === '1' ? '' : mStr === '-1' ? '-' : mStr) + 'x') + (mStr === '0' ? bStr : (bVal === 0 ? '' : (bVal < 0 ? ' - ' + Math.abs(bVal) : ' + ' + bVal)));
@@ -25155,6 +25214,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.45',
+        date: 'November 11, 2026',
+        tag: 'GRAPH CHECKS THAT CAN\'T GO ROGUE',
+        tagColor: '#ffbe5a',
+        changes: [
+            'FIXED: "y = 26" — In v24.44 the graph measurement could latch onto a colored bar elsewhere on your screen and overwrite a good answer. It now only looks INSIDE the graph (the box made by the two axes), requires a real grid, and refuses readings that land off the visible graph.',
+            'TWO-OUT-OF-THREE RULE — Live Vision now checks a graph three independent ways: the first answer, a pixel measurement, and a zoomed-in re-read. An answer is only changed when TWO checks agree against it. If they don\'t line up, nothing gets overwritten. You get a clear "double-check this one" note showing what each check found, so you can compare against your graph.',
+        ]
+    },
     {
         version: 'v24.44',
         date: 'November 11, 2026',
