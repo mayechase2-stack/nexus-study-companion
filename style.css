@@ -4409,3 +4409,21 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
 @media (max-width: 640px) {
   #teach-chat-messages .teach-step .ts-math, #teach-chat-messages .teach-problem { font-size: 0.92rem; }
 }
+
+/* v24.42 — math keys row (exponents & symbols) */
+.nx-mathkeys { display: none; flex-wrap: wrap; align-items: center; gap: 5px; margin: 6px 0 2px; }
+.nx-mathkeys.is-on { display: flex; animation: twIn .22s ease both; }
+.nx-mathkeys .nxk {
+  all: unset; box-sizing: border-box; cursor: pointer; min-width: 34px; height: 30px; padding: 0 9px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;
+  font: 600 0.9rem/1 'Martian Mono', ui-monospace, Menlo, Consolas, monospace; color: #e6e3ff;
+  background: rgba(108,92,231,0.14); border: 1px solid rgba(143,128,244,0.35); transition: background .15s, border-color .15s, transform .1s;
+}
+.nx-mathkeys .nxk:hover { background: rgba(108,92,231,0.3); border-color: rgba(143,128,244,0.8); }
+.nx-mathkeys .nxk:active { transform: translateY(1px); }
+.nx-mathkeys .nxk.is-active { background: linear-gradient(135deg, #6C5CE7, #00CEC9); border-color: transparent; color: #fff; }
+.nx-mathkeys .nxk-hint { font-size: 0.74rem; color: var(--text-muted, #9a9ab0); margin-left: 4px; }
+.nx-mathkeys .nxk-hint b { color: #c7bcff; }
+.nx-mathkeys.is-compact { gap: 4px; margin-top: 5px; flex-basis: 100%; }
+.nx-mathkeys.is-compact .nxk { min-width: 30px; height: 26px; font-size: 0.82rem; padding: 0 7px; }
+@media (max-width: 640px) { .nx-mathkeys .nxk-hint { display: none; } }

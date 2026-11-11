@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.41';
+const NEXUS_CURRENT_VERSION = 'v24.42';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -15387,6 +15387,7 @@ function openDiagnose(seedProblem) {
         + '<div id="diag-output" style="margin-top:16px;"></div>'
         + '</div></div>';
     document.body.appendChild(m);
+    if (typeof _nxMathKeys === 'function') { _nxMathKeys(document.getElementById('diag-problem'), { compact: true }); _nxMathKeys(document.getElementById('diag-work'), { compact: true }); }   // v24.42
     setTimeout(function () { var t = document.getElementById(seedProblem ? 'diag-work' : 'diag-problem'); if (t) t.focus(); }, 60);
 }
 window.openDiagnose = openDiagnose;
@@ -21215,6 +21216,119 @@ function _nxMathCheckHtml(r, corrected) {
         + '</div>';
 }
 window._nxMathCheckHtml = _nxMathCheckHtml;
+// ════════════════════════════════════════════════════════════════════
+// v24.42 — MATH KEYS + EXPONENTS (Chase: "we have no way of putting in
+// exponents"). Every math input gets a small keys row: x² x³ xⁿ √ π ≤ ≥ ≠ ± × ÷ |x|.
+// Typing ^ works like a calculator: "x", "^", "2" → x² (digits after ^ are
+// raised until you type anything else; a minus right after ^ makes a negative
+// exponent). The row shows on focus (always on the Math tab box).
+// ════════════════════════════════════════════════════════════════════
+var _NX_SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+var _NX_SUP_FIRST = { '-': '⁻', 'n': 'ⁿ', 'x': 'ˣ' };
+function _nxInsertAt(el, text, caretBack) {
+    try {
+        el.focus();
+        var s = el.selectionStart != null ? el.selectionStart : el.value.length, e = el.selectionEnd != null ? el.selectionEnd : s;
+        el.setRangeText(text, s, e, 'end');
+        if (caretBack) { var p = el.selectionStart - caretBack; el.setSelectionRange(p, p); }
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (_) { el.value += text; }
+}
+function _nxMathKeys(el, opts) {
+    if (!el || el.dataset.nxKeys) return;
+    el.dataset.nxKeys = '1';
+    opts = opts || {};
+    var keys = opts.compact
+        ? [['x²', '²'], ['x³', '³'], ['xⁿ', 'SUP'], ['√', '√()', 1], ['−', '−'], ['π', 'π']]
+        : [['x²', '²'], ['x³', '³'], ['xⁿ', 'SUP'], ['√', '√()', 1], ['π', 'π'], ['≤', '≤'], ['≥', '≥'], ['≠', '≠'], ['±', '±'], ['×', '×'], ['÷', '÷'], ['|x|', '||', 1]];
+    var bar = document.createElement('div');
+    bar.className = 'nx-mathkeys' + (opts.always ? ' is-on' : '') + (opts.compact ? ' is-compact' : '');
+    bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Math symbols');
+    bar.innerHTML = keys.map(function (k) {
+        var label = k[1] === 'SUP' ? 'Exponent: the next numbers you type are raised (or type ^)' : 'Insert ' + k[0];
+        return '<button type="button" tabindex="-1" class="nxk' + (k[1] === 'SUP' ? ' nxk-sup' : '') + '" data-ins="' + k[1].replace(/"/g, '&quot;') + '" data-back="' + (k[2] || 0) + '" title="' + label + '" aria-label="' + label + '">' + k[0] + '</button>';
+    }).join('') + (opts.compact ? '' : '<span class="nxk-hint">tip: type <b>^</b> for exponents — x^2 → x²</span>');
+    var anchor = opts.after || el;
+    anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+    var supBtn = bar.querySelector('.nxk-sup');
+    var setSup = function (on) { el._nxSup = !!on; el._nxSupN = 0; if (supBtn) supBtn.classList.toggle('is-active', !!on); };
+    bar.addEventListener('mousedown', function (e) { e.preventDefault(); });   // keep focus in the input
+    bar.addEventListener('click', function (e) {
+        var b = e.target.closest('button.nxk'); if (!b) return;
+        var ins = b.getAttribute('data-ins');
+        if (ins === 'SUP') { setSup(!el._nxSup); el.focus(); return; }
+        setSup(false);
+        _nxInsertAt(el, ins, parseInt(b.getAttribute('data-back'), 10) || 0);
+    });
+    el.addEventListener('keydown', function (e) {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === '^') { e.preventDefault(); setSup(true); return; }
+        if (!el._nxSup) return;
+        var m = _NX_SUP[e.key] || (el._nxSupN === 0 ? _NX_SUP_FIRST[e.key] : null);
+        if (m) { e.preventDefault(); _nxInsertAt(el, m); el._nxSupN++; return; }
+        if (e.key === 'Backspace' || e.key === 'Shift') return;
+        setSup(false);   // any other key ends the exponent and types normally
+    });
+    // pasted / dictated "x^2" → x²
+    el.addEventListener('paste', function () { setTimeout(function () { var v = el.value, nv = v.replace(/\^\(?(-?\d+)\)?/g, function (_m, d) { return d.split('').map(function (c) { return c === '-' ? '⁻' : _NX_SUP[c]; }).join(''); }); if (nv !== v) { el.value = nv; el.dispatchEvent(new Event('input', { bubbles: true })); } }, 0); });
+    if (!opts.always) {
+        el.addEventListener('focus', function () { bar.classList.add('is-on'); });
+        el.addEventListener('blur', function () { setSup(false); setTimeout(function () { if (document.activeElement !== el) bar.classList.remove('is-on'); }, 120); });
+    } else el.addEventListener('blur', function () { setSup(false); });
+    return bar;
+}
+window._nxMathKeys = _nxMathKeys;
+function _nxMathKeysInit() {
+    var a = document.getElementById('math-text-input'); if (a) _nxMathKeys(a, { always: true });
+    var b = document.getElementById('teach-chat-input'); if (b) _nxMathKeys(b, { after: b.parentNode });
+    var c = document.getElementById('teach-topic-input'); if (c) _nxMathKeys(c, { after: c.parentNode });
+    var d = document.getElementById('math-scratchpad'); if (d) _nxMathKeys(d, { compact: true });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _nxMathKeysInit); else setTimeout(_nxMathKeysInit, 0);
+
+// ── Practice answers: right means MATHEMATICALLY right ──
+// Old checker: lowercase + strip spaces, then "contains" — so typing "3" passed
+// for "3x² + 8x − 5", and "3x^2+8x-5" FAILED against "3x²+8x−5". Now: exact
+// match after normalizing symbols, else numeric equivalence (any order, any
+// form: 8x + 3x^2 − 5 ≡ 3x² + 8x − 5), else a careful word match.
+function _nxAnswersMatch(typed, answer) {
+    var N = function (s) {
+        return String(s == null ? '' : s).toLowerCase().replace(/[−–—]/g, '-').replace(/[×·]/g, '*').replace(/÷/g, '/')
+            .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/g, function (m) { return '^' + m.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/g, function (c) { return '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c) >= 0 ? String('⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)) : '-'; }); })
+            .replace(/\s+/g, '').replace(/^(answer|ans)[:=]/, '').replace(/\.$/, '');
+    };
+    var a = N(typed), b = N(answer);
+    if (!a) return false;
+    if (a === b) return true;
+    var strip = function (s) { return s.replace(/^[a-z]=/, '').replace(/[()]/g, ''); };
+    if (strip(a) === strip(b)) return true;
+    // a plain-word answer ("binomial", "undefined", "parallel")
+    if (/^[a-z\s'-]+$/.test(String(answer).toLowerCase().trim()) && !/[0-9=<>^]/.test(b)) {
+        var aw = String(typed).toLowerCase().replace(/[^a-z\s]/g, ' ').trim(), bw = String(answer).toLowerCase().replace(/[^a-z\s]/g, ' ').trim();
+        return aw === bw || (bw.length >= 4 && (' ' + aw + ' ').indexOf(' ' + bw + ' ') >= 0) || (aw.length >= 4 && aw.replace(/^(a|an|the)\s+/, '') === bw.replace(/^(a|an|the)\s+/, ''));
+    }
+    // math equivalence (expressions, or "x = 4" vs "4")
+    if (typeof NxMath !== 'undefined' && !/[<>]/.test(a + b)) {
+        try {
+            var eq = function (s) { return s.replace(/^[a-z]=/, '').replace(/,/g, ''); };   // keep parentheses — 2(x+3) must stay 2(x+3)
+            var pa = NxMath.compile(eq(a)), pb = NxMath.compile(eq(b));
+            var vs = {}; pa.vars.concat(pb.vars).forEach(function (v) { vs[v] = 1; });
+            var names = Object.keys(vs); if (names.length > 3) return false;
+            var pts = [0.37, -1.6, 2.3, 4.1, -3.7, 1.15], ok = 0;
+            for (var i = 0; i < pts.length; i++) {
+                var env = {}; names.forEach(function (n, j) { env[n] = pts[(i + j) % pts.length] + j * 0.11; });
+                var x = pa.fn(env), y = pb.fn(env);
+                if (!isFinite(x) || !isFinite(y)) continue;
+                if (Math.abs(x - y) > 1e-7 * (1 + Math.abs(x) + Math.abs(y))) return false;
+                ok++;
+            }
+            return ok >= 3;
+        } catch (_) {}
+    }
+    return false;
+}
+window._nxAnswersMatch = _nxAnswersMatch;
+
 // v24.40 — the same exact check for Math-tab answers (typed or photo). A small
 // extraction call pulls out the problem + the tutor's FINAL answer, then NxMath
 // verifies it. Passing → a green "checked" strip. Failing → an amber strip with
@@ -24679,6 +24793,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.42',
+        date: 'November 11, 2026',
+        tag: 'EXPONENTS, FINALLY',
+        tagColor: '#00cec9',
+        changes: [
+            'TYPE EXPONENTS — Math boxes now have a row of math keys: x², x³, xⁿ (exponent), √, π, ≤, ≥, ≠, ±, ×, ÷ and |x|. It\'s on the Math tab, the Teaching Board, every practice answer box, and Diagnose my work.',
+            'THE ^ SHORTCUT — Type ^ like on a calculator: x, ^, 2 gives x². Numbers after ^ stay raised until you type something else, and a minus right after ^ makes a negative exponent (x⁻²). Pasting "x^2" turns into x² too.',
+            'FAIRER ANSWER CHECKING — Practice answers count when they\'re mathematically equal: 3x^2+8x-5, 8x + 3x² − 5, and 3x² + 8x − 5 are all right, and so are 4 and x = 4. FIXED: typing just part of an answer (like "3" for 3x² + 8x − 5) used to be marked correct. It isn\'t anymore.',
+        ]
+    },
     {
         version: 'v24.41',
         date: 'November 11, 2026',
@@ -33192,14 +33317,16 @@ function _teachEnhancePractice(el) {
                 res.style.cssText = 'font-size:0.98rem;align-self:center;font-weight:700;';
                 var check = function () {
                     if (!inp.value.trim()) { res.textContent = ''; return; }
-                    var a = norm(inp.value), b = norm(ans);
-                    if (a === b || (b.length > 1 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0))) { res.textContent = '✓ Correct!'; res.style.color = '#45c78d'; }
+                    // v24.42 — mathematically-equal answers count (3x^2+8x-5 = 3x² + 8x − 5); a fragment like "3" no longer passes
+                    var _ok = (typeof _nxAnswersMatch === 'function') ? _nxAnswersMatch(inp.value, ans) : (norm(inp.value) === norm(ans));
+                    if (_ok) { res.textContent = '✓ Correct!'; res.style.color = '#45c78d'; }
                     else { res.innerHTML = '✗ Answer: ' + _teachFracEscape(ans); res.style.color = '#ffbe5a'; }
                 };
                 btn.onclick = check;
                 inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); check(); } });
                 wrap.appendChild(inp); wrap.appendChild(btn); wrap.appendChild(res);
                 li.appendChild(wrap);
+                if (typeof _nxMathKeys === 'function') _nxMathKeys(inp, { compact: true, after: wrap });   // v24.42 — exponents & symbols
             });
             var det = pr.querySelector('details'); if (det) det.style.display = 'none';   // interactive replaces the reveal
         }
