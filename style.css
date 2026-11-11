@@ -4366,3 +4366,46 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
     .lib-doc { flex-wrap: wrap; }
     .lib-da { width: 100%; justify-content: flex-start; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   v24.41 — Teaching Board "Watch it solved" worked steps + "How it works —
+   and how to do it fast". Also: lesson HTML no longer inherits the
+   streaming container's pre-wrap (that turned every newline between list
+   items into a big blank gap).
+   ════════════════════════════════════════════════════════════════════ */
+#teach-chat-messages .streaming-content { white-space: normal; }
+#teach-chat-messages .teach-card li { margin: 3px 0; }
+#teach-chat-messages .teach-steps { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
+#teach-chat-messages .teach-problem {
+  font-family: 'Martian Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 1.02rem; color: #fff;
+  background: rgba(108,92,231,0.16); border: 1px solid rgba(143,128,244,0.45); border-radius: 10px; padding: 10px 14px;
+}
+#teach-chat-messages .teach-problem::before { content: 'The problem'; display: block; font-family: inherit; font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: #a9a3d6; margin-bottom: 4px; font-family: Figtree, Inter, sans-serif; font-weight: 700; }
+#teach-chat-messages .teach-step {
+  position: relative; display: grid; grid-template-columns: 1fr; gap: 5px;
+  padding: 11px 14px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.025);
+}
+#teach-chat-messages .teach-step .ts-n { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #7ff0ec; }
+#teach-chat-messages .teach-step .ts-math {
+  font-family: 'Martian Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 1.04rem; color: #fff; line-height: 1.6;
+  padding: 7px 11px; border-radius: 8px; background: rgba(0,0,0,0.28); overflow-x: auto; white-space: normal;
+}
+#teach-chat-messages .teach-step .ts-do { color: #eef0f7; }
+#teach-chat-messages .teach-step .ts-do::before { content: 'Do: '; font-weight: 800; color: #b8aaff; }
+#teach-chat-messages .teach-step .ts-why { color: #b9bfd6; font-size: 0.95em; }
+#teach-chat-messages .teach-step .ts-why::before { content: 'Why: '; font-weight: 800; color: #ffbe5a; }
+#teach-chat-messages mark { color: inherit; border-radius: 5px; padding: 0 3px; }
+#teach-chat-messages mark.hl1 { background: rgba(108,92,231,0.45); box-shadow: inset 0 -2px 0 #a29bfe; }
+#teach-chat-messages mark.hl2 { background: rgba(0,206,201,0.30); box-shadow: inset 0 -2px 0 #00cec9; }
+#teach-chat-messages mark.hl3 { background: rgba(255,190,90,0.28); box-shadow: inset 0 -2px 0 #ffbe5a; }
+#teach-chat-messages .ts-walk { align-self: flex-start; margin: 0; display: inline-flex; align-items: center; gap: 6px; background: rgba(108,92,231,0.16); border: 1px solid rgba(108,92,231,0.5); color: #c7bcff; border-radius: 8px; padding: 6px 12px; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+#teach-chat-messages .teach-fast {
+  background: linear-gradient(135deg, rgba(0,206,201,0.08), rgba(108,92,231,0.08));
+  border: 1px solid rgba(0,206,201,0.3); border-radius: 10px; padding: 10px 14px; margin: 6px 0 2px; color: #e6e9f5;
+}
+#teach-chat-messages .teach-fast p { margin: 0 0 6px; }
+#teach-chat-messages .teach-fast ul { margin: 0; padding-left: 18px; }
+#teach-chat-messages .teach-fast strong { color: #7ff0ec; }
+@media (max-width: 640px) {
+  #teach-chat-messages .teach-step .ts-math, #teach-chat-messages .teach-problem { font-size: 0.92rem; }
+}

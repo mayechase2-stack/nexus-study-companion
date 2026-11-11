@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.40';
+const NEXUS_CURRENT_VERSION = 'v24.41';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -24680,6 +24680,20 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.41',
+        date: 'November 11, 2026',
+        tag: 'WATCH IT GET SOLVED',
+        tagColor: '#a29bfe',
+        changes: [
+            'WATCH IT SOLVED — Teaching Board lessons no longer give a vague "How to do it" list ("combine like terms"). Every lesson now solves one real problem on screen, step by step. Each step shows the problem as it looks after the move, exactly what was done to which pieces (like "4 − 1 = 3"), and WHY that move works. Pieces are color-coded so you can follow each group from step to step.',
+            'STEP THROUGH IT — Tap "Step through it" to reveal the worked problem one step at a time, so you can try the next move yourself before you look.',
+            'HOW IT WORKS + HOW TO DO IT FAST — "Why it works" and "Common mistakes" are merged into one short section: the real reason the method works, a speed habit that lets you knock these out instantly, and the one trap that costs points, shown as wrong → right.',
+            'NO MORE REPEATING — Each idea now appears once per lesson instead of the same sentence showing up in the steps, the why, and the mistakes.',
+            'FIXED: BIG GAPS BETWEEN STEPS — Lesson lists no longer have large empty spaces between lines.',
+            '"Explain more" and "Go deeper" now work a NEW, harder problem the same step-by-step way instead of re-explaining the first one.',
+        ]
+    },
+    {
         version: 'v24.40',
         date: 'November 11, 2026',
         tag: 'MATH THAT CHECKS ITSELF',
@@ -32420,77 +32434,57 @@ FIRST, READ WHAT THEY'RE ACTUALLY ASKING and match your reply to it — this mat
 • If they ask you to TEACH a topic (a new topic, "teach me…", or they tap Go deeper / Another example / Quiz me), use the TOPIC CARD format below.
 • If they ask a SPECIFIC follow-up or clarifying question — e.g. "why does y get set to 0?", "wait why the negative?", "what about step 2?", "I don't get that part" — just ANSWER THAT ONE QUESTION. Lead with the answer in the very first sentence. Keep it short and focused on exactly what they asked. Do NOT re-teach the whole topic, do NOT force the card sections (no "How to do it" / practice / etc.), do NOT pile on things they didn't ask about. Answer only what was asked, then you may offer ONE small next step ("make sense? want an example?"). Buried, over-long answers to a simple question frustrate the student — the point comes FIRST, not last.
 
-THE RIGHT AMOUNT — the balance to hit on EVERY reply (when this conflicts with "cover everything" below, THIS wins). Students want the CORRECT info, fast: not a textbook, not a teaser.
-• Point first: the first sentence of every card says what the thing IS or what you DO, in plain words.
-• Every sentence must earn its place. If cutting it would not make the student understand less, cut it. No restating the same idea twice, no warm-up lines, no "In this lesson we'll…", no closing summary that repeats the card.
-• Concrete beats wordy: one worked example with real numbers teaches more than three sentences of description.
-• Size of a STANDARD card (roughly 200–300 words, not counting practice): what-it-is = 2 sentences; Key terms = only the ones they'll actually need (max ~5, one line each); How to do it = 3–6 steps, one short line each; Why it works = 1–2 sentences; Common mistakes = the top 2, one line each; Tip = one line, only if it's genuinely useful.
-• Breadth means NAMING the important parts briefly — not explaining every corner. The deeper detail is what "Go deeper" is for.
+THE RIGHT AMOUNT — the balance to hit on EVERY reply. Students want the CORRECT info, fast: not a textbook, not a teaser. Point first. Every sentence must earn its place. Say each idea ONCE in the whole card — the #1 complaint is the same thing ("combine like terms") repeated in the steps, the why, AND the mistakes. Never do that.
 
-TEACH IT, DON'T JUST DEFINE IT. The #1 thing students say is that lessons give "the precise definition and nothing else." Don't do that. A good card leaves the student understanding WHY, not just WHAT: give the intuition, an everyday analogy or mental picture, where a formula comes from, and what each step is really doing. Explain like a patient tutor talking to a real person — warm and in plain language. Still scannable (a few clear sentences per section, never a paragraph dump), but genuinely explanatory, not a bare textbook entry.
+THE STEPS ARE THE LESSON. Students learn a method by WATCHING one real problem get solved, move by move — not from labels. "Combine like terms" is a LABEL, not a step. A real step says exactly what to do to exactly which pieces of THIS problem, shows what the problem looks like after, and says why that move is allowed. So every lesson card is built around ONE fully worked problem, and that worked problem REPLACES the old generic "How to do it" list.
 
-TEACH THE WHOLE TOPIC — COVER IT LIKE A REAL TEACHER WOULD, not a one-paragraph summary. This applies to EVERY subject — math, science, English/language arts, history/social studies, and any other — NOT just math. A definition + a how-to is NOT enough. A complete lesson also teaches:
-• THE VOCABULARY & TYPES / CLASSIFICATION. If the topic has named sub-types, categories, forms, or key terms, you MUST name each one, give its defining rule, and a quick example. This is true in every subject:
-  — Math: polynomials → by number of terms (monomial / binomial / trinomial) AND by degree (linear / quadratic / cubic); triangles → acute / right / obtuse, scalene / isosceles / equilateral.
-  — Science: chemical reactions → synthesis / decomposition / combustion / single- & double-replacement; cells → prokaryotic vs eukaryotic; bonds → ionic / covalent / metallic.
-  — English: essays → narrative / expository / persuasive / argumentative; figurative language → simile / metaphor / personification / hyperbole; sentences → simple / compound / complex; points of view → 1st / 2nd / 3rd person.
-  — History / social studies: governments → democracy / monarchy / dictatorship / oligarchy; sources → primary vs secondary; causes vs effects of an event.
-  Do NOT teach a topic without naming its real sub-types (e.g. "polynomials" without binomial/trinomial, "figurative language" without simile/metaphor) — that's exactly the gap to avoid.
-• WHAT COUNTS AND WHAT DOESN'T — the rule that qualifies something as the concept, plus a clear non-example. (Math: a polynomial needs whole-number exponents and no variable in a denominator or under a root, so 3x² + 2x − 5 qualifies but 1/x and √x do NOT. English: a complete sentence needs a subject and a verb and a complete thought, so "The dog ran" is one but "Running fast" is not. Science: a physical change keeps the substance the same, so melting ice is physical but burning wood is chemical.)
-• THE FACTS a student is expected to KNOW about it (key properties, dates, rules, special cases, important values, defining features).
-• COMMON MISTAKES + HOW TO HANDLE CASES — the specific things students get wrong in THIS topic (in any subject), and "when you run into ___, do ___" for the tricky situations.
-Breadth AND depth: name the parts, draw the distinctions, state the rules and the facts — in as FEW words as it takes (see THE RIGHT AMOUNT). Thorough means nothing important is missing, NOT that everything is long.
+COVER WHAT MATTERS, BRIEFLY (every subject): the key terms or types the method actually uses (one line each, with a tiny example), and what counts vs. what doesn't when that's a real trap (e.g. x² and x are NOT like terms; "Running fast" is not a complete sentence). Keep it short — the worked problem carries the lesson.
 
-HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card so the student can scan it. One card per topic. If the student names SEVERAL topics (commas, "and", or a list), make ONE card for EACH, in the order named — never teach only the first and skip the rest. EVERY card MUST include its own Practice block (the <div class="teach-practice" data-answers="…"> with its own problems + answers) — do NOT give practice for only the first topic and skip it on the rest; each topic gets its own practice. Use this shape EXACTLY for every card:
+HOW YOU FORMAT A LESSON (when they're actually asking you to TEACH a topic) — TOPIC CARDS. Teach each topic inside its OWN boxed card. One card per topic. If the student names SEVERAL topics, make ONE card for EACH, in the order named — never skip one. EVERY card has its own Practice block. Use this shape EXACTLY for every card:
 
 <div class="teach-card">
 <h4>Topic name</h4>
-<div class="teach-what">2–3 plain sentences: what it is AND the intuition — what it actually MEANS in everyday terms (a quick analogy or mental picture), not just the textbook definition. If it has a formula or key equation, show it on its own line (e.g. y = mx + b, or slope = (y₂ − y₁)/(x₂ − x₁)) and say in words what each part means.</div>
-<h5>Key terms &amp; types</h5>
-<ul><li>Name EACH important type/category or vocabulary word with its DEFINING rule and a quick example — e.g. for polynomials: <strong>monomial</strong> = 1 term (5x³), <strong>binomial</strong> = 2 terms (x + 3), <strong>trinomial</strong> = 3 terms (x² + 2x − 5); then classify by <strong>degree</strong>: linear = 1, quadratic = 2, cubic = 3.</li></ul>
-<p><strong>What counts / what doesn't:</strong> state the rule that qualifies something as the concept, with a non-example — e.g. a polynomial needs whole-number exponents and no variable in a denominator or under a root, so 3x² + 2x − 5 IS one, but 1/x and √x are NOT.</p>
-(Include "Key terms &amp; types" whenever the topic HAS named types, categories, or special vocabulary — most do. Omit only for a topic that genuinely has none.)
-<h5>How to do it</h5>
-<ol><li>each step: what you DO and, in plain words, WHY you do it / what it's really accomplishing (not just the action)</li></ol>
-<h5>Why it works</h5>
-<p>2–3 sentences of real reasoning — the intuition for WHY this method works (where the formula comes from, what's really going on), not a one-line restatement of the definition.</p>
-<div class="teach-mistakes">⚠️ <strong>Common mistakes:</strong> the 1–3 things students most often get wrong on THIS topic and how to avoid each, PLUS a quick "when you run into ___, do ___" for the tricky case — e.g. "a negative or fractional exponent means it's NOT a polynomial", "the degree of a term with several variables is the SUM of their exponents", "don't confuse a term with a coefficient". REQUIRED whenever the topic has real pitfalls (almost always).</div>
-<div class="teach-tip">💡 <strong>Tip:</strong> a trick, shortcut, mnemonic, or clever shortcut for THIS topic — e.g. "the butterfly method for cross-multiplying fractions". Include this box ONLY when there's a genuinely useful tip; otherwise leave it out entirely.</div>
+<div class="teach-what">1–2 plain sentences: what it is AND what you're trying to end up with (the goal), with a quick everyday picture. If there's a key formula, show it on its own line and say what each part means.</div>
+<h5>Key terms</h5>
+<ul><li><strong>term</strong> — what it means, with a tiny example. ONLY terms the worked problem uses (max ~5). Leave this section out if there are none.</li></ul>
+<h5>Watch it solved</h5>
+<div class="teach-steps">
+<div class="teach-problem">4x² + 3x − 7 − x² + 5x + 2</div>
+<div class="teach-step"><div class="ts-math">the problem exactly as it looks AFTER this step</div><div class="ts-do">exactly what you did, naming the ACTUAL terms and numbers from this problem</div><div class="ts-why">why that move works or is allowed — one real reason, not a restatement</div></div>
+(3–6 teach-step blocks, ONE action each; the LAST step's ts-math is the final answer)
+</div>
+<h5>How it works — and how to do it fast</h5>
+<div class="teach-fast"><p><strong>Why it works:</strong> 1–2 sentences on the rule underneath the method, said in DIFFERENT words from the steps (never restate them).</p><ul><li><strong>Do it fast:</strong> a concrete speed habit or shortcut for THIS topic that lets a student knock these out instantly.</li><li><strong>Dodge the trap:</strong> the ONE mistake that costs points here, shown as a tiny wrong → right example.</li></ul></div>
 <div class="teach-practice" data-answers="answer1;answer2;answer3"><strong>✏️ Practice — try these 3</strong>
 <ol><li>problem 1</li><li>problem 2</li><li>problem 3</li></ol></div>
-(Put each problem's SHORT final answer in the data-answers attribute, semicolon-separated, in the SAME order as the problems — e.g. data-answers="3;2;undefined". Keep each answer short and exact so it can be auto-checked; the app turns each problem into a "type your answer + Check" box.)
-PRACTICE MUST BE TYPEABLE — every practice problem has to be answerable by TYPING a short answer: a number, a coordinate like (0, 3), an expression, or a word. NEVER make a practice problem "graph it / draw it / sketch it / plot it" — the student can't type a graph. For a graphing concept, ask a typeable question instead — e.g. "what is the slope of y = 2x + 3?" (answer 2), "what is the y-intercept of y = 2x + 3?" (answer 3), "give one point on the line", or "write the equation of a line with slope 2 through (0, 3)". The answer in data-answers must be exactly what a correct typed response looks like.
 </div>
 
-WORD PROBLEMS — teach these with EXTRA care; they're where students get stuck most. When the topic is a word/application problem (or they ask for one), do NOT jump to equations. Walk the translation explicitly:
-(1) "What's it asking?" — restate the goal in one plain sentence.
-(2) "Name the unknowns" — "let x = …" for each, in words.
-(3) "Turn the words into math" — quote the phrase and show the equation/inequality it becomes ("'twice as many' → 2x", "'at least' → ≥"). This translation step is the one students miss — make it visible.
-(4) Solve it one line at a time (show the equation changing).
-(5) "Answer the actual question" — put the number back into the real-world context with units, and sanity-check that it makes sense.
-Use relatable, concrete scenarios (money, time, distance, scores) with friendly round numbers. A quick graph often helps a word problem — include a teach-plot when the situation is linear/graphable.
+THE WORKED PROBLEM — follow this exactly:
+• Pick a problem that uses EVERY move of the method — not a trivial one. For simplifying polynomials: at least two families of like terms, a subtraction to carry, and a plain number term.
+• This is the level of specificity required on EVERY topic (simplifying polynomial expressions):
+  teach-problem: 4x² + 3x − 7 − x² + 5x + 2
+  Step 1 · ts-math: <mark class="hl1">4x²</mark> + <mark class="hl2">3x</mark> <mark class="hl3">− 7</mark> <mark class="hl1">− x²</mark> <mark class="hl2">+ 5x</mark> <mark class="hl3">+ 2</mark> · ts-do: Color the families: 4x² and −x² are the x² family, 3x and 5x are the x family, −7 and +2 are the plain numbers. Each term keeps the sign in front of it. · ts-why: Only terms with the same variable AND the same power are "like" — they're counting the same kind of thing.
+  Step 2 · ts-math: (4x² − x²) + (3x + 5x) + (−7 + 2) · ts-do: Slide each family next to each other, carrying every sign with its term (the minus stays glued to x²). · ts-why: You can add in any order, so regrouping doesn't change the value — as long as signs travel with their terms.
+  Step 3 · ts-math: 3x² + 8x − 5 · ts-do: Add only the numbers in front: 4 − 1 = 3, 3 + 5 = 8, −7 + 2 = −5. The x² and x stay exactly as they were. · ts-why: 4 of something minus 1 of the same something is 3 of it — the variable part is the "something", so it never changes.
+  Step 4 · ts-math: 3x² + 8x − 5 · ts-do: Order by power, highest first (standard form), and check that no two terms share the same power. · ts-why: Standard form makes answers easy to compare, and the check proves you're fully simplified.
+  How it works: Why it works — a term is a count of one kind of thing (x², x, or plain ones), and you can only add counts of the same kind. Do it fast — color-code the families first, then add each family in one pass, top power first. Dodge the trap — x² + x ≠ 2x³: different powers never combine, and adding never changes an exponent.
+• Use <mark class="hl1">, <mark class="hl2">, <mark class="hl3"> to color the pieces a step works on (families of like terms, the term being moved, the number being divided). The same color means the same group in every step.
+• ts-math shows the problem AS IT LOOKS AFTER that step, so the student watches it transform. Never skip a middle form. One action per step — never chain moves with ⇒, →, or "then".
+• ts-do always names the real pieces and the arithmetic ("4 − 1 = 3"), never just a label.
+• Equations: the first step restates the equation and every step shows the whole equation after the move (e.g. 3x + 2(0) = 6 → 3x = 6 → x = 2), ending with a check step that plugs the answer back in.
+• NON-MATH topics use the SAME teach-steps block with ONE concrete example worked through: a sentence being diagnosed and fixed (English), a reaction balanced or a process traced stage by stage (science), an event chain from cause to effect or a primary source analyzed (history). The teach-problem is that example; each ts-math shows it at that stage.
 
-EXAMPLES — make them GOOD: pick numbers that are realistic and illustrative (not always 1, 2, 3), show the full work, and name what each result means in words. When a concept has distinct cases (e.g. positive vs negative slope, one vs no solution), show a mini example of each rather than just one.
+PRACTICE MUST BE TYPEABLE — every practice problem has to be answerable by TYPING a short answer: a number, a coordinate like (0, 3), an expression, or a word. NEVER "graph it / draw it / sketch it". For a graphing concept ask something typeable instead ("what is the slope of y = 2x + 3?"). Put each problem's SHORT exact answer in data-answers, semicolon-separated, in the SAME order (e.g. data-answers="3x² + 8x − 5;2;undefined") — the app turns each into a "type your answer + Check" box. The 3 problems are a progression: #1 warm-up, #2 standard, #3 a stretch or short word problem. Never repeat problems when they ask for more.
 
-PRACTICE — the 3 problems should be a real progression, not three clones: #1 warm-up (plug-and-go), #2 standard, #3 a stretch or a short APPLICATION/word problem. Vary the numbers and the phrasing each time they ask for more practice — never repeat the same problems. Keep every answer short and typeable (per the rule above).
-
-CLARITY RULE inside "How to do it" (this is what confuses students): put ONE action per step. NEVER chain several moves onto one line with ⇒, →, commas, or "then".
-
-SHOW THE EQUATION CHANGING AT EVERY STEP — do NOT jump from the original straight to the answer. Re-write the equation as it looks AFTER each move, so the student watches it transform. Start each worked example by restating the actual equation, then update it one line at a time. Example for finding the x-intercept of 3x + 2y = 6:
-(1) "Start with the equation: 3x + 2y = 6."
-(2) "Set y = 0 (every point on the x-axis has y = 0): 3x + 2(0) = 6."
-(3) "The y-term becomes 0, so it disappears: 3x = 6."
-(4) "Divide both sides by 3: x = 2."
-(5) "So the x-intercept is (2, 0)."
-Notice every line shows the current equation — never skip the middle forms like "3x + 2(0) = 6" and "3x = 6". Show the small algebra and name what each result MEANS.
+WORD PROBLEMS — teach these with EXTRA care in the teach-steps block. Don't jump to equations. Step 1: what's it asking (one plain sentence). Step 2: name the unknowns ("let x = …"). Step 3: turn the words into math — quote the phrase and show what it becomes ("'twice as many' → 2x", "'at least' → ≥"); this translation is the step students miss. Then solve one line per step, and finish by answering the real question with units and a sanity check. Use relatable scenarios (money, time, distance, scores) with friendly numbers. Include a teach-plot when the situation is linear or graphable.
 
 AFTER the card(s): ONE friendly line. If you taught several topics, ask which one they want to go deeper on. If one topic, offer the deep dive ("Want the deep dive — why it works, the tricky cases, and a harder example?").
 
 LEARNING PATH — when you TEACH a topic (not for a direct follow-up question), end your reply with <div class="teach-next" data-topics="Next topic;Another next topic;A third"></div> listing 2-3 logical NEXT topics that build on what you just taught, in a sensible learning order (e.g. after "slope" → "Writing linear equations;Slope-intercept graphing;Systems of equations"). These render as tap-to-continue buttons so the student can move through a path. Keep each topic short (a few words). Omit this for a direct clarifying question.
 
-DEPTH scales the SAME card shape: QUICK = a lean card (topic, what-it-is, the key types in one line if any, one short "How to do it") — a few lines; may skip the practice/mistakes boxes. STANDARD = the FULL card above, including "Key terms & types" and "Common mistakes". DEEP = expand each card: add a second, harder worked example, more on the "why", MORE sub-types/edge-cases and a fuller common-mistakes list, and keep the 3 practice.
+DEPTH scales the SAME card shape: QUICK = what-it-is + a 3-step "Watch it solved" + one "Do it fast" line (may skip key terms and practice). STANDARD = the full card above. DEEP = the full card PLUS a second, harder worked problem (another teach-steps block under <h5>A harder one</h5>) and the tricky cases — never re-solve the same problem.
 
-WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder", "quiz me"): expand the current topic's card — why it works, other cases, common mistakes, a harder worked example. Still a clean card, still skimmable.
+WHEN THEY ASK TO GO DEEPER (or "another example", "why", "harder"): give a NEW, harder problem worked in the teach-steps format (never the same one), the edge cases it shows, and a deeper why. For "quiz me": one question, then wait.
 
 IF THEY'RE CONFUSED: back up and re-explain a DIFFERENT way — new angle, simpler numbers, a quick picture. Don't repeat yourself.
 
@@ -32521,7 +32515,7 @@ NEVER NARRATE YOUR VISUAL CHOICE — do not write sentences like "No visual is n
 
 ACCURACY — everything you state must be correct: facts, dates, names, definitions, formulas, and every number in a worked example or practice answer. Double-check arithmetic and that each practice problem's data-answers value is actually right. If you're not certain of a specific fact, teach the reliable core and don't invent specifics. Never state a wrong date, misattribute a quote, or give a practice answer that doesn't match its problem.
 
-FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-tip">, <div class="teach-mistakes">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-image" data-query="..." ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
+FORMAT — STRICT: light HTML only — <div class="teach-card">, <h4>, <h5>, <div class="teach-what">, <strong>, <em>, <ul>/<ol>/<li>, <br>, <code>, <div class="teach-formula">, <div class="teach-steps"> with <div class="teach-problem"> and <div class="teach-step"> (ts-math / ts-do / ts-why), <mark class="hl1|hl2|hl3"> to color pieces, <div class="teach-fast">, <div class="teach-practice">, <div class="teach-plot" ...>, <div class="teach-image" data-query="..." ...>, <div class="teach-next" data-topics="...">, a labeled inline <svg> diagram (shapes/paths/text only), and <details><summary>…</summary>…</details> for the answers. NEVER markdown (no **bold**, no #, no backticks) — use <strong> and <h4>/<h5>.
 FRACTIONS — make them clean: write EVERY real fraction as \\frac{numerator}{denominator} and it renders as a proper stacked fraction (numerator over a bar over denominator). This is REQUIRED everywhere a fraction appears — the worked steps, the "why", the answers, AND the practice problems. NEVER write a fraction with a slash like "(20 − 8)/(5 − 2)", "6/3", or "x/4" — use \\frac{20 − 8}{5 − 2}, \\frac{6}{3}, \\frac{x}{4}. E.g. slope = \\frac{y₂ − y₁}{x₂ − x₁} and \\frac{20 − 8}{5 − 2} = \\frac{12}{3} = 4. \\frac is the ONLY LaTeX allowed — no other commands (no \\( \\) \\[ \\] \\times \\sqrt \\cdot). Everything else is plain text + Unicode: ≥ ≤ ≠ ± ÷ × √ ² ³ π θ →. Keep every paragraph to 1–3 short sentences.`;
 
 let _teachHistory = [];
@@ -32536,10 +32530,10 @@ let _teachJustStarted = 0;   // v23.5 — timestamp of a just-started topic, so 
 // (and can change it mid-lesson to re-teach the current topic deeper/tighter).
 function _teachDepthDirective() {
     if (_teachDepth === 'quick') {
-        return '\n\nDEPTH = QUICK. Keep each topic card lean: the topic title, what-it-is (with the formula if any), and one short "How to do it". You may skip the Practice box or give just one problem. A few lines per card. Then offer more.';
+        return '\n\nDEPTH = QUICK. Keep each topic card lean: title, what-it-is (with the formula if any), a 3-step "Watch it solved" (teach-steps) and one "Do it fast" line. You may skip key terms and give one practice problem. Then offer more.';
     }
     if (_teachDepth === 'deep') {
-        return '\n\nDEPTH = DEEP DIVE. Expand each topic card NOW (do not wait for them to ask): keep the full card shape but add a second, HARDER worked example, more on the "Why it works", the main sub-types/cases and common mistakes, and keep the 3-problem Practice with answers. Thorough but still a clean, skimmable card. Do this for EACH topic if several were listed.';
+        return '\n\nDEPTH = DEEP DIVE. Full card shape, PLUS a second, HARDER problem worked in its own teach-steps block (<h5>A harder one</h5>), the tricky cases, and keep the 3-problem Practice. Still say each idea once. Do this for EACH topic if several were listed.';
     }
     return '';  // standard = the full card shape defined in the base prompt
 }
@@ -32695,8 +32689,8 @@ function _teachOpeningAsk(topic, solo) {
     const multi = !solo && /,| and /i.test(topic);
     let ask = 'Teach me: ' + topic + '. ';
     if (_teachDepth === 'quick') ask += 'Just the gist — the quickest overview that lets me try one. Keep it short.';
-    else if (_teachDepth === 'deep') ask += 'Give me the FULL deep dive right now — thorough but still skimmable: all the types/classifications, what counts vs not, the facts, why it works, common mistakes, a second harder example, and 3 practice.';
-    else ask += 'Give me the full lesson card at the RIGHT AMOUNT — everything important, nothing padded: what it is, the key terms & types that matter, what counts vs what does not, how to do it, why it works, the top mistakes, and 3 practice problems. Get to the point and keep every line short. Include the RIGHT visual for the subject (a worked drawing for a procedure, a graph if it plots, a labeled diagram for a structure, a real photo for a specific person / place / thing).';
+    else if (_teachDepth === 'deep') ask += 'Give me the deep dive: the full card with ONE problem solved step by step (teach-steps), then a SECOND, harder problem solved the same way, the tricky cases, how it works + how to do it fast, and 3 practice. Say each idea once.';
+    else ask += 'Give me the lesson card: what it is, the key terms it uses, then ONE real problem solved step by step on screen in the teach-steps format (every step shows the problem after the move, exactly what you did to which pieces, and why), then how it works + how to do it fast + the one trap, and 3 practice problems. Say each idea ONCE — no repeating. Include the RIGHT visual for the subject when it helps.';
     if (multi) ask += ' I listed several things — cover EACH one I named, do not skip any.';
     return ask;
 }
@@ -33023,6 +33017,25 @@ function _teachEnhanceCards(el) {
                 btn.textContent = shown >= list.length ? '✓ Done — tap to show all at once' : ('Next step ▸  ' + shown + ' / ' + list.length);
             };
         });
+        // v24.41 — "Watch it solved": number the steps and offer a one-step-at-a-time walk
+        el.querySelectorAll('.teach-steps').forEach(function (box) {
+            if (box.dataset.walk) return; box.dataset.walk = '1';
+            var steps = [].slice.call(box.querySelectorAll(':scope > .teach-step'));
+            steps.forEach(function (st, i) { if (!st.querySelector(':scope > .ts-n')) { var n = document.createElement('span'); n.className = 'ts-n'; n.textContent = 'Step ' + (i + 1); st.insertBefore(n, st.firstChild); } });
+            if (steps.length < 3) return;
+            var btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'teach-walk-btn ts-walk';
+            btn.style.cssText = 'align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin:0;background:rgba(108,92,231,0.16);border:1px solid rgba(108,92,231,0.5);color:#c7bcff;border-radius:8px;padding:6px 12px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;';
+            btn.textContent = '👣 Step through it';
+            box.insertBefore(btn, box.firstChild);
+            var shown = 0;
+            var paint = function () { steps.forEach(function (st, i) { st.style.display = (shown === 0 || i < shown) ? '' : 'none'; }); };
+            btn.onclick = function () {
+                if (shown === 0) shown = 1; else if (shown < steps.length) shown++; else { shown = 0; paint(); btn.textContent = '👣 Step through it'; return; }
+                paint();
+                btn.textContent = shown >= steps.length ? '✓ Solved — tap to show every step' : ('Next step ▸  ' + shown + ' / ' + steps.length);
+            };
+        });
         _teachRenderPlots(el);
         _teachRenderImages(el);
         _teachRenderDrawings(el);
@@ -33115,7 +33128,7 @@ function _teachInlineAsk(card, apiPrompt, displayQ, kind) {
     ans.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;"><i class="ph ph-spinner ph-spin"></i> ' + (kind === 'explain' ? 'Expanding this…' : 'Thinking…') + '</span>';
     thread.appendChild(ans);
     var cardText = (card.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1400);
-    var sys = 'You are the NEXUS Teaching Board tutor. The student is looking at THIS lesson block:\n"""' + cardText + '"""\nAnswer their request about this block only. Return ONLY light HTML fragments (NO <div class="teach-card"> wrapper): short <p>, <ul>/<ol>/<li>, <strong>, <em>, <h5>, <div class="teach-formula">, <div class="teach-tip">, and — if a picture helps — a labeled inline <svg> or <div class="teach-plot" data-fns="..." data-points="..."></div>. Use \\frac{a}{b} for fractions. NEVER markdown. Be genuinely explanatory (intuition + why), warm, and clear — lead with the point, keep it to what they asked, and cut anything that does not help them understand. Not a wall of text.';
+    var sys = 'You are the NEXUS Teaching Board tutor. The student is looking at THIS lesson block:\n"""' + cardText + '"""\nAnswer their request about this block only. Return ONLY light HTML fragments (NO <div class="teach-card"> wrapper): short <p>, <ul>/<ol>/<li>, <strong>, <em>, <h5>, <div class="teach-formula">, and — if a picture helps — a labeled inline <svg> or <div class="teach-plot" data-fns="..." data-points="..."></div>. When you show HOW to do something, use the worked-steps block: <div class="teach-steps"><div class="teach-problem">the problem</div><div class="teach-step"><div class="ts-math">the problem after this move</div><div class="ts-do">exactly what you did to which pieces</div><div class="ts-why">why that move works</div></div>…</div> — use a NEW problem, never the one already on the card, and never repeat what the block already says. Use \\frac{a}{b} for fractions. NEVER markdown. Be genuinely explanatory (intuition + why), warm, and clear — lead with the point, keep it to what they asked, and cut anything that does not help them understand. Not a wall of text.';
     if (typeof streamChat !== 'function') { ans.innerHTML = '<em style="color:#ff9a9a;">Voice engine unavailable.</em>'; card.dataset.inlineBusy = '0'; return; }
     streamChat({
         apiKey: apiKey, model: localStorage.getItem('ai_model') || 'gpt-4o', temperature: 0.6, max_tokens: 1100,
@@ -33136,7 +33149,7 @@ function _teachInlineAsk(card, apiPrompt, displayQ, kind) {
 }
 window._teachInlineAsk = _teachInlineAsk;
 function _teachExplainMore(card) {
-    _teachInlineAsk(card, 'Explain this more deeply — I want to really understand it, not just the definition. Give the intuition and WHY it works, a plain-English analogy or picture, where the formula/idea comes from, a fully worked example, and a common mistake to avoid. Start with a <h5>Deeper look</h5>.', null, 'explain');
+    _teachInlineAsk(card, 'Explain this more deeply — I want to really understand it. Start with <h5>Deeper look</h5>: the intuition and WHY it works in plain words (a picture or analogy). Then <h5>Another one, solved</h5>: a NEW, slightly harder problem worked in the teach-steps format, each step showing the problem change, exactly what you did, and why. Do not repeat what the card already says.', null, 'explain');
 }
 window._teachExplainMore = _teachExplainMore;
 function _teachCardCompanion(card) {
