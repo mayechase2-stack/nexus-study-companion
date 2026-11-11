@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.39';
+const NEXUS_CURRENT_VERSION = 'v24.40';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18782,19 +18782,21 @@ REASONING (apply silently — this is where accuracy comes from; DO NOT skip it 
 2. Strip all UI noise (buttons, progress bars) to isolate the academic question.
 3. Reconstruct garbled OCR words using subject context.
 4. ACTUALLY SOLVE IT — never guess or approximate. For math/science: state the correct formula/law, plug in the given values, carry the UNITS through, and compute step by step. For chemistry: balance equations, use molar masses, watch significant figures. For physics: check the formula and unit consistency. For recall: retrieve the specific fact, not a vague nearby one.
-4b. INEQUALITIES (algebra's most-missed problem type — follow exactly): FLIP the inequality symbol whenever you multiply OR divide both sides by a NEGATIVE number (−2x < 6 → x > −3, never x < −3); never flip for addition/subtraction or a positive multiply/divide. For a compound inequality (a < x < b), apply each operation to all three parts together, flipping both symbols together if that step multiplies/divides by a negative. "AND" compounds intersect the two ranges; "OR" compounds union them — don't conflate the two. < / > means an OPEN endpoint (parenthesis, excluded value); ≤ / ≥ means a CLOSED endpoint (bracket, included value) — get interval notation right, e.g. x > 3 → (3, ∞), x ≤ −1 → (−∞, −1]. Absolute-value inequalities split into two cases: |x| < a → −a < x < a; |x| > a → x < −a OR x > a. For ABSOLUTE VALUE EQUATIONS (not inequalities), |expr| = a splits into TWO equations (expr = a OR expr = −a) when a > 0, solve both, and reject any that fails when checked back in the ORIGINAL equation (extraneous solutions happen); if a < 0 there is no solution at all.
+4b. INEQUALITIES (algebra's most-missed problem type — follow exactly): FLIP the inequality symbol whenever you multiply OR divide both sides by a NEGATIVE number (−2x < 6 → x > −3, never x < −3); never flip for addition/subtraction or a positive multiply/divide. For a compound inequality (a < x < b), apply each operation to all three parts together, flipping both symbols together if that step multiplies/divides by a negative. "AND" compounds intersect the two ranges; "OR" compounds union them — don't conflate the two. < / > means an OPEN endpoint (parenthesis, excluded value); ≤ / ≥ means a CLOSED endpoint (bracket, included value) — get interval notation right, e.g. x > 3 → (3, ∞), x ≤ −1 → (−∞, −1]. Absolute-value inequalities split into two cases: |x| < a → −a < x < a; |x| > a → x < −a OR x > a. For ABSOLUTE VALUE EQUATIONS (not inequalities), |expr| = a splits into TWO equations (expr = a OR expr = −a) when a > 0, solve both, and reject any that fails when checked back in the ORIGINAL equation (extraneous solutions happen); if a < 0 there is no solution at all. When the OTHER side contains the variable (e.g. |5x + 6| = 2x − 6), that side must be ≥ 0 for any solution, so EVERY candidate MUST be plugged back into the ORIGINAL equation — it is common for BOTH candidates to fail, and then the answer is "No solution". Same for square-root and rational equations (extraneous roots).
 5. VERIFY before answering — DO NOT SKIP; this is where wrong answers get caught. For ANY equation you solve, substitute EVERY solution back into the ORIGINAL equation, compute both sides, and confirm they are equal — and SHOW that check in the explanation, e.g. "check x = −8/5: 6 − |5(−8/5)+6| = 6 − |−2| = 6 − 2 = 4 ✓". If a solution fails its check, it is WRONG — fix it or drop it before you answer (this is exactly how the classic −8÷5 → −8/5, never −2, slip gets caught). Compute every division EXACTLY: a non-integer quotient stays a reduced fraction (−8 ÷ 5 = −8/5), NEVER rounded or slipped to a nearby whole number. Also sanity-check signs, units, and magnitude. For an inequality specifically, plug in a value from inside your solution set AND one from outside it into the ORIGINAL inequality — if either check fails, you likely missed a sign flip. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
 5b. IF MULTIPLE CHOICE: re-read the on-screen option at the exact position/label you are about to cite and confirm its text is the answer you chose. A right answer paired with a wrong option number makes the student click the wrong box — treat that as a wrong answer. If the label isn't printed on screen, do not invent one.
 6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
 
 MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. Write ≥ not \geq, × not \times, √ not \sqrt, ÷ not \div, ² ³ for exponents, π θ α β for Greek letters. Fractions as a/b.
 
-STRICT JSON OUTPUT (no prose outside JSON):
+STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "work" FIRST:
 {
+  "work": "YOUR SCRATCH WORK, written BEFORE you commit to an answer: solve it completely step by step, then plug EVERY candidate back into the ORIGINAL problem and show both sides' values. Reject any that fail. (Not shown as the answer — this is where you get it right.) Under 1200 characters; for pure recall questions just a few words.",
   "answer": "Exact answer in the format required by the question type. No filler phrases.",
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
-  "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other"
+  "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
+  "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\"}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
 QUALITY BAR: Every answer survives teacher review. If the screen is unreadable, set "answer" to a clarification request and "topic" to "Clarification Needed".
@@ -18822,17 +18824,63 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userParts }
                 ],
-                max_tokens: 1000,
+                max_tokens: 1500,
                 temperature: 0.1
             })
         });
         clearTimeout(_lvTimeout);
 
         const data = await res.json();
-        clearInterval(phaseTimer); // stop the rotating-status animation
-        if (data.error) throw new Error(data.error.message);
+        if (data.error) { clearInterval(phaseTimer); throw new Error(data.error.message); }
 
-        const ai = JSON.parse(data.choices[0].message.content);
+        let ai = JSON.parse(data.choices[0].message.content);
+        // v24.40 — NEXUS MATH CHECK: verify the AI's math with an exact calculator.
+        // If it fails, re-solve once WITH the evidence; if that still fails, show the
+        // verified answer instead of a wrong one.
+        let _mathRes = null, _mathFixed = false, _mathOverride = false;
+        try {
+            if (ai && ai.math && typeof ai.math === 'object' && /^(equation|inequality|expression)$/i.test(String(ai.math.kind || '')) && typeof NxMath !== 'undefined') {
+                _mathRes = NxMath.verify(ai.math);
+                if (_mathRes && _mathRes.ok === false) {
+                    const s0 = document.getElementById('lv-fetch-status');
+                    if (s0) s0.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Caught a slip — double-checking the math…';
+                    const evidence = [];
+                    (_mathRes.checks || []).forEach(function (c) { evidence.push((_mathRes.variable || 'x') + ' = ' + NxMath.fmt(c.x) + ' → left side = ' + NxMath.fmt(c.l) + ', right side = ' + NxMath.fmt(c.r) + (c.pass ? ' (works)' : ' (FAILS — not a solution)')); });
+                    if (_mathRes.missing && _mathRes.missing.length) evidence.push('Missed solution(s): ' + _mathRes.missing.map(function (r) { return NxMath.fmt(r); }).join(', '));
+                    if (_mathRes.counterexample != null) evidence.push('Counterexample: at ' + (_mathRes.variable || 'x') + ' = ' + NxMath.fmt(_mathRes.counterexample) + ' your solution set disagrees with the original inequality.');
+                    const fixMsg = 'Your previous answer to this question was WRONG. Previous answer: ' + String(ai.answer || '').slice(0, 300)
+                        + '\nThe problem, as you read it: ' + ai.math.problem
+                        + '\nAn exact calculator checked it by substituting into the ORIGINAL problem:\n- ' + evidence.join('\n- ')
+                        + '\nThe calculator\'s verified result: ' + (_mathRes.truth || 'unknown')
+                        + '\nRe-solve from scratch, carefully. Show in "explanation" exactly where the mistake happens (e.g. an extraneous solution that fails the check) and the check of every candidate. If the screen is multiple choice, pick the option matching the verified result. Return the same JSON format.';
+                    try {
+                        const r2 = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                            body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0,
+                                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: data.choices[0].message.content }, { role: 'user', content: fixMsg }] })
+                        });
+                        const d2 = await r2.json();
+                        if (!d2.error) {
+                            const ai2 = JSON.parse(d2.choices[0].message.content);
+                            const chk2 = (ai2 && ai2.math && typeof ai2.math === 'object') ? NxMath.verify(ai2.math) : null;
+                            if (chk2 && chk2.ok) { ai = ai2; _mathRes = chk2; _mathFixed = true; }
+                        }
+                    } catch (_) {}
+                    if (!_mathFixed && _mathRes.truth) {
+                        // Still wrong after a retry → never show the wrong answer. Show the verified one.
+                        _mathOverride = true;
+                        const _orig = String(ai.explanation || '');
+                        const _v = _mathRes.variable || 'x';
+                        ai.answer = _mathRes.kind === 'expression' ? _mathRes.truth : (_mathRes.kind === 'equation' ? _mathRes.truth : (_v + ' ∈ ' + _mathRes.truth));
+                        ai.explanation = '<strong>NEXUS checked this with an exact calculator.</strong> The AI\'s first answer didn\'t hold up when plugged back into the original problem, so here is the verified result.'
+                            + (_mathRes.kind === 'equation' && _mathRes.truth === 'No solution' ? '<br>Every candidate from splitting the problem fails the check (they\'re <em>extraneous</em>), so there is <strong>no solution</strong>.' : '')
+                            + (_orig ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The AI\'s original attempt (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + _orig + '</div></details>' : '');
+                    }
+                }
+            }
+        } catch (_) {}
+        clearInterval(phaseTimer); // stop the rotating-status animation
 
         // v13.1 — enhanced output with question type badge + fill-in-the-blank display
         const cleanedAnswer = (typeof convertMarkdownLeaks === 'function') ? convertMarkdownLeaks(ai.answer || '') : (ai.answer || '');
@@ -18875,6 +18923,13 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
             _typewriterHTML(answerElFinal, cleanedAnswer);
         }
         _typewriterHTML(document.getElementById('ai-explanation-text'), cleanedExplain || 'No additional context needed.');
+        // v24.40 — the exact-calculator check, shown right under the answer
+        try {
+            if (_mathRes && !_mathRes.skip && typeof _nxMathCheckHtml === 'function') {
+                const _chkView = _mathOverride ? Object.assign({}, _mathRes, { ok: false }) : _mathRes;
+                answerElFinal.insertAdjacentHTML('beforeend', _nxMathCheckHtml(_chkView, _mathOverride ? 'override' : _mathFixed));
+            }
+        } catch (_) {}
 
         // Show question type badge next to topic
         const qTypeLabels = { 'fill-in-the-blank':'Fill-in-Blank', 'multiple-choice':'Multiple Choice', 'true-false':'True/False', 'matching':'Matching', 'short-answer':'Short Answer', 'computation':'Computation', 'definition':'Definition', 'multi-select':'Multi-Select', 'drag-and-drop':'Drag & Drop', 'other':'General' };
@@ -19477,6 +19532,7 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 // If a graph is already embedded, tell it not to draw another graph.
                 _autoVisualize(output, text, content, { subject: 'math', shown: _didGraph ? ['graph'] : [] });
                 nexusTypeOut(output);   // v24.39 — write the answer out smoothly
+                _nxMathTabCheck(output, text, content);   // v24.40 — exact calculator check of the final answer
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
@@ -20871,6 +20927,323 @@ function drawGraphGrid(ctx, width, height) {
 // "^" exponent via Math.pow (sidesteps JS's "-x**2 is a syntax error" rule
 // too, so "y = -x^2" works), and skips unplottable points instead of
 // crashing the whole graph.
+// ════════════════════════════════════════════════════════════════════
+// v24.40 — NEXUS MATH CHECK. A deterministic verifier that sits AFTER the AI.
+// Chase: Live Vision answered x = 0 for |5x + 6| + 6 = 2x (the real answer is
+// NO SOLUTION — both candidates are extraneous). An instruction to "check your
+// work" isn't enough, so the app now checks the math ITSELF:
+//   1. A safe parser (no eval / new Function — the text comes from a screen)
+//      turns the problem into a function. Handles + − × ÷ ^, implicit
+//      multiplication, |abs| bars, √, ², ³, π, sin/cos/tan/ln/log/exp/sqrt/abs.
+//   2. Every solution the AI claims is plugged back into the ORIGINAL problem.
+//   3. The real solutions are found independently by a dense numeric scan +
+//      bisection (sign changes) + minimum-hunting (touching roots).
+//   4. Inequalities: the true solution set is built from the roots and tested
+//      region by region; the AI's interval notation is compared point by point.
+//   5. Plain arithmetic ("expression") is evaluated and compared to the AI's value.
+// The caller re-asks the AI with the evidence when the check fails, and only
+// shows an answer that passes (or the verified result with a clear note).
+// ════════════════════════════════════════════════════════════════════
+var NxMath = (function () {
+    var FUN = { abs: Math.abs, sqrt: Math.sqrt, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan, ln: Math.log, log: function (v) { return Math.log10(v); }, exp: Math.exp, cbrt: Math.cbrt };
+    var SUP = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-' };
+    function normalize(s) {
+        s = String(s == null ? '' : s);
+        s = s.replace(/[−–—]/g, '-').replace(/[×·∙⋅]/g, '*').replace(/÷/g, '/').replace(/π/g, 'pi').replace(/√/g, 'sqrt')
+             .replace(/≤|=</g, '<=').replace(/≥|=>/g, '>=').replace(/≠/g, '!=').replace(/\*\*/g, '^')
+             .replace(/\\left|\\right/g, '').replace(/\\cdot|\\times/g, '*').replace(/\\div/g, '/').replace(/\\le(q)?\b/g, '<=').replace(/\\ge(q)?\b/g, '>=')
+             .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '(($1)/($2))').replace(/\\sqrt\s*\{([^{}]*)\}/g, 'sqrt($1)').replace(/\\pi/g, 'pi')
+             .replace(/[{}]/g, function (c) { return c === '{' ? '(' : ')'; }).replace(/\\/g, '');
+        // superscripts → ^(n)
+        s = s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/g, function (m) { return '^(' + m.split('').map(function (c) { return SUP[c]; }).join('') + ')'; });
+        return s;
+    }
+    function tokenize(s) {
+        var t = [], i = 0;
+        while (i < s.length) {
+            var c = s[i];
+            if (/\s/.test(c)) { i++; continue; }
+            var m = /^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?/i.exec(s.slice(i));
+            if (m && /[\d.]/.test(c)) { t.push({ k: 'n', v: parseFloat(m[0]) }); i += m[0].length; continue; }
+            m = /^[a-z]+/i.exec(s.slice(i));
+            if (m) {
+                var w = m[0].toLowerCase(), j = 0;
+                // split runs like "xy" or "2pix" into known names / single variables
+                while (j < w.length) {
+                    var rest = w.slice(j), hit = null;
+                    ['asin', 'acos', 'atan', 'sqrt', 'cbrt', 'sin', 'cos', 'tan', 'abs', 'exp', 'log', 'ln', 'pi'].some(function (f) { if (rest.indexOf(f) === 0) { hit = f; return true; } return false; });
+                    if (hit) { t.push(hit === 'pi' ? { k: 'n', v: Math.PI } : { k: 'f', v: hit }); j += hit.length; }
+                    else if (rest[0] === 'e' && !/[a-z]/.test(rest[1] || '')) { t.push({ k: 'n', v: Math.E }); j++; }
+                    else { t.push({ k: 'v', v: rest[0] }); j++; }
+                }
+                i += m[0].length; continue;
+            }
+            if ('+-*/^()|,'.indexOf(c) >= 0) { t.push({ k: 'o', v: c }); i++; continue; }
+            if (c === '[') { t.push({ k: 'o', v: '(' }); i++; continue; }
+            if (c === ']') { t.push({ k: 'o', v: ')' }); i++; continue; }
+            throw new Error('Unexpected "' + c + '"');
+        }
+        return t;
+    }
+    // recursive descent → closure. Grammar: expr = term (('+'|'-') term)*;
+    // term = unary (('*'|'/'|implicit) unary)*; unary = '-' unary | power;
+    // power = primary ('^' unary)?; primary = num | var | fn primary | '(' expr ')' | '|' expr '|'
+    function compile(src) {
+        var toks = tokenize(normalize(src)), p = 0, vars = {};
+        function peek() { return toks[p]; }
+        function isOp(v) { var t = toks[p]; return t && t.k === 'o' && t.v === v; }
+        function expr(stopBar) {
+            var a = term(stopBar);
+            while (isOp('+') || isOp('-')) { var op = toks[p++].v, b = term(stopBar); a = (function (x, y, o) { return o === '+' ? function (e) { return x(e) + y(e); } : function (e) { return x(e) - y(e); }; })(a, b, op); }
+            return a;
+        }
+        function startsPrimary(t, stopBar) { return t && (t.k === 'n' || t.k === 'v' || t.k === 'f' || (t.k === 'o' && (t.v === '(' || (t.v === '|' && !stopBar)))); }
+        function term(stopBar) {
+            var a = unary(stopBar);
+            for (;;) {
+                if (isOp('*') || isOp('/')) { var op = toks[p++].v, b = unary(stopBar); a = (function (x, y, o) { return o === '*' ? function (e) { return x(e) * y(e); } : function (e) { return x(e) / y(e); }; })(a, b, op); continue; }
+                if (startsPrimary(peek(), stopBar)) { var c = unary(stopBar); a = (function (x, y) { return function (e) { return x(e) * y(e); }; })(a, c); continue; }
+                return a;
+            }
+        }
+        function unary(stopBar) {
+            if (isOp('-')) { p++; var a = unary(stopBar); return function (e) { return -a(e); }; }
+            if (isOp('+')) { p++; return unary(stopBar); }
+            return power(stopBar);
+        }
+        function power(stopBar) {
+            var b = primary(stopBar);
+            if (isOp('^')) { p++; var ex = unary(stopBar); return function (e) { return Math.pow(b(e), ex(e)); }; }
+            return b;
+        }
+        function primary(stopBar) {
+            var t = toks[p++];
+            if (!t) throw new Error('Unexpected end');
+            if (t.k === 'n') { var v = t.v; return function () { return v; }; }
+            if (t.k === 'v') { vars[t.v] = 1; var name = t.v; return function (e) { return e[name]; }; }
+            if (t.k === 'f') { var f = FUN[t.v], arg = isOp('(') ? primary(stopBar) : power(stopBar); return function (e) { return f(arg(e)); }; }
+            if (t.k === 'o' && t.v === '(') { var a = expr(false); if (!isOp(')')) throw new Error('Missing )'); p++; return a; }
+            if (t.k === 'o' && t.v === '|') { var b = expr(true); if (!isOp('|')) throw new Error('Missing |'); p++; return function (e) { return Math.abs(b(e)); }; }
+            throw new Error('Unexpected ' + t.v);
+        }
+        var fn = expr(false);
+        if (p !== toks.length) throw new Error('Could not read the whole expression');
+        return { fn: fn, vars: Object.keys(vars) };
+    }
+    // split "L = R" / "L < R" etc. (only at the top level)
+    function splitRel(s) {
+        s = normalize(s);
+        var m = /^(.*?)(<=|>=|!=|<|>|=)(.*)$/.exec(s);
+        if (!m) return null;
+        if (/(<=|>=|<|>|=)/.test(m[3])) return null;          // chained/compound — not handled here
+        return { L: m[1], op: m[2], R: m[3] };
+    }
+    function near(a, b, scale) { return Math.abs(a - b) <= 1e-7 * (1 + Math.abs(scale || 0)); }
+    // find real roots of g on [lo, hi]
+    function roots(g, lo, hi) {
+        var xs = [], out = [];
+        function addGrid(a, b, n) { for (var i = 0; i <= n; i++) xs.push(a + (b - a) * i / n); }
+        addGrid(lo, hi, 6000); addGrid(-60, 60, 24000); addGrid(-5, 5, 10000);
+        xs.sort(function (a, b) { return a - b; });
+        var prevX = null, prevY = null, ys = [];
+        for (var i = 0; i < xs.length; i++) {
+            var x = xs[i]; if (prevX !== null && x === prevX) continue;
+            var y; try { y = g(x); } catch (_) { y = NaN; }
+            ys.push([x, y]);
+            if (prevX !== null && isFinite(y) && isFinite(prevY)) {
+                if (y === 0) out.push(x);
+                else if ((prevY < 0 && y > 0) || (prevY > 0 && y < 0)) {
+                    var a = prevX, b = x, fa = prevY;
+                    for (var k = 0; k < 90; k++) { var mid = (a + b) / 2, fm = g(mid); if (!isFinite(fm)) break; if ((fa < 0) === (fm < 0)) { a = mid; fa = fm; } else b = mid; }
+                    var r = (a + b) / 2, fr = g(r);
+                    if (isFinite(fr) && Math.abs(fr) < 1e-6 * (1 + Math.abs(prevY) + Math.abs(y))) out.push(r);   // a real crossing, not a pole
+                }
+            }
+            prevX = x; prevY = y;
+        }
+        // touching roots: local minima of |g| that reach ~0
+        for (var j = 1; j < ys.length - 1; j++) {
+            var y0 = Math.abs(ys[j - 1][1]), y1 = Math.abs(ys[j][1]), y2 = Math.abs(ys[j + 1][1]);
+            if (!(isFinite(y0) && isFinite(y1) && isFinite(y2)) || !(y1 <= y0 && y1 <= y2) || y1 > 1e-2) continue;
+            var A = ys[j - 1][0], B = ys[j + 1][0], gr = 0.6180339887;
+            for (var q = 0; q < 80; q++) { var c = B - gr * (B - A), d = A + gr * (B - A); if (Math.abs(g(c)) < Math.abs(g(d))) B = d; else A = c; }
+            var xm = (A + B) / 2; if (Math.abs(g(xm)) < 1e-9) out.push(xm);
+        }
+        out.sort(function (a, b) { return a - b; });
+        var uniq = []; out.forEach(function (r) { if (!uniq.length || Math.abs(r - uniq[uniq.length - 1]) > 1e-6 * (1 + Math.abs(r))) uniq.push(r); });
+        return uniq.map(function (r) { var s = snap(r); return isFinite(g(s)) && Math.abs(g(s)) <= Math.abs(g(r)) + 1e-12 ? s : r; });
+    }
+    // snap a float to a clean fraction / integer if it really is one
+    function snap(x) { var f = frac(x); return f ? f.n / f.d : x; }
+    function frac(x) {
+        if (!isFinite(x)) return null;
+        for (var d = 1; d <= 1000; d++) { var n = Math.round(x * d); if (Math.abs(n / d - x) < 1e-9 * (1 + Math.abs(x))) return { n: n, d: d }; }
+        return null;
+    }
+    function fmt(x) {
+        if (x === Infinity) return '∞'; if (x === -Infinity) return '−∞';
+        var f = frac(x);
+        if (f) return (f.d === 1 ? String(f.n) : (f.n + '/' + f.d)).replace('-', '−');
+        return ('≈ ' + (Math.round(x * 10000) / 10000)).replace('-', '−');
+    }
+    function evalNum(s) { var c = compile(s); if (c.vars.length) throw new Error('has variables'); var v = c.fn({}); if (!isFinite(v)) throw new Error('not finite'); return v; }
+    function parseClaim(s) {   // "x = -8/5" or "-8/5" or "3 ± √5"
+        s = normalize(String(s)).replace(/^[a-z]\s*=\s*/i, '').trim();
+        if (/±|\+-|\+\/-/.test(s)) { var parts = s.split(/±|\+\/-|\+-/); var a = evalNum(parts[0] || '0'), b = evalNum(parts[1]); return [a + b, a - b]; }
+        return [evalNum(s)];
+    }
+    function test(op, l, r) {
+        var tol = 1e-9 * (1 + Math.abs(l) + Math.abs(r));
+        if (op === '=') return Math.abs(l - r) <= tol * 100;
+        if (op === '<') return l < r - tol; if (op === '>') return l > r + tol;
+        if (op === '<=') return l <= r + tol; if (op === '>=') return l >= r - tol;
+        if (op === '!=') return Math.abs(l - r) > tol; return false;
+    }
+    // interval notation → membership test. Accepts "(−∞, 3] ∪ (5, ∞)", "x < 3 or x > 5", "all real numbers", "no solution", "{2}", "x ≠ 2"
+    function parseSet(s, v) {
+        var raw = normalize(String(s || '')).toLowerCase().trim();
+        if (!raw) return null;
+        if (/no (real )?solution|empty|∅|\{\s*\}|none/.test(raw)) return function () { return false; };
+        if (/all real|every real|\(-?∞?inf|ℝ|^r$|\(-∞,\s*∞\)|\(-inf/.test(raw) && !/∪|u\s*\(|or/.test(raw)) return function () { return true; };
+        var pieces = raw.split(/∪|\bor\b|\bu\b(?=\s*[\[(])|;/);
+        var tests = pieces.map(function (pc) {
+            pc = pc.trim().replace(/∞|infinity|inf/g, 'I');
+            var m = /^([\[(])\s*([^,]+)\s*,\s*([^\])]+)\s*([\])])$/.exec(pc);
+            if (m) {
+                var lo = /-\s*I/.test(m[2]) ? -Infinity : evalNum(m[2]), hi = /^\+?\s*I$/.test(m[3].trim()) ? Infinity : evalNum(m[3]);
+                var lc = m[1] === '[', rc = m[4] === ']';
+                return function (x) { return (lc ? x >= lo - 1e-9 : x > lo + 1e-12) && (rc ? x <= hi + 1e-9 : x < hi - 1e-12); };
+            }
+            var pt = /^\{([^}]*)\}$/.exec(pc);
+            if (pt) { var vals = pt[1].split(',').map(evalNum); return function (x) { return vals.some(function (q) { return Math.abs(q - x) < 1e-7; }); }; }
+            // inequality form: "x < 3", "-2 <= x < 5", "x != 2"
+            var re = new RegExp('^(?:([^<>=!]+?)\\s*(<=|<)\\s*)?' + v + '\\s*(<=|>=|<|>|!=|=)\\s*([^<>=!]+)$');
+            var q = re.exec(pc);
+            if (q) {
+                var lo2 = q[1] ? evalNum(q[1]) : null, lop = q[2], op = q[3], val = evalNum(q[4]);
+                return function (x) { return (lo2 === null || (lop === '<' ? x > lo2 : x >= lo2 - 1e-9)) && test(op, x, val); };
+            }
+            throw new Error('Could not read the solution set');
+        });
+        return function (x) { return tests.some(function (t) { return t(x); }); };
+    }
+    function setToString(regs) {   // regs: [{lo,hi,lc,rc}] or points
+        if (!regs.length) return 'No solution';
+        if (regs.length === 1 && regs[0].lo === -Infinity && regs[0].hi === Infinity) return 'All real numbers';
+        return regs.map(function (r) { return r.lo === r.hi ? ('{' + fmt(r.lo) + '}') : ((r.lc ? '[' : '(') + fmt(r.lo) + ', ' + fmt(r.hi) + (r.rc ? ']' : ')')); }).join(' ∪ ');
+    }
+    // ── main entry: verify a structured math claim from the AI ──
+    // spec = { kind:'equation'|'inequality'|'expression', problem:'|5x+6|+6=2x', variable:'x', solutions:['0'], solutionSet:'(−∞,3]', value:'7/12' }
+    function verify(spec) {
+        var res = { ok: null, kind: spec && spec.kind, notes: [], checks: [] };
+        try {
+            if (!spec || !spec.problem) { res.skip = 'no problem'; return res; }
+            var kind = String(spec.kind || '').toLowerCase();
+            if (kind === 'expression') {
+                var truth = evalNum(spec.problem), claim = evalNum(spec.value);
+                res.truth = fmt(truth); res.claim = fmt(claim);
+                res.ok = near(truth, claim, truth);
+                return res;
+            }
+            var rel = splitRel(spec.problem); if (!rel) { res.skip = 'not an equation'; return res; }
+            var L = compile(rel.L), R = compile(rel.R);
+            var vs = {}; L.vars.concat(R.vars).forEach(function (x) { vs[x] = 1; });
+            var names = Object.keys(vs);
+            if (names.length !== 1) { res.skip = names.length ? 'more than one variable' : 'no variable'; return res; }
+            var v = names[0]; res.variable = v; res.problem = spec.problem;
+            var at = function (x) { var e = {}; e[v] = x; return { l: L.fn(e), r: R.fn(e) }; };
+            var g = function (x) { var o = at(x); return o.l - o.r; };
+            // identity / contradiction?
+            var samples = [-7.3, -2.1, 0.37, 1.9, 5.7, 13.1], allZero = samples.every(function (x) { var o = at(x); return isFinite(o.l) && test('=', o.l, o.r); });
+            var rts = allZero ? [] : roots(g, -1000, 1000);   // an identity has no isolated roots — skip the (slow) scan
+            if (rel.op === '=') {
+                res.truthRoots = allZero ? 'all' : rts;
+                res.truth = allZero ? 'All real numbers' : (rts.length ? rts.map(function (r) { return v + ' = ' + fmt(r); }).join(', ') : 'No solution');
+                var claimed = [];
+                (spec.solutions || []).forEach(function (s) { try { claimed = claimed.concat(parseClaim(s)); } catch (_) { res.notes.push('could not read "' + s + '"'); } });
+                claimed.forEach(function (x) {
+                    var o = at(x), pass = isFinite(o.l) && isFinite(o.r) && test('=', o.l, o.r);
+                    res.checks.push({ x: x, l: o.l, r: o.r, pass: pass });
+                });
+                var allPass = res.checks.every(function (c) { return c.pass; });
+                var missing = allZero ? [] : rts.filter(function (r) { return !claimed.some(function (c) { return Math.abs(c - r) < 1e-6 * (1 + Math.abs(r)); }); });
+                res.missing = missing;
+                if (allZero) res.ok = /all real|infinite/i.test(String(spec.solutionSet || spec.solutions || '')) || (claimed.length === 0 && /all/i.test(JSON.stringify(spec)));
+                else res.ok = allPass && missing.length === 0 && !res.notes.length;
+                return res;
+            }
+            // inequality: truth regions from the roots of L − R
+            var pts = [-Infinity].concat(rts).concat([Infinity]), regs = [];
+            var truthAt = function (x) { var o = at(x); return isFinite(o.l) && isFinite(o.r) && test(rel.op, o.l, o.r); };
+            for (var i = 0; i < pts.length - 1; i++) {
+                var a = pts[i], b = pts[i + 1];
+                var mid = a === -Infinity ? (b === Infinity ? 0 : b - 1) : (b === Infinity ? a + 1 : (a + b) / 2);
+                if (truthAt(mid)) regs.push({ lo: a, hi: b, lc: a !== -Infinity && truthAt(a), rc: b !== Infinity && truthAt(b) });
+                else { if (b !== Infinity && truthAt(b) && !(regs.length && regs[regs.length - 1].hi === b)) regs.push({ lo: b, hi: b, lc: true, rc: true }); }
+            }
+            // merge touching regions
+            var merged = []; regs.forEach(function (r) { var p0 = merged[merged.length - 1]; if (p0 && p0.hi === r.lo && (p0.rc || r.lc)) { p0.hi = r.hi; p0.rc = r.rc; } else merged.push(r); });
+            res.truth = setToString(merged);
+            var member; try { member = parseSet(spec.solutionSet || (spec.solutions || []).join(' or '), v); } catch (e) { res.notes.push(e.message); res.ok = false; return res; }
+            if (!member) { res.ok = false; res.notes.push('no solution set given'); return res; }
+            var probe = [-999.5, -123.4, -50.5, -9.9, -3.3, -1.7, -0.5, 0, 0.5, 1.5, 2.6, 4.4, 7.7, 12.1, 37.3, 210.2, 999.5];
+            rts.forEach(function (r) { probe.push(r, r - 1e-4, r + 1e-4); });
+            var bad = probe.filter(function (x) { return truthAt(x) !== !!member(x); });
+            res.counterexample = bad.length ? bad[0] : null;
+            res.ok = bad.length === 0;
+            return res;
+        } catch (e) { res.skip = e.message || 'could not check'; return res; }
+    }
+    return { verify: verify, compile: compile, roots: roots, fmt: fmt, parseSet: parseSet, splitRel: splitRel };
+})();
+window.NxMath = NxMath;
+// HTML for the little "checked" strip under an answer
+function _nxMathCheckHtml(r, corrected) {
+    if (!r || r.ok === null || r.skip) return '';
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+    var lines = (r.checks || []).slice(0, 4).map(function (c) {
+        return (c.pass ? '✓ ' : '✗ ') + esc(r.variable + ' = ' + NxMath.fmt(c.x)) + ': left side = ' + esc(NxMath.fmt(c.l)) + ', right side = ' + esc(NxMath.fmt(c.r)) + (c.pass ? '' : ' — doesn\'t work (extraneous)');
+    });
+    var head = corrected === 'override' ? '🛠️ NEXUS corrected this — the first answer failed the exact check' : (r.ok ? (corrected ? '🛠️ NEXUS caught a mistake and fixed it — this answer now checks out' : '✅ Checked by NEXUS — plugged back into the original') : '⚠️ NEXUS double-check');
+    var col = corrected === 'override' ? '#ffbe5a' : (r.ok ? (corrected ? '#ffbe5a' : '#45c78d') : '#ff9a9a');
+    return '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;">'
+        + '<div style="font-weight:700;color:' + col + ';">' + head + '</div>'
+        + (r.problem ? '<div style="color:var(--text-muted);">Problem read as: <code>' + esc(r.problem) + '</code></div>' : '')
+        + lines.map(function (l) { return '<div>' + l + '</div>'; }).join('')
+        + (r.ok && r.kind === 'equation' && r.truth === 'No solution' && !(r.checks || []).length ? '<div>No value of ' + esc(r.variable || 'x') + ' makes both sides equal — the calculator searched every real number from −1000 to 1000 and found none.</div>' : '')
+        + (r.kind === 'inequality' || (r.ok === false && r.truth) ? '<div>Verified solution: <strong>' + esc(r.truth) + '</strong></div>' : '')
+        + '</div>';
+}
+window._nxMathCheckHtml = _nxMathCheckHtml;
+// v24.40 — the same exact check for Math-tab answers (typed or photo). A small
+// extraction call pulls out the problem + the tutor's FINAL answer, then NxMath
+// verifies it. Passing → a green "checked" strip. Failing → an amber strip with
+// the verified answer and the substitution proof, so a wrong answer never stands.
+const NEXUS_MATHEXTRACT_PROMPT = 'You read a math tutor\'s answer and extract what can be checked by a calculator. Return ONLY JSON: {"math": null} unless the student asked to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression. Otherwise {"math": {"kind":"equation|inequality|expression", "problem":"the ORIGINAL problem in plain math text, e.g. |5x+6|+6=2x (use ^ for powers, |..| or abs(), sqrt())", "variable":"x", "solutions":["each FINAL solution the TUTOR gave, exactly as the tutor states it — [] if the tutor said no solution"], "solutionSet":"inequalities: the tutor\'s final answer in interval notation; or All real numbers", "value":"expressions: the tutor\'s final value"}}. Copy the TUTOR\'S final answer even if you think it is wrong — do not fix it.';
+async function _nxMathTabCheck(output, problemText, answerHtml) {
+    try {
+        if (!output || typeof NxMath === 'undefined') return;
+        var apiKey = (typeof getApiKey === 'function') ? getApiKey() : ''; if (!apiKey) return;
+        var plain = String(answerHtml || '').replace(/<svg[\s\S]*?<\/svg>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+        if (plain.length < 4) return;
+        var res = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', temperature: 0, max_tokens: 400, response_format: { type: 'json_object' },
+                messages: [{ role: 'system', content: NEXUS_MATHEXTRACT_PROMPT }, { role: 'user', content: 'STUDENT ASKED: ' + String(problemText || '(a photo of a problem)').slice(0, 800) + '\n\nTUTOR ANSWERED: ' + plain.slice(0, 3500) }] })
+        });
+        var d = await res.json();
+        var spec = JSON.parse((d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '{}').math;
+        if (!spec || typeof spec !== 'object') return;
+        var r = NxMath.verify(spec);
+        if (!r || r.skip || r.ok === null || !output.isConnected) return;
+        var old = output.querySelector(':scope > .nx-mathcheck'); if (old) old.remove();
+        var html = _nxMathCheckHtml(r, false);
+        if (r.ok === false) html = html.replace('⚠️ NEXUS double-check', '⚠️ NEXUS\'s calculator disagrees with this answer — use the verified result below');
+        output.insertAdjacentHTML('beforeend', html);
+        if (typeof trackFeature === 'function') trackFeature(r.ok ? 'math_check_pass' : 'math_check_fail');
+    } catch (_) {}
+}
+window._nxMathTabCheck = _nxMathTabCheck;
 function _mathExprToJs(rawInput) {
     let expr = rawInput.toLowerCase().replace(/\s+/g, '');
     expr = expr.replace(/^y=/, '');
@@ -24306,6 +24679,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.40',
+        date: 'November 11, 2026',
+        tag: 'MATH THAT CHECKS ITSELF',
+        tagColor: '#45c78d',
+        changes: [
+            'EXACT MATH CHECK IN LIVE VISION — NEXUS no longer just trusts the AI on equations, inequalities, and arithmetic. A built-in calculator plugs every answer back into the ORIGINAL problem and finds the real solutions on its own. If the AI slips (like answering x = 0 for |5x + 6| + 6 = 2x, which has NO solution because both candidates fail the check), Live Vision catches it, re-solves with the proof, and shows a "NEXUS caught a mistake" note. A wrong answer is never shown as correct.',
+            'SEE THE PROOF — Under every checked answer you see the problem as NEXUS read it, plus each candidate plugged in, with the value of both sides and a ✓ or ✗. Extraneous solutions are labeled, so you learn why they get rejected.',
+            'MATH TAB TOO — Math answers, typed or from a photo, get the same exact check at the bottom: a green "Checked by NEXUS" when the answer holds up, or an amber warning with the verified answer when it doesn\'t.',
+            'SMARTER SOLVING — Live Vision now works the whole problem out (including checking every candidate) BEFORE it commits to an answer, and it has a stronger rule for absolute-value, square-root, and fraction equations, where extraneous answers hide.',
+        ]
+    },
     {
         version: 'v24.39',
         date: 'November 9, 2026',
