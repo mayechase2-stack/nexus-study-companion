@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.43';
+const NEXUS_CURRENT_VERSION = 'v24.44';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18799,7 +18799,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
-  "graph": "ONLY when answering requires reading a coordinate graph — otherwise null. Shape: {\"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"equation\":\"y = … for the line/curve you identified, or null\"}",
+  "graph": "ONLY when answering requires reading a coordinate graph — otherwise null. Shape: {\"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
   "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\"}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
@@ -18892,8 +18892,18 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
             if (_gq && typeof _lvGraphReread === 'function' && typeof NxMath !== 'undefined') {
                 const s1 = document.getElementById('lv-fetch-status');
                 if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Zooming in on the graph to double-check…';
-                const gr = await _lvGraphReread(video, ai.graph && ai.graph.box, apiKey);
-                const gc = _lvGraphConsistent(gr);
+                // v24.44 — 1) MEASURE the line from the pixels (exact, no AI); 2) only if that isn't
+                // confident, fall back to the AI close-up re-read.
+                let gr = null, gc = { ok: false };
+                try {
+                    const cv = (typeof _lvMeasureGraph === 'function') ? _lvMeasureGraph(video, ai.graph && ai.graph.box, ai.graph && ai.graph.xStep, ai.graph && ai.graph.yStep) : null;
+                    if (cv && cv.ok && cv.confident) {
+                        gr = { measured: true, points: cv.lattice, slope: cv.slope, yIntercept: cv.b, equation: cv.equation, yStep: (ai.graph && ai.graph.yStep) || 1 };
+                        gc = { ok: true, f: _lvEqFn(cv.equation), pts: cv.lattice };
+                        if (typeof trackFeature === 'function') trackFeature('lv_graph_measured');
+                    }
+                } catch (_) {}
+                if (!gc.ok) { gr = await _lvGraphReread(video, ai.graph && ai.graph.box, apiKey); gc = _lvGraphConsistent(gr); }
                 if (gr && gc.ok) {
                     _graphRes = gr;
                     const _ansEq = function (a) { const m = String((a && a.graph && a.graph.equation) || '').trim() || ((String((a && a.answer) || '').replace(/<[^>]+>/g, ' ').match(/y\s*=\s*[^,;«»"]+/i) || [''])[0]); return _lvEqFn(m); };
@@ -18904,7 +18914,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     if (disagree) {
                         if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> The close-up disagrees — re-answering…';
                         const ptsTxt = gc.pts.map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
-                        const gMsg = 'A ZOOMED-IN, verified reading of the graph found that it passes exactly through ' + ptsTxt + '; slope ' + (gr.slope || 'n/a') + ', y-intercept ' + (gr.yIntercept != null ? gr.yIntercept : 'n/a') + '; equation ' + gr.equation + ' (checked: it passes through every one of those points). Your previous answer ("' + String(ai.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 200) + '") does not match that graph. Re-answer the question using this verified reading — if it is multiple choice, choose the option that matches it. Explain using these points. Same JSON format.';
+                        const gMsg = (gr.measured ? 'NEXUS MEASURED the line directly from the screen pixels (exact, not a guess). It passes through ' : 'A ZOOMED-IN, verified reading of the graph found that it passes exactly through ') + ptsTxt + '; slope ' + (gr.slope || 'n/a') + ', y-intercept ' + (gr.yIntercept != null ? gr.yIntercept : 'n/a') + '; equation ' + gr.equation + ' (checked: it passes through every one of those points). Your previous answer ("' + String(ai.answer || '').replace(/<[^>]+>/g, ' ').slice(0, 200) + '") does not match that graph. Re-answer the question using this verified reading — if it is multiple choice, choose the option that matches it. Explain using these points. Same JSON format.';
                         try {
                             const r3 = await fetch('https://api.openai.com/v1/chat/completions', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -21458,11 +21468,227 @@ function _lvGraphCheckHtml(g, corrected) {
     var pts = (g.points || []).slice(0, 5).map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
     var col = corrected ? '#ffbe5a' : '#45c78d';
     return '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;">'
-        + '<div style="font-weight:700;color:' + col + ';">' + (corrected ? '🛠️ NEXUS zoomed in on the graph and corrected the answer' : '✅ Graph re-read up close and checked') + '</div>'
-        + '<div>The line passes exactly through ' + esc(pts) + (g.slope ? ' → slope ' + esc(g.slope) : '') + (g.yIntercept != null ? ', y-intercept ' + esc(g.yIntercept) : '') + '.</div>'
+        + '<div style="font-weight:700;color:' + col + ';">' + (g.measured ? (corrected ? '📏 NEXUS measured the line on your screen and corrected the answer' : '📏 Measured on your screen — the answer matches the graph') : (corrected ? '🛠️ NEXUS zoomed in on the graph and corrected the answer' : '✅ Graph re-read up close and checked')) + '</div>'
+        + '<div>' + (g.measured ? 'Measured from the pixels: the line passes through ' : 'The line passes exactly through ') + esc(pts) + (g.slope ? ' → slope ' + esc(g.slope) : '') + (g.yIntercept != null ? ', y-intercept ' + esc(g.yIntercept) : '') + '.</div>'
         + '<div>Equation: <strong>' + esc(g.equation) + '</strong> — passes through every one of those points ✓</div></div>';
 }
 window._lvGraphCheckHtml = _lvGraphCheckHtml;
+// ════════════════════════════════════════════════════════════════════
+// v24.44 — NEXUS GRAPH MEASURE (no AI). Chase: even with the zoomed re-read,
+// Live Vision answered y = x + 2 for a line through (0,−2), (2,1), (4,4) →
+// y = 3/2x − 2. An AI can misread every point the SAME way and still "agree
+// with itself". So the app now MEASURES the line from the screenshot pixels:
+//   • the colored graph line (dominant hue), the black axes (longest dark
+//     runs), and the gridline spacing (long light-gray runs)
+//   • a robust straight-line fit in pixels → converted to graph units
+//   • snapped to a clean slope (fraction, denominator ≤ 10) and intercept
+// The measured equation is the referee: if the AI's answer disagrees with a
+// confident measurement, Live Vision re-answers with it (or shows it).
+// ════════════════════════════════════════════════════════════════════
+var NxGraphCV = (function () {
+    function runs(mask, w, h, horizontal, gapTol) {
+        var n = horizontal ? h : w, len = horizontal ? w : h, out = new Array(n), G = gapTol || 0;
+        for (var i = 0; i < n; i++) {
+            var best = 0, cur = 0, bestEnd = 0, gap = 0;
+            for (var j = 0; j < len; j++) {
+                var on = horizontal ? mask[i * w + j] : mask[j * w + i];
+                if (on) { cur += 1 + gap; gap = 0; if (cur > best) { best = cur; bestEnd = j; } }
+                else if (cur > 0 && gap < G) gap++;
+                else { cur = 0; gap = 0; }
+            }
+            out[i] = { len: best, end: bestEnd };
+        }
+        return out;
+    }
+    function peaks(runArr, frac, absLen) {
+        var max = 0; runArr.forEach(function (r) { if (r.len > max) max = r.len; });
+        var idx = [], th = absLen ? absLen * frac : max * frac;
+        runArr.forEach(function (r, i) { if (r.len >= th) idx.push(i); });
+        var centers = [], start = null, prev = null;
+        idx.forEach(function (i) { if (start === null) start = i; else if (i !== prev + 1) { centers.push((start + prev) / 2); start = i; } prev = i; });
+        if (start !== null) centers.push((start + prev) / 2);
+        return { centers: centers, max: max };
+    }
+    function spacing(centers) {
+        var d = []; for (var i = 1; i < centers.length; i++) { var g = centers[i] - centers[i - 1]; if (g > 4) d.push(g); }
+        if (d.length < 3) return null;
+        d.sort(function (a, b) { return a - b; });
+        var med = d[Math.floor(d.length / 2)];
+        // average the gaps that agree with the median (sub-pixel accuracy)
+        var good = d.filter(function (g) { return Math.abs(g - med) < 0.25 * med; });
+        return good.reduce(function (a, b) { return a + b; }, 0) / good.length;
+    }
+    function snapFrac(v) {
+        var best = null;
+        for (var q = 1; q <= 10; q++) {
+            var p = Math.round(v * q), err = Math.abs(p / q - v);
+            if (err <= 0.035 * Math.max(1, Math.abs(v))) { best = { p: p, q: q, err: err }; break; }
+        }
+        return best;
+    }
+    function fracStr(p, q) { if (q === 1) return String(p); var g = gcd(Math.abs(p), q); p /= g; q /= g; return q === 1 ? String(p) : (p + '/' + q); }
+    function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+    function analyze(img, opt) {
+        opt = opt || {};
+        var w = img.width, h = img.height, d = img.data, N = w * h;
+        // background brightness = the most common gray level (white page, or a tinted panel)
+        var hist = new Uint32Array(256);
+        for (var q0 = 0; q0 < N; q0 += 3) { var R0 = d[q0 * 4], G0 = d[q0 * 4 + 1], B0 = d[q0 * 4 + 2]; if (Math.max(R0, G0, B0) - Math.min(R0, G0, B0) < 20) hist[Math.round(0.299 * R0 + 0.587 * G0 + 0.114 * B0)]++; }
+        var bg = 255; for (var hv = 0; hv < 256; hv++) if (hist[hv] > hist[bg]) bg = hv;
+        var gridCut = Math.max(120, bg - 5);
+        var L = new Float32Array(N), col = new Uint8Array(N);
+        var dark = new Uint8Array(N), hueBin = new Int8Array(N).fill(-1), binCount = new Array(18).fill(0);
+        for (var i = 0; i < N; i++) {
+            var r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+            var mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx - mn, lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            if ((sat < 34 && lum < 115) || (sat > 55 && lum < 200)) dark[i] = 1;   // colored line pixels bridge the gap where the graph line crosses an axis
+            L[i] = lum; if (sat > 55 && lum < 236) col[i] = 1;   // gridlines stay continuous where the graph line crosses them
+            if (sat > 55 && lum < 236) {
+                var hh;
+                if (mx === r) hh = ((g - b) / sat) % 6; else if (mx === g) hh = (b - r) / sat + 2; else hh = (r - g) / sat + 4;
+                hh = (hh * 60 + 360) % 360;
+                var bin = Math.floor(hh / 20); hueBin[i] = bin; binCount[bin]++;
+            }
+        }
+        // gridlines = thin lines darker than the pixels on BOTH sides (works on white or tinted plot backgrounds,
+        // and after upscaling blur); colored graph-line pixels bridge the gaps where the graph crosses them
+        var vg = new Uint8Array(N), hg = new Uint8Array(N), K = 4;
+        for (var yy = K; yy < h - K; yy++) for (var xx = K; xx < w - K; xx++) {
+            var j0 = yy * w + xx, v0 = L[j0];
+            if (col[j0]) { vg[j0] = 1; hg[j0] = 1; continue; }
+            if (v0 < 245) {
+                if (v0 < L[j0 - K] - 5 && v0 < L[j0 + K] - 5) vg[j0] = 1;
+                if (v0 < L[j0 - K * w] - 5 && v0 < L[j0 + K * w] - 5) hg[j0] = 1;
+            }
+        }
+        // axes = the longest dark runs
+        var rRuns = runs(dark, w, h, true), cRuns = runs(dark, w, h, false);
+        // the axes must CROSS each other (a long text-box border or panel edge won't) — try the longest candidates in pairs
+        var topIdx = function (arr) { return arr.map(function (r, i) { return i; }).sort(function (a, b) { return arr[b].len - arr[a].len; }).slice(0, 12); };
+        var ax = -1, ay = -1, bestScore = 0;
+        topIdx(rRuns).forEach(function (ri) {
+            var r = rRuns[ri], rs = r.end - r.len + 1;
+            topIdx(cRuns).forEach(function (ci) {
+                var c = cRuns[ci], cs = c.end - c.len + 1;
+                var crosses = ci > rs + 0.08 * r.len && ci < r.end - 0.08 * r.len && ri > cs + 0.08 * c.len && ri < c.end - 0.08 * c.len;
+                if (crosses && r.len + c.len > bestScore) { bestScore = r.len + c.len; ax = ci; ay = ri; }
+            });
+        });
+        if (ax < 0) return { ok: false, why: 'axes not found', dbg: { rows: topIdx(rRuns).map(function (i) { return [i, rRuns[i].len, rRuns[i].end]; }), cols: topIdx(cRuns).map(function (i) { return [i, cRuns[i].len, cRuns[i].end]; }) } };
+        if (rRuns[ay].len < 120 || cRuns[ax].len < 120) return { ok: false, why: 'axes too short', dbg: { ax: ax, ay: ay, rl: rRuns[ay].len, cl: cRuns[ax].len } };
+        // refine axis to the center of its (possibly 2-3px thick) band
+        var band = function (arr, i0) { var lo = i0, hi = i0, L = arr[i0].len; while (lo > 0 && arr[lo - 1].len > 0.8 * L) lo--; while (hi < arr.length - 1 && arr[hi + 1].len > 0.8 * L) hi++; return (lo + hi) / 2; };
+        var axisY = band(rRuns, ay), axisX = band(cRuns, ax);
+        // gridline spacing from long light-gray runs
+        var pkX = peaks(runs(vg, w, h, false, 10), 0.5, cRuns[ax].len).centers, pkY = peaks(runs(hg, w, h, true, 10), 0.5, rRuns[ay].len).centers;
+        var gx = spacing(pkX), gy = spacing(pkY);
+        // graph edges: walk out from each axis, gridline by gridline, while gridlines keep appearing
+        var walk = function (pk, from, step, dir) { var pos = from, miss = 0; for (var k = 1; k < 80 && miss < 2; k++) { var want = from + dir * k * step; if (pk.some(function (c) { return Math.abs(c - want) < 0.3 * step; })) { pos = want; miss = 0; } else miss++; } return pos; };
+        if (!gx && !gy) return { ok: false, why: 'grid not found', dbg: { ax: ax, ay: ay, axLen: cRuns[ax].len, ayLen: rRuns[ay].len, pkX: pkX.slice(0, 30), pkY: pkY.slice(0, 30) } };
+        gx = gx || gy; gy = gy || gx;
+        // guard 1: if lines ALSO sit halfway between the ones we found, we skipped every other gridline → halve
+        var halve = function (pk, axisPos, g) {
+            var on = 0, mid = 0;
+            for (var k = -30; k <= 30; k++) {
+                if (pk.some(function (c) { return Math.abs(c - (axisPos + k * g)) < 0.15 * g; })) on++;
+                if (pk.some(function (c) { return Math.abs(c - (axisPos + (k + 0.5) * g)) < 0.15 * g; })) mid++;
+            }
+            return (on >= 3 && mid >= 0.6 * on) ? g / 2 : g;
+        };
+        gx = halve(pkX, axisX, gx); gy = halve(pkY, axisY, gy);
+        // guard 2: school grids are almost always square. A ~2× mismatch = a skipped-gridline error → use the finer one.
+        var ratio = gx / gy, squareOk = true;
+        if (Math.abs(ratio - 2) < 0.15) gx = gy; else if (Math.abs(ratio - 0.5) < 0.04) gy = gx;
+        else if (Math.abs(ratio - 1) > 0.12) squareOk = false;
+        var gL = walk(pkX, axisX, gx, -1), gR = walk(pkX, axisX, gx, 1), gT = walk(pkY, axisY, gy, -1), gB = walk(pkY, axisY, gy, 1);
+        // the graph line = the dominant colored hue
+        var top = 0; for (var k = 1; k < 18; k++) if (binCount[k] > binCount[top]) top = k;
+        if (binCount[top] < 150) return { ok: false, why: 'no colored line' };
+        var pts = [];
+        for (var p = 0; p < N; p++) { var bb = hueBin[p]; if (bb === top || bb === (top + 1) % 18 || bb === (top + 17) % 18) pts.push([p % w, Math.floor(p / w)]); }
+        // robust total-least-squares fit
+        var fit = function (P) {
+            var mx = 0, my = 0; P.forEach(function (q) { mx += q[0]; my += q[1]; }); mx /= P.length; my /= P.length;
+            var sxx = 0, syy = 0, sxy = 0; P.forEach(function (q) { var dx = q[0] - mx, dy = q[1] - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; });
+            var th = 0.5 * Math.atan2(2 * sxy, sxx - syy), ux = Math.cos(th), uy = Math.sin(th);
+            var res = P.map(function (q) { return Math.abs(-(q[0] - mx) * uy + (q[1] - my) * ux); });
+            var rms = Math.sqrt(res.reduce(function (a, b) { return a + b * b; }, 0) / res.length);
+            return { mx: mx, my: my, ux: ux, uy: uy, res: res, rms: rms };
+        };
+        // RANSAC: anti-aliased text has colored fringes in the same hue — lock onto the ONE long straight line first
+        var S = pts.length > 5000 ? pts.filter(function (_q, j) { return j % Math.ceil(pts.length / 5000) === 0; }) : pts;
+        var bestIn = null, seed = 12345, rnd = function () { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        for (var t = 0; t < 400; t++) {
+            var a = S[Math.floor(rnd() * S.length)], c = S[Math.floor(rnd() * S.length)];
+            var vx = c[0] - a[0], vy = c[1] - a[1], L = Math.hypot(vx, vy); if (L < 40) continue;
+            var nx = -vy / L, ny = vx / L, cnt = 0;
+            for (var u = 0; u < S.length; u++) if (Math.abs((S[u][0] - a[0]) * nx + (S[u][1] - a[1]) * ny) < 2.5) cnt++;
+            if (!bestIn || cnt > bestIn.cnt) bestIn = { cnt: cnt, a: a, nx: nx, ny: ny };
+        }
+        if (!bestIn) return { ok: false, why: 'no line' };
+        pts = pts.filter(function (q) { return Math.abs((q[0] - bestIn.a[0]) * bestIn.nx + (q[1] - bestIn.a[1]) * bestIn.ny) < 4; });
+        if (pts.length < 100) return { ok: false, why: 'line too faint' };
+        var F = fit(pts);
+        for (var it = 0; it < 3; it++) {
+            var cut = Math.max(2.5, 2.5 * F.rms), keep = pts.filter(function (q, j) { return F.res[j] <= cut; });
+            if (keep.length < 100) break; pts = keep; F = fit(pts);
+        }
+        var along = pts.map(function (q) { return (q[0] - F.mx) * F.ux + (q[1] - F.my) * F.uy; });
+        var span = Math.max.apply(null, along) - Math.min.apply(null, along);
+        if (pts.length < 100 || span < 6 * Math.min(gx, gy)) return { ok: false, why: 'line too short' };
+        if (F.rms > 3) return { ok: false, why: 'not a straight line', rms: F.rms };
+        if (Math.abs(F.ux) < 0.02) return { ok: false, why: 'vertical line' };
+        var xs = +opt.xStep || 1, ys = +opt.yStep || 1;
+        var mPix = F.uy / F.ux;                               // pixel slope (down is +)
+        var m = -mPix * (gx / gy) * (ys / xs);
+        var pyAtAxis = F.my + (axisX - F.mx) * mPix;
+        var b = (axisY - pyAtAxis) / gy * ys;
+        var sm = snapFrac(m), sbUnits = Math.round(b / ys * 2) / 2, bErr = Math.abs(b / ys - sbUnits);
+        var conf = !!sm && bErr < 0.18 && F.rms < 2.2 && squareOk;
+        var mStr = sm ? fracStr(sm.p, sm.q) : String(Math.round(m * 1000) / 1000);
+        var bVal = sbUnits * ys, bStr = String(bVal);
+        var eq = 'y = ' + (mStr === '0' ? '' : (mStr === '1' ? '' : mStr === '-1' ? '-' : mStr) + 'x') + (mStr === '0' ? bStr : (bVal === 0 ? '' : (bVal < 0 ? ' - ' + Math.abs(bVal) : ' + ' + bVal)));
+        // lattice points on the measured line, for the student to check against
+        // check-points only where the drawn line actually is
+        // (the biggest CONTINUOUS stretch of line pixels — stray same-color text along the same direction is ignored)
+        var proj = pts.map(function (q) { return { t: (q[0] - F.mx) * F.ux + (q[1] - F.my) * F.uy, x: q[0] }; }).sort(function (p1, p2) { return p1.t - p2.t; });
+        var gapMax = 1.2 * Math.min(gx, gy), bestSeg = null, segStart = 0;
+        for (var si = 1; si <= proj.length; si++) {
+            if (si === proj.length || proj[si].t - proj[si - 1].t > gapMax) {
+                var len0 = proj[si - 1].t - proj[segStart].t;
+                if (!bestSeg || len0 > bestSeg.len) bestSeg = { a: segStart, b: si - 1, len: len0 };
+                segStart = si;
+            }
+        }
+        var linMinX = Infinity, linMaxX = -Infinity;
+        for (var sj = bestSeg.a; sj <= bestSeg.b; sj++) { if (proj[sj].x < linMinX) linMinX = proj[sj].x; if (proj[sj].x > linMaxX) linMaxX = proj[sj].x; }
+        var mv = sm ? sm.p / sm.q : m, lattice = [];
+        for (var X = -40; X <= 40 && lattice.length < 6; X++) { var Y = mv * X * xs + bVal; if (Math.abs(Y / ys - Math.round(Y / ys)) < 1e-9) { var px = axisX + X * gx; var pyL = axisY - (Y / ys) * gy; if (px >= linMinX - 2 && px <= linMaxX + 2 && pyL >= 0 && pyL < h) lattice.push([X * xs, Math.round(Y / ys) * ys]); } }
+        return { ok: true, confident: conf, slope: mStr, m: mv, b: bVal, equation: eq, lattice: lattice, debug: { axisX: axisX, axisY: axisY, gx: gx, gy: gy, rms: F.rms, mRaw: m, bRaw: b, n: pts.length } };
+    }
+    return { analyze: analyze };
+})();
+window.NxGraphCV = NxGraphCV;
+
+// crop the graph region from the FULL-resolution screen share and measure it (no AI)
+function _lvMeasureGraph(video, box, xStep, yStep) {
+    var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
+    var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
+    if (!b.every(isFinite) || b[2] <= b[0] || b[3] <= b[1]) b = [0, 0, 1, 1];
+    var pad = 0.04, x0 = Math.max(0, b[0] - pad) * vw, y0 = Math.max(0, b[1] - pad) * vh, x1 = Math.min(1, b[2] + pad) * vw, y1 = Math.min(1, b[3] + pad) * vh;
+    var cw = x1 - x0, ch = y1 - y0; if (cw < 60 || ch < 60) return null;
+    var sc = Math.min(2.5, Math.max(1, 1400 / Math.max(cw, ch)));
+    var c = document.createElement('canvas'); c.width = Math.round(cw * sc); c.height = Math.round(ch * sc);
+    var ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(video, x0, y0, cw, ch, 0, 0, c.width, c.height);
+    var r = NxGraphCV.analyze(ctx.getImageData(0, 0, c.width, c.height), { xStep: +xStep || 1, yStep: +yStep || 1 });
+    if (!(r && r.ok && r.confident) && (b[0] > 0 || b[1] > 0 || b[2] < 1 || b[3] < 1)) {
+        // the AI's box may have clipped the graph — try the whole screen once
+        return _lvMeasureGraph(video, [0, 0, 1, 1], xStep, yStep);
+    }
+    return r;
+}
+window._lvMeasureGraph = _lvMeasureGraph;
 
 
 // v24.40 — the same exact check for Math-tab answers (typed or photo). A small
@@ -24929,6 +25155,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.44',
+        date: 'November 11, 2026',
+        tag: 'GRAPHS, MEASURED — NOT GUESSED',
+        tagColor: '#00cec9',
+        changes: [
+            'LIVE VISION MEASURES THE LINE — For line graphs, NEXUS no longer relies on the AI\'s eyesight. It measures the graph straight from your screen\'s pixels: it finds the axes and the gridline spacing, fits the line exactly, and converts it to a clean slope and y-intercept. That measured equation is the referee. If the AI\'s answer doesn\'t match it, Live Vision re-answers, and the measured equation wins. Fixes y = x + 2 being given for a line through (0, −2), (2, 1) and (4, 4), which is y = 3/2x − 2.',
+            'POINTS YOU CAN CHECK — Graph answers list the exact gridline points the measured line passes through, so you can match them against the graph yourself.',
+            'SAFE BY DESIGN — If a graph can\'t be measured cleanly (a curve, a blurry capture, an unusual grid), NEXUS doesn\'t guess. It falls back to a zoomed-in AI re-read that checks itself point by point.',
+        ]
+    },
     {
         version: 'v24.43',
         date: 'November 11, 2026',
