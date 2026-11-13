@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.46';
+const NEXUS_CURRENT_VERSION = 'v24.47';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18775,6 +18775,8 @@ GRAPH / CHART READING — READ IT CAREFULLY, this is where mistakes happen:
   -> For bar/line charts: read the requested value, trend, max/min, or intercept the same careful way, with units.
   -> Prefer points where the graph crosses gridline INTERSECTIONS exactly (and any drawn dots), read the y-intercept straight off the y-axis labels, and confirm your equation passes through at least THREE such points before answering.
   -> ALWAYS fill the "graph" field for these questions — NEXUS zooms in on that area and double-checks your reading.
+IS-IT-A-FUNCTION QUESTIONS ("Determine whether the graph represents a function", vertical line test): trace the ACTUAL drawn curve from its left end to its right end — do NOT assume a familiar shape. A function means every vertical line crosses the graph AT MOST ONCE. Only answer "not a function" if you can name a real x where the drawn curve has two y-values; a curve that keeps moving to the right (even if it bends) IS a function.
+  -> set graph.task = "function", graph.isFunction = true/false, and graph.counterexample = {"x":…, "ys":[…, …]} when it is not a function. NEXUS runs the vertical line test on the pixels to double-check.
 GRAPH-IT QUESTIONS ("Graph the line y = −⅓x + 2", "Plot…", "Sketch…") — the student must DRAW it; there is usually no line on the grid yet. Do NOT try to read a line off the grid.
   -> "answer" = exactly where to click/plot: start at the y-intercept, then use the slope as rise/run to get 2 more exact gridline points, e.g. "Plot (0, 2), then go down 1 and right 3 to (3, 1), and once more to (6, 0) — draw the line through them." Use points with whole-number coordinates that fit on the visible grid.
   -> set graph.task = "draw", graph.equation = the equation given in the question, graph.points = the points you told them to plot. NEXUS checks every point is really on the line.
@@ -18802,7 +18804,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
-  "graph": "ONLY for coordinate-graph questions — otherwise null. Shape: {\"task\":\"read\" if the question asks about a line/curve ALREADY drawn (write its equation, find its slope or intercept…) or \"draw\" if the question asks the STUDENT to graph/plot/sketch a given equation (the grid is blank or only partly drawn), \"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
+  "graph": "ONLY for coordinate-graph questions — otherwise null. Shape: {\"task\":\"function\" for is-it-a-function / vertical-line-test questions (also give \"isFunction\" and \"counterexample\"), \"read\" if the question asks about a line/curve ALREADY drawn (write its equation, find its slope or intercept…) or \"draw\" if the question asks the STUDENT to graph/plot/sketch a given equation (the grid is blank or only partly drawn), \"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
   "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\"}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
@@ -18892,7 +18894,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         // The answer is only changed when TWO sources agree against it. When they don't
         // line up, nothing is overwritten — the student gets a clear "double-check" note.
         // (v24.44 let a single bad measurement overwrite a good answer with "y = 26".)
-        let _graphRes = null, _graphFixed = false, _graphUnsure = null;
+        let _graphRes = null, _graphFixed = false, _graphUnsure = null, _fnRes = null;
         try {
             // v24.46 — "Graph the line y = …" questions: the student DRAWS it. Never read a line off a blank
             // grid; instead check that every point we tell them to plot is actually on the equation.
@@ -18916,7 +18918,48 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     }
                 } catch (_) {}
             }
-            const _gq = !_isDraw && ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
+            // v24.47 — "Is this graph a function?" → pixel vertical line test + AI close-up, 2-of-3 vote
+            const _ansTxt = String(ai.answer || '').replace(/<[^>]+>/g, ' ');
+            const _isFnQ = !_isDraw && ai && ai.graph && typeof ai.graph === 'object' && (String(ai.graph.task || '').toLowerCase() === 'function' || typeof ai.graph.isFunction === 'boolean');
+            if (_isFnQ) {
+                try {
+                    const s2 = document.getElementById('lv-fetch-status');
+                    if (s2) s2.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Running the vertical line test on your screen…';
+                    const aFn = typeof ai.graph.isFunction === 'boolean' ? ai.graph.isFunction : (/\bdoes not\b|\bnot a function\b|\bis not\b/i.test(_ansTxt) ? false : (/\bdoes\b|\bis a function\b/i.test(_ansTxt) ? true : null));
+                    let FB = null; try { const v = _lvMeasureVLT(video, ai.graph.box); if (v && v.ok) FB = v; } catch (_) {}
+                    let FC = null, verdict = null;
+                    if (FB && aFn !== null && FB.isFunction === aFn) verdict = { agree: true, by: 'B', B: FB };
+                    else {
+                        try {
+                            const rr = await _lvGraphReread(video, ai.graph.box, apiKey, { prompt: NEXUS_FUNCREAD_PROMPT });
+                            if (rr && typeof rr.isFunction === 'boolean') FC = rr;
+                        } catch (_) {}
+                        if (FB && FC && FB.isFunction === FC.isFunction) verdict = { truth: FB.isFunction, B: FB, C: FC, agreeA: aFn === FB.isFunction };
+                        else if (FC && aFn !== null && FC.isFunction === aFn) verdict = FB ? { unsure: true, B: FB, C: FC } : { agree: true, by: 'C', C: FC };   // two AI reads can share a blind spot — if the pixel test disagrees, warn instead of a green check
+                        else if (FB || FC) verdict = { unsure: true, B: FB, C: FC };
+                    }
+                    if (verdict && verdict.truth !== undefined && !verdict.agreeA) {
+                        // two independent checks agree against the first answer → re-answer with that evidence
+                        const T = verdict.truth, ce = (verdict.B && verdict.B.atX != null) ? ' (at x ≈ ' + verdict.B.atX + ' the curve has y ≈ ' + verdict.B.atYs.join(' and ') + ')' : (verdict.C && verdict.C.counterexample ? ' (at x = ' + verdict.C.counterexample.x + ' the curve has y = ' + (verdict.C.counterexample.ys || []).join(' and ') + ')' : '');
+                        const fMsg = 'TWO independent checks — a vertical line test run on the screen pixels AND a zoomed-in re-check — agree that this graph ' + (T ? 'IS a function: every vertical line crosses the drawn curve at most once. The curve runs from about x = ' + verdict.B.xSpan[0] + ' to x = ' + verdict.B.xSpan[1] + ' and only moves to the right.' : 'is NOT a function: a vertical line crosses it at two points' + ce + '.') + ' Your previous answer ("' + _ansTxt.slice(0, 200) + '") says the opposite. Look at the drawn curve again and re-answer (fill every blank to match). Same JSON format.';
+                        let ai4 = null;
+                        try {
+                            const r4 = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                                body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: data.choices[0].message.content }, { role: 'user', content: fMsg }] }) });
+                            const d4 = await r4.json(); if (!d4.error) ai4 = JSON.parse(d4.choices[0].message.content);
+                        } catch (_) {}
+                        const a4 = ai4 && ai4.graph && typeof ai4.graph.isFunction === 'boolean' ? ai4.graph.isFunction : (ai4 ? (/\bdoes not\b|\bnot a function\b/i.test(String(ai4.answer || '')) ? false : true) : null);
+                        if (ai4 && a4 === T) ai = ai4;
+                        else {
+                            ai.answer = T ? 'does — every input (x-value) is mapped to a single output (y-value)' : 'does not — at least one input is mapped to more than one output' + ce;
+                            ai.explanation = '<strong>NEXUS ran the vertical line test two independent ways and both agree.</strong> ' + (T ? 'No vertical line crosses this curve more than once, so each x has only one y — it is a function.' : 'A vertical line crosses this graph twice' + ce + ', so one x has two y-values — not a function.') + '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + String(ai.explanation || '') + '</div></details>';
+                        }
+                        verdict.fixed = true;
+                    }
+                    _fnRes = verdict;
+                } catch (_) {}
+            }
+            const _gq = !_isDraw && !_isFnQ && ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
             if (_gq && typeof _lvGraphReread === 'function' && typeof NxMath !== 'undefined') {
                 const s1 = document.getElementById('lv-fetch-status');
                 if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Double-checking the graph…';
@@ -19031,7 +19074,21 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 const _chkView = _mathOverride ? Object.assign({}, _mathRes, { ok: false }) : _mathRes;
                 answerElFinal.insertAdjacentHTML('beforeend', _nxMathCheckHtml(_chkView, _mathOverride ? 'override' : _mathFixed));
             }
-            if (_graphRes && _graphRes.draw) {
+            if (_fnRes) {
+                const _e3 = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+                const FBv = _fnRes.B, FCv = _fnRes.C;
+                let head, col, body;
+                if (_fnRes.unsure) {
+                    col = '#ffbe5a'; head = '⚠️ Double-check this one before you submit';
+                    body = 'NEXUS\'s checks don\'t agree: ' + [FBv ? 'the pixel vertical line test says it ' + (FBv.isFunction ? 'IS' : 'is NOT') + ' a function' : '', FCv ? 'a zoomed-in re-check says it ' + (FCv.isFunction ? 'IS' : 'is NOT') + ' a function' : ''].filter(Boolean).join('; ') + '. Slide an imaginary vertical line across the graph yourself — if it ever touches the curve twice, it is not a function.';
+                } else {
+                    const isF = FBv ? FBv.isFunction : FCv.isFunction;
+                    col = _fnRes.fixed ? '#ffbe5a' : '#45c78d';
+                    head = (_fnRes.fixed ? '🛠️ NEXUS corrected this with the vertical line test' : (FBv ? '📏 Vertical line test, run on your screen' : '✅ Checked up close')) + ' — ' + (isF ? 'it IS a function' : 'NOT a function');
+                    body = FBv ? (isF ? 'Every vertical line crosses the drawn curve at most once.' : 'A vertical line at x ≈ ' + _e3(FBv.atX) + ' hits the curve at y ≈ ' + _e3((FBv.atYs || []).join(' and ')) + '.') + ' The curve spans about x = ' + _e3(FBv.xSpan[0]) + ' to ' + _e3(FBv.xSpan[1]) + ', y = ' + _e3(FBv.ySpan[0]) + ' to ' + _e3(FBv.ySpan[1]) + '.' : (isF ? 'Every vertical line crosses the curve at most once.' : 'A vertical line crosses the curve twice.');
+                }
+                answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:' + col + ';">' + head + '</div><div>' + body + '</div></div>');
+            } else if (_graphRes && _graphRes.draw) {
                 const _e2 = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
                 const _pt = (_graphRes.points || []).map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
                 const _okD = !(_graphRes.bad && _graphRes.bad.length);
@@ -21505,7 +21562,7 @@ function _lvSameLine(f1, f2) {
     if (!f1 || !f2) return false;
     return [-7, -2, 0, 3, 8].every(function (x) { var a = f1(x), b = f2(x); return isFinite(a) && isFinite(b) && Math.abs(a - b) < 0.05 * (1 + Math.abs(a)); });
 }
-async function _lvGraphReread(video, box, apiKey) {
+async function _lvGraphReread(video, box, apiKey, opt) {
     var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
     var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
     if (!b.every(isFinite) || b[2] <= b[0] || b[3] <= b[1]) b = [0, 0, 1, 1];
@@ -21518,17 +21575,17 @@ async function _lvGraphReread(video, box, apiKey) {
     ctx.drawImage(video, x0, y0, cw, ch, 0, 0, cv.width, cv.height);
     var q = 0.92, url = cv.toDataURL('image/jpeg', q);
     while (url.length > 520000 && q > 0.5) { q -= 0.1; url = cv.toDataURL('image/jpeg', q); }
-    return _nxGraphRereadUrl(url, apiKey, 'capture');
+    return _nxGraphRereadUrl(url, apiKey, 'capture', opt && opt.prompt);
 }
-// v24.46 — the AI close-up re-read for any image (data URL)
-async function _nxGraphRereadUrl(url, apiKey, moduleTag) {
+// v24.46 — the AI close-up re-read for any image (data URL); v24.47: optional custom prompt
+async function _nxGraphRereadUrl(url, apiKey, moduleTag, sysPrompt) {
     window._nxModuleOverride = moduleTag || '';
     var req;
     try {
         req = fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
             body: JSON.stringify({ model: 'gpt-4o', temperature: 0, max_tokens: 900, response_format: { type: 'json_object' },
-                messages: [{ role: 'system', content: NEXUS_GRAPHREAD_PROMPT }, { role: 'user', content: [{ type: 'text', text: 'Read this graph exactly.' }, { type: 'image_url', image_url: { url: url, detail: 'high' } }] }] })
+                messages: [{ role: 'system', content: sysPrompt || NEXUS_GRAPHREAD_PROMPT }, { role: 'user', content: [{ type: 'text', text: sysPrompt ? 'Check this graph.' : 'Read this graph exactly.' }, { type: 'image_url', image_url: { url: url, detail: 'high' } }] }] })
         });
     } finally { window._nxModuleOverride = ''; }
     var d = await (await req).json();
@@ -21697,6 +21754,11 @@ var NxGraphCV = (function () {
         else if (Math.abs(ratio - 1) > 0.12) squareOk = false;
         var gL = walk(pkX, axisX, gx, -1), gR = walk(pkX, axisX, gx, 1), gT = walk(pkY, axisY, gy, -1), gB = walk(pkY, axisY, gy, 1);
         var bothSides = (axisX - gL) >= 1.5 * gx && (gR - axisX) >= 1.5 * gx && (axisY - gT) >= 1.5 * gy && (gB - axisY) >= 1.5 * gy;
+        if (opt.prepOnly) {
+            var _xr = rRuns[ay], _yr = cRuns[ax];
+            return { ok: true, prep: { w: w, h: h, dark: dark, hueBin: hueBin, axisX: axisX, axisY: axisY, gx: gx, gy: gy, squareOk: squareOk, bothSides: bothSides,
+                rx0: _xr.end - _xr.len + 1, rx1: _xr.end, ry0: _yr.end - _yr.len + 1, ry1: _yr.end } };
+        }
         // v24.45 — ONLY look inside the plot: the box spanned by the two axes. Colored UI around the
         // graph (buttons, tab bars, the NEXUS panel itself) can never be mistaken for the line.
         var xr = rRuns[ay], yr = cRuns[ax];
@@ -21781,21 +21843,109 @@ var NxGraphCV = (function () {
         for (var X = -40; X <= 40 && lattice.length < 6; X++) { var Y = mv * X * xs + bVal; if (Math.abs(Y / ys - Math.round(Y / ys)) < 1e-9) { var px = axisX + X * gx; var pyL = axisY - (Y / ys) * gy; if (px >= linMinX - 2 && px <= linMaxX + 2 && pyL >= 0 && pyL < h) lattice.push([X * xs, Math.round(Y / ys) * ys]); } }
         return { ok: true, confident: conf, slope: mStr, m: mv, b: bVal, equation: eq, lattice: lattice, debug: { axisX: axisX, axisY: axisY, gx: gx, gy: gy, rms: F.rms, mRaw: m, bRaw: b, n: pts.length } };
     }
-    return { analyze: analyze };
+    // v24.47 — VERTICAL LINE TEST from the pixels. Finds the drawn curve (black OR colored) inside the
+    // axes — axes, gridlines and tick numbers removed — then sweeps a vertical line across every column
+    // and counts how many separate times it meets the curve. Also reports the curve's x/y span.
+    function vlt(img, opt) {
+        opt = opt || {};
+        var P = analyze(img, { prepOnly: true, xStep: opt.xStep, yStep: opt.yStep });
+        if (!P || !P.ok || !P.prep) return { ok: false, why: (P && P.why) || 'no graph' };
+        var p = P.prep, w = p.w, h = p.h, g = Math.min(p.gx, p.gy);
+        if (!p.bothSides || !p.squareOk) return { ok: false, why: 'grid not clear' };
+        var x0 = Math.max(0, p.rx0), x1 = Math.min(w - 1, p.rx1), y0 = Math.max(0, p.ry0), y1 = Math.min(h - 1, p.ry1);
+        var band = Math.max(2, Math.round(0.12 * g));
+        // curve candidates: dark or colored pixels, not on the axis lines themselves
+        var mask = new Uint8Array(w * h);
+        for (var y = y0; y <= y1; y++) for (var x = x0; x <= x1; x++) {
+            if (Math.abs(y - p.axisY) <= band || Math.abs(x - p.axisX) <= band) continue;
+            var i = y * w + x; if (p.dark[i] || p.hueBin[i] >= 0) mask[i] = 1;
+        }
+        // connected pieces; keep only the big ones (tick numbers, arrowheads of the axes are tiny)
+        var seen = new Int32Array(w * h), keep = new Uint8Array(w * h), stack = [], nKeep = 0, pieces = 0;
+        for (var yy = y0; yy <= y1; yy++) for (var xx = x0; xx <= x1; xx++) {
+            var st = yy * w + xx; if (!mask[st] || seen[st]) continue;
+            var comp = []; stack.push(st); seen[st] = 1;
+            var bx0 = xx, bx1 = xx, by0 = yy, by1 = yy;
+            while (stack.length) {
+                var c = stack.pop(); comp.push(c); var cx = c % w, cy = (c - cx) / w;
+                if (cx < bx0) bx0 = cx; if (cx > bx1) bx1 = cx; if (cy < by0) by0 = cy; if (cy > by1) by1 = cy;
+                for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+                    var nx = cx + dx, ny = cy + dy; if (nx < x0 || nx > x1 || ny < y0 || ny > y1) continue;
+                    var ni = ny * w + nx; if (mask[ni] && !seen[ni]) { seen[ni] = 1; stack.push(ni); }
+                }
+            }
+            if (Math.max(bx1 - bx0, by1 - by0) >= 2.2 * g && comp.length >= 40) { pieces++; for (var k = 0; k < comp.length; k++) keep[comp[k]] = 1; nKeep += comp.length; }
+        }
+        if (nKeep < 80) return { ok: false, why: 'no curve found' };
+        // sweep vertical lines
+        var cxMin = x1, cxMax = x0, cyMin = y1, cyMax = y0, gapPx = Math.max(4, 0.45 * g), sepMin = 0.6 * g;
+        var multi = [], vert = [];   // columns that meet the curve in 2+ well-separated places / vertical segments
+        for (var col = x0; col <= x1; col++) {
+            var runsC = [], inRun = false, rs = 0, last = -1e9;
+            for (var row = y0; row <= y1; row++) {
+                if (keep[row * w + col]) {
+                    if (col < cxMin) cxMin = col; if (col > cxMax) cxMax = col; if (row < cyMin) cyMin = row; if (row > cyMax) cyMax = row;
+                    if (!inRun || row - last > gapPx) { if (inRun) runsC.push([rs, last]); rs = row; inRun = true; }
+                    last = row;
+                }
+            }
+            if (inRun) runsC.push([rs, last]);
+            // a straight-up-and-down piece: ONE column covering more than 2.5 gridlines of height = a vertical segment
+            runsC.forEach(function (r) { if (r[1] - r[0] > 2.5 * g) vert.push({ col: col, ys: [r[0], r[1]] }); });
+            if (runsC.length >= 2) {
+                var top = runsC[0], bot = runsC[runsC.length - 1];
+                if ((bot[0] + bot[1]) / 2 - (top[0] + top[1]) / 2 > sepMin) multi.push({ col: col, ys: runsC.map(function (r) { return (r[0] + r[1]) / 2; }) });
+            }
+        }
+        var spanCols = cxMax - cxMin;
+        if (spanCols < 2 * g && cyMax - cyMin < 2 * g) return { ok: false, why: 'curve too small' };
+        // ignore the curve's very ends (endpoint dots, arrowheads) and demand a sustained stretch
+        var inner = multi.filter(function (m) { return m.col > cxMin + 0.35 * g && m.col < cxMax - 0.35 * g; });
+        var bestRun = 0, cur = 0, prev = -9, bestCol = null;
+        inner.forEach(function (m) { cur = (m.col === prev + 1) ? cur + 1 : 1; prev = m.col; if (cur > bestRun) { bestRun = cur; bestCol = m; } });
+        var fails = bestRun >= Math.max(3, 0.5 * g);
+        if (!fails && vert.length) { fails = true; bestCol = { col: vert[0].col, ys: vert[0].ys }; }
+        var xs = +opt.xStep || 1, ys = +opt.yStep || 1;
+        var toX = function (px) { return Math.round((px - p.axisX) / p.gx * xs * 2) / 2; }, toY = function (py) { return Math.round((p.axisY - py) / p.gy * ys * 2) / 2; };
+        var res = { ok: true, isFunction: !fails, pieces: pieces, xSpan: [toX(cxMin), toX(cxMax)], ySpan: [toY(cyMax), toY(cyMin)] };
+        if (fails && bestCol) { res.atX = toX(bestCol.col); res.atYs = bestCol.ys.map(toY); }
+        return res;
+    }
+    return { analyze: analyze, vlt: vlt };
 })();
 window.NxGraphCV = NxGraphCV;
 
 // crop the graph region from the FULL-resolution screen share and measure it (no AI)
+// v24.47 — measurement canvases stay at the screen's OWN resolution (enlarging blurs faint gridlines);
+// only very small graphs are scaled up, and huge ones scaled down.
+function _nxMeasureCanvas(src, sx, sy, sw, sh) {
+    var big = Math.max(sw, sh), sc = big > 1400 ? 1400 / big : (big < 450 ? 450 / big : 1);
+    var c = document.createElement('canvas'); c.width = Math.round(sw * sc); c.height = Math.round(sh * sc);
+    var ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    return c;
+}
+// v24.47 — "Is this graph a function?" second opinion (AI close-up, vertical line test only)
+const NEXUS_FUNCREAD_PROMPT = `You are checking whether the graph on this coordinate grid is a FUNCTION, using the vertical line test. Trace the ACTUAL drawn curve — do not assume a familiar shape (a curve that keeps moving right is NOT a sideways parabola).
+Sweep a vertical line from the far left to the far right. Does it EVER cross the drawn curve at two or more points at the same time?
+Return ONLY JSON: {"work":"where the curve starts/ends and how it moves","isFunction":true|false,"counterexample":{"x":number,"ys":[number,number]} or null,"domain":"x-values the curve covers","range":"y-values the curve covers"}. If no curve is drawn, return {"isFunction":null}.`;
+function _lvMeasureVLT(video, box) {
+    var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
+    var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
+    if (!b.every(isFinite) || b[2] <= b[0] || b[3] <= b[1]) b = [0, 0, 1, 1];
+    var pad = 0.04, x0 = Math.max(0, b[0] - pad) * vw, y0 = Math.max(0, b[1] - pad) * vh, x1 = Math.min(1, b[2] + pad) * vw, y1 = Math.min(1, b[3] + pad) * vh;
+    if (x1 - x0 < 60 || y1 - y0 < 60) return null;
+    var c = _nxMeasureCanvas(video, x0, y0, x1 - x0, y1 - y0);
+    return NxGraphCV.vlt(c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height));
+}
+window._lvMeasureVLT = _lvMeasureVLT;
 function _lvMeasureGraph(video, box, xStep, yStep) {
     var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
     var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
     if (!b.every(isFinite) || b[2] <= b[0] || b[3] <= b[1]) b = [0, 0, 1, 1];
     var pad = 0.04, x0 = Math.max(0, b[0] - pad) * vw, y0 = Math.max(0, b[1] - pad) * vh, x1 = Math.min(1, b[2] + pad) * vw, y1 = Math.min(1, b[3] + pad) * vh;
     var cw = x1 - x0, ch = y1 - y0; if (cw < 60 || ch < 60) return null;
-    var sc = Math.min(2.5, Math.max(1, 1400 / Math.max(cw, ch)));
-    var c = document.createElement('canvas'); c.width = Math.round(cw * sc); c.height = Math.round(ch * sc);
-    var ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(video, x0, y0, cw, ch, 0, 0, c.width, c.height);
+    var c = _nxMeasureCanvas(video, x0, y0, cw, ch), ctx = c.getContext('2d', { willReadFrequently: true });
     var r = NxGraphCV.analyze(ctx.getImageData(0, 0, c.width, c.height), { xStep: +xStep || 1, yStep: +yStep || 1 });
     // v24.46 — NO whole-screen fallback: when the graph area is known, never go hunting
     // for "lines" in the rest of the screen (that's how page dividers became "y = 14").
@@ -21821,12 +21971,13 @@ async function nxReadGraphImage(src, opts) {
     var img = await _nxLoadImage(src);
     var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
     if (!W || !H) return { status: 'none' };
+    var mc = _nxMeasureCanvas(img, 0, 0, W, H), mctx = mc.getContext('2d', { willReadFrequently: true });
     var sc = Math.min(2.5, 1400 / Math.max(W, H)); if (sc < 0.5) sc = 0.5;
     var c = document.createElement('canvas'); c.width = Math.round(W * sc); c.height = Math.round(H * sc);
-    var ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
+    var ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
     var B = null;
     try {
-        var r = NxGraphCV.analyze(ctx.getImageData(0, 0, c.width, c.height), { xStep: opts.xStep || 1, yStep: opts.yStep || 1 });
+        var r = NxGraphCV.analyze(mctx.getImageData(0, 0, mc.width, mc.height), { xStep: opts.xStep || 1, yStep: opts.yStep || 1 });
         if (r && r.ok && r.confident) { var f = _lvEqFn(r.equation); if (f) B = { equation: r.equation, points: r.lattice, slope: r.slope, yIntercept: r.b, f: f }; }
     } catch (_) {}
     var C = null, apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
@@ -25363,6 +25514,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.47',
+        date: 'November 12, 2026',
+        tag: 'THE VERTICAL LINE TEST, FOR REAL',
+        tagColor: '#45c78d',
+        changes: [
+            'IS IT A FUNCTION? — Live Vision now runs the vertical line test on your actual screen. It finds the drawn curve (black or colored), sweeps a vertical line across every column, and counts how many times it touches the curve. Fixes a curve that only moves to the right being called "not a function" because the AI imagined a sideways parabola.',
+            'SHOWS ITS WORK — You see where the curve starts and ends. When it\'s NOT a function, it also shows the exact x where a vertical line hits two points.',
+            'SAME 2-OUT-OF-3 RULE — The pixel test, the AI\'s answer, and a zoomed-in re-check all vote. The answer only changes when two of them agree against it; otherwise you get a "double-check" note.',
+            'SHARPER GRAPH MEASURING — Graphs are now measured at your screen\'s own resolution, so faint gridlines aren\'t blurred away.',
+        ]
+    },
     {
         version: 'v24.46',
         date: 'November 12, 2026',
