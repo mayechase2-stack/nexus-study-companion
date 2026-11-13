@@ -10795,7 +10795,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.45';
+const NEXUS_CURRENT_VERSION = 'v24.46';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18775,6 +18775,9 @@ GRAPH / CHART READING — READ IT CAREFULLY, this is where mistakes happen:
   -> For bar/line charts: read the requested value, trend, max/min, or intercept the same careful way, with units.
   -> Prefer points where the graph crosses gridline INTERSECTIONS exactly (and any drawn dots), read the y-intercept straight off the y-axis labels, and confirm your equation passes through at least THREE such points before answering.
   -> ALWAYS fill the "graph" field for these questions — NEXUS zooms in on that area and double-checks your reading.
+GRAPH-IT QUESTIONS ("Graph the line y = −⅓x + 2", "Plot…", "Sketch…") — the student must DRAW it; there is usually no line on the grid yet. Do NOT try to read a line off the grid.
+  -> "answer" = exactly where to click/plot: start at the y-intercept, then use the slope as rise/run to get 2 more exact gridline points, e.g. "Plot (0, 2), then go down 1 and right 3 to (3, 1), and once more to (6, 0) — draw the line through them." Use points with whole-number coordinates that fit on the visible grid.
+  -> set graph.task = "draw", graph.equation = the equation given in the question, graph.points = the points you told them to plot. NEXUS checks every point is really on the line.
 DIAGRAM / LABELING: a labeled figure (cell, anatomy, circuit, map, molecule) with parts to identify.
   -> "answer" = the label(s) for the marked part(s), e.g. "A = nucleus, B = mitochondrion".
 DATA TABLE: a table of values to read from or compute with.
@@ -18799,7 +18802,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
-  "graph": "ONLY when answering requires reading a coordinate graph — otherwise null. Shape: {\"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
+  "graph": "ONLY for coordinate-graph questions — otherwise null. Shape: {\"task\":\"read\" if the question asks about a line/curve ALREADY drawn (write its equation, find its slope or intercept…) or \"draw\" if the question asks the STUDENT to graph/plot/sketch a given equation (the grid is blank or only partly drawn), \"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
   "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\"}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
@@ -18891,7 +18894,29 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         // (v24.44 let a single bad measurement overwrite a good answer with "y = 26".)
         let _graphRes = null, _graphFixed = false, _graphUnsure = null;
         try {
-            const _gq = ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
+            // v24.46 — "Graph the line y = …" questions: the student DRAWS it. Never read a line off a blank
+            // grid; instead check that every point we tell them to plot is actually on the equation.
+            const _isDraw = !!(ai && ai.graph && typeof ai.graph === 'object' && (String(ai.graph.task || '').toLowerCase() === 'draw'
+                || /^\s*(graph|plot|sketch|draw)\b/i.test(String(ai.answer || '').replace(/<[^>]+>/g, ' ')) && !/equation of (the|this) line/i.test(String(ai.answer || ''))));
+            if (_isDraw) {
+                try {
+                    const fD = _lvEqFn(ai.graph.equation);
+                    const ptsD = (Array.isArray(ai.graph.points) ? ai.graph.points : []).filter(function (p) { return Array.isArray(p) && isFinite(+p[0]) && isFinite(+p[1]); }).map(function (p) { return [+p[0], +p[1]]; });
+                    if (fD) {
+                        const badD = ptsD.filter(function (p) { return Math.abs(fD(p[0]) - p[1]) > 1e-6; });
+                        // correct whole-number points ON the line, near the y-axis, for the student to use
+                        const good = []; for (let xx = -6; xx <= 9 && good.length < 4; xx++) { const yy = fD(xx); if (isFinite(yy) && Math.abs(yy - Math.round(yy)) < 1e-9 && Math.abs(yy) <= 10) good.push([xx, Math.round(yy)]); }
+                        const near = good.slice().sort(function (p, q) { return Math.abs(p[0]) - Math.abs(q[0]); }).slice(0, 3).sort(function (p, q) { return p[0] - q[0]; });
+                        _graphRes = { draw: true, equation: ai.graph.equation, points: badD.length || !ptsD.length ? near : ptsD, bad: badD };
+                        if (badD.length && near.length >= 2) {
+                            // the plotting instructions had a wrong point → replace them with checked ones
+                            ai.answer = 'Plot ' + near.map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ') + ', then draw the line through them.';
+                            ai.explanation = '<strong>NEXUS checked the points:</strong> ' + badD.map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ') + ' ' + (badD.length > 1 ? 'are not' : 'is not') + ' on ' + ai.graph.equation + ', so here are points that are.<br>' + String(ai.explanation || '');
+                        }
+                    }
+                } catch (_) {}
+            }
+            const _gq = !_isDraw && ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
             if (_gq && typeof _lvGraphReread === 'function' && typeof NxMath !== 'undefined') {
                 const s1 = document.getElementById('lv-fetch-status');
                 if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Double-checking the graph…';
@@ -19006,7 +19031,14 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 const _chkView = _mathOverride ? Object.assign({}, _mathRes, { ok: false }) : _mathRes;
                 answerElFinal.insertAdjacentHTML('beforeend', _nxMathCheckHtml(_chkView, _mathOverride ? 'override' : _mathFixed));
             }
-            if (_graphRes && typeof _lvGraphCheckHtml === 'function') answerElFinal.insertAdjacentHTML('beforeend', _lvGraphCheckHtml(_graphRes, _graphFixed));
+            if (_graphRes && _graphRes.draw) {
+                const _e2 = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+                const _pt = (_graphRes.points || []).map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', ');
+                const _okD = !(_graphRes.bad && _graphRes.bad.length);
+                answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + (_okD ? '#45c78d55' : '#ffbe5a55') + ';background:' + (_okD ? '#45c78d14' : '#ffbe5a14') + ';font-size:0.82rem;line-height:1.55;color:#e6e9f5;">'
+                    + '<div style="font-weight:700;color:' + (_okD ? '#45c78d' : '#ffbe5a') + ';">' + (_okD ? '✅ Checked: every point is on ' : '🛠️ Some points weren\'t on the line — plot these instead for ') + _e2(_graphRes.equation) + '</div>'
+                    + '<div>Plot: <strong>' + _e2(_pt) + '</strong>, then draw the line through them.</div></div>');
+            } else if (_graphRes && typeof _lvGraphCheckHtml === 'function') answerElFinal.insertAdjacentHTML('beforeend', _lvGraphCheckHtml(_graphRes, _graphFixed));
             else if (_graphUnsure) {
                 const _e = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
                 const _rd = [];
@@ -19618,6 +19650,8 @@ Use clean semantic HTML only — no markdown, no ** or \\frac.${modeModifier}`;
                 _autoVisualize(output, text, content, { subject: 'math', shown: _didGraph ? ['graph'] : [] });
                 nexusTypeOut(output);   // v24.39 — write the answer out smoothly
                 _nxMathTabCheck(output, text, content);   // v24.40 — exact calculator check of the final answer
+                // v24.46 — the problem came with a picture of a graph? read it two ways and check the answer against it
+                if (mathImageBase64 && /graph|line|slope|intercept|plot|coordinate/i.test(String(text || '') + ' ' + String(content || '').slice(0, 1500))) _nxMathImageGraphCheck(output, mathImageBase64, content);
                 addToHistory('math', text || '(Image problem)', content.replace(/<[^>]+>/g, ' ').trim().substring(0, 500), mathImageBase64 || null);
                 updateStudyStats('problem_solved');
                 updateStudyStats('daily_goal', 33);
@@ -20727,6 +20761,8 @@ function openGrapher(seedEq) {
         + '<div class="gr-body" style="flex:1;min-height:0;display:flex;">'
         + '<div class="gr-side" style="width:320px;flex-shrink:0;border-right:1px solid var(--glass-border);display:flex;flex-direction:column;overflow-y:auto;padding:14px;">'
         + '<div class="gr-chips">' + chips + '</div>'
+        + '<label class="gr-read-btn" title="Upload or paste (Ctrl+V) a screenshot of a graph"><i class="ph ph-image"></i> Read a graph from a picture<input type="file" accept="image/*" style="display:none;" onchange="_grReadPicture(this.files[0]);this.value=\'\'"></label>'
+        + '<div id="gr-read-out"></div>'
         + '<div id="gr-expr-list" style="margin-top:12px;"></div>'
         + '<div id="gr-sliders" style="margin-top:4px;"></div>'
         + '<button id="gr-markers-btn" onclick="_grToggleMarkers()" class="gr-markers-btn on"><i class="ph ph-map-pin"></i> Roots &amp; intersections</button>'
@@ -20756,6 +20792,11 @@ function openGrapher(seedEq) {
         + '</div>'
         + '</div></div>';
     document.body.appendChild(m);
+    // v24.46 — paste a screenshot of a graph anywhere in Graph & Explore to read it
+    m.addEventListener('paste', function (e) {
+        var items = (e.clipboardData && e.clipboardData.items) || [];
+        for (var pi = 0; pi < items.length; pi++) { if (items[pi].type && items[pi].type.indexOf('image/') === 0) { e.preventDefault(); _grReadPicture(items[pi].getAsFile()); return; } }
+    });
     _grRenderExprList();
     var host = document.getElementById('fnplot-area');
     host.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#5a6080;">Loading the graph…</div>';
@@ -21440,6 +21481,7 @@ const NEXUS_GRAPHREAD_PROMPT = `You are reading a ZOOMED-IN coordinate graph fro
 3. Find at least 4 points where the graph passes EXACTLY through a gridline intersection (or a drawn dot), spread far apart — include both ends of the visible graph if they land on gridline corners. For each, COUNT gridlines from the nearest labeled tick; never eyeball.
 4. Line: slope = (y₂ − y₁)/(x₂ − x₁) from two far-apart points, as a REDUCED fraction. A line falling from left to right has a NEGATIVE slope. Parabola: read the vertex and one more exact point.
 5. CHECK: plug every point into your equation. If any point fails, you misread something — re-read and fix it.
+6. If NO line or curve is actually drawn on the grid (a blank grid, or only a single dot), return {"kind":"none","points":[],"equation":null} — never invent one.
 Return ONLY JSON: {"work":"your counting and checks","xStep":1,"yStep":1,"kind":"line|parabola|other","points":[[x,y],[x,y],[x,y],[x,y]],"yIntercept":"exact value","slope":"reduced fraction or null","equation":"y = …  (plain text, fractions like -4/3x)"}`;
 function _lvEqFn(eq) {   // "y = -4/3x - 4" → function of x (or null)
     try {
@@ -21476,7 +21518,11 @@ async function _lvGraphReread(video, box, apiKey) {
     ctx.drawImage(video, x0, y0, cw, ch, 0, 0, cv.width, cv.height);
     var q = 0.92, url = cv.toDataURL('image/jpeg', q);
     while (url.length > 520000 && q > 0.5) { q -= 0.1; url = cv.toDataURL('image/jpeg', q); }
-    window._nxModuleOverride = 'capture';
+    return _nxGraphRereadUrl(url, apiKey, 'capture');
+}
+// v24.46 — the AI close-up re-read for any image (data URL)
+async function _nxGraphRereadUrl(url, apiKey, moduleTag) {
+    window._nxModuleOverride = moduleTag || '';
     var req;
     try {
         req = fetch('https://api.openai.com/v1/chat/completions', {
@@ -21689,6 +21735,16 @@ var NxGraphCV = (function () {
             var cut = Math.max(2.5, 2.5 * F.rms), keep = pts.filter(function (q, j) { return F.res[j] <= cut; });
             if (keep.length < 100) break; pts = keep; F = fit(pts);
         }
+        // v24.46 — a graph line is THIN. If lots of the same color sits just outside the fitted band
+        // (5–10px away), it's a thick bar (progress bar, button, banner) — not a line.
+        var tMin = Infinity, tMax = -Infinity; pts.forEach(function (q) { var tt = (q[0] - F.mx) * F.ux + (q[1] - F.my) * F.uy; if (tt < tMin) tMin = tt; if (tt > tMax) tMax = tt; });
+        var outer = 0;
+        for (var oy = Math.max(0, ry0); oy <= Math.min(h - 1, ry1); oy += 2) for (var ox = Math.max(0, rx0); ox <= Math.min(w - 1, rx1); ox += 2) {
+            var ob = hueBin[oy * w + ox]; if (!(ob === top || ob === (top + 1) % 18 || ob === (top + 17) % 18)) continue;
+            var od = Math.abs(-(ox - F.mx) * F.uy + (oy - F.my) * F.ux), ot = (ox - F.mx) * F.ux + (oy - F.my) * F.uy;
+            if (od > 5 && od < 10 && ot >= tMin && ot <= tMax) outer++;
+        }
+        if (outer * 4 > 0.3 * pts.length) return { ok: false, why: 'thick bar, not a line' };
         var along = pts.map(function (q) { return (q[0] - F.mx) * F.ux + (q[1] - F.my) * F.uy; });
         var span = Math.max.apply(null, along) - Math.min.apply(null, along);
         if (pts.length < 100 || span < 6 * Math.min(gx, gy) || span < 0.3 * Math.min(rx1 - rx0, ry1 - ry0)) return { ok: false, why: 'line too short for the plot' };
@@ -21741,13 +21797,106 @@ function _lvMeasureGraph(video, box, xStep, yStep) {
     var ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(video, x0, y0, cw, ch, 0, 0, c.width, c.height);
     var r = NxGraphCV.analyze(ctx.getImageData(0, 0, c.width, c.height), { xStep: +xStep || 1, yStep: +yStep || 1 });
-    if (!(r && r.ok && r.confident) && (b[0] > 0 || b[1] > 0 || b[2] < 1 || b[3] < 1)) {
-        // the AI's box may have clipped the graph — try the whole screen once
-        return _lvMeasureGraph(video, [0, 0, 1, 1], xStep, yStep);
-    }
+    // v24.46 — NO whole-screen fallback: when the graph area is known, never go hunting
+    // for "lines" in the rest of the screen (that's how page dividers became "y = 14").
     return r;
 }
 window._lvMeasureGraph = _lvMeasureGraph;
+// ════════════════════════════════════════════════════════════════════
+// v24.46 — READ A GRAPH FROM ANY PICTURE (Grapher + Math tab). Same two
+// independent readers Live Vision uses: the pixel measurement (NxGraphCV) and
+// the AI close-up re-read. When they agree the result is "read & double-checked";
+// a lone reading is shown as such, and a disagreement is shown honestly.
+// ════════════════════════════════════════════════════════════════════
+function _nxLoadImage(src) {
+    return new Promise(function (res, rej) {
+        if (src && src.tagName === 'IMG' && src.complete) return res(src);
+        var i = new Image(); i.onload = function () { res(i); }; i.onerror = rej;
+        if (src instanceof Blob) { var fr = new FileReader(); fr.onload = function () { i.src = fr.result; }; fr.onerror = rej; fr.readAsDataURL(src); }
+        else i.src = String(src);
+    });
+}
+async function nxReadGraphImage(src, opts) {
+    opts = opts || {};
+    var img = await _nxLoadImage(src);
+    var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+    if (!W || !H) return { status: 'none' };
+    var sc = Math.min(2.5, 1400 / Math.max(W, H)); if (sc < 0.5) sc = 0.5;
+    var c = document.createElement('canvas'); c.width = Math.round(W * sc); c.height = Math.round(H * sc);
+    var ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
+    var B = null;
+    try {
+        var r = NxGraphCV.analyze(ctx.getImageData(0, 0, c.width, c.height), { xStep: opts.xStep || 1, yStep: opts.yStep || 1 });
+        if (r && r.ok && r.confident) { var f = _lvEqFn(r.equation); if (f) B = { equation: r.equation, points: r.lattice, slope: r.slope, yIntercept: r.b, f: f }; }
+    } catch (_) {}
+    var C = null, apiKey = (typeof getApiKey === 'function') ? getApiKey() : '';
+    if (apiKey && opts.ai !== false) {
+        try {
+            var q = 0.9, url = c.toDataURL('image/jpeg', q); while (url.length > 520000 && q > 0.45) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+            var rr = await _nxGraphRereadUrl(url, apiKey, opts.module || '');
+            var rc = _lvGraphConsistent(rr);
+            if (rr && rc.ok) C = { equation: rr.equation, points: rc.pts, slope: rr.slope, yIntercept: rr.yIntercept, f: rc.f };
+        } catch (_) {}
+    }
+    if (B && C) return _lvSameLine(B.f, C.f) ? { status: 'agree', equation: B.equation, points: B.points, slope: B.slope, yIntercept: B.yIntercept, f: B.f, B: B, C: C } : { status: 'disagree', B: B, C: C };
+    if (B) return { status: 'measured', equation: B.equation, points: B.points, slope: B.slope, yIntercept: B.yIntercept, f: B.f, B: B };
+    if (C) return { status: 'reread', equation: C.equation, points: C.points, slope: C.slope, yIntercept: C.yIntercept, f: C.f, C: C };
+    return { status: 'none' };
+}
+window.nxReadGraphImage = nxReadGraphImage;
+function _nxGraphReadHtml(r, extra) {
+    var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]; }); };
+    var pts = function (a) { return (a || []).slice(0, 5).map(function (p) { return '(' + p[0] + ', ' + p[1] + ')'; }).join(', '); };
+    var box = function (col, head, body) { return '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:' + col + ';">' + head + '</div>' + body + '</div>'; };
+    if (r.status === 'agree') return box('#45c78d', '✅ Read two independent ways — both agree', '<div>The line passes through ' + esc(pts(r.points)) + ' → slope ' + esc(r.slope) + ', y-intercept ' + esc(r.yIntercept) + '.</div><div>Equation: <strong>' + esc(r.equation) + '</strong></div>' + (extra || ''));
+    if (r.status === 'measured') return box('#2ed3cd', '📏 Measured from the picture', '<div>The line passes through ' + esc(pts(r.points)) + ' → <strong>' + esc(r.equation) + '</strong>.</div><div style="color:var(--text-muted);">Only one check could run — compare those points with your graph.</div>' + (extra || ''));
+    if (r.status === 'reread') return box('#2ed3cd', '🔎 Read up close', '<div>The line passes through ' + esc(pts(r.points)) + ' → <strong>' + esc(r.equation) + '</strong>.</div><div style="color:var(--text-muted);">Only one check could run — compare those points with your graph.</div>' + (extra || ''));
+    if (r.status === 'disagree') return box('#ffbe5a', '⚠️ The two checks disagree — compare with your graph', '<div>Measuring the pixels: <strong>' + esc(r.B.equation) + '</strong> (through ' + esc(pts(r.B.points)) + ')</div><div>Reading up close: <strong>' + esc(r.C.equation) + '</strong> (through ' + esc(pts(r.C.points)) + ')</div>' + (extra || ''));
+    return box('#9aa0b8', 'No straight line found in that picture', '<div>Try a clearer screenshot that shows the whole grid with its axis numbers.</div>');
+}
+window._nxGraphReadHtml = _nxGraphReadHtml;
+// Grapher: "Read a graph from a picture" (upload or paste) → plots it on top
+function _grEqForPlot(eq) { return String(eq || '').replace(/[−–]/g, '-').replace(/(-?\d+)\/(\d+)\s*x/g, '($1/$2)x'); }
+async function _grReadPicture(file) {
+    var out = document.getElementById('gr-read-out'); if (!out || !file) return;
+    if (!/^image\//.test(file.type || '')) { out.innerHTML = '<div style="color:#ff9a9a;font-size:0.8rem;margin-top:8px;">That isn\'t an image — use a screenshot or photo of the graph.</div>'; return; }
+    out.innerHTML = (typeof _nxLoadingHTML === 'function') ? _nxLoadingHTML('Reading the graph two ways…') : 'Reading…';
+    if (typeof trackFeature === 'function') trackFeature('grapher_read_picture');
+    try {
+        var r = await nxReadGraphImage(file, { module: 'visual' });
+        var html = _nxGraphReadHtml(r);
+        if (r.equation) {
+            if (_grExprs.length === 1 && /^\s*y\s*=\s*x\^2\s*$/.test(_grExprs[0].raw || '')) _grExprs = [{ raw: '' }];   // drop the untouched y = x² example
+            _grTry(_grEqForPlot(r.equation));
+            (r.points || []).slice(0, 3).forEach(function (p) { if (_grExprs.length < 6) { _grExprs.push({ raw: '(' + p[0] + ', ' + p[1] + ')' }); } });
+            // show the same window a school grid uses (and every check-point)
+            var R = 12; (r.points || []).forEach(function (p) { R = Math.max(R, Math.abs(p[0]) + 1, Math.abs(p[1]) + 1); });
+            _grDomain = { x: [-R, R], y: [-R, R] };
+            _grRenderExprList(); _grRenderPlot(true);
+            html += '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:6px;">Plotted on the graph with its check-points — lay it over your picture to compare.</div>';
+        }
+        out.innerHTML = html;
+    } catch (e) { out.innerHTML = '<div style="color:#ff9a9a;font-size:0.8rem;margin-top:8px;">Couldn\'t read that picture — try a clearer screenshot.</div>'; }
+}
+window._grReadPicture = _grReadPicture;
+// Math tab: when the problem came with a picture of a graph, check the answer against it
+async function _nxMathImageGraphCheck(output, imgDataUrl, answerHtml) {
+    try {
+        if (!output || !imgDataUrl || typeof nxReadGraphImage !== 'function') return;
+        var r = await nxReadGraphImage(imgDataUrl, { module: 'homework' });
+        if (!r || r.status === 'none' || !output.isConnected) return;
+        var plain = String(answerHtml || '').replace(/<[^>]+>/g, ' ');
+        var m = plain.match(/y\s*=\s*[-−+]?\s*[\d./()\sx+−-]+/i);
+        var af = m ? _lvEqFn(m[0].replace(/\s+/g, ' ').trim()) : null;
+        var extra = '';
+        if (af && r.f && (r.status === 'agree' || r.status === 'measured')) {
+            extra = _lvSameLine(af, r.f) ? '<div style="color:#45c78d;margin-top:4px;">✓ Matches the answer above.</div>' : '<div style="color:#ffbe5a;margin-top:4px;font-weight:700;">⚠️ This doesn\'t match the answer above — trust the checked equation and the points.</div>';
+        }
+        output.insertAdjacentHTML('beforeend', _nxGraphReadHtml(r, extra));
+    } catch (_) {}
+}
+window._nxMathImageGraphCheck = _nxMathImageGraphCheck;
+
 
 
 // v24.40 — the same exact check for Math-tab answers (typed or photo). A small
@@ -25214,6 +25363,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.46',
+        date: 'November 12, 2026',
+        tag: 'DRAW IT, READ IT, CHECK IT',
+        tagColor: '#2ed3cd',
+        changes: [
+            '"GRAPH THE LINE" QUESTIONS — When a question asks YOU to graph an equation (like y = −⅓x + 2), Live Vision no longer tries to read a line off the empty grid. It tells you exactly which points to plot, starting at the y-intercept and using the slope (down 1, right 3), and checks that every one of those points is really on the line. FIXES the bogus "y = 14" answer.',
+            'SAFER GRAPH MEASURING — The measurement stays inside the graph and never scans the rest of your screen, and thick colored bars (progress bars, buttons) can no longer be mistaken for a line.',
+            'GRAPH & EXPLORE CAN READ GRAPHS — New "Read a graph from a picture" button. Upload or paste (Ctrl+V) a screenshot of a graph, and NEXUS reads the line two independent ways (pixel measurement + a close-up AI read), shows whether they agree, and plots the equation with its points so you can compare.',
+            'MATH TAB TOO — If you paste or upload a picture of a graph with your problem, NEXUS reads that graph the same way and tells you if the answer matches it.',
+        ]
+    },
     {
         version: 'v24.45',
         date: 'November 11, 2026',

@@ -4427,3 +4427,5 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
 .nx-mathkeys.is-compact { gap: 4px; margin-top: 5px; flex-basis: 100%; }
 .nx-mathkeys.is-compact .nxk { min-width: 30px; height: 26px; font-size: 0.82rem; padding: 0 7px; }
 @media (max-width: 640px) { .nx-mathkeys .nxk-hint { display: none; } }
+.gr-read-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; box-sizing: border-box; margin-top: 12px; padding: 10px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 0.84rem; color: #7ff0ec; background: rgba(0,206,201,0.10); border: 1px dashed rgba(0,206,201,0.55); }
+.gr-read-btn:hover { background: rgba(0,206,201,0.18); }
