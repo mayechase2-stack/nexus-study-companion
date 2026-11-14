@@ -82,10 +82,10 @@ const EMAILJS_TEMPLATE_ID = '';
             if (_lastFeat[name] && (now - _lastFeat[name]) < 4000) return; // dedupe double-fire within 4s
             _lastFeat[name] = now;
             if (typeof nexusSB === 'undefined' || !nexusSB) return; // no session yet → local-only
-            nexusSB.from('feature_events').insert({
-                feature: name,
-                username: (localStorage.getItem('auth_user') || 'anon').slice(0, 40)
-            }).then(function () {}, function () {}); // swallow all outcomes
+            // v24.48 — honor Settings → Privacy → "Share anonymous usage stats" (OFF by default),
+            // and keep it anonymous: only the feature name + time, never the username.
+            if (localStorage.getItem('share_anon_stats') !== '1') return;
+            nexusSB.from('feature_events').insert({ feature: name }).then(function () {}, function () {}); // swallow all outcomes
         } catch (_) {}
     }
     window.trackFeature = trackFeature;
@@ -3029,7 +3029,7 @@ function signupGoToStep(n) {
             const _age = _ageFromDob((document.getElementById('signup-dob') || {}).value);
             if (_age === null) { showErr('Please enter your date of birth.'); return; }
             if (_age < 0 || _age > 120) { showErr('Please enter a valid date of birth.'); return; }
-            if (_age < MIN_AGE) { showErr('You must be at least ' + MIN_AGE + ' to use NEXUS. (NEXUS is built for Grade 9 and up.)'); return; }
+            if (_age < MIN_AGE) { showErr('NEXUS accounts are for ages ' + MIN_AGE + '+. Under ' + MIN_AGE + '? Use NEXUS with a parent, on their account.'); return; }
             const reg = getAuthRegistry();
             if (reg[userName] || userName === DEV_USERNAME) { showErr('That username is taken. Pick another or sign in instead.'); return; }
             if (err) err.style.display = 'none';
@@ -3088,7 +3088,7 @@ function _signupCheckAge() {
     // a clear "13+ only" notice the moment an under-age DOB is entered.
     if (age !== null && age < MIN_AGE) {
         block.style.display = 'block';
-        block.innerHTML = '<div style="background:rgba(239,122,114,0.12);border:1px solid rgba(239,122,114,0.4);border-radius:10px;padding:10px 13px;font-size:0.82rem;color:#ffb3ad;">🔒 NEXUS is for ages ' + MIN_AGE + '+ (it\'s built for Grade 9 and up). You can\'t create an account yet — come back when you\'re ' + MIN_AGE + '.</div>';
+        block.innerHTML = '<div style="background:rgba(239,122,114,0.12);border:1px solid rgba(239,122,114,0.4);border-radius:10px;padding:10px 13px;font-size:0.82rem;color:#ffb3ad;line-height:1.55;">👨‍👧 Under ' + MIN_AGE + '? You can still use NEXUS — <strong>with a parent or guardian, on their account, with them there with you</strong>. Ask your parent to sign up with their own details. Kids under ' + MIN_AGE + ' can\'t have their own NEXUS account or buy a plan.</div>';
     } else {
         block.style.display = 'none';
     }
@@ -3161,7 +3161,7 @@ async function completeSignUpFlow() {
     const dobVal = (document.getElementById('signup-dob') || {}).value || '';
     const age = _ageFromDob(dobVal);
     if (age === null || age < 0 || age > 120) { showErr('Please enter a valid date of birth in step 1.'); return; }
-    if (age < MIN_AGE) { showErr('You must be at least ' + MIN_AGE + ' to use NEXUS.'); return; }
+    if (age < MIN_AGE) { showErr('NEXUS accounts are for ages ' + MIN_AGE + '+. Under ' + MIN_AGE + '? Use NEXUS with a parent, on their account.'); return; }
     const parentEmail = '';
 
     hideErr();
@@ -3315,7 +3315,65 @@ function rehydrateAccountGlobals() {
     if (display) display.innerText = `Credits: ${userCredits}`;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// v24.48 — 13+ RULE (Chase: "you must be 13 or older to sign up, purchase, or
+// run NEXUS"). Every path into the app ends in completeLogin(): email sign-up,
+// email sign-in, Google (button + redirect), and older accounts. If this account
+// has no date of birth on file, ask once; anyone under 13 is signed out and can't
+// continue. The DOB is kept on this device (and with the account record) as the
+// age-check record — nothing else is collected.
+// ════════════════════════════════════════════════════════════════════
+function _nxDobFor(user) { try { return localStorage.getItem('user_dob_' + user) || ''; } catch (_) { return ''; } }
+function _nxBlockUnderage() {
+    try { if (typeof signOut === 'function') signOut(); } catch (_) {}
+    var ov = document.getElementById('auth-overlay'); if (ov) ov.style.display = 'flex';
+    var old = document.getElementById('nx-age-modal'); if (old) old.remove();
+    var m = document.createElement('div'); m.id = 'nx-age-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.92);backdrop-filter:blur(8px);z-index:100090;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.innerHTML = '<div class="glass-panel" role="alertdialog" aria-labelledby="nx-age-h" style="max-width:420px;width:100%;padding:26px 24px;border:1px solid rgba(239,122,114,0.45);border-radius:16px;text-align:center;">'
+        + '<div style="font-size:2rem;">👨‍👧</div><h2 id="nx-age-h" style="margin:8px 0 8px;font-size:1.15rem;color:#fff;">NEXUS accounts are for ages ' + MIN_AGE + '+</h2>'
+        + '<p style="margin:0 0 16px;color:var(--text-muted);font-size:0.88rem;line-height:1.6;">Under ' + MIN_AGE + '? You can still use NEXUS — <strong>with a parent or guardian, on their account, with them there with you</strong>. Ask your parent to sign up with their own details. Kids under ' + MIN_AGE + ' can\'t have their own NEXUS account or buy a plan.</p>'
+        + '<button type="button" class="btn-secondary" style="width:100%;" onclick="document.getElementById(\'nx-age-modal\').remove()">OK</button></div>';
+    document.body.appendChild(m);
+}
+function _nxAgeGate(onPass) {
+    var user = localStorage.getItem('auth_user') || '';
+    if (!user) { onPass(); return; }
+    var have = _nxDobFor(user);
+    if (have) {
+        var a0 = _ageFromDob(have);
+        if (a0 !== null && a0 < MIN_AGE) { _nxBlockUnderage(); return; }
+        onPass(); return;
+    }
+    var old = document.getElementById('nx-age-modal'); if (old) old.remove();
+    var m = document.createElement('div'); m.id = 'nx-age-modal';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.92);backdrop-filter:blur(8px);z-index:100090;display:flex;align-items:center;justify-content:center;padding:20px;';
+    m.innerHTML = '<form class="glass-panel" id="nx-age-form" role="dialog" aria-labelledby="nx-age-h" style="max-width:420px;width:100%;padding:26px 24px;border:1px solid rgba(108,92,231,0.45);border-radius:16px;">'
+        + '<div style="font-size:2rem;text-align:center;">🎂</div><h2 id="nx-age-h" style="margin:8px 0 6px;font-size:1.15rem;color:#fff;text-align:center;">Quick age check</h2>'
+        + '<p style="margin:0 0 14px;color:var(--text-muted);font-size:0.86rem;line-height:1.6;text-align:center;">NEXUS accounts are for ages ' + MIN_AGE + ' and up (younger students use NEXUS with a parent, on the parent\'s account). Enter <strong>the account holder\'s</strong> date of birth — we only use it to confirm age.</p>'
+        + '<label for="nx-age-dob" style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Date of birth</label>'
+        + '<input type="date" id="nx-age-dob" required style="width:100%;box-sizing:border-box;padding:11px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:#fff;outline:none;font-size:0.95rem;color-scheme:dark;">'
+        + '<div id="nx-age-err" style="display:none;color:#ff9a9a;font-size:0.8rem;margin-top:8px;"></div>'
+        + '<button type="submit" class="btn-primary" style="width:100%;margin-top:14px;">Continue</button>'
+        + '<button type="button" id="nx-age-cancel" class="btn-secondary" style="width:100%;margin-top:8px;">Sign out</button></form>';
+    document.body.appendChild(m);
+    m.querySelector('#nx-age-cancel').onclick = function () { m.remove(); try { signOut(); } catch (_) {} var ov = document.getElementById('auth-overlay'); if (ov) ov.style.display = 'flex'; };
+    m.querySelector('#nx-age-form').onsubmit = function (e) {
+        e.preventDefault();
+        var v = (document.getElementById('nx-age-dob') || {}).value || '', age = _ageFromDob(v), err = document.getElementById('nx-age-err');
+        if (age === null || age < 0 || age > 120) { err.textContent = 'Please enter a real date of birth.'; err.style.display = 'block'; return; }
+        if (age < MIN_AGE) { m.remove(); _nxBlockUnderage(); return; }
+        try { localStorage.setItem('user_dob_' + user, v); } catch (_) {}
+        m.remove(); onPass();
+    };
+    setTimeout(function () { var i = document.getElementById('nx-age-dob'); if (i) i.focus(); }, 60);
+}
+window._nxAgeGate = _nxAgeGate;
 function completeLogin() {
+    // v24.48 — nobody gets in without passing the 13+ check
+    if (!completeLogin._aged) {
+        return _nxAgeGate(function () { completeLogin._aged = true; try { completeLogin(); } finally { completeLogin._aged = false; } });
+    }
     rehydrateAccountGlobals();
     document.getElementById('auth-overlay').style.display = 'none';
     showToast("Login successful!", "success");
@@ -3688,7 +3746,11 @@ function _paymentCheckAge() {
     var block = document.getElementById('pay-consent-block');
     if (!dob || !block) return;
     var age = (typeof _ageFromDob === 'function') ? _ageFromDob(dob.value) : null;
-    block.style.display = (age !== null && age < 13) ? 'block' : 'none';
+    // v24.48 — 13+ ONLY to sign up, purchase, or use NEXUS (no under-13 path, with or without a parent)
+    if (age !== null && age < MIN_AGE) {
+        block.style.display = 'block';
+        block.innerHTML = '<div style="font-size:0.82rem;color:#ffb3ad;line-height:1.55;">👨‍👧 Plans are bought by the account holder, who must be ' + MIN_AGE + ' or older (a parent or guardian must agree for anyone under 18). Under ' + MIN_AGE + '? Use NEXUS with a parent, on their account.</div>';
+    } else block.style.display = 'none';
 }
 function submitPayment(event) {
     if (event && event.preventDefault) event.preventDefault();
@@ -3704,12 +3766,9 @@ function submitPayment(event) {
     const _dobVal = (document.getElementById('pay-dob') || {}).value || '';
     const _age = (typeof _ageFromDob === 'function') ? _ageFromDob(_dobVal) : null;
     if (_age === null || _age < 0 || _age > 120) { showToast('Please enter a valid date of birth.', 'error', 3500); var d = document.getElementById('pay-dob'); if (d) d.focus(); return; }
-    const _u13 = _age < 13;
-    const _parentEmail = ((document.getElementById('pay-parent-email') || {}).value || '').trim();
-    if (_u13) {
-        const _pc = (document.getElementById('pay-parent-consent') || {}).checked;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_parentEmail) || !_pc) { showToast('A parent/guardian email and consent are required for users under 13.', 'error', 4000); return; }
-    }
+    // v24.48 — hard 13+ rule for purchases too
+    if (_age < MIN_AGE) { showToast('NEXUS is for ages ' + MIN_AGE + ' and up — purchases aren\'t available under ' + MIN_AGE + '.', 'error', 4500); return; }
+    const _u13 = false, _parentEmail = '';
     const submitBtn = document.getElementById('pay-submit-btn');
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -4048,7 +4107,7 @@ function loadExpandedSettings() {
     lget('setting-shortcuts-enabled', 'shortcuts_enabled', true);
     lget('setting-default-subject', 'default_subject', 'dashboard');
     lget('setting-daily-goal', 'daily_goal', '10');
-    lget('setting-leaderboard-optin', 'leaderboard_optin', true);
+    lget('setting-leaderboard-optin', 'leaderboard_optin', false);   // v24.48 — opt-in: off unless the user turns it on
     lget('setting-streak-protection', 'streak_protection', false);
     lget('setting-store-history', 'store_history', true);
     lget('setting-store-images', 'store_images', true);
@@ -10795,7 +10854,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.47';
+const NEXUS_CURRENT_VERSION = 'v24.48';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -25219,7 +25278,7 @@ async function publishLeaderboardStats() {
         if (!nexusSB) return;
         const u = await _cloudUser();
         if (!u || !u.id) return; // need a session to satisfy RLS auth.uid()
-        const optedIn = localStorage.getItem('leaderboard_optin') !== '0'; // default on
+        const optedIn = localStorage.getItem('leaderboard_optin') === '1'; // v24.48 — opt-in (default OFF; many users are 13–17)
         if (!optedIn) { try { await nexusSB.from('leaderboard').delete().eq('user_id', u.id); } catch (_) {} return; }
         const s = _myLeaderboardStats();
         await nexusSB.from('leaderboard').upsert({
@@ -25514,6 +25573,18 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.48',
+        date: 'November 14, 2026',
+        tag: 'NEW PRIVACY POLICY & TERMS · 13+ RULE',
+        tagColor: '#2ed3cd',
+        changes: [
+            'A REAL PRIVACY POLICY AND TERMS — Both are rewritten from scratch in plain English, with a short summary at the top of each. They spell out exactly what NEXUS collects, why, who helps run it, how long data is kept, and your rights. They now live at nexusasc.com/privacy.html and nexusasc.com/terms.html, and the in-app links open the same pages.',
+            '13+ RULE — You must be 13 or older to create an account, buy a plan, or use NEXUS on your own. Under 13? You can use NEXUS only with a parent or guardian, on their account, with them there with you. The age check now covers every way in: email sign-up, "Continue with Google," and the upgrade screen. Older accounts without a date of birth are asked once.',
+            'LEADERBOARD IS NOW OPT-IN — Nobody is shown on the public leaderboard unless they turn it on (Settings → Study).',
+            '"SHARE ANONYMOUS USAGE STATS" NOW MEANS IT — Feature-usage stats are only sent if you turn this on (Settings → Privacy; off by default), and they never include your name.',
+        ]
+    },
     {
         version: 'v24.47',
         date: 'November 12, 2026',
@@ -31468,7 +31539,7 @@ const LEGAL_TEXT = {
         <h4 style="color:white;margin-top:14px;">Your data, your control</h4>
         <p><strong>Export:</strong> Settings → Data → Export gives you a complete JSON backup of everything stored on your device. <strong>Delete:</strong> Settings → Data → "Delete My Account &amp; All Data" erases your local data <em>and</em>, for a cloud account, deletes your synced backup and your account from our backend. Deletion is permanent.</p>
         <h4 style="color:white;margin-top:14px;">Children's privacy</h4>
-        <p>NEXUS is intended for students aged 13 and older. At sign-up we ask for date of birth to confirm age. If a user is under 13, we require a parent or guardian's email and explicit consent before the account is created — including consent for AI features that send prompts to OpenAI. A parent or guardian may request access to, or deletion of, their child's data at the contact email below. We do not knowingly collect personal information from children under 13 without verifiable parental consent.</p>
+        <p>NEXUS accounts are for ages 13 and older. We ask for a date of birth to confirm age and block anyone under 13 from creating an account or purchasing. A child under 13 may use NEXUS only with a parent or guardian, on the parent's or guardian's own account, while they are present and supervising. If we learn a child under 13 created their own account, we delete it. Parents can contact us at the email below. The full, current policy is at nexusasc.com/privacy.html.</p>
         <h4 style="color:white;margin-top:14px;">Contact</h4>
         <p>For privacy questions, data access, or deletion requests: <a href="mailto:support@nexusasc.com" style="color:var(--accent);">support@nexusasc.com</a>.</p>`,
     tos: `<h3 style="color:var(--accent);">NEXUS Terms of Service</h3>
@@ -31486,9 +31557,20 @@ const LEGAL_TEXT = {
 };
 function openLegalModal(which) {
     const m = document.getElementById('legal-modal');
-    document.getElementById('legal-title').textContent = which === 'tos' ? 'Terms of Service' : 'Privacy Policy';
-    document.getElementById('legal-body').innerHTML = LEGAL_TEXT[which] || LEGAL_TEXT.privacy;
+    const isTos = which === 'tos' || which === 'terms';
+    const page = isTos ? 'terms.html' : 'privacy.html';
+    document.getElementById('legal-title').textContent = isTos ? 'Terms of Service' : 'Privacy Policy';
+    const body = document.getElementById('legal-body');
+    body.innerHTML = '<p style="color:var(--text-muted);">Loading…</p>';
     m.classList.remove('hidden'); m.style.display = 'flex';
+    // v24.48 — the full policies live at nexusasc.com/privacy.html and /terms.html (one source of truth)
+    fetch(page + '?v=' + encodeURIComponent(NEXUS_CURRENT_VERSION)).then(function (r) { if (!r.ok) throw new Error('x'); return r.text(); }).then(function (html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const art = doc.getElementById('legal-doc');
+        if (!art) throw new Error('x');
+        art.querySelectorAll('script,style,link').forEach(function (n) { n.remove(); });
+        body.innerHTML = '<div class="legal-inapp">' + art.innerHTML + '</div><p style="margin-top:18px;font-size:0.8rem;"><a href="/' + page + '" target="_blank" rel="noopener" style="color:var(--accent);">Open the full page ↗</a></p>';
+    }).catch(function () { body.innerHTML = LEGAL_TEXT[isTos ? 'tos' : 'privacy'] || LEGAL_TEXT.privacy; });
 }
 function closeLegalModal() {
     const m = document.getElementById('legal-modal');

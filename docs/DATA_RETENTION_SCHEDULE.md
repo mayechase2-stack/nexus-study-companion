@@ -1,32 +1,32 @@
 # NEXUS — Data Retention & Deletion Schedule
 
-**Status: DRAFT for privacy-counsel review — not yet adopted.**
-Owner: Chase Maye · Product: NEXUS (nexusasc.com) · Last updated: July 3, 2026
+**Status: ADOPTED (self-drafted v1, November 14, 2026).** Matches the public Privacy Policy at nexusasc.com/privacy.html (section 7). An attorney review is still recommended but not required to operate.
+Product: NEXUS (nexusasc.com)
 
-Principle (per the amended COPPA Rule): children's personal information is kept **only as long as reasonably necessary for the purpose it was collected**, and is never retained indefinitely by default. This schedule applies to all users, with stricter handling noted for under-13 accounts.
+**Age rule:** NEXUS accounts and purchases are 13+ only (`MIN_AGE` in script.js, enforced at sign-up, on every sign-in via `_nxAgeGate` in `completeLogin`, and on the purchase screen). Children under 13 may use NEXUS only with a parent/guardian, on the adult's account, under supervision. NEXUS does not knowingly collect personal information from children under 13; if a child's own account is discovered, it is deleted.
 
-| Data category | Retention | Deletion trigger / mechanism |
+| Data category | Retention | Deletion mechanism |
 |---|---|---|
-| Account identity (username, email, hashed password) | Life of the account | Account deletion request (user or parent) → removed from Supabase Auth + `profiles` |
-| Date of birth / age-gate result | Life of the account | Deleted with account |
-| Under-13 parental consent record (parent email, consent timestamp) | Life of the account **+ 3 years** kept as a minimal compliance record *(counsel: confirm period)* | Purged on schedule after account deletion |
-| Study progress / app state (`app_state`) | Life of the account | Deleted with account; user can also clear via Settings → Data |
-| AI prompts and Live Vision images | **Not stored by NEXUS** — forwarded transiently to OpenAI at question time | OpenAI API retention governed by OpenAI's terms *(counsel: reference in notice)* |
-| AI usage counts (`ai_usage`) | 24 months rolling | Automatic purge **[PLANNED]**; deleted with account |
-| Server/function logs | 90 days | Automatic (Supabase default) *(confirm setting)* |
-| Waitlist entries (email, name, plan interest) | Until launch announcement + 12 months, or opt-out | Manual purge on schedule |
-| Stripe billing records (once live) | Per legal/tax requirements (typically 7 years) | Held by Stripe; not deleted with app account |
-| Local device data (localStorage) | Until the user clears it | User-controlled: Settings → Data, or browser clearing |
-| User-downloaded JSON backups | User-controlled | Outside NEXUS's custody |
+| Account identity (username, email, password hash) | Life of the account | Settings → Data & History → Delete My Account (calls the `delete-account` Edge Function: deletes `app_state` + the auth user; `profiles`, `subscriptions`, `ai_usage`, `parental_consent` cascade) |
+| Date of birth (age check) | Life of the account | Deleted with the account |
+| Study progress / synced app state (`app_state`) | Life of the account | Deleted with the account; local copy cleared by the same button |
+| AI prompts and images | **Not stored by NEXUS** — forwarded to OpenAI at question time | OpenAI API retention per OpenAI's policy (currently up to 30 days, not used for training by default) |
+| AI usage counts (`ai_usage`), rate-limit records incl. IP (`ai_recent`, `ai_ip_usage`) | Up to 24 months | `nexus_purge_old_records()` daily via pg_cron (migration 0011) |
+| Feature-usage events (`feature_events`) — opt-in only, anonymous | Up to 24 months | Same purge job |
+| Error reports (`client_errors`) | Up to 24 months | Same purge job |
+| Feedback (`feedback`) | Up to 24 months | Same purge job |
+| Server/function logs | ~90 days | Supabase default |
+| Leaderboard row (opt-in) | While opted in | Removed automatically when the user turns it off |
+| Stripe billing records (once live) | As required for tax/accounting | Held by Stripe |
+| Local device data (localStorage / IndexedDB) | Until the user clears it | Settings → Data & History, or browser settings |
 
-## Deletion paths
+## Deletion requests
 
-1. **User-initiated:** Settings → Data (local wipe + export); email support@nexusasc.com from the account email for full cloud deletion. Target turnaround: 7 days.
-2. **Parent-initiated (any account belonging to their child):** email support@nexusasc.com; identity verified against the consent-record parent email. Parents may review, correct, or delete the child's data and refuse further collection (COPPA rights — counsel to confirm the notice states them).
-3. **Dormancy:** **[PLANNED — counsel input]** accounts inactive 24 months receive a notice email, then deletion 60 days later. Under-13 accounts: counsel to advise if a shorter window is expected.
+1. **In-app:** Settings → Data & History → "Delete My Account & All Data".
+2. **By email:** support@nexusasc.com from the account's email address. Commitment: completed within **30 days**.
+3. **Parents/guardians:** email support@nexusasc.com; verify the relationship/identity before acting. Delete any account found to belong to a child under 13.
 
-## Open questions for counsel
+## To do (owner)
 
-- Required retention period for parental-consent records after deletion.
-- Whether OpenAI's API terms need to be summarized or merely referenced in the parental notice.
-- State-law overlays (e.g., CA/NY student-privacy rules) if any school-adjacent use emerges.
+- Run `supabase/migrations/0011_retention_purge.sql` once (enable the `pg_cron` extension first).
+- Optional: have an attorney review the Privacy Policy and Terms; add the operator's legal name and mailing address to both pages if/when you're comfortable publishing them (some state laws expect a postal address).

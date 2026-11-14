@@ -1,0 +1,25 @@
+/* NEXUS legal pages (privacy.html, terms.html) */
+:root { --bg: #f7f7fb; --fg: #1d1d2b; --muted: #5d6075; --card: #ffffff; --line: #e3e3ee; --accent: #5b4bd6; --accent-2: #0a938f; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0d0f1e; --fg: #e8e8f3; --muted: #9a9cb3; --card: #15182b; --line: #262a44; --accent: #a29bfe; --accent-2: #2ed3cd; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif; }
+a { color: var(--accent); }
+.lg-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--card); }
+.lg-brand { font-weight: 800; letter-spacing: 0.08em; text-decoration: none; color: var(--accent-2); font-size: 1.1rem; }
+.lg-top nav { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.92rem; }
+.lg-top nav a { text-decoration: none; color: var(--muted); }
+.lg-top nav a[aria-current="page"] { color: var(--fg); font-weight: 600; }
+main { max-width: 760px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-left, 0px)) 48px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 4px; text-wrap: balance; }
+h2 { font-size: 1.2rem; margin: 30px 0 8px; text-wrap: balance; }
+h3 { font-size: 1rem; margin: 18px 0 6px; }
+ul { padding-left: 22px; }
+li { margin: 5px 0; }
+.lg-date { color: var(--muted); margin: 0 0 18px; }
+.lg-summary { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent-2); border-radius: 12px; padding: 4px 18px 8px; }
+.lg-summary h2 { margin-top: 14px; }
+.lg-table { width: 100%; border-collapse: collapse; font-size: 0.93rem; display: block; overflow-x: auto; }
+.lg-table th, .lg-table td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.lg-table th { color: var(--muted); font-weight: 600; }
+.lg-foot { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 16px 34px; border-top: 1px solid var(--line); }
+.lg-foot a { color: var(--muted); }

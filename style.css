@@ -4429,3 +4429,14 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
 @media (max-width: 640px) { .nx-mathkeys .nxk-hint { display: none; } }
 .gr-read-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; box-sizing: border-box; margin-top: 12px; padding: 10px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 0.84rem; color: #7ff0ec; background: rgba(0,206,201,0.10); border: 1px dashed rgba(0,206,201,0.55); }
 .gr-read-btn:hover { background: rgba(0,206,201,0.18); }
+
+/* v24.48 — full policies shown inside the app's legal modal */
+.legal-inapp h1 { font-size: 1.3rem; color: #fff; margin: 0 0 4px; }
+.legal-inapp h2 { font-size: 1.02rem; color: #fff; margin: 22px 0 6px; }
+.legal-inapp h3 { font-size: 0.92rem; color: #e6e3ff; margin: 14px 0 4px; }
+.legal-inapp p, .legal-inapp li { font-size: 0.9rem; line-height: 1.6; color: #d8dce8; }
+.legal-inapp .lg-date { color: var(--text-muted); }
+.legal-inapp .lg-summary { background: rgba(0,206,201,0.07); border: 1px solid rgba(0,206,201,0.3); border-radius: 10px; padding: 2px 14px 6px; }
+.legal-inapp table { width: 100%; border-collapse: collapse; font-size: 0.85rem; display: block; overflow-x: auto; }
+.legal-inapp th, .legal-inapp td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--glass-border); color: #d8dce8; }
+.legal-inapp a { color: var(--accent); }

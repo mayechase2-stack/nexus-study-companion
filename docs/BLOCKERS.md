@@ -33,10 +33,12 @@ between "working free beta" and "charging money / running at scale."
 
 ## 🔴 Paid-launch gates (the real "can't charge money yet")
 
-3. **COPPA / privacy legal counsel** — THE gate. The app collects data from minors
-   (DOB, parental-consent email, accounts, prompts to OpenAI). Age gate + consent flow +
-   drafted policies exist, but **no attorney review**. Nothing about charging money or
-   scaling to real minors should happen before this.
+3. **Minors & privacy** — 🟡 MOSTLY HANDLED (v24.48). Accounts and purchases are now **13+ only**,
+   enforced at sign-up, on every sign-in (`_nxAgeGate` in completeLogin — covers Google too) and on the
+   purchase screen. Under-13s may use NEXUS only with a parent, on the parent's account. With no child
+   accounts, COPPA's verifiable-parental-consent machinery isn't needed. Self-drafted Privacy Policy and
+   Terms are live (privacy.html / terms.html). Remaining: optional attorney review; decide whether to
+   publish an operator legal name + mailing address; run migration 0011 (retention purge).
 4. **Stripe live mode** — currently test/sandbox only. Needs: business + bank verification,
    deploy the `checkout` and `stripe-webhook` Edge Functions, live-mode keys.
 5. **Per-module entitlement gating** — ✅ CODE DONE (v298 + v24.39). The `ai` function refuses a
@@ -45,11 +47,9 @@ between "working free beta" and "charging money / running at scale."
    Still OFF during beta: **you** deploy the updated `ai` function and set `ENFORCE_MODULES=true`
    at paid launch (LAUNCH_RUNBOOK Phase 5). Residual: a paying user could strip tags to reach a
    module they didn't buy, bounded by PAID_MONTHLY — acceptable for v1.
-6. **Privacy policy page live** — v24.39 brought the in-app policy in line with what the app
-   really does (hosted-AI proxy, cloud sync, error logging, feature-usage events, single-session
-   record, leaderboard, voice input, class library, and every third party: OpenAI, Supabase,
-   Wikimedia, YouTube, EmailJS, Turnstile, Stripe, font/icon CDNs). Live in-app; still needs
-   the lawyer's check (ties to #3).
+6. **Privacy policy page live** — ✅ DONE (v24.48): full public pages at nexusasc.com/privacy.html and
+   /terms.html; the in-app modal loads the same pages. Matches real data flows (opt-in anonymous usage
+   stats, opt-in leaderboard, retention schedule in docs/DATA_RETENTION_SCHEDULE.md).
 
 ---
 
