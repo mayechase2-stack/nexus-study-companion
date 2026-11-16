@@ -4440,3 +4440,15 @@ body.wallpaper-astral { animation: astralDrift 24s ease infinite; background-att
 .legal-inapp table { width: 100%; border-collapse: collapse; font-size: 0.85rem; display: block; overflow-x: auto; }
 .legal-inapp th, .legal-inapp td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--glass-border); color: #d8dce8; }
 .legal-inapp a { color: var(--accent); }
+
+
+/* v24.49 — Live Vision fill-in-the-blank: numbered blanks + finished sentence */
+.lv-fib-h { font-size: 0.8rem; color: #00cec9; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.lv-blanks { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lv-blanks li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; background: rgba(0,206,201,0.10); border: 1px solid rgba(0,206,201,0.35); border-radius: 8px; padding: 7px 11px; }
+.lv-bn { flex: none; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,206,201,0.25); color: #00cec9; font-size: 0.72rem; font-weight: 700; display: inline-grid; place-items: center; align-self: center; }
+.lv-bctx { color: var(--text-muted, #9aa0c3); font-size: 0.82rem; }
+.lv-bans { color: #fff; font-size: 1.02rem; font-weight: 700; }
+.lv-filled { font-size: 0.9rem; line-height: 1.6; color: var(--text-primary, #e6e9f5); background: rgba(255,255,255,0.04); border-left: 3px solid #00cec9; border-radius: 6px; padding: 8px 11px; }
+.lv-filled-h { display: block; font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted, #9aa0c3); margin-bottom: 3px; }
+.lv-filled mark { background: rgba(0,206,201,0.22); color: #fff; font-weight: 700; padding: 0 3px; border-radius: 4px; }

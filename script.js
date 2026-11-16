@@ -10854,7 +10854,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.48';
+const NEXUS_CURRENT_VERSION = 'v24.49';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18752,7 +18752,11 @@ async function analyzeText() {
         // v15.0 — Aggressive fill-in-the-blank detection + ultra-precise system prompt
         const systemPrompt = `You are NEXUS Live Vision — an ultra-precise AI tutor reading a student's screen. Detect the academic level from vocabulary and notation. Answer with zero filler, maximum precision.
 
-CRITICAL — FILL-IN-THE-BLANK DETECTION: Before anything else, scan the image for: underscores (___), '[BLANK]', '(blank)', empty input boxes, or any obvious gap in a sentence. If found, this IS a fill-in-the-blank question. Answer = ONLY the exact word(s) that fill the blank — never a full sentence.
+CRITICAL — FILL-IN-THE-BLANK DETECTION: Before anything else, scan the image for: underscores (___), '[BLANK]', '(blank)', empty input boxes, dropdown menus (a word with a ⌄ arrow, or "Select"), or any obvious gap in a sentence. If found, this IS a fill-in-the-blank question. Answer = ONLY the exact word(s) that fill the blank — never a full sentence.
+
+CRITICAL — READ THE WHOLE QUESTION, EVERY TIME: online-school platforms keep adding new sentences, clauses and wording to familiar questions (e.g. a function question that ALSO says "For example, the input x = ☐ is mapped to the approximate outputs y = ☐ and y = ☐"). NEVER answer from a remembered template of what the question "usually" asks. Read every word from the first to the last sentence, count every blank / dropdown / empty box, and answer EVERY one, in order. Each answer must fit the words around it and agree with your work and with the other blanks.
+
+CRITICAL — MULTI-PART QUESTIONS (DeltaMath, ALEKS, IXL, Khan…): many platforms show a question in parts — the student answers the first blanks, then MORE blanks appear. When some parts are already answered (filled-in words/numbers in color, a ✓, or "Attempt 1 out of 2"), treat those as given and answer the CURRENT empty blanks. If the screen shows a previous attempt marked incorrect (✗, "incorrect", red), that answer is WRONG — never repeat it; work the problem fresh. Also think one step ahead: answer the part on screen, and in your work prepare what the next part is likely to ask (for an is-it-a-function graph, always fill graph.counterexample even if it isn't asked yet).
 
 UNIVERSAL ONLINE-SCHOOL COMPREHENSION:
 - This text could come from ANY online learning platform: Acellus, Edgenuity, Apex Learning, FLVS, Khan Academy, IXL, Albert.io, Quizlet, McGraw-Hill Connect, Pearson MyLab, Canvas, Schoology, Google Classroom, Moodle, Blackboard, Edmentum, Study.com, CK-12, NewsELA, NoRedInk, ALEKS, WebAssign, Mastering Physics/Chemistry/Biology, MyMathLab, ConnectED, BrainPOP, Buzz, Lincoln Learning, Calvert, K12, Connections Academy, etc. — handle them ALL identically.
@@ -18770,6 +18774,7 @@ FILL-IN-THE-BLANK: underscores (___), "[BLANK]", "(blank)", or empty input field
   -> "answer" = ONLY the exact word(s) that fill the blank. No full sentences.
   -> Multiple blanks: list them "1. word  2. word  3. word"
   -> Example: "The ___ War ended in 1865." -> answer: "Civil"
+  -> ALSO fill "blankCount", "blanks" (one entry per blank, dropdown or empty box, in reading order, each with the exact words right before it) and "filled" (the whole question sentence(s) with every blank filled in). For a dropdown, the answer is the option's exact wording. For a number box, WORK IT OUT (compute it, or read it off the graph/table) — never a placeholder.
 
 MULTIPLE CHOICE — ⚠️ THE #1 SOURCE OF STUDENT ERRORS. FOLLOW EXACTLY:
   The student clicks an option on THEIR screen. If you name the wrong position,
@@ -18836,6 +18841,7 @@ GRAPH / CHART READING — READ IT CAREFULLY, this is where mistakes happen:
   -> ALWAYS fill the "graph" field for these questions — NEXUS zooms in on that area and double-checks your reading.
 IS-IT-A-FUNCTION QUESTIONS ("Determine whether the graph represents a function", vertical line test): trace the ACTUAL drawn curve from its left end to its right end — do NOT assume a familiar shape. A function means every vertical line crosses the graph AT MOST ONCE. Only answer "not a function" if you can name a real x where the drawn curve has two y-values; a curve that keeps moving to the right (even if it bends) IS a function.
   -> set graph.task = "function", graph.isFunction = true/false, and graph.counterexample = {"x":…, "ys":[…, …]} when it is not a function. NEXUS runs the vertical line test on the pixels to double-check.
+  -> EXAMPLE POINTS (when asked "the input x = ☐ is mapped to outputs y = ☐ and y = ☐"): pick a whole-number x where the drawn curve clearly has two points, and READ both y-values off the ACTUAL curve at that x by counting gridlines — mind the sign (points below the x-axis have NEGATIVE y). Good choices: corners/vertices of the shape, or where the curve crosses gridline intersections. Avoid x = 0 and points on the axes. The x and y blanks MUST equal graph.counterexample. NEXUS checks these points against the curve on the screen.
 GRAPH-IT QUESTIONS ("Graph the line y = −⅓x + 2", "Plot…", "Sketch…") — the student must DRAW it; there is usually no line on the grid yet. Do NOT try to read a line off the grid.
   -> "answer" = exactly where to click/plot: start at the y-intercept, then use the slope as rise/run to get 2 more exact gridline points, e.g. "Plot (0, 2), then go down 1 and right 3 to (3, 1), and once more to (6, 0) — draw the line through them." Use points with whole-number coordinates that fit on the visible grid.
   -> set graph.task = "draw", graph.equation = the equation given in the question, graph.points = the points you told them to plot. NEXUS checks every point is really on the line.
@@ -18859,6 +18865,9 @@ MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. 
 STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "work" FIRST:
 {
   "work": "YOUR SCRATCH WORK, written BEFORE you commit to an answer: solve it completely step by step, then plug EVERY candidate back into the ORIGINAL problem and show both sides' values. Reject any that fail. (Not shown as the answer — this is where you get it right.) Under 1200 characters; for pure recall questions just a few words.",
+  "blankCount": "ONLY for fill-in-the-blank: how many blanks, dropdowns and empty answer boxes the question has in total (count them all, across every sentence) — otherwise null",
+  "blanks": "ONLY for fill-in-the-blank — otherwise null. Array, one entry per blank IN READING ORDER: [{\"before\":\"the exact few words right before this blank, e.g. 'the input x ='\", \"answer\":\"what goes in it\"}]. Must have blankCount entries.",
+  "filled": "ONLY for fill-in-the-blank: the question's sentence(s) rewritten with every blank filled in — otherwise null",
   "answer": "Exact answer in the format required by the question type. No filler phrases.",
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
@@ -18902,6 +18911,20 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         if (data.error) { clearInterval(phaseTimer); throw new Error(data.error.message); }
 
         let ai = JSON.parse(data.choices[0].message.content);
+        // v24.49 — FINISH THE SENTENCE: if the AI counted more blanks than it answered, send it back once.
+        try {
+            const _fibN = function (a) { return Array.isArray(a && a.blanks) ? a.blanks.filter(function (b) { return b && String(b.answer == null ? '' : b.answer).replace(/<[^>]+>/g, '').trim(); }).length : 0; };
+            const _need = Math.round(+(ai && ai.blankCount) || 0), _have = _fibN(ai);
+            if (ai && /fill/i.test(String(ai.questionType || '')) && _need > 0 && _have < _need) {
+                const sF = document.getElementById('lv-fetch-status');
+                if (sF) sF.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Making sure every blank gets filled…';
+                const rF = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: data.choices[0].message.content },
+                        { role: 'user', content: 'You counted ' + _need + ' blanks/dropdowns/boxes but only answered ' + _have + '. Re-read the WHOLE question — every sentence, including any extra clause at the end — and fill EVERY blank in order (work out any numbers). Same JSON format.' }] }) });
+                const dF = await rF.json();
+                if (!dF.error) { const aF = JSON.parse(dF.choices[0].message.content); if (aF && _fibN(aF) >= _have) ai = aF; }
+            }
+        } catch (_) {}
         // v24.40 — NEXUS MATH CHECK: verify the AI's math with an exact calculator.
         // If it fails, re-solve once WITH the evidence; if that still fails, show the
         // verified answer instead of a wrong one.
@@ -18985,7 +19008,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     const s2 = document.getElementById('lv-fetch-status');
                     if (s2) s2.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Running the vertical line test on your screen…';
                     const aFn = typeof ai.graph.isFunction === 'boolean' ? ai.graph.isFunction : (/\bdoes not\b|\bnot a function\b|\bis not\b/i.test(_ansTxt) ? false : (/\bdoes\b|\bis a function\b/i.test(_ansTxt) ? true : null));
-                    let FB = null; try { const v = _lvMeasureVLT(video, ai.graph.box); if (v && v.ok) FB = v; } catch (_) {}
+                    let FB = null; try { const v = _lvMeasureVLT(video, ai.graph.box, { xStep: ai.graph.xStep, yStep: ai.graph.yStep }); if (v && v.ok) FB = v; } catch (_) {}
                     let FC = null, verdict = null;
                     if (FB && aFn !== null && FB.isFunction === aFn) verdict = { agree: true, by: 'B', B: FB };
                     else {
@@ -19015,6 +19038,53 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                         }
                         verdict.fixed = true;
                     }
+                    // v24.49 — CHECK THE EXAMPLE. "For example, the input x = ☐ maps to y = ☐ and y = ☐":
+                    // the AI's points must actually be on the curve NEXUS measured (it once said x = 2 → y = 1 and 3
+                    // for a shape that sits entirely below the x-axis). Same 2-source rule as everything else:
+                    // a new example is only used when the AI's retry OR the close-up re-read agrees with the pixels.
+                    try {
+                        const notFn = FB && FB.isFunction === false && !(verdict && verdict.unsure) && (ai.graph && ai.graph.isFunction !== true);
+                        if (notFn && Array.isArray(FB.cols)) {
+                            const xS = +(ai.graph && ai.graph.xStep) || 1, yS = +(ai.graph && ai.graph.yStep) || 1;
+                            const ceA = _lvExampleOf(ai), okA = _lvExampleCheck(FB, ceA, xS, yS);
+                            const best = _lvBestExample(FB);
+                            const asked = ceA || (Array.isArray(ai.blanks) && ai.blanks.filter(function (b) { return b && isFinite(_lvNum(b.answer)); }).length >= 3);
+                            const askedNow = Array.isArray(ai.blanks) && ai.blanks.filter(function (b) { return b && isFinite(_lvNum(b.answer)); }).length >= 2
+                                || /\bx\s*=\s*-?\d/.test(String(ai.answer || '').replace(/<[^>]+>/g, ' '));
+                            if (okA === true) { FB.atX = ceA.x; FB.atYs = ceA.ys.slice(); verdict.example = askedNow ? { ok: true, ce: ceA } : { ready: true, ce: ceA, both: true }; }
+                            else if (okA === false && best && askedNow) {
+                                const sE = document.getElementById('lv-fetch-status');
+                                if (sE) sE.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Checking the example points on your graph…';
+                                const fmtCe = function (c) { return 'x = ' + c.x + ' → y = ' + c.ys.join(' and y = '); };
+                                const meas = FB.cols.filter(function (c) { return c.ys.length >= 2 && Math.abs(c.x) > 1e-9; }).slice(0, 8).map(function (c) { return 'at x = ' + c.x + ' the curve is at y ≈ ' + c.ys.join(' and '); });
+                                const atAx = FB.cols.filter(function (c) { return Math.abs(c.x - ceA.x) < 0.26 * xS; })[0];
+                                let ai5 = null;
+                                try {
+                                    const r5 = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                                        body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: JSON.stringify(ai) },
+                                            { role: 'user', content: 'NEXUS measured the drawn curve on the screen. Your example (' + fmtCe(ceA) + ') is NOT on it' + (atAx && atAx.ys.length ? ' — at x = ' + atAx.x + ' the curve is actually at y ≈ ' + atAx.ys.join(' and ') : '') + '. Measured: ' + meas.join('; ') + '. Look at the graph again, pick an x where the curve has two points, read both y-values carefully (points below the x-axis are negative), and re-answer with every blank filled. Same JSON format.' }] }) });
+                                    const d5 = await r5.json(); if (!d5.error) ai5 = JSON.parse(d5.choices[0].message.content);
+                                } catch (_) {}
+                                const ce5 = _lvExampleOf(ai5);
+                                if (ai5 && _lvExampleCheck(FB, ce5, xS, yS) === true && !(ai5.graph && ai5.graph.isFunction === true)) {
+                                    ai = ai5; FB.atX = ce5.x; FB.atYs = ce5.ys.slice(); verdict.example = { fixed: true, old: ceA, ce: ce5 };
+                                } else {
+                                    // second opinion: the close-up re-read's example, if the pixels agree with it
+                                    if (!FC) { try { const rr2 = await _lvGraphReread(video, ai.graph.box, apiKey, { prompt: NEXUS_FUNCREAD_PROMPT }); if (rr2 && typeof rr2.isFunction === 'boolean') FC = rr2; } catch (_) {} }
+                                    const ceC = FC && FC.counterexample ? { x: _lvNum(FC.counterexample.x), ys: (FC.counterexample.ys || []).map(_lvNum).filter(isFinite) } : null;
+                                    if (ceC && _lvExampleCheck(FB, ceC, xS, yS) === true) {
+                                        const oldExp = String(ai.explanation || '');
+                                        _lvApplyExample(ai, ceA, ceC);
+                                        ai.explanation = '<strong>NEXUS checked the example on your graph.</strong> ' + fmtCe(ceA).replace('→', 'gives') + ' isn\'t on the drawn curve' + (atAx && atAx.ys.length ? ' (at x = ' + atAx.x + ' it\'s at y ≈ ' + atAx.ys.join(' and ') + ')' : '') + '. A zoomed-in re-read and the pixel measurement agree on <strong>' + fmtCe(ceC) + '</strong>: one input, two outputs — so it is not a function.'
+                                            + (oldExp ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + oldExp + '</div></details>' : '');
+                                        FB.atX = ceC.x; FB.atYs = ceC.ys.slice(); verdict.example = { fixed: true, old: ceA, ce: ceC };
+                                    } else verdict.example = { warn: true, old: ceA, best: best, atAx: atAx };
+                                }
+                            } else if (okA !== true) {
+                                if (best) { FB.atX = best.x; FB.atYs = best.ys.slice(); verdict.example = { ready: true, ce: best }; }
+                            }
+                        }
+                    } catch (_) {}
                     _fnRes = verdict;
                 } catch (_) {}
             }
@@ -19121,6 +19191,8 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
             _typewriterHTML(answerElFinal, cleanedAnswer + (_bareOrdinal && !_anchored
                 ? '<div style="margin-top:10px;padding:9px 12px;border-radius:8px;background:rgba(253,203,110,0.12);border:1px solid rgba(253,203,110,0.45);font-size:0.84rem;color:#fdcb6e;line-height:1.5;"><strong>⚠️ Match by the answer text, not the number.</strong> NEXUS can\'t always tell how your screen orders the choices — click the option whose <em>wording</em> matches above.</div>'
                 : ''));
+        } else if (qType === 'fill-in-the-blank' && typeof _lvBlanksHtml === 'function' && _lvBlanksHtml(ai)) {
+            _typewriterHTML(answerElFinal, '<div class="lv-fib">' + _lvBlanksHtml(ai) + '</div>');
         } else if (qType === 'fill-in-the-blank') {
             _typewriterHTML(answerElFinal, `<div style="font-size:0.9rem;color:#00cec9;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">Fill in the blank:</div><div style="background:rgba(0,206,201,0.12);border:1px solid rgba(0,206,201,0.4);border-radius:8px;padding:10px 14px;font-size:1.05rem;font-weight:700;color:white;letter-spacing:0.5px;">${cleanedAnswer}</div>`);
         } else {
@@ -19145,6 +19217,11 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     col = _fnRes.fixed ? '#ffbe5a' : '#45c78d';
                     head = (_fnRes.fixed ? '🛠️ NEXUS corrected this with the vertical line test' : (FBv ? '📏 Vertical line test, run on your screen' : '✅ Checked up close')) + ' — ' + (isF ? 'it IS a function' : 'NOT a function');
                     body = FBv ? (isF ? 'Every vertical line crosses the drawn curve at most once.' : 'A vertical line at x ≈ ' + _e3(FBv.atX) + ' hits the curve at y ≈ ' + _e3((FBv.atYs || []).join(' and ')) + '.') + ' The curve spans about x = ' + _e3(FBv.xSpan[0]) + ' to ' + _e3(FBv.xSpan[1]) + ', y = ' + _e3(FBv.ySpan[0]) + ' to ' + _e3(FBv.ySpan[1]) + '.' : (isF ? 'Every vertical line crosses the curve at most once.' : 'A vertical line crosses the curve twice.');
+                    const EX = _fnRes.example;
+                    if (EX && EX.ready) body += ' <strong>Next part ready:</strong> if it asks for an example, use the input <strong>x = ' + _e3(EX.ce.x) + '</strong> → outputs <strong>y = ' + _e3(EX.ce.ys.join(' and y = ')) + '</strong>' + (EX.both ? ' (checked on your graph).' : ' (measured on your graph).');
+                    else if (EX && EX.ok) body += ' <strong>✓ The example x = ' + _e3(EX.ce.x) + ' → y = ' + _e3(EX.ce.ys.join(' and ')) + ' is on your graph.</strong>';
+                    else if (EX && EX.fixed) { col = '#ffbe5a'; head = '🛠️ NEXUS fixed the example points'; body += ' The first example (x = ' + _e3(EX.old.x) + ' → y = ' + _e3(EX.old.ys.join(' and ')) + ') wasn\'t on the curve; <strong>x = ' + _e3(EX.ce.x) + ' → y = ' + _e3(EX.ce.ys.join(' and ')) + '</strong> is.'; }
+                    else if (EX && EX.warn) { col = '#ffbe5a'; head = '⚠️ Double-check the example numbers'; body += ' The example in the answer (x = ' + _e3(EX.old.x) + ' → y = ' + _e3(EX.old.ys.join(' and ')) + ') doesn\'t match the curve NEXUS measured' + (EX.atAx && EX.atAx.ys.length ? ' (at x = ' + _e3(EX.atAx.x) + ' it\'s at y ≈ ' + _e3(EX.atAx.ys.join(' and ')) + ')' : '') + '. On your screen, <strong>x = ' + _e3(EX.best.x) + ' → y ≈ ' + _e3(EX.best.ys.join(' and ')) + '</strong> looks right — check it before you submit.'; }
                 }
                 answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:' + col + ';">' + head + '</div><div>' + body + '</div></div>');
             } else if (_graphRes && _graphRes.draw) {
@@ -21919,8 +21996,19 @@ var NxGraphCV = (function () {
             if (Math.abs(y - p.axisY) <= band || Math.abs(x - p.axisX) <= band) continue;
             var i = y * w + x; if (p.dark[i] || p.hueBin[i] >= 0) mask[i] = 1;
         }
+        // v24.49 — a COLORED line running (almost) the full height of the plot in one thin band is an overlay
+        // (DeltaMath draws a red vertical line through the graph after you answer). Remove its colored pixels
+        // when there's a real curve besides it; the curve's own black pixels stay.
+        var colC = new Int32Array(w), ov = new Uint8Array(w), nOv = 0, plotH = y1 - y0 + 1;
+        for (var yo = y0; yo <= y1; yo++) for (var xo = x0; xo <= x1; xo++) { var io = yo * w + xo; if (mask[io] && p.hueBin[io] >= 0) colC[xo]++; }
+        for (var xq = x0; xq <= x1; xq++) if (colC[xq] >= 0.75 * plotH) { ov[xq] = 1; nOv++; }
+        if (nOv && nOv <= Math.max(4, 0.4 * g) * 3) {
+            var rest = 0; for (var yr = y0; yr <= y1; yr++) for (var xr = x0; xr <= x1; xr++) if (!ov[xr] && mask[yr * w + xr]) rest++;
+            if (rest >= 80) for (var yc = y0; yc <= y1; yc++) for (var xc = x0; xc <= x1; xc++) { if (!ov[xc]) continue; var ic = yc * w + xc; if (p.hueBin[ic] >= 0) mask[ic] = 0; }
+            else nOv = 0;
+        }
         // connected pieces; keep only the big ones (tick numbers, arrowheads of the axes are tiny)
-        var seen = new Int32Array(w * h), keep = new Uint8Array(w * h), stack = [], nKeep = 0, pieces = 0;
+        var seen = new Int32Array(w * h), keep = new Uint8Array(w * h), stack = [], nKeep = 0, pieces = 0, bigs = [];
         for (var yy = y0; yy <= y1; yy++) for (var xx = x0; xx <= x1; xx++) {
             var st = yy * w + xx; if (!mask[st] || seen[st]) continue;
             var comp = []; stack.push(st); seen[st] = 1;
@@ -21930,15 +22018,28 @@ var NxGraphCV = (function () {
                 if (cx < bx0) bx0 = cx; if (cx > bx1) bx1 = cx; if (cy < by0) by0 = cy; if (cy > by1) by1 = cy;
                 for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
                     var nx = cx + dx, ny = cy + dy; if (nx < x0 || nx > x1 || ny < y0 || ny > y1) continue;
+                    if (nOv && dx !== 0 && ov[nx]) {
+                        // v24.49 — the removed overlay line left a gap: connect the curve across it
+                        var jx = nx; while (jx >= x0 && jx <= x1 && ov[jx] && Math.abs(jx - cx) < 9) jx += dx;
+                        if (jx >= x0 && jx <= x1 && !ov[jx]) for (var jy = -5; jy <= 5; jy++) { var my = cy + jy; if (my < y0 || my > y1) continue; var mi = my * w + jx; if (mask[mi] && !seen[mi]) { seen[mi] = 1; stack.push(mi); } }
+                        continue;
+                    }
                     var ni = ny * w + nx; if (mask[ni] && !seen[ni]) { seen[ni] = 1; stack.push(ni); }
                 }
             }
-            if (Math.max(bx1 - bx0, by1 - by0) >= 2.2 * g && comp.length >= 40) { pieces++; for (var k = 0; k < comp.length; k++) keep[comp[k]] = 1; nKeep += comp.length; }
+            if (Math.max(bx1 - bx0, by1 - by0) >= 2.2 * g && comp.length >= 40) bigs.push({ comp: comp, w: bx1 - bx0, h: by1 - by0 });
         }
+        // v24.49 — a full-height, hairline-thin vertical line next to a real curve is the platform's
+        // feedback/"vertical line test" overlay (DeltaMath draws a red one after you answer), not the graph
+        if (bigs.length >= 2) {
+            var others = function (b) { return bigs.some(function (o) { return o !== b && !(o.w <= 0.35 * g && o.h >= 0.75 * (y1 - y0)); }); };
+            bigs = bigs.filter(function (b) { return !(b.w <= 0.35 * g && b.h >= 0.75 * (y1 - y0) && others(b)); });
+        }
+        bigs.forEach(function (b) { pieces++; for (var k = 0; k < b.comp.length; k++) keep[b.comp[k]] = 1; nKeep += b.comp.length; });
         if (nKeep < 80) return { ok: false, why: 'no curve found' };
         // sweep vertical lines
         var cxMin = x1, cxMax = x0, cyMin = y1, cyMax = y0, gapPx = Math.max(4, 0.45 * g), sepMin = 0.6 * g;
-        var multi = [], vert = [];   // columns that meet the curve in 2+ well-separated places / vertical segments
+        var multi = [], vert = [], colRuns = {};   // columns that meet the curve in 2+ well-separated places / vertical segments
         for (var col = x0; col <= x1; col++) {
             var runsC = [], inRun = false, rs = 0, last = -1e9;
             for (var row = y0; row <= y1; row++) {
@@ -21949,6 +22050,7 @@ var NxGraphCV = (function () {
                 }
             }
             if (inRun) runsC.push([rs, last]);
+            colRuns[col] = runsC;
             // a straight-up-and-down piece: ONE column covering more than 2.5 gridlines of height = a vertical segment
             runsC.forEach(function (r) { if (r[1] - r[0] > 2.5 * g) vert.push({ col: col, ys: [r[0], r[1]] }); });
             if (runsC.length >= 2) {
@@ -21968,6 +22070,14 @@ var NxGraphCV = (function () {
         var toX = function (px) { return Math.round((px - p.axisX) / p.gx * xs * 2) / 2; }, toY = function (py) { return Math.round((p.axisY - py) / p.gy * ys * 2) / 2; };
         var res = { ok: true, isFunction: !fails, pieces: pieces, xSpan: [toX(cxMin), toX(cxMax)], ySpan: [toY(cyMax), toY(cyMin)] };
         if (fails && bestCol) { res.atX = toX(bestCol.col); res.atYs = bestCol.ys.map(toY); }
+        // v24.49 — where the curve is at EVERY whole-gridline x (lets NEXUS check "for example, x = 2 → y = …" blanks)
+        var cols = [], k0 = Math.ceil((cxMin - p.axisX) / p.gx), k1 = Math.floor((cxMax - p.axisX) / p.gx);
+        for (var kk = k0; kk <= k1 && cols.length < 80; kk++) {
+            var pc = Math.round(p.axisX + kk * p.gx), rr = [];
+            [0, 1, -1, 2, -2, 3, -3].some(function (d) { var q = colRuns[pc + d]; if (q && q.length && !(nOv && ov[pc + d])) { rr = q; return true; } return false; });
+            cols.push({ x: kk * xs, ys: rr.map(function (r) { return Math.round((p.axisY - (r[0] + r[1]) / 2) / p.gy * ys * 10) / 10; }) });
+        }
+        res.cols = cols;
         return res;
     }
     return { analyze: analyze, vlt: vlt };
@@ -21988,16 +22098,122 @@ function _nxMeasureCanvas(src, sx, sy, sw, sh) {
 const NEXUS_FUNCREAD_PROMPT = `You are checking whether the graph on this coordinate grid is a FUNCTION, using the vertical line test. Trace the ACTUAL drawn curve — do not assume a familiar shape (a curve that keeps moving right is NOT a sideways parabola).
 Sweep a vertical line from the far left to the far right. Does it EVER cross the drawn curve at two or more points at the same time?
 Return ONLY JSON: {"work":"where the curve starts/ends and how it moves","isFunction":true|false,"counterexample":{"x":number,"ys":[number,number]} or null,"domain":"x-values the curve covers","range":"y-values the curve covers"}. If no curve is drawn, return {"isFunction":null}.`;
-function _lvMeasureVLT(video, box) {
+function _lvMeasureVLT(video, box, opt) {
     var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
     var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
     if (!b.every(isFinite) || b[2] <= b[0] || b[3] <= b[1]) b = [0, 0, 1, 1];
     var pad = 0.04, x0 = Math.max(0, b[0] - pad) * vw, y0 = Math.max(0, b[1] - pad) * vh, x1 = Math.min(1, b[2] + pad) * vw, y1 = Math.min(1, b[3] + pad) * vh;
     if (x1 - x0 < 60 || y1 - y0 < 60) return null;
     var c = _nxMeasureCanvas(video, x0, y0, x1 - x0, y1 - y0);
-    return NxGraphCV.vlt(c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height));
+    return NxGraphCV.vlt(c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height), opt || {});
 }
 window._lvMeasureVLT = _lvMeasureVLT;
+
+// ───────── v24.49 — "For example, the input x = ☐ is mapped to y = ☐ and y = ☐" ─────────
+// The AI's example points get checked against the curve NEXUS measured on the screen.
+function _lvNum(v) { if (v == null) return NaN; var t = String(v).replace(/[−–]/g, '-').replace(/[^0-9.\-\/]/g, ''); if (/^-?\d+\/\d+$/.test(t)) { var q = t.split('/'); return +q[0] / +q[1]; } return t === '' ? NaN : +t; }
+// the AI's example: from its fill-in blanks when it labelled them, else graph.counterexample
+function _lvExampleOf(a) {
+    if (!a) return null;
+    var bl = Array.isArray(a.blanks) ? a.blanks : [], xi = -1, yi = [];
+    bl.forEach(function (b, i) {
+        if (!b || !isFinite(_lvNum(b.answer))) return;
+        var lab = String(b.before || b.label || '').replace(/<[^>]+>/g, ' ');
+        lab = lab.replace(/𝑥/g, 'x').replace(/𝑦/g, 'y');
+        if (/\bx\s*=?\s*$/i.test(lab) && xi < 0) xi = i;
+        else if (/\by\s*=?\s*$/i.test(lab)) yi.push(i);
+    });
+    if (xi >= 0 && yi.length >= 2) return { x: _lvNum(bl[xi].answer), ys: yi.map(function (i) { return _lvNum(bl[i].answer); }), from: 'blanks', xi: xi, yi: yi };
+    var ce = a.graph && a.graph.counterexample;
+    if (ce && isFinite(_lvNum(ce.x)) && Array.isArray(ce.ys) && ce.ys.length >= 2) return { x: _lvNum(ce.x), ys: ce.ys.map(_lvNum).filter(isFinite), from: 'graph' };
+    return null;
+}
+// true = every y is on the measured curve at that x · false = at least one isn't · null = can't tell
+function _lvExampleCheck(F, ce, xStep, yStep) {
+    if (!F || !Array.isArray(F.cols) || !F.cols.length || !ce || !isFinite(ce.x) || !ce.ys || ce.ys.length < 2) return null;
+    xStep = +xStep || 1; yStep = +yStep || 1;
+    var c = F.cols.reduce(function (b, q) { return Math.abs(q.x - ce.x) < Math.abs(b.x - ce.x) ? q : b; }, F.cols[0]);
+    var loX = Math.min.apply(null, F.cols.map(function (q) { return q.x; })), hiX = Math.max.apply(null, F.cols.map(function (q) { return q.x; }));
+    if (F.xSpan && isFinite(F.xSpan[0])) { loX = Math.min(loX, F.xSpan[0]); hiX = Math.max(hiX, F.xSpan[1]); }
+    if (ce.x < loX - 0.3 * xStep || ce.x > hiX + 0.3 * xStep) return false;          // x isn't on the drawn curve at all
+    if (Math.abs(c.x - ce.x) > 0.26 * xStep) return null;
+    if (Math.abs(c.x) < 0.3 * xStep || !c.ys.length) return null;    // on the y-axis (masked) or nothing measured
+    var tol = 0.6 * yStep, testable = ce.ys.filter(function (y) { return Math.abs(y) >= 0.3 * yStep; });   // y = 0 sits on the x-axis — can't measure
+    var miss = testable.filter(function (y) { return !c.ys.some(function (m) { return Math.abs(m - y) <= tol; }); });
+    if (miss.length) return false;
+    return c.ys.length >= 2 && testable.length >= 1 ? true : null;
+}
+// the clearest example from the measured curve: an x with two outputs sitting on gridlines
+function _lvBestExample(F) {
+    if (!F || !Array.isArray(F.cols)) return null;
+    var span = F.cols.length ? [F.cols[0].x, F.cols[F.cols.length - 1].x] : [0, 0], best = null, bs = 1e9;
+    F.cols.forEach(function (c) {
+        if (Math.abs(c.x) < 1e-9 || c.ys.length < 2) return;
+        var ys = c.ys.length === 2 ? c.ys : [Math.max.apply(null, c.ys), Math.min.apply(null, c.ys)];
+        if (Math.abs(ys[0] - ys[1]) < 0.8) return;
+        var sc = ys.reduce(function (t, y) { return t + Math.abs(y - Math.round(y)) + (Math.abs(y) < 0.3 ? 0.4 : 0); }, 0) + (c.ys.length > 2 ? 0.5 : 0) + ((c.x === span[0] || c.x === span[1]) ? 0.6 : 0);
+        if (sc < bs) { bs = sc; best = { x: c.x, ys: ys.map(function (y) { return Math.abs(y - Math.round(y)) < 0.26 ? Math.round(y) : Math.round(y * 2) / 2; }).sort(function (a, b) { return b - a; }) }; }
+    });
+    return best;
+}
+// put a checked example into the answer (blanks, sentence, answer text)
+function _lvApplyExample(a, oldCe, ce) {
+    var fmt = function (n) { return String(n).replace('-', '−'); };
+    a.graph = a.graph || {}; a.graph.counterexample = { x: ce.x, ys: ce.ys.slice() };
+    var bl = Array.isArray(a.blanks) ? a.blanks : null;
+    if (bl && bl.length) {
+        var xi = oldCe && oldCe.from === 'blanks' ? oldCe.xi : -1, yi = oldCe && oldCe.from === 'blanks' ? oldCe.yi.slice() : [];
+        if (xi < 0) {   // fall back: numeric blanks that held the old values, else the last three numeric blanks
+            var nums = []; bl.forEach(function (b, i) { if (b && isFinite(_lvNum(b.answer))) nums.push(i); });
+            if (oldCe) { xi = nums.filter(function (i) { return _lvNum(bl[i].answer) === oldCe.x; })[0]; yi = nums.filter(function (i) { return i !== xi && oldCe.ys.indexOf(_lvNum(bl[i].answer)) >= 0; }); }
+            if (!(xi >= 0) || yi.length < 2) { if (nums.length >= 3) { xi = nums[nums.length - 3]; yi = nums.slice(-2); } else xi = -1; }
+        }
+        if (xi >= 0 && yi.length >= 2) {
+            var olds = [bl[xi].answer].concat(yi.slice(0, ce.ys.length).map(function (i) { return bl[i].answer; }));
+            bl[xi].answer = fmt(ce.x); yi.slice(0, ce.ys.length).forEach(function (i, k) { bl[i].answer = fmt(ce.ys[k]); });
+            // keep the AI's finished sentence, swapping just the numbers (x first, then each y in order)
+            var f = String(a.filled || ''), pos = 0, okF = !!f;
+            [['x', olds[0], fmt(ce.x)]].concat(ce.ys.map(function (y, k) { return ['y', olds[k + 1], fmt(y)]; })).forEach(function (t) {
+                if (!okF) return;
+                var re = new RegExp('([' + t[0] + (t[0] === 'x' ? '𝑥' : '𝑦') + ']\\s*=\\s*)' + String(t[1]).replace(/[−–]/g, '-').replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/-/g, '[-−–]'), 'g');
+                re.lastIndex = pos; var m = re.exec(f);
+                if (!m) { okF = false; return; }
+                f = f.slice(0, m.index) + m[1] + t[2] + f.slice(m.index + m[0].length); pos = m.index + m[1].length + t[2].length;
+            });
+            a.filled = okF ? f : null;   // null → rebuilt from the blanks when shown
+            a.answer = bl.map(function (b) { return b && b.answer; }).filter(Boolean).join('; ');
+            return true;
+        }
+    }
+    var ex = 'x = ' + fmt(ce.x) + ' → y = ' + ce.ys.map(fmt).join(' and y = ');
+    a.answer = String(a.answer || '').replace(/(e\.g\.|for example)[^;]*$/i, '').trim() + ' — for example, ' + ex;
+    return true;
+}
+window._lvExampleCheck = _lvExampleCheck; window._lvBestExample = _lvBestExample; window._lvExampleOf = _lvExampleOf;
+
+// v24.49 — fill-in-the-blank answers as numbered blanks + the finished sentence
+function _lvBlanksHtml(ai) {
+    var e = function (t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var strip = function (t) { return String(t == null ? '' : t).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); };
+    var bl = (Array.isArray(ai.blanks) ? ai.blanks : []).filter(function (b) { return b && strip(b.answer); });
+    if (!bl.length) return '';
+    var h = '<div class="lv-fib-h">Fill in the blank' + (bl.length > 1 ? 's · ' + bl.length : '') + '</div><ol class="lv-blanks">';
+    bl.forEach(function (b, i) {
+        var ctx = strip(b.before || b.label || ''); if (ctx.length > 46) ctx = '…' + ctx.slice(-44);
+        h += '<li><span class="lv-bn">' + (i + 1) + '</span>' + (ctx ? '<span class="lv-bctx">' + e(ctx) + '</span>' : '') + '<b class="lv-bans">' + e(strip(b.answer)) + '</b></li>';
+    });
+    h += '</ol>';
+    // the finished sentence: the AI's own, or rebuilt from the blanks' context
+    var filled = strip(ai.filled), out = '';
+    if (filled) {
+        var pos = 0, okAll = true;
+        bl.forEach(function (b) { var a = strip(b.answer), j = filled.indexOf(a, pos); if (j < 0) { okAll = false; return; } out += e(filled.slice(pos, j)) + '<mark>' + e(a) + '</mark>'; pos = j + a.length; });
+        out = okAll ? out + e(filled.slice(pos)) : '';
+    }
+    if (!out && bl.every(function (b) { return strip(b.before || b.label); })) out = bl.map(function (b) { return e(strip(b.before || b.label)) + ' <mark>' + e(strip(b.answer)) + '</mark>'; }).join(' ') + (strip(ai.after) ? ' ' + e(strip(ai.after)) : '');
+    if (out) h += '<div class="lv-filled"><span class="lv-filled-h">Finished sentence</span>' + out + '</div>';
+    return h;
+}
 function _lvMeasureGraph(video, box, xStep, yStep) {
     var vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return null;
     var b = Array.isArray(box) && box.length === 4 ? box.map(Number) : [0, 0, 1, 1];
@@ -25573,6 +25789,19 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.49',
+        date: 'November 15, 2026',
+        tag: 'LIVE VISION FINISHES THE SENTENCE',
+        tagColor: '#00cec9',
+        changes: [
+            'EVERY BLANK GETS FILLED — Live Vision now counts every blank, dropdown and empty box in a question (across every sentence) and answers all of them, in order. If it misses one, it goes back and finishes the job before showing you anything.',
+            'NUMBERED BLANKS + THE FINISHED SENTENCE — Fill-in-the-blank answers now show each blank numbered with the words right before it, plus the whole sentence filled in, so you can match them to your screen.',
+            'EXAMPLE POINTS CHECKED ON YOUR GRAPH — For "for example, the input x = ☐ is mapped to y = ☐ and y = ☐" questions, NEXUS checks the example against the curve it measures on your screen. Wrong points get re-worked; it only swaps in new numbers when two checks agree, and otherwise warns you with the numbers it measured.',
+            'READY FOR PART TWO — DeltaMath-style questions that reveal more blanks after you answer: Live Vision answers the new blanks, treats a previous attempt marked incorrect as wrong (never repeats it), and on "is it a function?" graphs shows the example input and outputs ahead of time, checked on your graph.',
+            'READS THE WHOLE QUESTION — Live Vision no longer assumes a question is the "usual" version. When a platform adds a new sentence or new wording, it reads and answers that part too, and every number box gets worked out.',
+        ]
+    },
     {
         version: 'v24.48',
         date: 'November 14, 2026',
