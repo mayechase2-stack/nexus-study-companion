@@ -37,7 +37,7 @@
     <meta name="apple-mobile-web-app-title" content="NEXUS">
     <link rel="manifest" href="manifest.json">
     <title>NEXUS &mdash; AI Tutor &amp; Study Companion (Grade 9 through College)</title>
-    <link rel="stylesheet" href="style.css?v=20261115v335">
+    <link rel="stylesheet" href="style.css?v=20261116v336">
     <!-- v17.0 — accessibility pass: keyboard focus rings + reduced-motion support -->
     <style>
         :focus-visible { outline: 2px solid var(--accent, #00CEC9) !important; outline-offset: 2px; border-radius: 4px; }
@@ -2081,11 +2081,13 @@
             <div id="view-history" class="view">
                 <header style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                     <div>
-                        <h1 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="ph ph-clock-counter-clockwise" style="color:#fdcb6e;"></i> Activity History</h1>
-                        <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.9rem;">Every problem you've worked on, organized and searchable.</p>
+                        <h1 style="margin:0;display:flex;align-items:center;gap:10px;"><i class="ph ph-clock-counter-clockwise" style="color:#fdcb6e;"></i> History &amp; Study</h1>
+                        <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.9rem;">Everything you've worked on, sorted by topic. Turn it into a lesson, flashcards or a practice test.</p>
                     </div>
                     <button class="btn-secondary" onclick="clearHistory()"><i class="ph ph-trash"></i> Clear All</button>
                 </header>
+                <!-- v24.53: History → Study -->
+                <div id="hist-study" class="glass-panel hs-wrap"></div>
                 <!-- v12.5: Study Activity Heatmap -->
                 <div class="glass-panel" style="padding:16px 18px;margin-bottom:18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -2115,6 +2117,7 @@
                     <input id="hist-search" type="text" placeholder="Search activity…" oninput="renderHistoryList()" style="flex:1;min-width:220px;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:white;font-size:0.92rem;outline:none;">
                     <select id="hist-filter" onchange="renderHistoryList()" style="padding:10px 14px;background:#14142a;color:white;border:1px solid var(--glass-border);border-radius:10px;font-size:0.92rem;outline:none;cursor:pointer;">
                         <option value="all"       style="background:#14142a;color:white;">All activity</option>
+                        <option value="vision"    style="background:#14142a;color:white;">👁️ Live Vision</option>
                         <option value="math"      style="background:#14142a;color:white;">📐 Math</option>
                         <option value="english"   style="background:#14142a;color:white;">📚 English</option>
                         <option value="science"   style="background:#14142a;color:white;">🔬 Science</option>
@@ -4545,10 +4548,10 @@ if __name__ == '__main__':
                         <div class="glass-panel" style="padding:18px;margin-bottom:14px;">
                             <strong style="color:white;display:block;margin-bottom:10px;">Auto-Delete Limit</strong>
                             <div style="display:flex; align-items:center; gap:12px;margin-bottom:8px;">
-                                <input type="range" id="history-limit-range" min="10" max="30" value="20" style="flex:1; accent-color:var(--accent);" oninput="document.getElementById('history-limit-display').textContent=this.value">
-                                <span id="history-limit-display" style="color:var(--accent); font-weight:700; min-width:35px; text-align:center;font-size:1.1rem;">20</span>
+                                <input type="range" id="history-limit-range" min="20" max="300" step="10" value="150" style="flex:1; accent-color:var(--accent);" oninput="document.getElementById('history-limit-display').textContent=this.value">
+                                <span id="history-limit-display" style="color:var(--accent); font-weight:700; min-width:35px; text-align:center;font-size:1.1rem;">150</span>
                             </div>
-                            <p style="margin:0;font-size:0.75rem;color:var(--text-muted);">Oldest entries auto-deleted when limit is exceeded</p>
+                            <p style="margin:0;font-size:0.75rem;color:var(--text-muted);">How many problems History keeps on this device for studying. The oldest go first.</p>
                         </div>
                         <div class="glass-panel" style="padding:18px;margin-bottom:14px;">
                             <strong style="color:white;display:block;margin-bottom:10px;">Backup &amp; Transfer</strong>
@@ -5495,7 +5498,7 @@ if __name__ == '__main__':
         </div>
     </div>
 
-    <script src="script.js?v=20261115v335"></script>
+    <script src="script.js?v=20261116v336"></script>
     <!-- v16.5 — register the PWA service worker (installable + offline) -->
     <script>
         if ('serviceWorker' in navigator) {

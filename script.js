@@ -503,7 +503,8 @@ window._ensureCloudSession = _ensureCloudSession;
 const _NX_PRIVATE_KEYS = ['user_dob_', 'auth_email', 'parental_consent_', 'pending_receipt_email', 'emailjs_', 'openai_api_key',
     'user_history', 'recent_activities', 'tutor_session', 'teaching_board_session', 'teaching_board_archive',
     'companion_memory', 'companion_chat', 'nexus_mem_turns', 'nexus_profile_mem', 'companion_linked_session',
-    'user_profile_pic', 'profile_bio', 'nexus_error_log', 'lib_shelf', 'nexus_classes', 'nexus_active_class', 'quick_note_draft', 'scan_'];
+    'user_profile_pic', 'profile_bio', 'nexus_error_log', 'lib_shelf', 'nexus_classes', 'nexus_active_class', 'quick_note_draft', 'scan_',
+    'nexus_study_sets'];
 function _nxIsPrivateKey(k) {
     k = String(k || ''); if (/api_key/i.test(k)) return true;
     for (var i = 0; i < _NX_PRIVATE_KEYS.length; i++) if (k.indexOf(_NX_PRIVATE_KEYS[i]) === 0) return true;
@@ -3895,7 +3896,7 @@ function toggleSettings() {
     switchSettingsTab('account');
 
     // Load History Limit
-    const histLimit = parseInt(localStorage.getItem('history_limit') || '20');
+    const histLimit = _histLimit();
     const rangeEl = document.getElementById('history-limit-range');
     const displayEl = document.getElementById('history-limit-display');
     if (rangeEl) { rangeEl.value = histLimit; }
@@ -4004,7 +4005,7 @@ function saveSettings() {
 
     // Save History Limit
     const rangeEl = document.getElementById('history-limit-range');
-    if (rangeEl) localStorage.setItem('history_limit', rangeEl.value);
+    if (rangeEl) { localStorage.setItem('history_limit', rangeEl.value); localStorage.setItem('history_limit_v2', '1'); }
     enforceHistoryLimit();
 
     // Save AI Typing Assist
@@ -10872,7 +10873,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.52';
+const NEXUS_CURRENT_VERSION = 'v24.53';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -14715,13 +14716,15 @@ function applyCompanionSettings() { /* Companion removed */ }
 // ============================================================
 let userHistory = JSON.parse(localStorage.getItem('user_history') || '[]');
 
-function addToHistory(type, question, answer, image) {
-    const limit = parseInt(localStorage.getItem('history_limit') || '20');
+function addToHistory(type, question, answer, image, meta) {
+    const limit = _histLimit();
+    let _hid = Date.now(); while (userHistory.some(e => e.id === _hid)) _hid++;
     const entry = {
-        id: Date.now(),
+        id: _hid,
+        ts: Date.now(),
         type,
-        question: question.substring(0, 200), // Truncate long inputs for storage
-        answer: answer.substring(0, 500),
+        question: String(question == null ? '' : question).substring(0, 400), // v24.53 — longer, so it's worth studying from later
+        answer: String(answer == null ? '' : answer).substring(0, 1500),
         timestamp: new Intl.DateTimeFormat('en-US', {
             month: 'short', day: '2-digit',
             hour: 'numeric', minute: '2-digit', hour12: true
@@ -14734,11 +14737,17 @@ function addToHistory(type, question, answer, image) {
             entry.image = _downscaleDataUrl(image, 480) || image;
         } catch (_) { entry.image = image; }
     }
+    if (meta && typeof meta === 'object') {   // v24.53 — topic label (Live Vision already knows it)
+        if (meta.topic) entry.topic = String(meta.topic).replace(/^[A-Za-z ]{2,24}:\s*/, '').trim().slice(0, 60);
+        if (meta.subject) entry.subject = String(meta.subject).slice(0, 30);
+    }
     userHistory.unshift(entry); // Add to front
     // Enforce limit
     while (userHistory.length > limit) {
         userHistory.pop();
     }
+    // pictures only on the newest few, so a long history still fits on the device
+    let _pics = 0; userHistory.forEach(h => { if (h.image && ++_pics > 12) delete h.image; });
     try {
         localStorage.setItem('user_history', JSON.stringify(userHistory));
     } catch (e) {
@@ -14770,7 +14779,7 @@ function _downscaleDataUrl(dataUrl, maxW) {
 }
 
 function enforceHistoryLimit() {
-    const limit = parseInt(localStorage.getItem('history_limit') || '20');
+    const limit = _histLimit();
     while (userHistory.length > limit) {
         userHistory.pop();
     }
@@ -14821,12 +14830,13 @@ function renderHistoryList() {
     if (!list) return;
     // Refresh stats
     updateHistoryStats();
+    if (typeof _histRenderStudy === 'function') _histRenderStudy();   // v24.53 study panel
     // Read filter + search
     const search = (document.getElementById('hist-search')?.value || '').toLowerCase().trim();
     const filter = document.getElementById('hist-filter')?.value || 'all';
     let filtered = userHistory;
     if (filter !== 'all') filtered = filtered.filter(e => e.type === filter);
-    if (search) filtered = filtered.filter(e => (e.question || '').toLowerCase().includes(search) || (e.answer || '').toLowerCase().includes(search));
+    if (search) filtered = filtered.filter(e => (e.question || '').toLowerCase().includes(search) || (e.answer || '').toLowerCase().includes(search) || (e.topic || '').toLowerCase().includes(search));
     if (filtered.length === 0) {
         list.innerHTML = userHistory.length === 0
             ? '<p style="color: var(--text-muted); text-align: center; margin-top: 50px;">No history yet. Start using modules to see your activity here.</p>'
@@ -14842,15 +14852,19 @@ function renderHistoryList() {
             grade: '#00CEC9', challenge: '#fdcb6e', achievement: '#FFD700',
             vocabulary: '#00b894', flashcard: '#a29bfe'
         })[entry.type] || 'var(--accent)';
+        const _canStudy = typeof _histStudyable === 'function' && _histStudyable(entry);
+        const _on = _canStudy && _histSel.has(entry.id);
+        const _ck = _canStudy ? `<button class="hs-ck${_on ? ' on' : ''}" role="checkbox" aria-checked="${_on}" aria-label="Select for studying" onclick="_histToggleEntry(${entry.id}, event)">${_on ? '<i class="ph ph-check"></i>' : ''}</button>` : '';
+        const _tag = entry.topic ? `<span class="hs-tag">${escapeHtmlSafe(entry.topic)}</span>` : '';
         return `
-            <div class="glass-panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;transition:border-color 0.2s,transform 0.15s;border-left:3px solid ${accentColor};" onclick="showHistoryDetail(${entry.id})" onmouseover="this.style.borderLeftWidth='5px';this.style.transform='translateX(2px)'" onmouseout="this.style.borderLeftWidth='3px';this.style.transform=''">
+            <div class="glass-panel${_on ? ' hist-card-on' : ''}" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;transition:border-color 0.2s,transform 0.15s;border-left:3px solid ${accentColor};" onclick="showHistoryDetail(${entry.id})" onmouseover="this.style.borderLeftWidth='5px';this.style.transform='translateX(2px)'" onmouseout="this.style.borderLeftWidth='3px';this.style.transform=''">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
-                    <span style="color:${accentColor};font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:0.5px;">
-                        <i class="ph ${icon}"></i> ${label.toUpperCase()}
+                    <span style="color:${accentColor};font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:0.5px;min-width:0;">
+                        ${_ck}<i class="ph ${icon}"></i> ${label.toUpperCase()} ${_tag}
                     </span>
                     <span style="color:var(--text-muted);font-size:0.9rem;">${entry.timestamp}</span>
                 </div>
-                <p style="color:#ddd;font-size:0.9rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${entry.question}</p>
+                <p style="color:#ddd;font-size:0.9rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtmlSafe(entry.question || '')}</p>
             </div>
         `;
     }).join('');
@@ -14912,7 +14926,13 @@ function showHistoryDetail(id) {
         : '';
     // v12.3 — "Make flashcards" turns this history entry into a Quizlet-style
     // deck (front/back) of key terms and definitions, saved into the Flashcards tab.
-    const flashcardable = ['math', 'science', 'english', 'social'].includes(entry.type);
+    const flashcardable = typeof _histStudyable === 'function' ? _histStudyable(entry) : ['math', 'science', 'english', 'social'].includes(entry.type);
+    // v24.53 — straight into a Teaching Board lesson that uses THIS problem as the worked example
+    const teachBtn = flashcardable
+        ? `<button class="btn-secondary" onclick="_histTeachEntry(${entry.id})" style="display:inline-flex;align-items:center;gap:9px;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.86rem;">
+            <i class="ph ph-chalkboard-teacher"></i> Teach me this topic
+          </button>`
+        : '';
     const flashcardBtn = flashcardable
         ? `<button class="btn-secondary" onclick="makeFlashcardsFromHistory(${entry.id})" style="display:inline-flex;align-items:center;gap:9px;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.86rem;">
             <i class="ph ph-cards"></i> Make flashcards
@@ -14939,6 +14959,7 @@ function showHistoryDetail(id) {
         <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
             <button class="btn-secondary" onclick="document.getElementById('history-modal').classList.add('hidden')" style="padding:9px 14px;font-size:0.85rem;">Close</button>
             ${flashcardBtn}
+            ${teachBtn}
             ${reExplainBtn}
         </div>
     `;
@@ -15731,7 +15752,7 @@ function _ptDifficultyPlan(subject, sel) {
     return { tier: tier, directive: d, label: sel === 'adaptive' ? ('Adaptive · ' + tier) : '' };
 }
 async function _ptGenerate() {
-    var subject = (document.getElementById('pt-subject') || {}).value || 'Mixed';
+    var subject = (document.querySelector('#ptest-modal #pt-subject') || {}).value || 'Mixed';   // v24.53 — another screen also has an id="pt-subject"; read OUR select
     var count = parseInt((document.getElementById('pt-count') || {}).value || '10', 10);
     var level = (document.getElementById('pt-level') || {}).value || 'High school';
     var diffSel = (document.getElementById('pt-diff') || {}).value || 'adaptive';
@@ -15739,10 +15760,12 @@ async function _ptGenerate() {
     var plan = _ptDifficultyPlan(subject, diffSel);
     if (out) out.innerHTML = _frLoad('Building your ' + count + '-question test' + (plan.label ? ' (' + plan.label.toLowerCase() + ')' : '') + '…');
     try {
-        var g = await _frAskJSON(NEXUS_PTEST_PROMPT, 'Subject/topic: ' + subject + '\nLevel: ' + level + '\nNumber of questions: ' + count + '\n' + plan.directive, 'gpt-4o', 0.5);
+        var _seed = (window._ptSeed && window._ptSeed.subject === subject) ? window._ptSeed : null;   // v24.53 — from History
+        var _seedTxt = _seed ? '\nTopics: ' + _seed.topics.join(', ') + '\nBase the test on these problems the student actually worked on. Test the SAME skills with NEW numbers and wording (never copy one exactly), cover every topic, and add a couple of questions on the idea behind each method:\n' + _seed.context : '';
+        var g = await _frAskJSON(NEXUS_PTEST_PROMPT, 'Subject/topic: ' + subject + '\nLevel: ' + level + '\nNumber of questions: ' + count + '\n' + plan.directive + _seedTxt, 'gpt-4o', 0.5);
         var qs = (g.questions || []).slice(0, count).filter(function (q) { return q && Array.isArray(q.choices) && q.choices.length >= 2 && typeof q.answer === 'number'; });
         if (!qs.length) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t build that test — try again.</div>'; return; }
-        _ptest = { title: g.title || ('Practice: ' + subject), questions: qs, answers: new Array(qs.length).fill(-1), subject: subject, level: level, diff: plan.tier, startedAt: Date.now(), durationMin: Math.max(5, Math.round(qs.length * 1.5)) };
+        _ptest = { title: g.title || ('Practice: ' + subject), questions: qs, answers: new Array(qs.length).fill(-1), subject: subject, level: level, diff: plan.tier, startedAt: Date.now(), durationMin: Math.max(5, Math.round(qs.length * 1.5)), setId: _seed ? _seed.setId : null };
         _ptRenderTest();
     } catch (e) { if (out) out.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;">Couldn\'t build that test — try again.</div>'; }
 }
@@ -15794,6 +15817,7 @@ function _ptSubmit(auto) {
         if (!ok) wrong.push({ q: q, pick: pick });
     });
     var pct = Math.round(correct / _ptest.questions.length * 100);
+    try { if (_ptest.setId && typeof _histMarkSet === 'function') _histMarkSet(_ptest.setId, 'test', pct); } catch (_) {}   // v24.53 study set progress
     try {   // v24.39 — remember the result so the next Adaptive test can step up / ease off
         var weak = Object.keys(byTopic).filter(function (t) { return byTopic[t].c / byTopic[t].n < 0.67; });
         var hist = _ptHistLoad(); hist.push({ subject: _ptest.subject, pct: pct, tier: _ptest.diff || 'standard', weak: weak, at: Date.now() }); _ptHistSave(hist);
@@ -15843,6 +15867,9 @@ function openPracticeTest(seedSubject) {
     _ptest = null; if (_ptTimer) clearInterval(_ptTimer);
     var m = _frModal('ptest-modal');
     var subjects = ['Mixed', 'Math', 'Algebra', 'Geometry', 'Science', 'Biology', 'Chemistry', 'Physics', 'English', 'History', 'Social Studies'];
+    // v24.53 — a test over topics picked in History arrives with its own subject
+    if (window._ptSeed && window._ptSeed.subject !== seedSubject) window._ptSeed = null;
+    if (seedSubject && !subjects.some(function (s) { return s.toLowerCase() === String(seedSubject).toLowerCase(); })) subjects.unshift(String(seedSubject));
     var levels = ['Middle school', 'High school', 'AP / Honors', 'College'];
     m.innerHTML = '<div class="glass-panel" style="max-width:640px;width:97%;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border:1px solid rgba(108,92,231,0.5);">'
         + '<div style="display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--glass-border);flex-shrink:0;">'
@@ -15851,7 +15878,7 @@ function openPracticeTest(seedSubject) {
         + '<button class="btn-icon" onclick="if(_ptTimer)clearInterval(_ptTimer);document.getElementById(\'ptest-modal\').remove()" style="flex-shrink:0;"><i class="ph ph-x"></i></button></div>'
         + '<div style="padding:14px 20px;overflow-y:auto;">'
         + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
-        + '<label style="flex:1;min-width:150px;font-size:0.76rem;color:var(--text-muted);">Subject / topic<br><select id="pt-subject" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + subjects.map(function (s) { return '<option' + (seedSubject && s.toLowerCase() === String(seedSubject).toLowerCase() ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>'
+        + '<label style="flex:1;min-width:150px;font-size:0.76rem;color:var(--text-muted);">Subject / topic<br><select id="pt-subject" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + subjects.map(function (s) { return '<option' + (seedSubject && s.toLowerCase() === String(seedSubject).toLowerCase() ? ' selected' : '') + '>' + _frEsc(s) + '</option>'; }).join('') + '</select></label>'
         + '<label style="flex:1;min-width:120px;font-size:0.76rem;color:var(--text-muted);">Level<br><select id="pt-level" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;">' + levels.map(function (l) { return '<option' + (l === 'High school' ? ' selected' : '') + '>' + l + '</option>'; }).join('') + '</select></label>'
         + '<label style="flex:1;min-width:130px;font-size:0.76rem;color:var(--text-muted);">Difficulty<br><select id="pt-diff" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;"><option value="adaptive" selected>Adaptive</option><option value="easier">Easier</option><option value="standard">Standard</option><option value="harder">Harder</option><option value="challenge">Challenge</option></select></label>'
         + '<label style="flex:1;min-width:110px;font-size:0.76rem;color:var(--text-muted);">Questions<br><select id="pt-count" style="width:100%;margin-top:4px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;color:#fff;padding:8px 10px;font-size:0.85rem;color-scheme:dark;"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>'
@@ -16937,6 +16964,230 @@ function reExplainHistoryEntry(id) {
         showToast('Re-explain not available for this entry type.', 'info', 3000);
         if (prevMode) localStorage.setItem('difficulty_mode', prevMode);
     }
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+// v24.53 — HISTORY → STUDY. Everything you work on (Math, Science, English,
+// Social Studies, Live Vision…) gets a topic label. Pick topics or single
+// problems and turn them into a Teaching Board lesson built from YOUR problems,
+// a flashcard deck, or a practice test, or save them as a study set for later.
+// History and study sets stay on this device (never synced).
+// ════════════════════════════════════════════════════════════════════
+var _histSel = new Set(), _histRange = 'week', _histTagBusy = false, _teachHistCtx = null;
+var _HIST_SETS_KEY = 'nexus_study_sets';
+var NEXUS_HIST_TOPIC_PROMPT = 'You label a student\'s study history so they can review by topic. For each item give the specific skill or concept it practiced. Return ONLY JSON: {"items":[{"id":<the same id>,"subject":"Math|Science|English|Social Studies|Code|Other","topic":"<2-5 words, sentence case, e.g. Exponential decay, Vertical line test, Solving absolute value equations, Photosynthesis, Thesis statements>"}]}. Rules: name the SKILL, never the specific numbers. When an item practiced the same skill as one of known_topics, reuse that exact name so they group together. Give every item a topic.';
+var NEXUS_HIST_CARDS_PROMPT = 'Make study flashcards from problems a student actually worked on. Return ONLY JSON: {"cards":[{"front":"...","back":"..."}]}. Make 8-16 cards that cover EVERY topic listed. Mix three kinds: (1) the key terms and formulas each topic uses (front = the term or formula name; back = a clean definition, or the formula with what each letter means); (2) "how do I…" cards for the method (front = a short question like "How do you find a value after exponential decay?"; back = the steps in one or two sentences); (3) one or two NEW problems like theirs with different numbers (front = the problem; back = the answer plus the one key step). Fronts under 15 words. Backs 1-2 sentences, plain text, no markdown. Math in plain notation (x^2, 0.875^14). The answers in the material may be wrong, so solve anything you put on a card yourself.';
+
+function _histLimit() {
+    var v = parseInt(localStorage.getItem('history_limit') || '0', 10);
+    if (!v || (v <= 30 && !localStorage.getItem('history_limit_v2'))) {   // old default was 20: far too few to study from
+        v = 150;
+        try { localStorage.setItem('history_limit', '150'); localStorage.setItem('history_limit_v2', '1'); } catch (_) {}
+    }
+    return Math.max(10, Math.min(300, v));
+}
+function _histStudyable(e) { return !!e && ['grade', 'achievement', 'flashcard'].indexOf(e.type) < 0 && !!String(e.answer || '').trim(); }
+function _histSave() {
+    try { localStorage.setItem('user_history', JSON.stringify(userHistory)); }
+    catch (_) { userHistory.forEach(function (h) { delete h.image; }); try { localStorage.setItem('user_history', JSON.stringify(userHistory)); } catch (__) {} }
+}
+function _histTopicOf(e) { return (e && e.topic) || (TYPE_LABELS[e && e.type] || 'Other'); }
+function _histInRange(e) {
+    var t = e.ts || e.id || 0;
+    if (_histRange === 'today') return t >= new Date().setHours(0, 0, 0, 0);
+    if (_histRange === 'week') return t >= Date.now() - 7 * 864e5;
+    return true;
+}
+function _histPool() { return userHistory.filter(function (e) { return _histStudyable(e) && _histInRange(e); }); }
+// group by topic, case-insensitive ("Exponential Decay" and "Exponential decay" are one topic)
+function _histGroup(entries) {
+    var g = {}, order = [], name = {};
+    entries.forEach(function (e) { var t = _histTopicOf(e), k = t.toLowerCase(); if (!g[k]) { g[k] = []; order.push(k); name[k] = t; } g[k].push(e); });
+    var groups = {}; order.forEach(function (k) { groups[name[k]] = g[k]; });
+    return { groups: groups, topics: order.map(function (k) { return name[k]; }) };
+}
+function _histSelected() { return userHistory.filter(function (e) { return _histSel.has(e.id); }).reverse(); }   // oldest first
+function _histProblemLine(e) { return String((e && e.question) || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 260); }
+function _histMaterial(entries, cap) {
+    var out = '';
+    for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        var block = '[' + _histTopicOf(e) + '] Problem: ' + _histProblemLine(e) + '\nWhat NEXUS answered: ' + String(e.answer || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 700) + '\n\n';
+        if (out.length + block.length > (cap || 9000)) break;
+        out += block;
+    }
+    return out;
+}
+function _histTitle(topics) { return topics.length <= 2 ? topics.join(' + ') : topics.slice(0, 2).join(', ') + ' +' + (topics.length - 2) + ' more'; }
+
+// One small AI call labels any new, unlabeled work with a topic. Runs only when History is opened.
+async function _histTagTopics() {
+    if (_histTagBusy || !_frApiKey()) return;
+    var todo = userHistory.filter(function (e) { return _histStudyable(e) && !e.topic && !e.topicTried; }).slice(0, 40);
+    if (!todo.length) return;
+    _histTagBusy = true; _histRenderStudy();
+    var known = []; userHistory.forEach(function (e) { if (e.topic && known.indexOf(e.topic) < 0) known.push(e.topic); });
+    try {
+        var g = await _frAskJSON(NEXUS_HIST_TOPIC_PROMPT, JSON.stringify({
+            known_topics: known.slice(0, 50),
+            items: todo.map(function (e) { return { id: e.id, type: e.type, problem: _histProblemLine(e), answer: String(e.answer || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 260) }; })
+        }), 'gpt-4o-mini', 0);
+        (g.items || []).forEach(function (it) {
+            var e = userHistory.find(function (x) { return String(x.id) === String(it.id); });
+            if (e && it.topic) { e.topic = String(it.topic).trim().slice(0, 60); if (it.subject) e.subject = String(it.subject).slice(0, 30); }
+        });
+    } catch (_) {}
+    todo.forEach(function (e) { if (!e.topic) e.topicTried = 1; });
+    _histTagBusy = false; _histSave(); renderHistoryList();
+}
+
+function _histRenderStudy() {
+    var box = document.getElementById('hist-study'); if (!box) return;
+    var esc = _frEsc;
+    _histSel.forEach(function (id) { if (!userHistory.some(function (e) { return e.id === id; })) _histSel.delete(id); });
+    var grp = _histGroup(_histPool());
+    window._histTopicList = grp.topics;
+    var ranges = [['today', 'Today'], ['week', 'This week'], ['all', 'All']];
+    var h = '<div class="hs-head"><div class="hs-titlebox"><div class="hs-title"><i class="ph ph-graduation-cap"></i> Study what you\'ve done</div>'
+        + '<div class="hs-sub">Pick topics or problems you worked on. NEXUS teaches them using your real problems, makes flashcards, or quizzes you.</div></div>'
+        + '<div class="hs-range" role="group" aria-label="Time range">' + ranges.map(function (r) { return '<button class="hs-rbtn' + (_histRange === r[0] ? ' on' : '') + '" onclick="_histSetRange(\'' + r[0] + '\')">' + r[1] + '</button>'; }).join('') + '</div></div>';
+    if (!grp.topics.length) {
+        h += '<div class="hs-empty">' + (userHistory.some(_histStudyable) ? 'Nothing from this time range. Try <b>All</b>.' : 'Nothing to study yet. Problems you solve in Math, Science, English, Social Studies and Live Vision show up here, sorted by topic.') + '</div>';
+    } else {
+        h += '<div class="hs-chips">' + grp.topics.map(function (t, i) {
+            var list = grp.groups[t], n = list.filter(function (e) { return _histSel.has(e.id); }).length;
+            var st = n === 0 ? '' : n === list.length ? ' on' : ' part';
+            return '<button class="hs-chip' + st + '" aria-pressed="' + (n === list.length) + '" onclick="_histToggleTopic(' + i + ')"><span>' + esc(t) + '</span><b>' + list.length + '</b></button>';
+        }).join('') + '</div>';
+        if (_histTagBusy) h += '<div class="hs-note"><i class="ph ph-circle-notch hs-spin"></i> Sorting your recent work into topics…</div>';
+        else h += '<div class="hs-note">Tap a topic to select all its problems, or tick single problems in the list below.</div>';
+    }
+    var sel = _histSelected();
+    if (sel.length) {
+        var tp = _histGroup(sel).topics.length;
+        h += '<div class="hs-bar"><div class="hs-count"><span><b>' + sel.length + '</b> problem' + (sel.length === 1 ? '' : 's') + ' · <b>' + tp + '</b> topic' + (tp === 1 ? '' : 's') + ' selected</span><button class="hs-clear" onclick="_histClearSel()">Clear</button></div>'
+            + '<div class="hs-actions">'
+            + '<button class="hs-act hs-teach" onclick="_histAct(\'teach\')"><i class="ph ph-chalkboard-teacher"></i> Teach me these</button>'
+            + '<button class="hs-act" onclick="_histAct(\'cards\')"><i class="ph ph-cards"></i> Flashcards</button>'
+            + '<button class="hs-act" onclick="_histAct(\'test\')"><i class="ph ph-exam"></i> Practice test</button>'
+            + '<button class="hs-act" onclick="_histSaveSet()"><i class="ph ph-bookmark-simple"></i> Save as study set</button>'
+            + '</div></div>';
+    }
+    h += _histSetsHtml();
+    box.innerHTML = h;
+}
+function _histSetRange(r) { _histRange = r; _histRenderStudy(); }
+function _histClearSel() { _histSel.clear(); renderHistoryList(); }
+function _histToggleTopic(i) {
+    var t = (window._histTopicList || [])[i]; if (t == null) return;
+    var list = _histGroup(_histPool()).groups[t] || [];
+    var all = list.length && list.every(function (e) { return _histSel.has(e.id); });
+    list.forEach(function (e) { if (all) _histSel.delete(e.id); else _histSel.add(e.id); });
+    renderHistoryList();
+}
+function _histToggleEntry(id, ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+    if (_histSel.has(id)) _histSel.delete(id); else _histSel.add(id);
+    renderHistoryList();
+}
+
+function _histAct(kind, setId) {
+    var set = setId ? _histGetSet(setId) : null;
+    var entries = set ? (set.items || []) : _histSelected();
+    if (!entries.length) { if (typeof showToast === 'function') showToast('Pick a topic or problem first.', 'info'); return; }
+    if (kind === 'teach') return _histTeach(entries, set);
+    if (kind === 'cards') return _histFlashcards(entries, set);
+    if (kind === 'test') return _histPracticeTest(entries, set);
+}
+function _histTeachEntry(id) { var e = userHistory.find(function (x) { return x.id === id; }); if (e) _histTeach([e], null); }
+
+// → Teaching Board. Topics become the lesson plan; the student's own problems become the worked examples.
+function _histTeach(entries, set) {
+    var grp = _histGroup(entries), ctx = { armedAt: Date.now(), byTopic: {}, setId: set ? set.id : null };
+    grp.topics.forEach(function (t) { ctx.byTopic[t.toLowerCase()] = grp.groups[t].slice(-4).map(_histProblemLine).filter(Boolean); });
+    window._teachHistArm = ctx;
+    if (set) _histMarkSet(set.id, 'learn', Date.now());
+    var m = document.getElementById('history-modal'); if (m) { m.classList.add('hidden'); m.style.display = ''; }
+    try { switchTab('teach'); } catch (_) {}
+    var topicStr = grp.topics.length > 1 ? grp.topics.slice(0, 8).join('\n') : grp.topics[0];   // one per line → the board's multi-topic plan
+    setTimeout(function () { if (typeof startTeachingTopic === 'function') startTeachingTopic(topicStr); }, 170);
+}
+// Read by _teachOpeningAsk: the real problems for this topic (or every topic, for "all at once").
+function _teachHistNote(topic) {
+    var c = _teachHistCtx; if (!c || !c.byTopic) return '';
+    var t = String(topic || '').toLowerCase(), lines = [];
+    Object.keys(c.byTopic).forEach(function (k) { if (t.indexOf(k) >= 0 || k.indexOf(t) >= 0) lines = lines.concat(c.byTopic[k]); });
+    if (!lines.length) return '';
+    return ' These are REAL problems I worked on (from my NEXUS history). Use one of them, or one just like it, as the worked "Watch it solved" example, and make the practice problems the same kind with new numbers. Solve it yourself; do not trust any earlier answer:\n'
+        + lines.slice(0, 8).map(function (l, i) { return (i + 1) + '. ' + l; }).join('\n');
+}
+
+async function _histFlashcards(entries, set) {
+    if (set && set.deckId && getFlashcardDecks().some(function (d) { return d.id === set.deckId; })) { _histMarkSet(set.id, 'cards', Date.now()); openFlashcards(set.deckId); return; }
+    if (!_frApiKey()) { showToast('Add an API key (or sign in) in Settings.', 'error'); return; }
+    var grp = _histGroup(entries);
+    showToast('Making flashcards from ' + entries.length + ' problem' + (entries.length === 1 ? '' : 's') + '…', 'info', 3000);
+    try {
+        var g = await _frAskJSON(NEXUS_HIST_CARDS_PROMPT, 'Topics: ' + grp.topics.join(', ') + '\n\n' + _histMaterial(entries, 9000), 'gpt-4o-mini', 0.3);
+        var cards = (g.cards || []).filter(function (c) { return c && c.front && c.back; }).slice(0, 20).map(function (c) { return { front: String(c.front).slice(0, 200), back: String(c.back).slice(0, 500) }; });
+        if (!cards.length) { showToast('Couldn\'t make cards from these. Try again.', 'error'); return; }
+        var deck = { id: Date.now(), title: (set ? set.title : _histTitle(grp.topics)).slice(0, 60), subject: (entries[0] && (entries[0].subject || entries[0].type)) || 'study', createdAt: Date.now(), sourceHistoryIds: entries.map(function (e) { return e.id; }).slice(0, 50), cards: cards };
+        var decks = getFlashcardDecks(); decks.unshift(deck); saveFlashcardDecks(decks);
+        if (set) _histMarkSet(set.id, 'cards', Date.now(), { deckId: deck.id });
+        showToast('✓ ' + cards.length + ' flashcards saved.', 'success', 3500);
+        var m = document.getElementById('history-modal'); if (m) { m.classList.add('hidden'); m.style.display = ''; }
+        openFlashcards(deck.id);
+    } catch (e) { showToast('Couldn\'t make flashcards right now. Try again.', 'error'); }
+}
+
+// → Practice test over the same skills (new numbers). openPracticeTest/_ptGenerate read window._ptSeed.
+function _histPracticeTest(entries, set) {
+    var grp = _histGroup(entries);
+    var label = (set ? set.title : _histTitle(grp.topics)).slice(0, 70);
+    window._ptSeed = { subject: label, context: entries.slice(-12).map(function (e) { return '[' + _histTopicOf(e) + '] ' + _histProblemLine(e); }).join('\n'), topics: grp.topics, setId: set ? set.id : null };
+    var m = document.getElementById('history-modal'); if (m) { m.classList.add('hidden'); m.style.display = ''; }
+    if (typeof openPracticeTest === 'function') openPracticeTest(label);
+}
+
+// ── Study sets: a saved bundle of problems to Learn → Flashcards → Test later ──
+function _histSets() { try { var a = JSON.parse(localStorage.getItem(_HIST_SETS_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+function _histSaveSets(a) { try { localStorage.setItem(_HIST_SETS_KEY, JSON.stringify(a.slice(0, 30))); } catch (_) { if (typeof showToast === 'function') showToast('Storage is full. Delete an old study set.', 'error'); } }
+function _histGetSet(id) { return _histSets().find(function (s) { return s.id === id; }) || null; }
+function _histMarkSet(id, step, val, extra) {
+    var a = _histSets(), s = a.find(function (x) { return x.id === id; }); if (!s) return;
+    s.done = s.done || {}; s.done[step] = val;
+    if (extra) Object.keys(extra).forEach(function (k) { s[k] = extra[k]; });
+    s.touched = Date.now(); _histSaveSets(a); _histRenderStudy();
+}
+function _histSaveSet() {
+    var sel = _histSelected(); if (!sel.length) return;
+    var grp = _histGroup(sel);
+    var set = {
+        id: Date.now(), title: _histTitle(grp.topics), topics: grp.topics, createdAt: Date.now(), done: {},
+        items: sel.slice(-40).map(function (e) { return { id: e.id, type: e.type, topic: _histTopicOf(e), subject: e.subject || '', question: String(e.question || '').slice(0, 400), answer: String(e.answer || '').slice(0, 900) }; })
+    };
+    var a = _histSets(); a.unshift(set); _histSaveSets(a);
+    _histSel.clear(); renderHistoryList();
+    showToast('✓ Saved "' + set.title + '" as a study set. Find it at the bottom of this panel.', 'success', 4000);
+}
+function _histDeleteSet(id) {
+    showConfirm('Delete study set', 'Delete this study set? Your history and flashcards stay.', function () { _histSaveSets(_histSets().filter(function (s) { return s.id !== id; })); _histRenderStudy(); });
+}
+function _histSetsHtml() {
+    var sets = _histSets(); if (!sets.length) return '';
+    var esc = _frEsc;
+    return '<div class="hs-sets"><div class="hs-sets-h">Your study sets</div>' + sets.map(function (s) {
+        var d = s.done || {}, test = typeof d.test === 'number' ? d.test : null, n = (s.items || []).length;
+        var step = function (on, label) { return '<span class="hs-step' + (on ? ' ok' : '') + '">' + (on ? '✓ ' : '') + label + '</span>'; };
+        return '<div class="hs-set"><div class="hs-set-main"><div class="hs-set-t">' + esc(s.title) + '</div>'
+            + '<div class="hs-set-m">' + n + ' problem' + (n === 1 ? '' : 's') + ' · ' + esc((s.topics || []).join(', ')) + '</div>'
+            + '<div class="hs-steps">' + step(!!d.learn, 'Learn') + step(!!d.cards, 'Flashcards') + step(test !== null, test !== null ? 'Test ' + test + '%' : 'Test') + '</div></div>'
+            + '<div class="hs-set-btns"><button class="hs-act hs-teach" onclick="_histAct(\'teach\',' + s.id + ')"><i class="ph ph-chalkboard-teacher"></i> Learn</button>'
+            + '<button class="hs-act" onclick="_histAct(\'cards\',' + s.id + ')"><i class="ph ph-cards"></i> Cards</button>'
+            + '<button class="hs-act" onclick="_histAct(\'test\',' + s.id + ')"><i class="ph ph-exam"></i> Test</button>'
+            + '<button class="hs-x" aria-label="Delete study set" title="Delete study set" onclick="_histDeleteSet(' + s.id + ')"><i class="ph ph-trash"></i></button></div></div>';
+    }).join('') + '</div>';
 }
 
 function clearHistory() {
@@ -18890,6 +19141,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "answer": "Exact answer in the format required by the question type. No filler phrases.",
   "explanation": "A DEEPER 'Explanation Board' — teach WHY this answer is correct so the student actually understands, not a one-line reason. Give the reasoning: the key steps or evidence, the underlying principle/rule/formula BY NAME, and the intuition for why it works. Scale the depth to the question: 3–6 sentences or short numbered steps for math/science/reasoning; keep it brief for trivial recall. For fill-in-the-blank, show the full sentence filled in, then explain why that word fits. Light inline HTML (<strong>, <br>, <ul><li>) is fine; no filler phrases.",
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
+  "question": "The question itself in plain text, transcribed cleanly and completely (the whole word problem or prompt with its numbers, under 300 characters) — NEXUS saves it so the student can study it later",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
   "graph": "ONLY for coordinate-graph questions — otherwise null. Shape: {\"task\":\"function\" for is-it-a-function / vertical-line-test questions (also give \"isFunction\" and \"counterexample\"), \"read\" if the question asks about a line/curve ALREADY drawn (write its equation, find its slope or intercept…) or \"draw\" if the question asks the STUDENT to graph/plot/sketch a given equation (the grid is blank or only partly drawn), \"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
   "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\", \"round\": how many decimal places the question asks for (nearest tenth → 1, hundredth or nearest CENT → 2, whole number or nearest dollar → 0) or null}. NEXUS re-checks this with an exact calculator, so it must match your answer."
@@ -19290,10 +19542,11 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         // that logger has been removed.)
         try {
             if (typeof addToHistory === 'function' && _hasAns) {
-                const _histQ = (ai.topic || 'Live Vision problem').toString().substring(0, 200);
+                const _tp = String(ai.topic || '').trim(), _tpm = /^([A-Za-z ]{2,24}):\s*(.+)$/.exec(_tp);
+                const _histQ = String(ai.question || _tp || 'Live Vision problem').substring(0, 400);   // v24.53 — the actual question, so it can be studied later
                 const _plainExplain = (cleanedExplain || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
                 const _histA = 'Answer: ' + cleanedAnswer + (_plainExplain ? '\n\nExplanation: ' + _plainExplain : '');
-                addToHistory('vision', _histQ, _histA);
+                addToHistory('vision', _histQ, _histA, null, { topic: _tpm ? _tpm[2] : (/clarification/i.test(_tp) ? '' : _tp), subject: _tpm ? _tpm[1] : '' });
             }
         } catch (_) {}
 
@@ -25834,6 +26087,20 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.53',
+        date: 'November 16, 2026',
+        tag: 'HISTORY → STUDY',
+        tagColor: '#a29bfe',
+        changes: [
+            'STUDY WHAT YOU\'VE DONE — History is back to life. Everything you work on (Math, Science, English, Social Studies, Live Vision) is now sorted by topic. Pick a topic or tick single problems from today, this week or all time.',
+            'TEACH ME THESE — Sends your picks to the Teaching Board as a full lesson. It uses YOUR real problems as the worked examples, and several topics become a lesson plan you can take all at once or one at a time.',
+            'FLASHCARDS + PRACTICE TEST from what you picked: cards for the key terms, the method and a fresh problem or two; a timed test on the same skills with new numbers.',
+            'STUDY SETS — Save a pick for later ("test Friday") and work through Learn → Flashcards → Test. Your score is remembered on the set.',
+            'History now keeps your last 150 problems (was 20) and saves the actual Live Vision question, not just its topic. It all stays on this device.',
+            'FIXED: the Practice test now uses the subject you pick. It was reading a menu from a different screen, so your choice was ignored.',
+        ]
+    },
+    {
         version: 'v24.52',
         date: 'November 15, 2026',
         tag: 'MONEY & DECIMALS, FIXED',
@@ -31971,7 +32238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.addToHistory === 'function') {
         const orig = window.addToHistory;
         window.addToHistory = function(type, q, a, img) {
-            const r = orig.call(this, type, q, a, img);
+            const r = orig.apply(this, arguments);   // v24.53 — pass the topic meta through
             recordQuestProgress('history_added');
             if (type === 'vision') recordQuestProgress('vision_used');
             // subject_used — track unique subjects per day
@@ -33385,7 +33652,10 @@ function renderStudyHeatmap() {
     if (typeof _prev === 'function') {
         window.switchTab = function(tabId) {
             _prev(tabId);
-            if (tabId === 'history') setTimeout(renderStudyHeatmap, 80);
+            if (tabId === 'history') {
+                setTimeout(renderStudyHeatmap, 80);
+                setTimeout(function () { try { renderHistoryList(); _histTagTopics(); } catch (_) {} }, 90);   // v24.53
+            }
         };
     }
 })();
@@ -33983,6 +34253,7 @@ function _teachOpeningAsk(topic, solo) {
     else if (_teachDepth === 'deep') ask += 'Give me the deep dive: the full card with ONE problem solved step by step (teach-steps), then a SECOND, harder problem solved the same way, the tricky cases, how it works + how to do it fast, and 3 practice. Say each idea once.';
     else ask += 'Give me the lesson card: what it is, the key terms it uses, then ONE real problem solved step by step on screen in the teach-steps format (every step shows the problem after the move, exactly what you did to which pieces, and why), then how it works + how to do it fast + the one trap, and 3 practice problems. Say each idea ONCE — no repeating. Include the RIGHT visual for the subject when it helps.';
     if (multi) ask += ' I listed several things — cover EACH one I named, do not skip any.';
+    if (typeof _teachHistNote === 'function') ask += _teachHistNote(topic);
     return ask;
 }
 
@@ -35344,6 +35615,9 @@ function startTeachingTopic(presetTopic) {
     const topic = (typeof presetTopic === 'string' && presetTopic) ? presetTopic : (input ? input.value.trim() : '');
     if (!topic) { if (typeof showToast === 'function') showToast('Type a topic or question first.', 'error'); return; }
     _teachJustStarted = Date.now();                 // guard against switchTab's delayed init (first-load race)
+    // v24.53 — started from History? keep the student's real problems for this lesson's worked examples
+    _teachHistCtx = (window._teachHistArm && Date.now() - window._teachHistArm.armedAt < 8000) ? window._teachHistArm : null;
+    window._teachHistArm = null;
     _teachArchiveCurrent();                         // park any prior session before starting a new one
     _teachSubject = subjectSel ? subjectSel.value : '';
     const depthSel = document.getElementById('teach-depth');
