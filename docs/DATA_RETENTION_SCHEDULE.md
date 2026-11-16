@@ -8,8 +8,8 @@ Product: NEXUS (nexusasc.com)
 | Data category | Retention | Deletion mechanism |
 |---|---|---|
 | Account identity (username, email, password hash) | Life of the account | Settings → Data & History → Delete My Account (calls the `delete-account` Edge Function: deletes `app_state` + the auth user; `profiles`, `subscriptions`, `ai_usage`, `parental_consent` cascade) |
-| Date of birth (age check) | Life of the account | Deleted with the account |
-| Study progress / synced app state (`app_state`) | Life of the account | Deleted with the account; local copy cleared by the same button |
+| Date of birth (age check) | **Not kept** (v24.50) — checked once, then discarded; only a yes/no `age_ok_<user>` flag is kept | n/a; migration 0012 drops `profiles.dob` |
+| Study progress / synced app state (`app_state`) — progress only; personal keys (`_NX_PRIVATE_KEYS`: chats, history, lessons, companion memory, DOB, API keys, profile pic/bio, library, scans) never sync (v24.50) | Life of the account | Deleted with the account; local copy cleared by the same button |
 | AI prompts and images | **Not stored by NEXUS** — forwarded to OpenAI at question time | OpenAI API retention per OpenAI's policy (currently up to 30 days, not used for training by default) |
 | AI usage counts (`ai_usage`), rate-limit records incl. IP (`ai_recent`, `ai_ip_usage`) | Up to 24 months | `nexus_purge_old_records()` daily via pg_cron (migration 0011) |
 | Feature-usage events (`feature_events`) — opt-in only, anonymous | Up to 24 months | Same purge job |
@@ -28,5 +28,5 @@ Product: NEXUS (nexusasc.com)
 
 ## To do (owner)
 
-- Run `supabase/migrations/0011_retention_purge.sql` once (enable the `pg_cron` extension first).
+- ~~Run 0011~~ done 2026-11-15. Run `supabase/migrations/0012_strip_personal_sync.sql` once (removes personal keys older versions synced).
 - Optional: have an attorney review the Privacy Policy and Terms; add the operator's legal name and mailing address to both pages if/when you're comfortable publishing them (some state laws expect a postal address).

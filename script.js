@@ -496,18 +496,37 @@ async function _ensureCloudSession() {
     } catch (e) { if (window._logNexusError) window._logNexusError('ensure-session', e && e.message); }
 }
 window._ensureCloudSession = _ensureCloudSession;
+// v24.50 — PERSONAL STUFF STAYS ON YOUR DEVICE. Cloud sync carries study progress (XP, streaks,
+// flashcards, notes, practice results, settings) — never these. They are skipped on upload, skipped on
+// download, and stripped from the cloud copy on every sync (removes what older versions uploaded).
+// Keep this list in sync with supabase/migrations/0012_strip_personal_sync.sql and privacy.html.
+const _NX_PRIVATE_KEYS = ['user_dob_', 'auth_email', 'parental_consent_', 'pending_receipt_email', 'emailjs_', 'openai_api_key',
+    'user_history', 'recent_activities', 'tutor_session', 'teaching_board_session', 'teaching_board_archive',
+    'companion_memory', 'companion_chat', 'nexus_mem_turns', 'nexus_profile_mem', 'companion_linked_session',
+    'user_profile_pic', 'profile_bio', 'nexus_error_log', 'lib_shelf', 'nexus_classes', 'nexus_active_class', 'quick_note_draft', 'scan_'];
+function _nxIsPrivateKey(k) {
+    k = String(k || ''); if (/api_key/i.test(k)) return true;
+    for (var i = 0; i < _NX_PRIVATE_KEYS.length; i++) if (k.indexOf(_NX_PRIVATE_KEYS[i]) === 0) return true;
+    return false;
+}
+function _nxStripPrivate(b) {
+    if (!b || typeof b !== 'object') return b;
+    var o = {}; Object.keys(b).forEach(function (k) { if (!_nxIsPrivateKey(k)) o[k] = b[k]; }); return o;
+}
+window._nxIsPrivateKey = _nxIsPrivateKey;
 function _collectSyncBlob() {
     const blob = {};
     for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (!k || k.indexOf('sb-') === 0 || k.indexOf('cloud_') === 0) continue; // skip Supabase session + sync meta
+        if (_nxIsPrivateKey(k)) continue;                                       // v24.50 — personal stuff stays here
         blob[k] = localStorage.getItem(k);
     }
     return blob;
 }
 function _applySyncBlob(blob) {
     if (!blob || typeof blob !== 'object') return;
-    Object.keys(blob).forEach(function (k) { try { localStorage.setItem(k, blob[k]); } catch (_) {} });
+    Object.keys(blob).forEach(function (k) { if (_nxIsPrivateKey(k)) return; try { localStorage.setItem(k, blob[k]); } catch (_) {} });
 }
 
 // ── v19.3 — CONFLICT-SAFE MERGE ─────────────────────────────────────────────
@@ -1035,7 +1054,7 @@ async function cloudUiBackup(silent) {
         // XP/credits/inventory/history/etc. merge, not overwrite).
         const cloudBlob = await _fetchCloudBlob(user.id);
         const merged = _mergeSyncBlobs(cloudBlob || {}, _collectSyncBlob(), true);
-        const { error } = await nexusSB.from('app_state').upsert({ user_id: user.id, data: merged, updated_at: new Date().toISOString() });
+        const { error } = await nexusSB.from('app_state').upsert({ user_id: user.id, data: _nxStripPrivate(merged), updated_at: new Date().toISOString() });
         if (error) throw error;
         localStorage.setItem('cloud_last_sync', new Date().toISOString());
         if (!silent) showToast('☁️ Backed up to the cloud.', 'success');
@@ -1069,7 +1088,7 @@ var _cloudSyncing = false;
 function _cheapHash(str) { var h = 0; if (!str) return 0; for (var i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) | 0; } return h; }
 function _syncSignature() {
     try {
-        var keys = ['notebook_notes', 'notebook_canvas', 'user_notes', 'companion_memory', 'nexus_mem_turns', 'nexus_profile_mem', 'flashcard_decks', 'tutor_session', 'total_xp', 'user_credits', 'user_inventory', 'study_sessions_v2', 'grade_courses'];
+        var keys = ['notebook_notes', 'notebook_canvas', 'user_notes', 'flashcard_decks', 'total_xp', 'user_credits', 'user_inventory', 'study_sessions_v2', 'grade_courses', 'nexus_flashcards', 'nexus_mistakes'];
         var sig = '';
         for (var i = 0; i < keys.length; i++) { var v = localStorage.getItem(keys[i]); sig += keys[i] + ':' + (v ? v.length : 0) + ':' + _cheapHash(v) + '|'; }
         return sig;
@@ -1086,7 +1105,7 @@ async function _autoCloudSync() {
         if (!user) return; // no cloud session — nothing to push (local snapshot still protects this device)
         var cloudBlob = await _fetchCloudBlob(user.id);
         var merged = _mergeSyncBlobs(cloudBlob || {}, _collectSyncBlob(), true);
-        var up = await nexusSB.from('app_state').upsert({ user_id: user.id, data: merged, updated_at: new Date().toISOString() });
+        var up = await nexusSB.from('app_state').upsert({ user_id: user.id, data: _nxStripPrivate(merged), updated_at: new Date().toISOString() });
         if (up && up.error) return;
         localStorage.setItem('cloud_last_sync', new Date().toISOString());
         localStorage.setItem('cloud_last_sig', _syncSignature());
@@ -3194,7 +3213,7 @@ async function completeSignUpFlow() {
     if (email) localStorage.setItem('auth_email_' + userName, email);
     // v24.17 — store DOB for the age-gate record; no card data is stored. Under-13
     // can no longer reach this point (hard 13+ gate), so no parental-consent branch.
-    localStorage.setItem('user_dob_' + userName, dobVal);
+    if (dobVal) _nxMarkAgeOk(userName);   // v24.50 — keep "13+ passed", not the birthday
     // join the launch waitlist so they hear about paid plans
     try { const wl = JSON.parse(localStorage.getItem('nexus_waitlist') || '[]'); wl.push({ email: email, name: userName, interestedPlan: planLabel, ts: new Date().toISOString() }); localStorage.setItem('nexus_waitlist', JSON.stringify(wl)); } catch (_) {}
     rememberAuthIfChecked();
@@ -3320,10 +3339,12 @@ function rehydrateAccountGlobals() {
 // run NEXUS"). Every path into the app ends in completeLogin(): email sign-up,
 // email sign-in, Google (button + redirect), and older accounts. If this account
 // has no date of birth on file, ask once; anyone under 13 is signed out and can't
-// continue. The DOB is kept on this device (and with the account record) as the
-// age-check record — nothing else is collected.
+// continue. v24.50: the birthday is checked and thrown away; only "13+ passed" is kept.
 // ════════════════════════════════════════════════════════════════════
-function _nxDobFor(user) { try { return localStorage.getItem('user_dob_' + user) || ''; } catch (_) { return ''; } }
+function _nxDobFor(user) { try { return localStorage.getItem('user_dob_' + user) || ''; } catch (_) { return ''; } }   // legacy (pre-v24.50) only
+// v24.50 — NEXUS no longer keeps birthdays. The age check stores only "passed" (age_ok_<user> = '1').
+function _nxAgeOk(user) { try { return localStorage.getItem('age_ok_' + user) === '1'; } catch (_) { return false; } }
+function _nxMarkAgeOk(user) { try { if (user) { localStorage.setItem('age_ok_' + user, '1'); localStorage.removeItem('user_dob_' + user); } } catch (_) {} }
 function _nxBlockUnderage() {
     try { if (typeof signOut === 'function') signOut(); } catch (_) {}
     var ov = document.getElementById('auth-overlay'); if (ov) ov.style.display = 'flex';
@@ -3340,17 +3361,18 @@ function _nxAgeGate(onPass) {
     var user = localStorage.getItem('auth_user') || '';
     if (!user) { onPass(); return; }
     var have = _nxDobFor(user);
-    if (have) {
+    if (have) {   // an older version saved the birthday: use it one last time, then delete it
         var a0 = _ageFromDob(have);
-        if (a0 !== null && a0 < MIN_AGE) { _nxBlockUnderage(); return; }
-        onPass(); return;
+        if (a0 !== null && a0 < MIN_AGE) { try { localStorage.removeItem('user_dob_' + user); } catch (_) {} _nxBlockUnderage(); return; }
+        _nxMarkAgeOk(user); onPass(); return;
     }
+    if (_nxAgeOk(user)) { onPass(); return; }
     var old = document.getElementById('nx-age-modal'); if (old) old.remove();
     var m = document.createElement('div'); m.id = 'nx-age-modal';
     m.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.92);backdrop-filter:blur(8px);z-index:100090;display:flex;align-items:center;justify-content:center;padding:20px;';
     m.innerHTML = '<form class="glass-panel" id="nx-age-form" role="dialog" aria-labelledby="nx-age-h" style="max-width:420px;width:100%;padding:26px 24px;border:1px solid rgba(108,92,231,0.45);border-radius:16px;">'
         + '<div style="font-size:2rem;text-align:center;">🎂</div><h2 id="nx-age-h" style="margin:8px 0 6px;font-size:1.15rem;color:#fff;text-align:center;">Quick age check</h2>'
-        + '<p style="margin:0 0 14px;color:var(--text-muted);font-size:0.86rem;line-height:1.6;text-align:center;">NEXUS accounts are for ages ' + MIN_AGE + ' and up (younger students use NEXUS with a parent, on the parent\'s account). Enter <strong>the account holder\'s</strong> date of birth — we only use it to confirm age.</p>'
+        + '<p style="margin:0 0 14px;color:var(--text-muted);font-size:0.86rem;line-height:1.6;text-align:center;">NEXUS accounts are for ages ' + MIN_AGE + ' and up (younger students use NEXUS with a parent, on the parent\'s account). Enter <strong>the account holder\'s</strong> date of birth — we only use it to confirm age, then throw it away.</p>'
         + '<label for="nx-age-dob" style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Date of birth</label>'
         + '<input type="date" id="nx-age-dob" required style="width:100%;box-sizing:border-box;padding:11px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);border-radius:10px;color:#fff;outline:none;font-size:0.95rem;color-scheme:dark;">'
         + '<div id="nx-age-err" style="display:none;color:#ff9a9a;font-size:0.8rem;margin-top:8px;"></div>'
@@ -3363,7 +3385,7 @@ function _nxAgeGate(onPass) {
         var v = (document.getElementById('nx-age-dob') || {}).value || '', age = _ageFromDob(v), err = document.getElementById('nx-age-err');
         if (age === null || age < 0 || age > 120) { err.textContent = 'Please enter a real date of birth.'; err.style.display = 'block'; return; }
         if (age < MIN_AGE) { m.remove(); _nxBlockUnderage(); return; }
-        try { localStorage.setItem('user_dob_' + user, v); } catch (_) {}
+        _nxMarkAgeOk(user);   // the birthday itself is not kept
         m.remove(); onPass();
     };
     setTimeout(function () { var i = document.getElementById('nx-age-dob'); if (i) i.focus(); }, 60);
@@ -3787,7 +3809,7 @@ function submitPayment(event) {
         // v17.6 — persist age-gate result for the consent record
         try {
             var _u = localStorage.getItem('auth_user') || email;
-            if (_dobVal) localStorage.setItem('user_dob_' + _u, _dobVal);
+            if (_dobVal) _nxMarkAgeOk(_u);
             if (_u13) localStorage.setItem('parental_consent_' + _u, JSON.stringify({ parentEmail: _parentEmail, consentedAt: new Date().toISOString() }));
         } catch (_) {}
         // Free beta: unlock the app so testers can use it (no payment taken).
@@ -10854,7 +10876,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.49';
+const NEXUS_CURRENT_VERSION = 'v24.50';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18823,7 +18845,7 @@ MULTI-SELECT ("select all that apply"):
      if actually printed; otherwise unambiguous positions; never invented numbers.
 
 COMPUTATION:
-  -> Final value with units. Key steps in explanation (1-3 steps max).
+  -> Final value with units, ROUNDED EXACTLY as the question asks ("to the nearest tenth" → one decimal place, e.g. 136.0 — never the unrounded 135.9953). Key steps in explanation (1-3 steps max).
 
 DRAG-AND-DROP / ORDERING:
   -> Correct order as a numbered list.
@@ -18856,6 +18878,7 @@ REASONING (apply silently — this is where accuracy comes from; DO NOT skip it 
 3. Reconstruct garbled OCR words using subject context.
 4. ACTUALLY SOLVE IT — never guess or approximate. For math/science: state the correct formula/law, plug in the given values, carry the UNITS through, and compute step by step. For chemistry: balance equations, use molar masses, watch significant figures. For physics: check the formula and unit consistency. For recall: retrieve the specific fact, not a vague nearby one.
 4b. INEQUALITIES (algebra's most-missed problem type — follow exactly): FLIP the inequality symbol whenever you multiply OR divide both sides by a NEGATIVE number (−2x < 6 → x > −3, never x < −3); never flip for addition/subtraction or a positive multiply/divide. For a compound inequality (a < x < b), apply each operation to all three parts together, flipping both symbols together if that step multiplies/divides by a negative. "AND" compounds intersect the two ranges; "OR" compounds union them — don't conflate the two. < / > means an OPEN endpoint (parenthesis, excluded value); ≤ / ≥ means a CLOSED endpoint (bracket, included value) — get interval notation right, e.g. x > 3 → (3, ∞), x ≤ −1 → (−∞, −1]. Absolute-value inequalities split into two cases: |x| < a → −a < x < a; |x| > a → x < −a OR x > a. For ABSOLUTE VALUE EQUATIONS (not inequalities), |expr| = a splits into TWO equations (expr = a OR expr = −a) when a > 0, solve both, and reject any that fails when checked back in the ORIGINAL equation (extraneous solutions happen); if a < 0 there is no solution at all. When the OTHER side contains the variable (e.g. |5x + 6| = 2x − 6), that side must be ≥ 0 for any solution, so EVERY candidate MUST be plugged back into the ORIGINAL equation — it is common for BOTH candidates to fail, and then the answer is "No solution". Same for square-root and rational equations (extraneous roots).
+4c. GROWTH / DECAY / INTEREST: A = P(1 + r)^t for growth, A = P(1 − r)^t for decay (r as a DECIMAL: 16.8% → 0.168), compound interest A = P(1 + r/n)^(nt), continuous only when it says "continuously": A = Pe^(rt). Half-life: A = P(1/2)^(t/h). Keep full precision until the very end, then round ONCE to exactly the place asked, keeping trailing zeros (135.9953… to the nearest tenth → 136.0). For these, set "math" = {"kind":"expression","problem":"410*(1-0.168)^6","value":"136.0","round":1}.
 5. VERIFY before answering — DO NOT SKIP; this is where wrong answers get caught. For ANY equation you solve, substitute EVERY solution back into the ORIGINAL equation, compute both sides, and confirm they are equal — and SHOW that check in the explanation, e.g. "check x = −8/5: 6 − |5(−8/5)+6| = 6 − |−2| = 6 − 2 = 4 ✓". If a solution fails its check, it is WRONG — fix it or drop it before you answer (this is exactly how the classic −8÷5 → −8/5, never −2, slip gets caught). Compute every division EXACTLY: a non-integer quotient stays a reduced fraction (−8 ÷ 5 = −8/5), NEVER rounded or slipped to a nearby whole number. Also sanity-check signs, units, and magnitude. For an inequality specifically, plug in a value from inside your solution set AND one from outside it into the ORIGINAL inequality — if either check fails, you likely missed a sign flip. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
 5b. IF MULTIPLE CHOICE: re-read the on-screen option at the exact position/label you are about to cite and confirm its text is the answer you chose. A right answer paired with a wrong option number makes the student click the wrong box — treat that as a wrong answer. If the label isn't printed on screen, do not invent one.
 6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
@@ -18873,7 +18896,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
   "graph": "ONLY for coordinate-graph questions — otherwise null. Shape: {\"task\":\"function\" for is-it-a-function / vertical-line-test questions (also give \"isFunction\" and \"counterexample\"), \"read\" if the question asks about a line/curve ALREADY drawn (write its equation, find its slope or intercept…) or \"draw\" if the question asks the STUDENT to graph/plot/sketch a given equation (the grid is blank or only partly drawn), \"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
-  "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\"}. NEXUS re-checks this with an exact calculator, so it must match your answer."
+  "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\", \"round\": how many decimal places the question asks for (nearest tenth → 1, hundredth → 2, whole number → 0) or null}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
 QUALITY BAR: Every answer survives teacher review. If the screen is unreadable, set "answer" to a clarification request and "topic" to "Clarification Needed".
@@ -18932,6 +18955,17 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         try {
             if (ai && ai.math && typeof ai.math === 'object' && /^(equation|inequality|expression)$/i.test(String(ai.math.kind || '')) && typeof NxMath !== 'undefined') {
                 _mathRes = NxMath.verify(ai.math);
+                // v24.50 — correct value but not rounded the way the question asks (135.9953 for "nearest tenth")
+                if (_mathRes && _mathRes.ok && _mathRes.reformat) {
+                    const cv = String(ai.math.value == null ? '' : ai.math.value).trim(), a0 = String(ai.answer || ''), rf = _mathRes.reformat;
+                    let a1 = cv && a0.indexOf(cv) >= 0 ? a0.split(cv).join(rf) : null;
+                    if (a1 === null) {   // replace the number in the answer that is this value
+                        const tv = parseFloat(rf); let done = false;
+                        a1 = a0.replace(/-?\d[\d,]*\.?\d*/g, function (m) { if (done) return m; const n = parseFloat(m.replace(/,/g, '')); if (isFinite(n) && Math.abs(n - tv) <= 0.5 * Math.pow(10, -(_mathRes.round || 0)) + 1e-9) { done = true; return rf; } return m; });
+                        if (!done) a1 = rf;
+                    }
+                    ai.answer = a1; ai.math.value = rf; _mathRes.claim = rf;
+                }
                 if (_mathRes && _mathRes.ok === false) {
                     const s0 = document.getElementById('lv-fetch-status');
                     if (s0) s0.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Caught a slip — double-checking the math…';
@@ -21462,6 +21496,18 @@ var NxMath = (function () {
                 var truth = evalNum(spec.problem), claim = evalNum(spec.value);
                 res.truth = fmt(truth); res.claim = fmt(claim);
                 res.ok = near(truth, claim, truth);
+                // v24.50 — ROUNDING. "To the nearest 10th" → 135.9953… must be accepted (and shown) as 136.0.
+                // The AI says how many decimal places the question wants (spec.round); a claim written with
+                // k decimals also passes when it is the true value rounded to k places.
+                var dec = (spec.round === 0 || spec.round) && isFinite(+spec.round) ? Math.max(0, Math.min(10, Math.round(+spec.round))) : null;
+                var cm = /\.(\d+)\s*$/.exec(String(spec.value == null ? '' : spec.value).replace(/[^0-9.\-]/g, ''));
+                var cdec = cm ? cm[1].length : null;
+                var within = function (d) { return d != null && isFinite(truth) && isFinite(claim) && Math.abs(truth - claim) <= 0.5 * Math.pow(10, -d) + 1e-9 * Math.max(1, Math.abs(truth)); };
+                if (!res.ok && (within(dec) || within(cdec))) { res.ok = true; res.rounded = true; }
+                var showDec = dec != null ? dec : cdec;
+                if (showDec != null && isFinite(truth)) { res.exact = res.truth; res.truth = truth.toFixed(showDec); res.round = showDec; }
+                // right value, wrong number of decimals for what the question asked → show it rounded properly
+                if (res.ok && dec != null && cdec !== dec && isFinite(truth)) res.reformat = truth.toFixed(dec);
                 return res;
             }
             var rel = splitRel(spec.problem); if (!rel) { res.skip = 'not an equation'; return res; }
@@ -25789,6 +25835,19 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.50',
+        date: 'November 15, 2026',
+        tag: 'YOUR PERSONAL STUFF STAYS YOURS',
+        tagColor: '#2ed3cd',
+        changes: [
+            'PERSONAL STUFF NEVER LEAVES YOUR DEVICE — Cloud sync now carries only your study progress (XP, streaks, flashcards, notes, practice results and settings). Your questions and chat history, lessons, what the companion remembers about you, your profile picture and bio, Class Library files, worksheet scans and any API key stay on this device and are never uploaded. Copies that older versions synced are removed from our servers.',
+            'WE DON\'T KEEP YOUR BIRTHDAY — NEXUS checks your date of birth once to confirm you\'re 13 or older, then throws it away. All it keeps is a yes/no note that the check passed. Birthdays saved by older versions are deleted the next time you sign in.',
+            'CLEARER PRIVACY POLICY — A new "What we never save" box sits at the very top of the Privacy Policy, in plain words. The Terms now name Tennessee law.',
+            'MATH ROUNDS THE WAY THE QUESTION ASKS — "To the nearest tenth" now means one decimal place (410 grams decaying 16.8% a minute for 6 minutes → 136.0, not 135.9953). The exact-math check used to mark a correctly rounded answer wrong; now it accepts it and shows the rounded value. Live Vision also follows the growth, decay and interest formulas step by step and rounds only once, at the end.',
+            'Heads-up: because chats, lesson history and companion memory are no longer synced, they now stay on the device where you made them.',
+        ]
+    },
     {
         version: 'v24.49',
         date: 'November 15, 2026',
@@ -31768,7 +31827,7 @@ const LEGAL_TEXT = {
         <h4 style="color:white;margin-top:14px;">Your data, your control</h4>
         <p><strong>Export:</strong> Settings → Data → Export gives you a complete JSON backup of everything stored on your device. <strong>Delete:</strong> Settings → Data → "Delete My Account &amp; All Data" erases your local data <em>and</em>, for a cloud account, deletes your synced backup and your account from our backend. Deletion is permanent.</p>
         <h4 style="color:white;margin-top:14px;">Children's privacy</h4>
-        <p>NEXUS accounts are for ages 13 and older. We ask for a date of birth to confirm age and block anyone under 13 from creating an account or purchasing. A child under 13 may use NEXUS only with a parent or guardian, on the parent's or guardian's own account, while they are present and supervising. If we learn a child under 13 created their own account, we delete it. Parents can contact us at the email below. The full, current policy is at nexusasc.com/privacy.html.</p>
+        <p>NEXUS accounts are for ages 13 and older. We ask for a date of birth to confirm age (then throw the birthday away) and block anyone under 13 from creating an account or purchasing. A child under 13 may use NEXUS only with a parent or guardian, on the parent's or guardian's own account, while they are present and supervising. If we learn a child under 13 created their own account, we delete it. Parents can contact us at the email below. The full, current policy is at nexusasc.com/privacy.html.</p>
         <h4 style="color:white;margin-top:14px;">Contact</h4>
         <p>For privacy questions, data access, or deletion requests: <a href="mailto:support@nexusasc.com" style="color:var(--accent);">support@nexusasc.com</a>.</p>`,
     tos: `<h3 style="color:var(--accent);">NEXUS Terms of Service</h3>
@@ -31781,7 +31840,7 @@ const LEGAL_TEXT = {
         <p><strong>6. No warranty.</strong> NEXUS is provided "as is." We disclaim all warranties to the maximum extent allowed by law.</p>
         <p><strong>7. Limitation of liability.</strong> Our total liability is limited to the amount you paid in the last 12 months.</p>
         <p><strong>8. Changes.</strong> We may update these terms. Material changes will be announced in-app at least 14 days before they take effect.</p>
-        <p><strong>9. Governing law.</strong> These terms are governed by the laws of your jurisdiction.</p>
+        <p><strong>9. Governing law.</strong> These terms are governed by the laws of the State of Tennessee and applicable U.S. federal law. The full, current Terms are at nexusasc.com/terms.html.</p>
         <p><strong>10. Contact.</strong> For questions or support: <a href="mailto:support@nexusasc.com" style="color:var(--accent);">support@nexusasc.com</a>.</p>`
 };
 function openLegalModal(which) {

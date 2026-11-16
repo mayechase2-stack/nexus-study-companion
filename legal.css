@@ -23,3 +23,6 @@ li { margin: 5px 0; }
 .lg-table th { color: var(--muted); font-weight: 600; }
 .lg-foot { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 16px 34px; border-top: 1px solid var(--line); }
 .lg-foot a { color: var(--muted); }
+.lg-never { background: var(--card); border: 2px solid var(--accent-2); border-radius: 14px; padding: 6px 20px 12px; margin: 0 0 22px; }
+.lg-never h2 { margin-top: 14px; color: var(--accent-2); }
+.lg-never ul { margin: 6px 0 10px; }
