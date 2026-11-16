@@ -10873,7 +10873,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.55';
+const NEXUS_CURRENT_VERSION = 'v24.56';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -19130,6 +19130,8 @@ REASONING (apply silently — this is where accuracy comes from; DO NOT skip it 
 5b. IF MULTIPLE CHOICE: re-read the on-screen option at the exact position/label you are about to cite and confirm its text is the answer you chose. A right answer paired with a wrong option number makes the student click the wrong box — treat that as a wrong answer. If the label isn't printed on screen, do not invent one.
 6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
 
+DOMAIN / RANGE FROM A GRAPH: domain = from the curve's LEFTMOST x to its RIGHTMOST x; range = from its LOWEST y to its HIGHEST y (a turning point counts). Read every end by COUNTING GRIDLINES from the origin with the tick labels — they are crowded, so never eyeball. Filled dot → included [ ]; open/hollow circle → not included ( ); arrow → ∞. An interval already typed in the answer box is the student's attempt — ignore it. Always give graph.box for these.
+
 MATH/SCIENCE FORMATTING: Use Unicode symbols directly — never LaTeX commands. Write ≥ not \geq, × not \times, √ not \sqrt, ÷ not \div, ² ³ for exponents, π θ α β for Greek letters. Fractions as a/b.
 
 STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "work" FIRST:
@@ -19258,7 +19260,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
         // The answer is only changed when TWO sources agree against it. When they don't
         // line up, nothing is overwritten — the student gets a clear "double-check" note.
         // (v24.44 let a single bad measurement overwrite a good answer with "y = 26".)
-        let _graphRes = null, _graphFixed = false, _graphUnsure = null, _fnRes = null;
+        let _graphRes = null, _graphFixed = false, _graphUnsure = null, _fnRes = null, _drRes = null;
         try {
             // v24.46 — "Graph the line y = …" questions: the student DRAWS it. Never read a line off a blank
             // grid; instead check that every point we tell them to plot is actually on the equation.
@@ -19375,7 +19377,35 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     _fnRes = verdict;
                 } catch (_) {}
             }
-            const _gq = !_isDraw && !_isFnQ && ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
+            // v24.56 — DOMAIN / RANGE FROM A GRAPH. (A) the AI's interval, (B) the curve's ends measured in pixels
+            // (filled dot vs open circle), (C) an AI close-up re-read. Same 2-of-3 rule: the answer only changes
+            // when B and C agree against it. (It once said [−10, 8) for a curve running from x = −11 to x = 6.)
+            const _drQ = String((ai && ai.question) || '');
+            const _drKind = /\bdomain\b/i.test(_drQ) && !/\brange\b/i.test(_drQ) ? 'domain' : (/\brange\b/i.test(_drQ) && !/\bdomain\b/i.test(_drQ) ? 'range' : null);
+            const _isDR = !_isDraw && !_isFnQ && !!_drKind && ai && ai.graph && typeof ai.graph === 'object' && Array.isArray(ai.graph.box);
+            if (_isDR) {
+                try {
+                    const sD = document.getElementById('lv-fetch-status');
+                    if (sD) sD.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Measuring the ends of the graph on your screen…';
+                    const A = _lvParseInterval(ai.answer);
+                    let F = null; try { const v = _lvMeasureVLT(video, ai.graph.box, { xStep: ai.graph.xStep, yStep: ai.graph.yStep }); if (v && v.ok && v.dr) F = v; } catch (_) {}
+                    const B = F ? (_drKind === 'domain' ? _lvDRInterval(F.dr.left, F.dr.right) : _lvDRInterval(F.dr.bottom, F.dr.top)) : null;
+                    if (A && B && _lvSameInterval(A, B)) _drRes = { ok: true, kind: _drKind, I: B, dr: F.dr };
+                    else {
+                        if (sD) sD.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Zooming in on the graph for a second opinion…';
+                        let C = null; try { C = _lvDRFromRead(await _lvGraphReread(video, ai.graph.box, apiKey, { prompt: NEXUS_DRREAD_PROMPT }), _drKind); } catch (_) {}
+                        if (B && C && _lvSameInterval(B, C)) {
+                            const oldA = String(ai.answer || ''), oldExp = String(ai.explanation || '');
+                            ai.answer = _lvFmtInterval(B);
+                            ai.explanation = '<strong>NEXUS measured the graph on your screen.</strong> ' + _lvDREndsText(F.dr, _drKind) + ' A zoomed-in re-read agrees, so the ' + _drKind + ' is <strong>' + _lvFmtInterval(B) + '</strong>. (' + (_drKind === 'domain' ? 'Domain = from the far-left x to the far-right x' : 'Range = from the lowest y to the highest y') + '; a filled dot uses [ ], an open circle uses ( ).)'
+                                + (oldExp ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + oldExp + '</div></details>' : '');
+                            _drRes = { fixed: true, kind: _drKind, I: B, dr: F.dr, old: oldA };
+                        } else if (A && C && _lvSameInterval(A, C)) _drRes = B ? { unsure: true, kind: _drKind, A: A, B: B, C: C, dr: F && F.dr } : { ok: true, by: 'C', kind: _drKind, I: C };
+                        else if (B || C) _drRes = { unsure: true, kind: _drKind, A: A, B: B, C: C, dr: F && F.dr };
+                    }
+                } catch (_) {}
+            }
+            const _gq = !_isDraw && !_isFnQ && !_isDR && ai && ((ai.graph && typeof ai.graph === 'object') || /graph/i.test(String(ai.questionType || '')));
             if (_gq && typeof _lvGraphReread === 'function' && typeof NxMath !== 'undefined') {
                 const s1 = document.getElementById('lv-fetch-status');
                 if (s1) s1.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Double-checking the graph…';
@@ -19491,6 +19521,15 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
             if (_mathRes && !_mathRes.skip && typeof _nxMathCheckHtml === 'function') {
                 const _chkView = _mathOverride ? Object.assign({}, _mathRes, { ok: false }) : _mathRes;
                 answerElFinal.insertAdjacentHTML('beforeend', _nxMathCheckHtml(_chkView, _mathOverride ? 'override' : _mathFixed));
+            }
+            if (_drRes) {   // v24.56 domain / range check strip
+                const _e4 = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
+                const K = _drRes.kind === 'domain' ? 'domain' : 'range';
+                let col, head, body;
+                if (_drRes.fixed) { col = '#ffbe5a'; head = '🛠️ NEXUS corrected the ' + K + ' — measured on your graph'; body = 'The first answer (' + _e4(_drRes.old) + ') didn\'t match the graph. ' + _e4(_lvDREndsText(_drRes.dr, K)) + ' A zoomed-in re-read agrees: <strong>' + _e4(_lvFmtInterval(_drRes.I)) + '</strong>.'; }
+                else if (_drRes.ok) { col = '#45c78d'; head = _drRes.by === 'C' ? '✅ ' + K.charAt(0).toUpperCase() + K.slice(1) + ' checked up close' : '📏 ' + K.charAt(0).toUpperCase() + K.slice(1) + ' measured on your graph — matches'; body = _drRes.dr ? _e4(_lvDREndsText(_drRes.dr, K)) : 'A zoomed-in re-read of the graph gives the same ' + K + '.'; }
+                else { col = '#ffbe5a'; head = '⚠️ Double-check the ' + K + ' before you submit'; body = 'NEXUS\'s readings don\'t agree: ' + [_drRes.B ? 'measured on your screen ' + _e4(_lvFmtInterval(_drRes.B)) : '', _drRes.C ? 'zoomed-in re-read ' + _e4(_lvFmtInterval(_drRes.C)) : ''].filter(Boolean).join('; ') + '. ' + (K === 'domain' ? 'Find the curve\'s far-left and far-right points and count gridlines from 0.' : 'Find the curve\'s lowest and highest points and count gridlines from 0.') + ' Filled dot → [ ], open circle → ( ), arrow → ∞.'; }
+                answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:' + col + ';">' + head + '</div><div>' + body + '</div></div>');
             }
             if (_fnRes) {
                 const _e3 = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
@@ -22195,7 +22234,7 @@ var NxGraphCV = (function () {
         if (opt.prepOnly) {
             var _xr = rRuns[ay], _yr = cRuns[ax];
             return { ok: true, prep: { w: w, h: h, dark: dark, hueBin: hueBin, axisX: axisX, axisY: axisY, gx: gx, gy: gy, squareOk: squareOk, bothSides: bothSides,
-                rx0: _xr.end - _xr.len + 1, rx1: _xr.end, ry0: _yr.end - _yr.len + 1, ry1: _yr.end } };
+                rx0: _xr.end - _xr.len + 1, rx1: _xr.end, ry0: _yr.end - _yr.len + 1, ry1: _yr.end, gL: gL, gR: gR, gT: gT, gB: gB } };
         }
         // v24.45 — ONLY look inside the plot: the box spanned by the two axes. Colored UI around the
         // graph (buttons, tab bars, the NEXUS panel itself) can never be mistaken for the line.
@@ -22290,7 +22329,10 @@ var NxGraphCV = (function () {
         if (!P || !P.ok || !P.prep) return { ok: false, why: (P && P.why) || 'no graph' };
         var p = P.prep, w = p.w, h = p.h, g = Math.min(p.gx, p.gy);
         if (!p.bothSides || !p.squareOk) return { ok: false, why: 'grid not clear' };
-        var x0 = Math.max(0, p.rx0), x1 = Math.min(w - 1, p.rx1), y0 = Math.max(0, p.ry0), y1 = Math.min(h - 1, p.ry1);
+        // v24.56 — the plot = the axes' extent OR the outermost gridlines, whichever is bigger (a dot or a hollow
+        // circle sitting ON an axis breaks the axis line, which used to cut off the end of the curve)
+        var x0 = Math.max(0, Math.min(p.rx0, isFinite(p.gL) ? Math.round(p.gL) - 2 : p.rx0)), x1 = Math.min(w - 1, Math.max(p.rx1, isFinite(p.gR) ? Math.round(p.gR) + 2 : p.rx1));
+        var y0 = Math.max(0, Math.min(p.ry0, isFinite(p.gT) ? Math.round(p.gT) - 2 : p.ry0)), y1 = Math.min(h - 1, Math.max(p.ry1, isFinite(p.gB) ? Math.round(p.gB) + 2 : p.ry1));
         var band = Math.max(2, Math.round(0.12 * g));
         // curve candidates: dark or colored pixels, not on the axis lines themselves
         var mask = new Uint8Array(w * h);
@@ -22380,6 +22422,50 @@ var NxGraphCV = (function () {
             cols.push({ x: kk * xs, ys: rr.map(function (r) { return Math.round((p.axisY - (r[0] + r[1]) / 2) / p.gy * ys * 10) / 10; }) });
         }
         res.cols = cols;
+        // v24.56 — DOMAIN & RANGE: the curve's far left / right / bottom / top, and what sits there: a filled dot
+        // (included), a hollow circle (not included), the plot's edge (an arrow → ∞) or just the curve (included).
+        try {
+            var inkAt = function (x, y) { x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= w || y >= h) return 0; var q = y * w + x; return (p.dark[q] || p.hueBin[q] >= 0) ? 1 : 0; };
+            var onAxisLine = function (x, y) { return Math.abs(y - p.axisY) <= 1.1 || Math.abs(x - p.axisX) <= 1.1; };
+            // tol = also count ink up to 0.8px in/out along the radius (thin hollow circles)
+            var ringScore = function (cx, cy, r, tol) { var n = 0, hit = 0; for (var a = 0; a < 28; a++) { var t = a * Math.PI / 14, ct = Math.cos(t), st = Math.sin(t), sx = cx + r * ct, sy = cy + r * st; if (onAxisLine(sx, sy)) continue; n++; if (inkAt(sx, sy) || (tol && (inkAt(cx + (r - 0.8) * ct, cy + (r - 0.8) * st) || inkAt(cx + (r + 0.8) * ct, cy + (r + 0.8) * st)))) hit++; } return n >= 10 ? hit / n : -1; };
+            var findMarker = function (ex, ey) {
+                var best = null, R = Math.max(4, Math.round(0.7 * g)), rMin = Math.max(3, Math.round(0.16 * g)), rMax = Math.max(rMin + 1, Math.round(0.5 * g)), gap = Math.max(2.5, 0.15 * g);
+                for (var cy = ey - R; cy <= ey + R; cy++) for (var cx = ex - R; cx <= ex + R; cx++) {
+                    var dd = Math.sqrt((cx - ex) * (cx - ex) + (cy - ey) * (cy - ey));
+                    for (var r = rMin; r <= rMax; r++) {
+                        if (Math.abs(dd - r) > 0.25 * g + 1.5) continue;          // the curve's last pixel sits on the marker's rim
+                        var on = ringScore(cx, cy, r, true); if (on < 0.8) continue;
+                        var off = ringScore(cx, cy, r + gap, false); if (off < 0 || off > 0.3) continue;
+                        if (!best || on - off > best.sc + 1e-9) best = { cx: cx, cy: cy, r: r, sc: on - off };
+                    }
+                }
+                if (!best) return null;
+                var n = 0, f = 0;
+                [0, 0.3, 0.5, 0.65].forEach(function (k) { var steps = k === 0 ? 1 : 12; for (var a = 0; a < steps; a++) { var t = a * Math.PI / 6 + k, sx = best.cx + k * best.r * Math.cos(t), sy = best.cy + k * best.r * Math.sin(t); if (onAxisLine(sx, sy)) continue; n++; f += inkAt(sx, sy); } });
+                if (n < 4) return null;
+                var fr = f / n; best.fill = fr >= 0.6 ? 'closed' : fr <= 0.3 ? 'open' : null;
+                return best.fill ? best : null;
+            };
+            var meanOf = function (a) { return a.reduce(function (s, v) { return s + v; }, 0) / a.length; };
+            var colRows = function (cc) { var rs = []; for (var r1 = y0; r1 <= y1; r1++) if (keep[r1 * w + cc]) rs.push(r1); return rs; };
+            var rowCols = function (rr) { var cs = []; for (var c1 = x0; c1 <= x1; c1++) if (keep[rr * w + c1]) cs.push(c1); return cs; };
+            var side = function (name, ex, ey) {
+                var m = findMarker(Math.round(ex), Math.round(ey)), horiz = name === 'left' || name === 'right';
+                var gl = isFinite(p.gL) ? p.gL : x0, gr = isFinite(p.gR) ? p.gR : x1, gt = isFinite(p.gT) ? p.gT : y0, gb = isFinite(p.gB) ? p.gB : y1;
+                var edge = horiz ? (name === 'left' ? ex - gl : gr - ex) < 0.7 * g : (name === 'top' ? ey - gt : gb - ey) < 0.7 * g;
+                if (m && edge && m.fill === 'closed') m = null;   // a filled blob at the plot's edge is an arrowhead, not a dot
+                // school graphs put ends on whole numbers: snap to the nearest whole when close, else to a half
+                var snap = function (v) { return Math.abs(v - Math.round(v)) <= 0.3 ? Math.round(v) : Math.round(v * 2) / 2; };
+                var v = horiz ? snap(((m ? m.cx : ex) - p.axisX) / p.gx * xs) : snap((p.axisY - (m ? m.cy : ey)) / p.gy * ys);
+                return { v: v, kind: m ? m.fill : (edge ? 'edge' : 'end') };
+            };
+            var lr = colRows(cxMin), rr2 = colRows(cxMax), tc = rowCols(cyMin), bc = rowCols(cyMax);
+            if (lr.length && rr2.length && tc.length && bc.length) res.dr = {
+                left: side('left', cxMin, meanOf(lr)), right: side('right', cxMax, meanOf(rr2)),
+                top: side('top', meanOf(tc), cyMin), bottom: side('bottom', meanOf(bc), cyMax)
+            };
+        } catch (_) {}
         return res;
     }
     return { analyze: analyze, vlt: vlt };
@@ -22545,6 +22631,61 @@ function _lvApplyExample(a, oldCe, ce) {
     return true;
 }
 window._lvExampleCheck = _lvExampleCheck; window._lvBestExample = _lvBestExample; window._lvExampleOf = _lvExampleOf;
+
+// ───────── v24.56 — DOMAIN & RANGE read from the graph (pixels + an AI close-up) ─────────
+var NEXUS_DRREAD_PROMPT = 'You are reading the DOMAIN and RANGE of the curve drawn on this coordinate grid. First read the tick labels to know what each gridline is worth. Then find the curve\'s LEFTMOST point and RIGHTMOST point (their x-values) and its LOWEST point and HIGHEST point (their y-values). Get each value by COUNTING GRIDLINES from the origin — tick labels can be crowded, so never estimate from the shape. For each of the four, say what is there: a filled/solid dot = "closed" (included), a hollow/open circle = "open" (not included), an arrowhead = "arrow" (it keeps going forever), a turning point or a plain end of the curve = "closed". Return ONLY JSON: {"left":{"x":<number>,"type":"closed|open|arrow"},"right":{"x":<number>,"type":"..."},"lowest":{"y":<number>,"type":"..."},"highest":{"y":<number>,"type":"..."}}';
+function _lvIvNum(t) { t = String(t).replace(/[−–]/g, '-').replace(/\s+/g, ''); if (/^-?(∞|inf|infinity)$/i.test(t)) return t.charAt(0) === '-' ? -Infinity : Infinity; return /^-?\d+(\.\d+)?$/.test(t) ? +t : NaN; }
+// "[−10, 8)", "(-∞, 6]", "-11 ≤ x < 6", "x ≥ 2", "All real numbers" → {lb, lo, hi, hb} · null when it's a union or unreadable
+function _lvParseInterval(s) {
+    s = String(s || '').replace(/<[^>]+>/g, ' ').replace(/[−–]/g, '-').replace(/infinity|inf\b/gi, '∞');
+    if (/all\s*real/i.test(s)) return { lb: '(', lo: -Infinity, hi: Infinity, hb: ')' };
+    var num = '(-?\\s*(?:∞|\\d+(?:\\.\\d+)?))';
+    var all = s.match(new RegExp('[\\[(]\\s*' + num + '\\s*,\\s*' + num + '\\s*[\\])]', 'g')) || [];
+    if (all.length > 1 || /[∪U]\s*[\[(]/.test(s)) return null;
+    var m = new RegExp('([\\[(])\\s*' + num + '\\s*,\\s*' + num + '\\s*([\\])])').exec(s);
+    if (m) return { lb: m[1], lo: _lvIvNum(m[2]), hi: _lvIvNum(m[3]), hb: m[4] };
+    m = /(-?\d+(?:\.\d+)?)\s*(<=|≤|<)\s*[xy]\s*(<=|≤|<)\s*(-?\d+(?:\.\d+)?)/.exec(s);
+    if (m) return { lb: m[2] === '<' ? '(' : '[', lo: +m[1], hi: +m[4], hb: m[3] === '<' ? ')' : ']' };
+    m = /\b[xy]\s*(>=|≥|>|<=|≤|<)\s*(-?\d+(?:\.\d+)?)/.exec(s);
+    if (m) return /[>≥]/.test(m[1]) ? { lb: m[1] === '>' ? '(' : '[', lo: +m[2], hi: Infinity, hb: ')' } : { lb: '(', lo: -Infinity, hi: +m[2], hb: m[1] === '<' ? ')' : ']' };
+    return null;
+}
+function _lvSameInterval(a, b) {
+    if (!a || !b) return false;
+    var same = function (x, y) { return (!isFinite(x) || !isFinite(y)) ? x === y : Math.abs(x - y) < 0.01; };
+    if (!same(a.lo, b.lo) || !same(a.hi, b.hi)) return false;
+    return (!isFinite(a.lo) || a.lb === b.lb) && (!isFinite(a.hi) || a.hb === b.hb);
+}
+function _lvFmtInterval(I) {
+    var f = function (v) { return v === -Infinity ? '−∞' : v === Infinity ? '∞' : String(v).replace('-', '−'); };
+    if (I.lo === -Infinity && I.hi === Infinity) return '(−∞, ∞)';
+    return (isFinite(I.lo) ? I.lb : '(') + f(I.lo) + ', ' + f(I.hi) + (isFinite(I.hi) ? I.hb : ')');
+}
+// the pixel measurement's two ends → an interval (null if an end couldn't be read)
+function _lvDRInterval(lo, hi) {
+    if (!lo || !hi || !isFinite(lo.v) || !isFinite(hi.v) || lo.v > hi.v) return null;
+    var b = function (k, open, close) { return k === 'open' || k === 'edge' ? open : close; };
+    return { lb: b(lo.kind, '(', '['), lo: lo.kind === 'edge' ? -Infinity : lo.v, hi: hi.kind === 'edge' ? Infinity : hi.v, hb: b(hi.kind, ')', ']') };
+}
+// the AI close-up's reading → an interval
+function _lvDRFromRead(rr, kind) {
+    if (!rr) return null;
+    var a = kind === 'domain' ? rr.left : rr.lowest, z = kind === 'domain' ? rr.right : rr.highest, key = kind === 'domain' ? 'x' : 'y';
+    if (!a || !z) return null;
+    var t = function (o) { var s = String(o.type || '').toLowerCase(); return /arrow/.test(s) ? 'edge' : /open|hollow/.test(s) ? 'open' : 'closed'; };
+    var va = _lvIvNum(a[key]), vz = _lvIvNum(z[key]), ta = t(a), tz = t(z);
+    if (!(ta === 'edge' || isFinite(va)) || !(tz === 'edge' || isFinite(vz))) return null;
+    return _lvDRInterval({ v: ta === 'edge' ? -1e9 : va, kind: ta }, { v: tz === 'edge' ? 1e9 : vz, kind: tz });
+}
+function _lvDREndsText(dr, kind) {
+    if (!dr) return '';
+    var d = function (e) { return e.kind === 'closed' ? 'filled dot, included' : e.kind === 'open' ? 'open circle, not included' : e.kind === 'edge' ? 'runs off the graph, keeps going' : 'end of the curve, included'; };
+    var f = function (v) { return String(v).replace('-', '−'); };
+    return kind === 'domain'
+        ? 'Left end x = ' + f(dr.left.v) + ' (' + d(dr.left) + ') · right end x = ' + f(dr.right.v) + ' (' + d(dr.right) + ').'
+        : 'Lowest point y = ' + f(dr.bottom.v) + ' (' + d(dr.bottom) + ') · highest point y = ' + f(dr.top.v) + ' (' + d(dr.top) + ').';
+}
+window._lvParseInterval = _lvParseInterval; window._lvDRInterval = _lvDRInterval;
 
 // v24.49 — fill-in-the-blank answers as numbered blanks + the finished sentence
 function _lvBlanksHtml(ai) {
@@ -26144,6 +26285,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.56',
+        date: 'November 16, 2026',
+        tag: 'DOMAIN & RANGE, MEASURED',
+        tagColor: '#00cec9',
+        changes: [
+            'DOMAIN AND RANGE GET CHECKED ON YOUR GRAPH — Live Vision once said [−10, 8) for a curve that really runs from x = −11 to x = 6. Now NEXUS measures the ends of the curve on your screen: where the far-left, far-right, lowest and highest points are, and whether each one is a filled dot (included, [ ]), an open circle (not included, ( )) or an arrow (∞). If a zoomed-in second look agrees with the measurement, a wrong answer gets corrected. If they disagree, you get a "double-check" note instead.',
+            'Dots and circles sitting right on an axis are read correctly too (they used to cut the graph short).',
+            'Live Vision is also told to count gridlines for every end (tick labels are crowded) and to ignore an interval already typed in the answer box.',
+        ]
+    },
     {
         version: 'v24.55',
         date: 'November 16, 2026',
