@@ -3248,9 +3248,7 @@ async function completeSignUpFlow() {
         if (!localStorage.getItem('onboarding_completed')) {
             setTimeout(() => { if (typeof startOnboarding === 'function') startOnboarding(); }, 800);
         }
-        if (!localStorage.getItem('backup_prompt_shown')) {
-            setTimeout(() => { if (typeof showAccountBackupModal === 'function') showAccountBackupModal(); }, 2200);
-        }
+        // v24.51 — no "download a backup" pop-up; the account saves automatically
         setTimeout(() => { if (typeof enforceSingleSession === 'function') enforceSingleSession(); }, 1500);
     }, 1400);
 }
