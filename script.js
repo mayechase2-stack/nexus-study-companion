@@ -3428,10 +3428,8 @@ function completeLogin() {
     if (!localStorage.getItem('onboarding_completed')) {
         setTimeout(() => { if (typeof startOnboarding === 'function') startOnboarding(); }, hasPaid() ? 800 : 4000);
     }
-    // v10.7 — backup-prompt after first signup (only if signup, not login)
-    if (isSignUpMode && !localStorage.getItem('backup_prompt_shown')) {
-        setTimeout(() => { if (typeof showAccountBackupModal === 'function') showAccountBackupModal(); }, hasPaid() ? 2200 : 6000);
-    }
+    // v24.51 — the old "download a backup file" pop-up after sign-up is gone: accounts save
+    // automatically, so students never have to download anything.
     // v12.6 — restore last-used tab on login (skip home/dashboard, those are the default)
     const _lastTab = localStorage.getItem('last_tab');
     if (_lastTab && _lastTab !== 'home' && _lastTab !== 'dashboard') {
@@ -10876,7 +10874,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.50';
+const NEXUS_CURRENT_VERSION = 'v24.51';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -25836,6 +25834,16 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // ============================================
 const UPDATE_LOG = [
     {
+        version: 'v24.51',
+        date: 'November 15, 2026',
+        tag: 'NOTHING TO DOWNLOAD',
+        tagColor: '#2ed3cd',
+        changes: [
+            'NO MORE "DOWNLOAD A BACKUP" POP-UP — New accounts no longer get asked to download a backup file after signing up. Your study progress saves to your account automatically, so there\'s nothing to download or remember. (Settings → Data → Export is still there if you ever want your own copy, but you never need it.)',
+            'The tour, the front-page FAQ and the cancel screen now say the same thing: it saves on its own.',
+        ]
+    },
+    {
         version: 'v24.50',
         date: 'November 15, 2026',
         tag: 'YOUR PERSONAL STUFF STAYS YOURS',
@@ -31748,8 +31756,8 @@ const ONBOARDING_STEPS = [
         target: null
     },
     {
-        title: '💾 Back up your account',
-        body: 'Signed in, your progress syncs to the cloud automatically. For an extra offline copy you control, hit Settings → Data → Export once in a while. That\'s it — go learn something! 🚀',
+        title: '☁️ Saved automatically',
+        body: 'Signed in, your study progress saves to your account on its own. Nothing to download, nothing to remember. That\'s it — go learn something! 🚀',
         target: null
     }
 ];
