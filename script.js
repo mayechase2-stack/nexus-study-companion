@@ -10872,7 +10872,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.51';
+const NEXUS_CURRENT_VERSION = 'v24.52';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -18874,7 +18874,7 @@ REASONING (apply silently — this is where accuracy comes from; DO NOT skip it 
 3. Reconstruct garbled OCR words using subject context.
 4. ACTUALLY SOLVE IT — never guess or approximate. For math/science: state the correct formula/law, plug in the given values, carry the UNITS through, and compute step by step. For chemistry: balance equations, use molar masses, watch significant figures. For physics: check the formula and unit consistency. For recall: retrieve the specific fact, not a vague nearby one.
 4b. INEQUALITIES (algebra's most-missed problem type — follow exactly): FLIP the inequality symbol whenever you multiply OR divide both sides by a NEGATIVE number (−2x < 6 → x > −3, never x < −3); never flip for addition/subtraction or a positive multiply/divide. For a compound inequality (a < x < b), apply each operation to all three parts together, flipping both symbols together if that step multiplies/divides by a negative. "AND" compounds intersect the two ranges; "OR" compounds union them — don't conflate the two. < / > means an OPEN endpoint (parenthesis, excluded value); ≤ / ≥ means a CLOSED endpoint (bracket, included value) — get interval notation right, e.g. x > 3 → (3, ∞), x ≤ −1 → (−∞, −1]. Absolute-value inequalities split into two cases: |x| < a → −a < x < a; |x| > a → x < −a OR x > a. For ABSOLUTE VALUE EQUATIONS (not inequalities), |expr| = a splits into TWO equations (expr = a OR expr = −a) when a > 0, solve both, and reject any that fails when checked back in the ORIGINAL equation (extraneous solutions happen); if a < 0 there is no solution at all. When the OTHER side contains the variable (e.g. |5x + 6| = 2x − 6), that side must be ≥ 0 for any solution, so EVERY candidate MUST be plugged back into the ORIGINAL equation — it is common for BOTH candidates to fail, and then the answer is "No solution". Same for square-root and rational equations (extraneous roots).
-4c. GROWTH / DECAY / INTEREST: A = P(1 + r)^t for growth, A = P(1 − r)^t for decay (r as a DECIMAL: 16.8% → 0.168), compound interest A = P(1 + r/n)^(nt), continuous only when it says "continuously": A = Pe^(rt). Half-life: A = P(1/2)^(t/h). Keep full precision until the very end, then round ONCE to exactly the place asked, keeping trailing zeros (135.9953… to the nearest tenth → 136.0). For these, set "math" = {"kind":"expression","problem":"410*(1-0.168)^6","value":"136.0","round":1}.
+4c. GROWTH / DECAY / INTEREST: A = P(1 + r)^t for growth, A = P(1 − r)^t for decay (r as a DECIMAL: 16.8% → 0.168), compound interest A = P(1 + r/n)^(nt), continuous only when it says "continuously": A = Pe^(rt). Half-life: A = P(1/2)^(t/h). Depreciation is decay ("depreciates 12.5% per year" → A = P(0.875)^t). Money "to the nearest cent" = 2 decimal places (e.g. 20500·0.875^14 = 3161.3065… → $3,161.31). Never do the power in your head — write the expression and let NEXUS's exact calculator check it. Keep full precision until the very end, then round ONCE to exactly the place asked, keeping trailing zeros (135.9953… to the nearest tenth → 136.0). For these, set "math" = {"kind":"expression","problem":"410*(1-0.168)^6","value":"136.0","round":1}.
 5. VERIFY before answering — DO NOT SKIP; this is where wrong answers get caught. For ANY equation you solve, substitute EVERY solution back into the ORIGINAL equation, compute both sides, and confirm they are equal — and SHOW that check in the explanation, e.g. "check x = −8/5: 6 − |5(−8/5)+6| = 6 − |−2| = 6 − 2 = 4 ✓". If a solution fails its check, it is WRONG — fix it or drop it before you answer (this is exactly how the classic −8÷5 → −8/5, never −2, slip gets caught). Compute every division EXACTLY: a non-integer quotient stays a reduced fraction (−8 ÷ 5 = −8/5), NEVER rounded or slipped to a nearby whole number. Also sanity-check signs, units, and magnitude. For an inequality specifically, plug in a value from inside your solution set AND one from outside it into the ORIGINAL inequality — if either check fails, you likely missed a sign flip. If it doesn't check out, redo it. A wrong answer is worse than admitting uncertainty.
 5b. IF MULTIPLE CHOICE: re-read the on-screen option at the exact position/label you are about to cite and confirm its text is the answer you chose. A right answer paired with a wrong option number makes the student click the wrong box — treat that as a wrong answer. If the label isn't printed on screen, do not invent one.
 6. Only then write the shortest CORRECT answer in the required format. Put the real working/reasoning in "explanation" — if you couldn't verify it, say what you're unsure about instead of guessing.
@@ -18892,7 +18892,7 @@ STRICT JSON OUTPUT (no prose outside JSON) — write the keys IN THIS ORDER, "wo
   "topic": "Subject + subtopic (e.g. 'Math: Factoring Quadratics', 'Biology: Mitosis Phases', 'History: Reconstruction Era')",
   "questionType": "fill-in-the-blank | multiple-choice | true-false | matching | short-answer | computation | definition | multi-select | drag-and-drop | graph-reading | diagram-labeling | data-table | other",
   "graph": "ONLY for coordinate-graph questions — otherwise null. Shape: {\"task\":\"function\" for is-it-a-function / vertical-line-test questions (also give \"isFunction\" and \"counterexample\"), \"read\" if the question asks about a line/curve ALREADY drawn (write its equation, find its slope or intercept…) or \"draw\" if the question asks the STUDENT to graph/plot/sketch a given equation (the grid is blank or only partly drawn), \"box\":[left, top, right, bottom] = where the graph (with its axis labels) sits, as FRACTIONS 0–1 of the screenshot's width/height — be generous, \"points\":[[x,y],[x,y],[x,y]] gridline-corner points you read, \"xStep\":1, \"yStep\":1 (how much ONE gridline is worth on each axis — read it from the tick labels), \"equation\":\"y = … for the line/curve you identified, or null\"}",
-  "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\", \"round\": how many decimal places the question asks for (nearest tenth → 1, hundredth → 2, whole number → 0) or null}. NEXUS re-checks this with an exact calculator, so it must match your answer."
+  "math": "ONLY when the question is to solve ONE equation or inequality in ONE variable, or to evaluate a pure arithmetic expression — otherwise null. Shape: {\"kind\":\"equation|inequality|expression\", \"problem\":\"the ORIGINAL problem in plain math text exactly as shown, e.g. |5x+6|+6=2x  or  -2x+4<10  or  3/4+5/6 (use ^ for powers, |..| or abs() for absolute value, sqrt() for roots)\", \"variable\":\"x\", \"solutions\":[\"every real solution that SURVIVED your check, exact, e.g. -8/5\" — or [] when there is no solution], \"solutionSet\":\"inequalities: interval notation like (-3, ∞); also use it for 'All real numbers'\", \"value\":\"expressions: the exact value\", \"round\": how many decimal places the question asks for (nearest tenth → 1, hundredth or nearest CENT → 2, whole number or nearest dollar → 0) or null}. NEXUS re-checks this with an exact calculator, so it must match your answer."
 }
 
 QUALITY BAR: Every answer survives teacher review. If the screen is unreadable, set "answer" to a clarification request and "topic" to "Clarification Needed".
@@ -18993,7 +18993,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                         _mathOverride = true;
                         const _orig = String(ai.explanation || '');
                         const _v = _mathRes.variable || 'x';
-                        ai.answer = _mathRes.kind === 'expression' ? _mathRes.truth : (_mathRes.kind === 'equation' ? _mathRes.truth : (_v + ' ∈ ' + _mathRes.truth));
+                        ai.answer = _mathRes.kind === 'expression' ? ((/\$/.test(String(ai.answer || '')) && /^\d/.test(String(_mathRes.truth)) ? '$' : '') + _mathRes.truth) : (_mathRes.kind === 'equation' ? _mathRes.truth : (_v + ' ∈ ' + _mathRes.truth));
                         ai.explanation = '<strong>NEXUS checked this with an exact calculator.</strong> The AI\'s first answer didn\'t hold up when plugged back into the original problem, so here is the verified result.'
                             + (_mathRes.kind === 'equation' && _mathRes.truth === 'No solution' ? '<br>Every candidate from splitting the problem fails the check (they\'re <em>extraneous</em>), so there is <strong>no solution</strong>.' : '')
                             + (_orig ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The AI\'s original attempt (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + _orig + '</div></details>' : '');
@@ -21426,7 +21426,7 @@ var NxMath = (function () {
     function snap(x) { var f = frac(x); return f ? f.n / f.d : x; }
     function frac(x) {
         if (!isFinite(x)) return null;
-        for (var d = 1; d <= 1000; d++) { var n = Math.round(x * d); if (Math.abs(n / d - x) < 1e-9 * (1 + Math.abs(x))) return { n: n, d: d }; }
+        for (var d = 1; d <= 1000; d++) { var n = Math.round(x * d); if (Math.abs(n / d - x) < (d <= 12 ? 1e-9 : 1e-12 * Math.max(1, Math.abs(x)))) return { n: n, d: d }; }
         return null;
     }
     function fmt(x) {
@@ -21489,14 +21489,16 @@ var NxMath = (function () {
             if (!spec || !spec.problem) { res.skip = 'no problem'; return res; }
             var kind = String(spec.kind || '').toLowerCase();
             if (kind === 'expression') {
-                var truth = evalNum(spec.problem), claim = evalNum(spec.value);
+                var cleanV = String(spec.value == null ? '' : spec.value).replace(/[$€£≈~]/g, '').replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/\s*(%|[a-zA-Z]+\.?)\s*$/, '').trim();
+                var truth = evalNum(spec.problem), claim = NaN;
+                try { claim = evalNum(cleanV); } catch (_) { res.skip = 'could not read the answer'; return res; }   // unreadable → never "correct" it
                 res.truth = fmt(truth); res.claim = fmt(claim);
                 res.ok = near(truth, claim, truth);
                 // v24.50 — ROUNDING. "To the nearest 10th" → 135.9953… must be accepted (and shown) as 136.0.
                 // The AI says how many decimal places the question wants (spec.round); a claim written with
                 // k decimals also passes when it is the true value rounded to k places.
                 var dec = (spec.round === 0 || spec.round) && isFinite(+spec.round) ? Math.max(0, Math.min(10, Math.round(+spec.round))) : null;
-                var cm = /\.(\d+)\s*$/.exec(String(spec.value == null ? '' : spec.value).replace(/[^0-9.\-]/g, ''));
+                var cm = /\.(\d+)\s*$/.exec(cleanV.replace(/[^0-9.\-]/g, ''));
                 var cdec = cm ? cm[1].length : null;
                 var within = function (d) { return d != null && isFinite(truth) && isFinite(claim) && Math.abs(truth - claim) <= 0.5 * Math.pow(10, -d) + 1e-9 * Math.max(1, Math.abs(truth)); };
                 if (!res.ok && (within(dec) || within(cdec))) { res.ok = true; res.rounded = true; }
@@ -25831,6 +25833,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.52',
+        date: 'November 15, 2026',
+        tag: 'MONEY & DECIMALS, FIXED',
+        tagColor: '#00cec9',
+        changes: [
+            'NO MORE WEIRD FRACTIONS — Live Vision once answered a car-depreciation question with "1217103/385". The real answer is $3,161.31: NEXUS\'s checker was mistaking a long decimal for a fraction. Now answers that aren\'t simple fractions show as decimals, rounded the way the question asks ("to the nearest cent" → 2 decimal places).',
+            'READS MONEY ANSWERS — Answers written like "$3,161.31" or "136.0 g" are now read correctly by the exact-math check instead of being treated as wrong.',
+            'Live Vision now treats "depreciates" as decay and leaves the big powers to the exact calculator instead of doing them in its head.',
+        ]
+    },
     {
         version: 'v24.51',
         date: 'November 15, 2026',
