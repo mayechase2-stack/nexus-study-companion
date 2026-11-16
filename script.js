@@ -10873,7 +10873,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.54';
+const NEXUS_CURRENT_VERSION = 'v24.55';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -22426,9 +22426,42 @@ function _lvExampleOf(a) {
         else if (/\by\s*=?\s*$/i.test(lab)) yi.push(i);
     });
     if (xi >= 0 && yi.length >= 2) return { x: _lvNum(bl[xi].answer), ys: yi.map(function (i) { return _lvNum(bl[i].answer); }), from: 'blanks', xi: xi, yi: yi };
+    // v24.54 — the example written INSIDE the answer text ("the input x = 0" · "0 and 8"): what the student
+    // actually sees and types, so it is the one to check (graph.counterexample can say something else)
+    var tx = _lvExampleInText(String(a.filled || '') || bl.map(function (b) { return b ? (String(b.before || '') + ' ' + String(b.answer || '')) : ''; }).join(' '));
+    if (!tx) tx = _lvExampleInText(bl.map(function (b) { return b ? String(b.answer || '') : ''; }).join(' '));
+    if (tx) return tx;
     var ce = a.graph && a.graph.counterexample;
     if (ce && isFinite(_lvNum(ce.x)) && Array.isArray(ce.ys) && ce.ys.length >= 2) return { x: _lvNum(ce.x), ys: ce.ys.map(_lvNum).filter(isFinite), from: 'graph' };
     return null;
+}
+// "…the input x = 0 is mapped to 0 and 8" / "x = 1 … y = 3 and y = −3" → {x, ys}
+function _lvExampleInText(t) {
+    t = String(t || '').replace(/<[^>]+>/g, ' ').replace(/𝑥/g, 'x').replace(/𝑦/g, 'y').replace(/[−–]/g, '-');
+    var m = /\bx\s*=\s*(-?\d+(?:\.\d+)?)/i.exec(t); if (!m) return null;
+    var rest = t.slice(m.index + m[0].length, m.index + m[0].length + 160).split(/[.;](?:\s|$)/)[0];
+    var ys = (rest.match(/-?\d+(?:\.\d+)?/g) || []).slice(0, 3).map(Number).filter(isFinite);
+    return ys.length >= 2 ? { x: +m[1], ys: ys.slice(0, 2), from: 'text' } : null;
+}
+// swap an example's numbers inside free text, in order: x first, then each y (st carries progress across blanks)
+function _lvSwapExampleNums(s, oldCe, ce, st, fmt) {
+    s = String(s == null ? '' : s);
+    var pos = 0;
+    if (!st.xDone) {
+        var rx = /([x𝑥]\s*=\s*)([-−–]?\d+(?:\.\d+)?)/g, m;
+        while ((m = rx.exec(s))) { if (_lvNum(m[2]) === oldCe.x) break; }
+        if (!m) return s;
+        s = s.slice(0, m.index) + m[1] + fmt(ce.x) + s.slice(m.index + m[0].length);
+        pos = m.index + m[1].length + fmt(ce.x).length; st.xDone = true; st.any = true;
+    }
+    var rn = /[-−–]?\d+(?:\.\d+)?/g; rn.lastIndex = pos; var n;
+    while (st.yi < Math.min(oldCe.ys.length, ce.ys.length) && (n = rn.exec(s))) {
+        if (/[A-Za-z]/.test(s.charAt(n.index + n[0].length) || '')) continue;
+        if (_lvNum(n[0]) !== oldCe.ys[st.yi]) continue;
+        var nv = fmt(ce.ys[st.yi]);
+        s = s.slice(0, n.index) + nv + s.slice(n.index + n[0].length); rn.lastIndex = n.index + nv.length; st.yi++; st.any = true;
+    }
+    return s;
 }
 // true = every y is on the measured curve at that x · false = at least one isn't · null = can't tell
 function _lvExampleCheck(F, ce, xStep, yStep) {
@@ -22494,8 +22527,21 @@ function _lvApplyExample(a, oldCe, ce) {
             return true;
         }
     }
+    // v24.54 — the example is written inside the blanks' text ("the input x = 0", "0 and 8"): swap the numbers in place
+    if (oldCe && bl && bl.length) {
+        var stB = { xDone: false, yi: 0 };
+        var nb = bl.map(function (b) { return b ? Object.assign({}, b, { answer: _lvSwapExampleNums(b.answer, oldCe, ce, stB, fmt) }) : b; });
+        if (stB.xDone && stB.yi >= Math.min(oldCe.ys.length, ce.ys.length)) {
+            a.blanks = nb;
+            var stF = { xDone: false, yi: 0 }, f2 = a.filled ? _lvSwapExampleNums(a.filled, oldCe, ce, stF, fmt) : '';
+            a.filled = (stF.xDone && stF.yi >= Math.min(oldCe.ys.length, ce.ys.length)) ? f2 : null;
+            a.answer = nb.map(function (b) { return b && b.answer; }).filter(Boolean).join('; ');
+            return true;
+        }
+    }
     var ex = 'x = ' + fmt(ce.x) + ' → y = ' + ce.ys.map(fmt).join(' and y = ');
     a.answer = String(a.answer || '').replace(/(e\.g\.|for example)[^;]*$/i, '').trim() + ' — for example, ' + ex;
+    if (a.filled) { var stA = { xDone: false, yi: 0 }, f3 = oldCe ? _lvSwapExampleNums(a.filled, oldCe, ce, stA, fmt) : ''; a.filled = (oldCe && stA.xDone) ? f3 : null; }
     return true;
 }
 window._lvExampleCheck = _lvExampleCheck; window._lvBestExample = _lvBestExample; window._lvExampleOf = _lvExampleOf;
@@ -26098,6 +26144,15 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.55',
+        date: 'November 16, 2026',
+        tag: 'BLANKS MATCH THE CHECK',
+        tagColor: '#45c78d',
+        changes: [
+            'BLANKS AND THE GREEN BOX AGREE — On "is it a function?" graphs, the example written inside the blanks ("the input x = 0" · "0 and 8") used to skip the graph check, so the green box could show the right points while the blanks kept wrong ones. Now that example gets checked too, and if it isn\'t on your graph the numbers in the blanks and the finished sentence are swapped for ones that are.',
+        ]
+    },
     {
         version: 'v24.54',
         date: 'November 16, 2026',
