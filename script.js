@@ -10873,7 +10873,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.56';
+const NEXUS_CURRENT_VERSION = 'v24.57';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -19388,20 +19388,50 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     const sD = document.getElementById('lv-fetch-status');
                     if (sD) sD.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Measuring the ends of the graph on your screen…';
                     const A = _lvParseInterval(ai.answer);
-                    let F = null; try { const v = _lvMeasureVLT(video, ai.graph.box, { xStep: ai.graph.xStep, yStep: ai.graph.yStep }); if (v && v.ok && v.dr) F = v; } catch (_) {}
+                    // v24.57 — look a bit wider than the AI's box so an end can't be cut off by a tight crop
+                    const _b0 = ai.graph.box.map(Number), _bw = _b0[2] - _b0[0], _bh = _b0[3] - _b0[1];
+                    const drBox = [Math.max(0, _b0[0] - 0.12 * _bw), Math.max(0, _b0[1] - 0.12 * _bh), Math.min(1, _b0[2] + 0.12 * _bw), Math.min(1, _b0[3] + 0.12 * _bh)];
+                    let F = null;
+                    for (const bx of [drBox, ai.graph.box]) { try { const v = _lvMeasureVLT(video, bx, { xStep: ai.graph.xStep, yStep: ai.graph.yStep }); if (v && v.ok && v.dr) { F = v; break; } } catch (_) {} }
                     const B = F ? (_drKind === 'domain' ? _lvDRInterval(F.dr.left, F.dr.right) : _lvDRInterval(F.dr.bottom, F.dr.top)) : null;
                     if (A && B && _lvSameInterval(A, B)) _drRes = { ok: true, kind: _drKind, I: B, dr: F.dr };
                     else {
                         if (sD) sD.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Zooming in on the graph for a second opinion…';
-                        let C = null; try { C = _lvDRFromRead(await _lvGraphReread(video, ai.graph.box, apiKey, { prompt: NEXUS_DRREAD_PROMPT }), _drKind); } catch (_) {}
-                        if (B && C && _lvSameInterval(B, C)) {
+                        let C = null; try { C = _lvDRFromRead(await _lvGraphReread(video, drBox, apiKey, { prompt: NEXUS_DRREAD_PROMPT }), _drKind); } catch (_) {}
+                        // never change a finite end into ∞ on our own (a cropped picture looks like "keeps going")
+                        const _toInf = B && ((B.lo === -Infinity && !(A && A.lo === -Infinity)) || (B.hi === Infinity && !(A && A.hi === Infinity)));
+                        if (B && C && _lvSameInterval(B, C) && !_toInf) {
                             const oldA = String(ai.answer || ''), oldExp = String(ai.explanation || '');
                             ai.answer = _lvFmtInterval(B);
                             ai.explanation = '<strong>NEXUS measured the graph on your screen.</strong> ' + _lvDREndsText(F.dr, _drKind) + ' A zoomed-in re-read agrees, so the ' + _drKind + ' is <strong>' + _lvFmtInterval(B) + '</strong>. (' + (_drKind === 'domain' ? 'Domain = from the far-left x to the far-right x' : 'Range = from the lowest y to the highest y') + '; a filled dot uses [ ], an open circle uses ( ).)'
                                 + (oldExp ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + oldExp + '</div></details>' : '');
                             _drRes = { fixed: true, kind: _drKind, I: B, dr: F.dr, old: oldA };
                         } else if (A && C && _lvSameInterval(A, C)) _drRes = B ? { unsure: true, kind: _drKind, A: A, B: B, C: C, dr: F && F.dr } : { ok: true, by: 'C', kind: _drKind, I: C };
-                        else if (B || C) _drRes = { unsure: true, kind: _drKind, A: A, B: B, C: C, dr: F && F.dr };
+                        else {
+                            // v24.57 — the close-up didn't settle it: show the AI the measured ends and let it look again.
+                            // Its new answer only counts if it matches the measurement (still two sources).
+                            let _retried = false;
+                            if (B && !_toInf) {
+                                if (sD) sD.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Re-checking the ends of the graph…';
+                                let a6 = null;
+                                try {
+                                    const r6 = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                                        body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: JSON.stringify(ai) },
+                                            { role: 'user', content: 'NEXUS measured the curve on the screen. ' + _lvDREndsText(F.dr, _drKind) + ' That gives the ' + _drKind + ' ' + _lvFmtInterval(B) + '. Your answer (' + String(ai.answer || '').slice(0, 80) + ') does not match. Look at the graph again: for each end, count gridlines from the origin and check whether it is a filled dot, an open circle or an arrow. An interval already typed in the answer box is the student\'s attempt — ignore it. Re-answer in the same JSON format.' }] }) });
+                                    const d6 = await r6.json(); if (!d6.error) a6 = JSON.parse(d6.choices[0].message.content);
+                                } catch (_) {}
+                                const A6 = a6 ? _lvParseInterval(a6.answer) : null;
+                                if (A6 && _lvSameInterval(A6, B)) {
+                                    const oldA = String(ai.answer || ''), oldExp = String(ai.explanation || '');
+                                    ai.answer = _lvFmtInterval(B);
+                                    ai.explanation = '<strong>NEXUS measured the graph on your screen.</strong> ' + _lvDREndsText(F.dr, _drKind) + ' Asked to look again, the AI agrees: the ' + _drKind + ' is <strong>' + _lvFmtInterval(B) + '</strong>.' + (a6.explanation ? '<div style="margin-top:6px;">' + String(a6.explanation) + '</div>' : '')
+                                        + (oldExp ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + oldExp + '</div></details>' : '');
+                                    _drRes = { fixed: true, by: 'retry', kind: _drKind, I: B, dr: F.dr, old: oldA };
+                                    _retried = true;
+                                }
+                            }
+                            if (!_retried && (B || C)) _drRes = { unsure: true, kind: _drKind, A: A, B: B, C: C, dr: F && F.dr };
+                        }
                     }
                 } catch (_) {}
             }
@@ -19526,7 +19556,7 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                 const _e4 = function (t) { return String(t == null ? '' : t).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); };
                 const K = _drRes.kind === 'domain' ? 'domain' : 'range';
                 let col, head, body;
-                if (_drRes.fixed) { col = '#ffbe5a'; head = '🛠️ NEXUS corrected the ' + K + ' — measured on your graph'; body = 'The first answer (' + _e4(_drRes.old) + ') didn\'t match the graph. ' + _e4(_lvDREndsText(_drRes.dr, K)) + ' A zoomed-in re-read agrees: <strong>' + _e4(_lvFmtInterval(_drRes.I)) + '</strong>.'; }
+                if (_drRes.fixed) { col = '#ffbe5a'; head = '🛠️ NEXUS corrected the ' + K + ' — measured on your graph'; body = 'The first answer (' + _e4(_drRes.old) + ') didn\'t match the graph. ' + _e4(_lvDREndsText(_drRes.dr, K)) + (_drRes.by === 'retry' ? ' Asked to look again, the AI agrees: <strong>' : ' A zoomed-in re-read agrees: <strong>') + _e4(_lvFmtInterval(_drRes.I)) + '</strong>.'; }
                 else if (_drRes.ok) { col = '#45c78d'; head = _drRes.by === 'C' ? '✅ ' + K.charAt(0).toUpperCase() + K.slice(1) + ' checked up close' : '📏 ' + K.charAt(0).toUpperCase() + K.slice(1) + ' measured on your graph — matches'; body = _drRes.dr ? _e4(_lvDREndsText(_drRes.dr, K)) : 'A zoomed-in re-read of the graph gives the same ' + K + '.'; }
                 else { col = '#ffbe5a'; head = '⚠️ Double-check the ' + K + ' before you submit'; body = 'NEXUS\'s readings don\'t agree: ' + [_drRes.B ? 'measured on your screen ' + _e4(_lvFmtInterval(_drRes.B)) : '', _drRes.C ? 'zoomed-in re-read ' + _e4(_lvFmtInterval(_drRes.C)) : ''].filter(Boolean).join('; ') + '. ' + (K === 'domain' ? 'Find the curve\'s far-left and far-right points and count gridlines from 0.' : 'Find the curve\'s lowest and highest points and count gridlines from 0.') + ' Filled dot → [ ], open circle → ( ), arrow → ∞.'; }
                 answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:' + col + ';">' + head + '</div><div>' + body + '</div></div>');
@@ -22453,8 +22483,11 @@ var NxGraphCV = (function () {
             var side = function (name, ex, ey) {
                 var m = findMarker(Math.round(ex), Math.round(ey)), horiz = name === 'left' || name === 'right';
                 var gl = isFinite(p.gL) ? p.gL : x0, gr = isFinite(p.gR) ? p.gR : x1, gt = isFinite(p.gT) ? p.gT : y0, gb = isFinite(p.gB) ? p.gB : y1;
-                var edge = horiz ? (name === 'left' ? ex - gl : gr - ex) < 0.7 * g : (name === 'top' ? ey - gt : gb - ey) < 0.7 * g;
-                if (m && edge && m.fill === 'closed') m = null;   // a filled blob at the plot's edge is an arrowhead, not a dot
+                var edge = horiz ? (name === 'left' ? ex - gl : gr - ex) < 0.35 * g : (name === 'top' ? ey - gt : gb - ey) < 0.35 * g;
+                // v24.57 — a curve that reaches the edge of the measured picture may just be CUT OFF by the crop:
+                // that is "unknown", never "keeps going forever" (it once turned a filled dot at x = −11 into −∞)
+                var cut = horiz ? (name === 'left' ? ex <= 3 : ex >= w - 4) : (name === 'top' ? ey <= 3 : ey >= h - 4);
+                if (!m && cut) return { v: NaN, kind: 'cut' };
                 // school graphs put ends on whole numbers: snap to the nearest whole when close, else to a half
                 var snap = function (v) { return Math.abs(v - Math.round(v)) <= 0.3 ? Math.round(v) : Math.round(v * 2) / 2; };
                 var v = horiz ? snap(((m ? m.cx : ex) - p.axisX) / p.gx * xs) : snap((p.axisY - (m ? m.cy : ey)) / p.gy * ys);
@@ -22679,7 +22712,7 @@ function _lvDRFromRead(rr, kind) {
 }
 function _lvDREndsText(dr, kind) {
     if (!dr) return '';
-    var d = function (e) { return e.kind === 'closed' ? 'filled dot, included' : e.kind === 'open' ? 'open circle, not included' : e.kind === 'edge' ? 'runs off the graph, keeps going' : 'end of the curve, included'; };
+    var d = function (e) { return e.kind === 'closed' ? 'filled dot, included' : e.kind === 'open' ? 'open circle, not included' : e.kind === 'edge' ? 'runs off the graph, keeps going' : e.kind === 'cut' ? 'couldn\'t see the end' : 'end of the curve, included'; };
     var f = function (v) { return String(v).replace('-', '−'); };
     return kind === 'domain'
         ? 'Left end x = ' + f(dr.left.v) + ' (' + d(dr.left) + ') · right end x = ' + f(dr.right.v) + ' (' + d(dr.right) + ').'
@@ -26285,6 +26318,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.57',
+        date: 'November 16, 2026',
+        tag: 'NO FAKE INFINITY',
+        tagColor: '#ff7675',
+        changes: [
+            'FIXED: "(−∞, 6)" FOR A GRAPH THAT STARTS AT x = −11 — The domain check mistook the filled dot at x = −11 for an arrow running off the graph. Tested on the real DeltaMath screenshots, it now reads [−11, 6) for the domain and [−9, 10) for the range.',
+            'NEVER INVENTS INFINITY — NEXUS will no longer change an answer to ∞ on its own. A curve that reaches the edge of the picture is treated as "couldn\'t see the end", not "keeps going forever".',
+            'WIDER LOOK + ONE MORE TRY — The domain/range check now looks a little wider than the graph box, so ends can\'t get cut off. When its two readings disagree, it shows the AI the measured ends and lets it look again. The answer only changes if the new answer matches the measurement.',
+        ]
+    },
     {
         version: 'v24.56',
         date: 'November 16, 2026',
