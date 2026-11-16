@@ -10873,7 +10873,7 @@ function renderSuggestionsPage() {
 // One global Updates badge + per-feature badges that flag a tab when its
 // content was updated in a version the user hasn't seen yet.
 // ════════════════════════════════════════════════════════════════════
-const NEXUS_CURRENT_VERSION = 'v24.53';
+const NEXUS_CURRENT_VERSION = 'v24.54';
 
 // Map of feature id (matches sidebar tab id) → version that last meaningfully changed it.
 // Bump entries here whenever you ship a feature update. The badge auto-pops on the
@@ -19025,7 +19025,7 @@ CRITICAL — FILL-IN-THE-BLANK DETECTION: Before anything else, scan the image f
 
 CRITICAL — READ THE WHOLE QUESTION, EVERY TIME: online-school platforms keep adding new sentences, clauses and wording to familiar questions (e.g. a function question that ALSO says "For example, the input x = ☐ is mapped to the approximate outputs y = ☐ and y = ☐"). NEVER answer from a remembered template of what the question "usually" asks. Read every word from the first to the last sentence, count every blank / dropdown / empty box, and answer EVERY one, in order. Each answer must fit the words around it and agree with your work and with the other blanks.
 
-CRITICAL — MULTI-PART QUESTIONS (DeltaMath, ALEKS, IXL, Khan…): many platforms show a question in parts — the student answers the first blanks, then MORE blanks appear. When some parts are already answered (filled-in words/numbers in color, a ✓, or "Attempt 1 out of 2"), treat those as given and answer the CURRENT empty blanks. If the screen shows a previous attempt marked incorrect (✗, "incorrect", red), that answer is WRONG — never repeat it; work the problem fresh. Also think one step ahead: answer the part on screen, and in your work prepare what the next part is likely to ask (for an is-it-a-function graph, always fill graph.counterexample even if it isn't asked yet).
+CRITICAL — MULTI-PART QUESTIONS (DeltaMath, ALEKS, IXL, Khan…): many platforms show a question in parts — the student answers the first blanks, then MORE blanks appear. Only parts marked CORRECT (a green ✓) count as given; answer the CURRENT empty blanks. Anything already typed into an answer box or picked in a dropdown is the STUDENT'S OWN ENTRY, not the answer: it may be WRONG (DeltaMath keeps a wrong attempt in the boxes). Never copy it. Solve every blank yourself from the problem, count those boxes in blankCount/blanks too, and give the correct value even when it differs from what is typed. If the screen shows a previous attempt marked incorrect (✗, "incorrect", red, "Attempt 1 out of 2"), that answer is WRONG — never repeat it; work the problem fresh. On a graph, a RED vertical line is DeltaMath feedback drawn at the input the student tried, and the dots on it mark the TRUE outputs at that input — read them. Also think one step ahead: answer the part on screen, and in your work prepare what the next part is likely to ask (for an is-it-a-function graph, always fill graph.counterexample even if it isn't asked yet).
 
 UNIVERSAL ONLINE-SCHOOL COMPREHENSION:
 - This text could come from ANY online learning platform: Acellus, Edgenuity, Apex Learning, FLVS, Khan Academy, IXL, Albert.io, Quizlet, McGraw-Hill Connect, Pearson MyLab, Canvas, Schoology, Google Classroom, Moodle, Blackboard, Edmentum, Study.com, CK-12, NewsELA, NoRedInk, ALEKS, WebAssign, Mastering Physics/Chemistry/Biology, MyMathLab, ConnectED, BrainPOP, Buzz, Lincoln Learning, Calvert, K12, Connections Academy, etc. — handle them ALL identically.
@@ -19332,9 +19332,14 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                             const best = _lvBestExample(FB);
                             const asked = ceA || (Array.isArray(ai.blanks) && ai.blanks.filter(function (b) { return b && isFinite(_lvNum(b.answer)); }).length >= 3);
                             const askedNow = Array.isArray(ai.blanks) && ai.blanks.filter(function (b) { return b && isFinite(_lvNum(b.answer)); }).length >= 2
-                                || /\bx\s*=\s*-?\d/.test(String(ai.answer || '').replace(/<[^>]+>/g, ' '));
+                                || /\bx\s*=\s*-?\d/.test(String(ai.answer || '').replace(/<[^>]+>/g, ' '))
+                                || /[x𝑥]\s*=\s*[-−]?\d/.test(String(ai.filled || '').replace(/<[^>]+>/g, ' '))   // v24.54 — the example lives in the finished sentence
+                                || (Array.isArray(ai.blanks) && ai.blanks.some(function (b) { return b && isFinite(_lvNum(b.answer)) && /\bx\s*=?\s*$/i.test(String(b.before || b.label || '').replace(/<[^>]+>/g, ' ').replace(/𝑥/g, 'x')); }));
                             if (okA === true) { FB.atX = ceA.x; FB.atYs = ceA.ys.slice(); verdict.example = askedNow ? { ok: true, ce: ceA } : { ready: true, ce: ceA, both: true }; }
-                            else if (okA === false && best && askedNow) {
+                            else if (okA !== true && ceA && best && askedNow) {
+                                // v24.54 — "can't confirm" gets the same treatment as "wrong": an example that NEXUS can't find on
+                                // the curve (DeltaMath's red line can hide that column) is never passed through as-is.
+                                const _unver = okA !== false;
                                 const sE = document.getElementById('lv-fetch-status');
                                 if (sE) sE.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i> Checking the example points on your graph…';
                                 const fmtCe = function (c) { return 'x = ' + c.x + ' → y = ' + c.ys.join(' and y = '); };
@@ -19344,12 +19349,12 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                                 try {
                                     const r5 = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                                         body: JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, max_tokens: 1500, temperature: 0, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userParts }, { role: 'assistant', content: JSON.stringify(ai) },
-                                            { role: 'user', content: 'NEXUS measured the drawn curve on the screen. Your example (' + fmtCe(ceA) + ') is NOT on it' + (atAx && atAx.ys.length ? ' — at x = ' + atAx.x + ' the curve is actually at y ≈ ' + atAx.ys.join(' and ') : '') + '. Measured: ' + meas.join('; ') + '. Look at the graph again, pick an x where the curve has two points, read both y-values carefully (points below the x-axis are negative), and re-answer with every blank filled. Same JSON format.' }] }) });
+                                            { role: 'user', content: 'NEXUS measured the drawn curve on the screen. Your example (' + fmtCe(ceA) + ') ' + (_unver ? 'could NOT be confirmed on it (numbers typed in the answer boxes are the student\'s own attempt and may be wrong)' : 'is NOT on it') + (atAx && atAx.ys.length ? ' — at x = ' + atAx.x + ' the curve is actually at y ≈ ' + atAx.ys.join(' and ') : '') + '. Measured: ' + meas.join('; ') + '. Look at the graph again, pick an x where the curve has two points (one of the measured x-values is safest), read both y-values carefully (points below the x-axis are negative), and re-answer with every blank filled, including the input box and both output boxes. Same JSON format.' }] }) });
                                     const d5 = await r5.json(); if (!d5.error) ai5 = JSON.parse(d5.choices[0].message.content);
                                 } catch (_) {}
                                 const ce5 = _lvExampleOf(ai5);
                                 if (ai5 && _lvExampleCheck(FB, ce5, xS, yS) === true && !(ai5.graph && ai5.graph.isFunction === true)) {
-                                    ai = ai5; FB.atX = ce5.x; FB.atYs = ce5.ys.slice(); verdict.example = { fixed: true, old: ceA, ce: ce5 };
+                                    ai = ai5; FB.atX = ce5.x; FB.atYs = ce5.ys.slice(); verdict.example = { fixed: true, old: ceA, ce: ce5, unver: _unver };
                                 } else {
                                     // second opinion: the close-up re-read's example, if the pixels agree with it
                                     if (!FC) { try { const rr2 = await _lvGraphReread(video, ai.graph.box, apiKey, { prompt: NEXUS_FUNCREAD_PROMPT }); if (rr2 && typeof rr2.isFunction === 'boolean') FC = rr2; } catch (_) {} }
@@ -19357,10 +19362,10 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                                     if (ceC && _lvExampleCheck(FB, ceC, xS, yS) === true) {
                                         const oldExp = String(ai.explanation || '');
                                         _lvApplyExample(ai, ceA, ceC);
-                                        ai.explanation = '<strong>NEXUS checked the example on your graph.</strong> ' + fmtCe(ceA).replace('→', 'gives') + ' isn\'t on the drawn curve' + (atAx && atAx.ys.length ? ' (at x = ' + atAx.x + ' it\'s at y ≈ ' + atAx.ys.join(' and ') + ')' : '') + '. A zoomed-in re-read and the pixel measurement agree on <strong>' + fmtCe(ceC) + '</strong>: one input, two outputs — so it is not a function.'
+                                        ai.explanation = '<strong>NEXUS checked the example on your graph.</strong> ' + fmtCe(ceA).replace('→', 'gives') + (_unver ? ' couldn\'t be confirmed on the drawn curve' : ' isn\'t on the drawn curve') + (atAx && atAx.ys.length ? ' (at x = ' + atAx.x + ' it\'s at y ≈ ' + atAx.ys.join(' and ') + ')' : '') + '. A zoomed-in re-read and the pixel measurement agree on <strong>' + fmtCe(ceC) + '</strong>: one input, two outputs — so it is not a function.'
                                             + (oldExp ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--text-muted);">The first reading (contains a mistake)</summary><div style="margin-top:6px;opacity:0.8;">' + oldExp + '</div></details>' : '');
-                                        FB.atX = ceC.x; FB.atYs = ceC.ys.slice(); verdict.example = { fixed: true, old: ceA, ce: ceC };
-                                    } else verdict.example = { warn: true, old: ceA, best: best, atAx: atAx };
+                                        FB.atX = ceC.x; FB.atYs = ceC.ys.slice(); verdict.example = { fixed: true, old: ceA, ce: ceC, unver: _unver };
+                                    } else verdict.example = { warn: true, old: ceA, best: best, atAx: atAx, unver: _unver };
                                 }
                             } else if (okA !== true) {
                                 if (best) { FB.atX = best.x; FB.atYs = best.ys.slice(); verdict.example = { ready: true, ce: best }; }
@@ -19502,8 +19507,8 @@ NOW ANALYZE THE STUDENT'S SCREEN:`;
                     const EX = _fnRes.example;
                     if (EX && EX.ready) body += ' <strong>Next part ready:</strong> if it asks for an example, use the input <strong>x = ' + _e3(EX.ce.x) + '</strong> → outputs <strong>y = ' + _e3(EX.ce.ys.join(' and y = ')) + '</strong>' + (EX.both ? ' (checked on your graph).' : ' (measured on your graph).');
                     else if (EX && EX.ok) body += ' <strong>✓ The example x = ' + _e3(EX.ce.x) + ' → y = ' + _e3(EX.ce.ys.join(' and ')) + ' is on your graph.</strong>';
-                    else if (EX && EX.fixed) { col = '#ffbe5a'; head = '🛠️ NEXUS fixed the example points'; body += ' The first example (x = ' + _e3(EX.old.x) + ' → y = ' + _e3(EX.old.ys.join(' and ')) + ') wasn\'t on the curve; <strong>x = ' + _e3(EX.ce.x) + ' → y = ' + _e3(EX.ce.ys.join(' and ')) + '</strong> is.'; }
-                    else if (EX && EX.warn) { col = '#ffbe5a'; head = '⚠️ Double-check the example numbers'; body += ' The example in the answer (x = ' + _e3(EX.old.x) + ' → y = ' + _e3(EX.old.ys.join(' and ')) + ') doesn\'t match the curve NEXUS measured' + (EX.atAx && EX.atAx.ys.length ? ' (at x = ' + _e3(EX.atAx.x) + ' it\'s at y ≈ ' + _e3(EX.atAx.ys.join(' and ')) + ')' : '') + '. On your screen, <strong>x = ' + _e3(EX.best.x) + ' → y ≈ ' + _e3(EX.best.ys.join(' and ')) + '</strong> looks right — check it before you submit.'; }
+                    else if (EX && EX.fixed) { col = '#ffbe5a'; head = '🛠️ NEXUS fixed the example points'; body += ' The first example (x = ' + _e3(EX.old.x) + ' → y = ' + _e3(EX.old.ys.join(' and ')) + ') ' + (EX.unver ? 'couldn\'t be confirmed on the curve' : 'wasn\'t on the curve') + '; <strong>x = ' + _e3(EX.ce.x) + ' → y = ' + _e3(EX.ce.ys.join(' and ')) + '</strong> is.'; }
+                    else if (EX && EX.warn) { col = '#ffbe5a'; head = '⚠️ Double-check the example numbers'; body += ' The example in the answer (x = ' + _e3(EX.old.x) + ' → y = ' + _e3(EX.old.ys.join(' and ')) + ') ' + (EX.unver ? 'couldn\'t be confirmed on the curve NEXUS measured (if those numbers came from your own earlier attempt, don\'t trust them)' : 'doesn\'t match the curve NEXUS measured') + (EX.atAx && EX.atAx.ys.length ? ' (at x = ' + _e3(EX.atAx.x) + ' it\'s at y ≈ ' + _e3(EX.atAx.ys.join(' and ')) + ')' : '') + '. On your screen, <strong>x = ' + _e3(EX.best.x) + ' → y ≈ ' + _e3(EX.best.ys.join(' and ')) + '</strong> looks right — check it before you submit.'; }
                 }
                 answerElFinal.insertAdjacentHTML('beforeend', '<div class="nx-mathcheck" style="margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid ' + col + '55;background:' + col + '14;font-size:0.82rem;line-height:1.55;color:#e6e9f5;"><div style="font-weight:700;color:' + col + ';">' + head + '</div><div>' + body + '</div></div>');
             } else if (_graphRes && _graphRes.draw) {
@@ -22465,9 +22470,16 @@ function _lvApplyExample(a, oldCe, ce) {
             if (oldCe) { xi = nums.filter(function (i) { return _lvNum(bl[i].answer) === oldCe.x; })[0]; yi = nums.filter(function (i) { return i !== xi && oldCe.ys.indexOf(_lvNum(bl[i].answer)) >= 0; }); }
             if (!(xi >= 0) || yi.length < 2) { if (nums.length >= 3) { xi = nums[nums.length - 3]; yi = nums.slice(-2); } else xi = -1; }
         }
-        if (xi >= 0 && yi.length >= 2) {
-            var olds = [bl[xi].answer].concat(yi.slice(0, ce.ys.length).map(function (i) { return bl[i].answer; }));
-            bl[xi].answer = fmt(ce.x); yi.slice(0, ce.ys.length).forEach(function (i, k) { bl[i].answer = fmt(ce.ys[k]); });
+        var _xOnly = -1;   // v24.54 — the AI filled the input box but left the two output boxes out of its blanks
+        if (oldCe && !(yi.length >= 2)) { bl.forEach(function (b, i) { if (_xOnly < 0 && b && _lvNum(b.answer) === oldCe.x && /\bx\s*=?\s*$/i.test(String(b.before || b.label || '').replace(/<[^>]+>/g, ' ').replace(/𝑥/g, 'x'))) _xOnly = i; }); }
+        if (_xOnly >= 0) {
+            bl[_xOnly].answer = fmt(ce.x);
+            ce.ys.forEach(function (y) { bl.push({ before: 'y =', answer: fmt(y) }); });
+            xi = -2; yi = [];
+        }
+        if (xi === -2 || (xi >= 0 && yi.length >= 2)) {
+            var olds = xi === -2 ? [oldCe.x].concat(oldCe.ys) : [bl[xi].answer].concat(yi.slice(0, ce.ys.length).map(function (i) { return bl[i].answer; }));
+            if (xi >= 0) { bl[xi].answer = fmt(ce.x); yi.slice(0, ce.ys.length).forEach(function (i, k) { bl[i].answer = fmt(ce.ys[k]); }); }
             // keep the AI's finished sentence, swapping just the numbers (x first, then each y in order)
             var f = String(a.filled || ''), pos = 0, okF = !!f;
             [['x', olds[0], fmt(ce.x)]].concat(ce.ys.map(function (y, k) { return ['y', olds[k + 1], fmt(y)]; })).forEach(function (t) {
@@ -26086,6 +26098,17 @@ function generateSimulatedAchievements(problems, streak, xp) {
 // AUTO-UPDATING UPDATES TAB
 // ============================================
 const UPDATE_LOG = [
+    {
+        version: 'v24.54',
+        date: 'November 16, 2026',
+        tag: 'DOESN\'T COPY YOUR BOXES',
+        tagColor: '#ff7675',
+        changes: [
+            'NEVER TRUSTS WHAT\'S ALREADY TYPED — Live Vision used to copy numbers already sitting in the answer boxes (like a wrong first attempt DeltaMath leaves there). Now anything typed in a box is treated as your own attempt that might be wrong, and every blank gets solved fresh.',
+            'EXAMPLE POINTS MUST CHECK OUT — On "is it a function?" graphs, an example NEXUS can\'t find on the curve is no longer passed through. It gets re-checked against the graph and replaced (or flagged) instead. This fixes "x = 1 → y = 1 and −1" when the curve was really at y = 3 and −3.',
+            'Reads DeltaMath\'s red feedback line: the dots on it are the true outputs for the input you tried.',
+        ]
+    },
     {
         version: 'v24.53',
         date: 'November 16, 2026',
